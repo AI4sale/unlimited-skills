@@ -94,6 +94,14 @@ For minimal lexical-only usage:
 python -m pip install -e .
 ```
 
+## Support
+
+Unlimited Skills is open source under the MIT license. Voluntary donations help fund adapters, migration scripts, indexing work, hosted registry maintenance, and the learning-loop roadmap.
+
+Donate at [https://opportunity.ai4.sale/donate/unlimited-skills](https://opportunity.ai4.sale/donate/unlimited-skills), or use GitHub's Sponsor button generated from [.github/FUNDING.yml](.github/FUNDING.yml).
+
+Donations are voluntary support payments. They are non-refundable unless a separate written agreement says otherwise, and they are not investments, securities, loans, equity, revenue share, voting rights, ownership interests, subscriptions, pre-orders, or purchases of hosted-service access. See [SERVICE-TERMS.md](SERVICE-TERMS.md).
+
 ## Registration and Hosted Updates
 
 The local core stays free and offline-first. Registration is not required for local search, local migration, local adaptation, bundled base packs, or the router skill.
