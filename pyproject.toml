@@ -1,0 +1,46 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "unlimited-skills"
+version = "0.1.0"
+description = "A local skill retrieval library for coding agents: lexical search, Chroma vector search, warm daemon mode, and learning-loop logs."
+readme = "README.md"
+requires-python = ">=3.10"
+license = "MIT"
+authors = [
+  { name = "AI4sale" }
+]
+keywords = ["agents", "skills", "codex", "claude-code", "chroma", "retrieval", "rag"]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Intended Audience :: Developers",
+  "License :: OSI Approved :: MIT License",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
+
+[project.optional-dependencies]
+vector = [
+  "chromadb>=1.0,<2",
+  "fastembed>=0.4",
+]
+server = [
+  "fastapi>=0.115",
+  "uvicorn>=0.30",
+]
+all = [
+  "chromadb>=1.0,<2",
+  "fastembed>=0.4",
+  "fastapi>=0.115",
+  "uvicorn>=0.30",
+]
+
+[project.scripts]
+unlimited-skills = "unlimited_skills.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["unlimited_skills"]
