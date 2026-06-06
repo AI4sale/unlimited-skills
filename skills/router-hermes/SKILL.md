@@ -74,6 +74,28 @@ print(data["total"], len({s["name"] for s in data["skills"]}))
 PY
 ```
 
+## Hosted Registration / Community Access
+
+Local Community Core usage does not require registration: `search`, `list`, `view`, `where`, `use`, `feedback`, local indexing, and bundled/local packs continue to work offline.
+
+Hosted services require registration: hosted adapted-skill catalog, `community-skills` catalog/submissions, adapted collection updates, registered local enhancement scripts, team sync, and future dashboard/cloud/marketplace features.
+
+Current community registration is self-service and does not require an invite key. Use:
+
+```bash
+"{{HERMES_SH_LAUNCHER}}" register --agent hermes
+"{{HERMES_SH_LAUNCHER}}" license status
+```
+
+Registration creates a random install id plus an Ed25519 device key, sends only the public key and key thumbprint to the registry, and stores the returned hosted-service token plus device private key in `~/.unlimited-skills/registration.json`. Treat that file like a credential. Telemetry remains off unless `--telemetry` is explicitly passed.
+
+After registering, verify hosted access with:
+
+```bash
+"{{HERMES_SH_LAUNCHER}}" catalog list
+"{{HERMES_SH_LAUNCHER}}" updates check
+```
+
 ## Common Commands
 
 ```bash
