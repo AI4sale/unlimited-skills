@@ -50,6 +50,8 @@ Planned service tiers:
 - **Pro / Team**: paid hosted workflow, dashboard, larger team sync, and collaboration features.
 - **Enterprise**: private registry, private update channel, Enterprise Skill Lock, custom security terms, and support.
 
+Business and enterprise discussions start through the company intake page at [https://unlimited.ai4.sale/enterprise](https://unlimited.ai4.sale/enterprise). The page collects basic company, rollout, pricing, and deployment-model context. It does not issue a CLI registration key automatically.
+
 The exact hosted-service terms can change independently from the MIT source license. See [../SERVICE-TERMS.md](../SERVICE-TERMS.md).
 
 ## CLI

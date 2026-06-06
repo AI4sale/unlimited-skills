@@ -154,6 +154,8 @@ Planned team feature: registered teams will be able to publish encrypted private
 
 Planned enterprise feature: Enterprise Skill Lock will let managed instances refuse unmanaged skill delivery and direct operators to a corporate administrator or approved enterprise update channel. See [docs/enterprise-skill-lock.md](docs/enterprise-skill-lock.md).
 
+Business and enterprise access starts with a company registration request at [https://unlimited.ai4.sale/enterprise](https://unlimited.ai4.sale/enterprise). That page collects basic company, rollout, pricing, and deployment-model context; it does not create a CLI registration key by itself.
+
 ## Install for Codex
 
 Install the router skill into `~/.codex/skills/unlimited-skills`.
