@@ -11,6 +11,7 @@ The local Unlimited Skills core in this repository is licensed under the MIT Lic
 The following are hosted services, not part of the unrestricted MIT source-code grant:
 
 - official hosted adapted-skill catalog;
+- hosted `community-skills` catalog and submissions;
 - adapted collection update stream;
 - registered local skill enhancement scripts;
 - signed hosted collection archives;

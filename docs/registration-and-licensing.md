@@ -24,6 +24,7 @@ Registration is not required for local or offline usage.
 Registration is required for official hosted services:
 
 - hosted adapted-skill catalog;
+- hosted `community-skills` catalog and submissions;
 - adapted collection update stream;
 - registered local skill enhancement scripts;
 - signed hosted collection archives;
@@ -44,7 +45,7 @@ The file contains the local install id, the configured service URL, the service 
 Planned service tiers:
 
 - **Community Core**: MIT local core, no hosted-service registration required.
-- **Registered Community**: free registration key for hosted catalog and collection updates.
+- **Registered Community**: free registration key for hosted catalog, `community-skills` access, and collection updates.
 - **Team Free**: planned free team license for up to 10 registered team instances.
 - **Pro / Team**: paid hosted workflow, dashboard, larger team sync, and collaboration features.
 - **Enterprise**: private registry, private update channel, custom security terms, and support.
@@ -88,4 +89,4 @@ Apply hosted collection updates:
 unlimited-skills updates apply
 ```
 
-Hosted catalog, update, and enhancement-script commands fail when the installation is not registered. Local commands such as `search`, `list`, `view`, `reindex`, `adapt`, and installer migrations continue to work without registration.
+Hosted catalog, `community-skills`, update, and enhancement-script commands fail when the installation is not registered. Local commands such as `search`, `list`, `view`, `reindex`, `adapt`, and installer migrations continue to work without registration.

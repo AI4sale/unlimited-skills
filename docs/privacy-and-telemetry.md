@@ -29,6 +29,8 @@ The update client does not send:
 
 The local enhancement script is downloaded from the registry, but it runs on the user's machine. Skill contents are not uploaded for enhancement.
 
+Community publishing is different: when a user submits or pushes a skill to the hosted `community-skills` catalog, the selected skill or pack is intentionally uploaded for review/publication. The client must show that explicit upload action separately from telemetry, search, update checks, or local enhancement.
+
 ## Telemetry
 
 Telemetry is off by default.

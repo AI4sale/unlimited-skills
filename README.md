@@ -100,6 +100,7 @@ The local core stays free and offline-first. Registration is not required for lo
 Registration is required only for AI4sale-hosted services:
 
 - hosted adapted-skill catalog;
+- hosted `community-skills` catalog and submissions;
 - adapted collection update stream;
 - registered local skill enhancement script;
 - signed hosted collection archives;
@@ -146,6 +147,8 @@ The registration file is stored at:
 ```
 
 The registry client sends only install id, client version, collection versions, source labels, and skill-count buckets. It does not send skill bodies, prompts, source code, skill names, full local paths, repository paths, customer names, environment variables, tokens, or secrets. See [docs/privacy-and-telemetry.md](docs/privacy-and-telemetry.md).
+
+Using the hosted `community-skills` catalog or pushing skills into it also requires registration. Submitting to `community-skills` is an explicit upload of the selected skill or pack, not background telemetry. See [docs/community-skills.md](docs/community-skills.md).
 
 Planned team feature: registered teams will be able to publish encrypted private skill-pack updates from a master instance and synchronize them across child instances. Up to 10 team instances are planned to be included in the free team license. See [docs/team-skill-sync.md](docs/team-skill-sync.md).
 
@@ -478,4 +481,4 @@ The repository source code is MIT licensed. See [LICENSE](LICENSE).
 
 The MIT license covers the local Community Core: router, installers, migrations, local search, local daemon, local learning logs, and bundled repository contents.
 
-AI4sale-hosted catalog access, adapted collection update streams, registered local enhancement scripts, signed hosted archives, dashboard features, support, cloud sync, marketplace, team skill sync, and enterprise private registries require a registered installation and are governed separately. See [docs/registration-and-licensing.md](docs/registration-and-licensing.md) and [SERVICE-TERMS.md](SERVICE-TERMS.md).
+AI4sale-hosted catalog access, `community-skills` catalog/submissions, adapted collection update streams, registered local enhancement scripts, signed hosted archives, dashboard features, support, cloud sync, marketplace, team skill sync, and enterprise private registries require a registered installation and are governed separately. See [docs/registration-and-licensing.md](docs/registration-and-licensing.md) and [SERVICE-TERMS.md](SERVICE-TERMS.md).
