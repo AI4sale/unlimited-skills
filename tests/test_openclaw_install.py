@@ -165,3 +165,38 @@ def test_openclaw_plugin_symlink_is_migrated(tmp_path: Path, monkeypatch) -> Non
     )
 
     assert (install_root / "library" / "openclaw-plugin" / "skills" / "browser-automation" / "SKILL.md").is_file()
+
+
+def test_openclaw_reinstall_refreshes_same_collection_skills(tmp_path: Path, monkeypatch) -> None:
+    repo_root = make_repo(tmp_path / "repo")
+    openclaw_home = tmp_path / ".openclaw"
+    workspace_root = openclaw_home / "workspace"
+    install_root = tmp_path / ".unlimited-skills"
+    source_skill = write_skill(workspace_root / "skills", "custom-skill", "v1")
+
+    def fake_sources(openclaw_home_arg, workspace_root_arg, include_builtin, include_plugin_skills):
+        return [("openclaw-workspace", workspace_root_arg / "skills")]
+
+    monkeypatch.setattr(openclaw, "_openclaw_sources", fake_sources)
+
+    options = OpenClawInstallOptions(
+        openclaw_home=openclaw_home,
+        workspace_root=workspace_root,
+        install_root=install_root,
+        repo_root=repo_root,
+        include_builtin=False,
+        include_plugin_skills=False,
+        skip_reindex=True,
+    )
+    first = install_openclaw(options)
+    assert first.migrations[0].migrated_count == 1
+
+    (source_skill / "SKILL.md").write_text(
+        "---\nname: custom-skill\ndescription: v2\n---\n\n# custom-skill\n",
+        encoding="utf-8",
+    )
+    second = install_openclaw(options)
+
+    library_skill = install_root / "library" / "openclaw-workspace" / "skills" / "custom-skill" / "SKILL.md"
+    assert second.migrations[0].migrated_count == 1
+    assert "description: v2" in library_skill.read_text(encoding="utf-8")

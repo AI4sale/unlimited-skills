@@ -180,10 +180,19 @@ def _patch_agents_file(agents_file: Path, launcher: Path) -> None:
     agents_file.write_text(text, encoding="utf-8")
 
 
-def _existing_skill_names(library_root: Path) -> set[str]:
+def _existing_skill_names(library_root: Path, exclude_collection: str = "") -> set[str]:
     if not library_root.is_dir():
         return set()
-    return {path.parent.name for path in library_root.rglob("SKILL.md")}
+    names = set()
+    for path in library_root.rglob("SKILL.md"):
+        try:
+            collection = path.relative_to(library_root).parts[0]
+        except (IndexError, ValueError):
+            collection = ""
+        if exclude_collection and collection == exclude_collection:
+            continue
+        names.add(path.parent.name)
+    return names
 
 
 def _migrate_source(
@@ -199,7 +208,7 @@ def _migrate_source(
         return MigrationResult(collection=collection, source_root=str(source_root), migrated_count=0, skipped=True, reason="source root not found")
 
     target_skills = library_root / collection / "skills"
-    existing = _existing_skill_names(library_root) if skip_existing_names else set()
+    existing = _existing_skill_names(library_root, exclude_collection=collection) if skip_existing_names else set()
     excluded = exclude_names or set()
     migrated = 0
     for skill_dir in iter_skill_dirs(source_root, exclude_names=excluded):
