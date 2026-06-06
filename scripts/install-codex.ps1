@@ -69,15 +69,15 @@ Unlimited Skills is the external skill memory for this agent. Treat it as the fi
 Before saying a skill is unavailable, query the library:
 
 ```powershell
-& "{LAUNCHER}" search "<task or skill name>" --mode hybrid --limit 8
-& "{LAUNCHER}" where <skill-name>
-& "{LAUNCHER}" view <skill-name>
+powershell -NoProfile -ExecutionPolicy Bypass -File "{LAUNCHER}" search "<task or skill name>" --mode hybrid --limit 8
+powershell -NoProfile -ExecutionPolicy Bypass -File "{LAUNCHER}" where <skill-name>
+powershell -NoProfile -ExecutionPolicy Bypass -File "{LAUNCHER}" view <skill-name>
 ```
 
 For inventory questions, query the library before answering:
 
 ```powershell
-& "{LAUNCHER}" list --limit 80
+powershell -NoProfile -ExecutionPolicy Bypass -File "{LAUNCHER}" list --limit 80
 ```
 
 Do not rely only on `.agents/skills`, `.codex/skills`, or the visible skill list. The library may contain skills that are intentionally not loaded into context.
