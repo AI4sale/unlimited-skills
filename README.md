@@ -1,10 +1,30 @@
-# Unlimited Skills
+<div align="center">
 
-Unlimited Skills is a local skill retrieval layer for coding agents.
+# Lord of the Skills
 
-It keeps thousands of `SKILL.md` files out of the agent's always-loaded context, then retrieves only the small number of skills that are relevant to the current task.
+<pre>
++--------------------------------------------------------------+
+|                 One skill to rule them all.                  |
++--------------------------------------------------------------+
+</pre>
+
+**Unlimited Skills** is a local skill memory and retrieval layer for coding agents.
+
+Keep thousands of `SKILL.md` files out of the always-loaded context. Ask one tiny router skill what the task needs. Load only the selected skill.
+
+</div>
+
+## What it is
+
+Unlimited Skills turns a folder full of skills into an action library for agents.
+
+It is built around one practical rule: the agent should not know every skill all the time. It should know how to ask for the right skill when work starts.
 
 The current version is built for Codex first, with migration scripts for Claude Code, OpenClaw, Hermes, and Vellum AI.
+
+> **Sorry, yes, we patch `AGENTS.md`.**
+>
+> Agents often look only at `.agents/skills`, `.codex/skills`, or the visible skill list before saying a skill is missing. The optional `AGENTS.md` patch adds a managed instruction block that tells the agent to query Unlimited Skills first.
 
 ## Why this exists
 
@@ -71,37 +91,43 @@ python -m pip install -e .
 
 Install the router skill into `~/.codex/skills/unlimited-skills`.
 
+Choose one path:
+
+| Mode | What happens | Use when |
+| --- | --- | --- |
+| `default` | Install the router, migrate already installed local skills, index them. | You already have skills installed locally. |
+| `bundled` | Install the router, add bundled ECC + Superpowers packs, then add local skills only when names do not duplicate. | You want a ready skill library immediately. |
+| `adapt-installed` | Install the router, migrate local skills, structurally normalize them, and index them. | You want to prepare local skills for one-by-one agent adaptation. |
+
 Windows PowerShell:
 
 ```powershell
 .\scripts\install-codex.ps1
+.\scripts\install-codex.ps1 -Mode bundled
+.\scripts\install-codex.ps1 -AgentsFile C:\path\to\project\AGENTS.md
 ```
 
 macOS/Linux:
 
 ```bash
 ./scripts/install-codex.sh
+./scripts/install-codex.sh --mode bundled
+./scripts/install-codex.sh --agents-file /path/to/project/AGENTS.md
 ```
 
-Install modes:
+More install examples:
 
 ```powershell
-.\scripts\install-codex.ps1
-.\scripts\install-codex.ps1 -Mode bundled
 .\scripts\install-codex.ps1 -Mode adapt-installed
-.\scripts\install-codex.ps1 -AgentsFile C:\path\to\project\AGENTS.md
 ```
 
 ```bash
-./scripts/install-codex.sh
-./scripts/install-codex.sh --mode bundled
 ./scripts/install-codex.sh --mode adapt-installed
-./scripts/install-codex.sh --agents-file /path/to/project/AGENTS.md
 ```
 
 Default mode installs the router, migrates already installed skills, and indexes them. Bundled mode installs the pre-adapted packs shipped in this repo, then adds local skills only when they do not duplicate existing skill names. Adapt-installed mode prepares installed local skills for the one-skill agent adaptation workflow.
 
-For Codex projects, patching `AGENTS.md` is recommended. It adds a managed Unlimited Skills block that tells the agent to query the external library before claiming that a named skill is unavailable.
+For Codex projects, patching `AGENTS.md` is recommended. It adds a managed Unlimited Skills block that tells the agent to query the external library before claiming that a named skill is unavailable. Existing `AGENTS.md` content is preserved, and the managed block is replaced in place on repeat installs.
 
 The installer creates an isolated venv under `~/.unlimited-skills/.venv` and writes a Codex-local launcher:
 
