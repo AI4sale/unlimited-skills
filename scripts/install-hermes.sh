@@ -112,13 +112,23 @@ fi
 cli_python="$python_cmd"
 venv="$install_root/.venv"
 venv_python="$venv/bin/python"
+if [[ ! -x "$venv_python" && -x "$venv/Scripts/python.exe" ]]; then
+  venv_python="$venv/Scripts/python.exe"
+fi
 
 if [[ "$apply" -eq 1 && "$skip_pip_install" -eq 0 ]]; then
   if [[ ! -x "$venv_python" ]]; then
     "$python_cmd" -m venv "$venv"
+    if [[ ! -x "$venv_python" && -x "$venv/Scripts/python.exe" ]]; then
+      venv_python="$venv/Scripts/python.exe"
+    fi
+  fi
+  pip_repo_root="$repo_root"
+  if command -v cygpath >/dev/null 2>&1 && [[ "$venv_python" == *.exe ]]; then
+    pip_repo_root="$(cygpath -w "$repo_root")"
   fi
   "$venv_python" -m pip install --upgrade pip
-  "$venv_python" -m pip install -e "$repo_root[all]"
+  "$venv_python" -m pip install -e "$pip_repo_root[all]"
   cli_python="$venv_python"
 elif [[ -x "$venv_python" ]]; then
   cli_python="$venv_python"

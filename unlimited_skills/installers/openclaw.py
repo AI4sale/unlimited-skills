@@ -115,7 +115,11 @@ def _write_launcher(launcher: Path, repo_root: Path, library_root: Path, python_
     launcher.write_text(
         "#!/usr/bin/env bash\n"
         "set -euo pipefail\n"
-        f"export PYTHONPATH={sh_repo_root}:\"${{PYTHONPATH:-}}\"\n"
+        f"if [[ -n \"${{PYTHONPATH:-}}\" ]]; then\n"
+        f"  export PYTHONPATH={sh_repo_root}:\"$PYTHONPATH\"\n"
+        "else\n"
+        f"  export PYTHONPATH={sh_repo_root}\n"
+        "fi\n"
         f"exec {sh_python} -m unlimited_skills.cli --root {sh_library_root} \"$@\"\n",
         encoding="utf-8",
     )
