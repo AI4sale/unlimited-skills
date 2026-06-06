@@ -14,7 +14,7 @@ The following are hosted services, not part of the unrestricted MIT source-code 
 - hosted `community-skills` catalog and submissions;
 - adapted collection update stream;
 - registered local skill enhancement scripts;
-- signed hosted collection archives;
+- SHA256-verified hosted collection archives;
 - hosted dashboards, support, cloud sync, team skill sync, Enterprise Skill Lock, private registries, and marketplace features.
 
 Access to hosted services requires a registered installation and a valid hosted-service token.

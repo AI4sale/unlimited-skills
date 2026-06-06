@@ -36,8 +36,9 @@ Registration is required for official hosted services:
 - hosted `community-skills` catalog and submissions;
 - adapted collection update stream;
 - registered local skill enhancement scripts;
-- signed hosted collection archives;
-- planned team skill sync for encrypted private team packs;
+- SHA256-verified hosted collection archives;
+- registered team sync MVP with master approval;
+- planned encrypted private team-pack publishing;
 - hosted support and dashboard features;
 - future cloud sync, marketplace, team, Enterprise Skill Lock, and enterprise features.
 
@@ -54,9 +55,9 @@ The file contains the local install id, the configured service URL, the service 
 Planned service tiers:
 
 - **Community Core**: MIT local core, no hosted-service registration required.
-- **Registered Community**: free registration key for hosted catalog, `community-skills` access, and collection updates.
-- **Team Free**: planned free team license for up to 10 registered team instances.
-- **Pro / Team**: paid hosted workflow, dashboard, larger team sync, and collaboration features.
+- **Registered Community**: free registration key for early-access hosted catalog, `community-skills` access, and collection updates.
+- **Team Free**: team sync MVP for up to 10 registered team instances, with manual approval by default.
+- **Pro / Team**: paid hosted workflow, dashboard, larger team sync, longer auto-approval windows, and collaboration features.
 - **Enterprise**: private registry, private update channel, Enterprise Skill Lock, custom security terms, and support.
 
 Business and enterprise discussions start through the company intake page at [https://unlimited.ai4.sale/enterprise](https://unlimited.ai4.sale/enterprise). The page collects basic company, rollout, pricing, and deployment-model context. It does not issue a CLI registration key automatically.

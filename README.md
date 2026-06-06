@@ -12,6 +12,8 @@
 
 Keep thousands of `SKILL.md` files out of the always-loaded context. Ask one tiny router skill what the task needs. Load only the selected skill.
 
+**v0.1.0 alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, and enterprise governance features are roadmap items.
+
 </div>
 
 ## What it is
@@ -61,8 +63,10 @@ Working now:
 - OpenClaw installer for workspace/plugin/built-in skills;
 - Hermes router-only context-reduction installer and rollback scripts;
 - registered-installation state for hosted catalog and adapted collection updates;
-- hosted update client with SHA256-verified collection archives.
-- registered hosted catalog client.
+- hosted update client with SHA256-verified collection archives;
+- registered hosted catalog client;
+- registered team create/join/approval/sync MVP;
+- native skill sync for Codex, Claude Code, Hermes, and OpenClaw roots;
 - public repo self-update checks and applies latest releases/tags.
 
 In development:
@@ -71,7 +75,7 @@ In development:
 - richer learning loop for accepted/rejected matches;
 - automatic skill drafting from repeated task patterns;
 - stronger per-agent installers and config adapters;
-- production hosted catalog API for registered installations.
+- hosted registry service hardening and broader early-access onboarding.
 
 ## Install
 
@@ -94,6 +98,10 @@ For minimal lexical-only usage:
 python -m pip install -e .
 ```
 
+PyPI packaging is not the v0.1.0 distribution path. Install from a GitHub clone for now, because the router skills, scripts, docs, and bundled packs are repo assets. A PyPI package should wait until wheel asset inclusion is tested.
+
+For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md). For vulnerability reporting and hosted-download security boundaries, see [SECURITY.md](SECURITY.md).
+
 ## Support
 
 Unlimited Skills is open source under the MIT license. Voluntary donations help fund adapters, migration scripts, indexing work, hosted registry maintenance, and the learning-loop roadmap.
@@ -112,7 +120,7 @@ Registration is required only for AI4sale-hosted services:
 - hosted `community-skills` catalog and submissions;
 - adapted collection update stream;
 - registered local skill enhancement script;
-- signed hosted collection archives;
+- SHA256-verified hosted collection archives;
 - future dashboard, cloud sync, marketplace, team skill sync, and enterprise features.
 
 Register an installation:
@@ -138,6 +146,8 @@ unlimited-skills catalog list
 unlimited-skills updates check
 unlimited-skills updates apply
 ```
+
+Hosted catalog/update access is early-access. The client is implemented, but the official registry requires registration and may have limited availability while v0.1 is in alpha.
 
 Mirror native agent skill roots into the local library:
 
@@ -249,6 +259,8 @@ Restart Codex after installing the router skill.
 
 OpenClaw needs a full installer, not just a migration script. The installer puts the router skill into the OpenClaw workspace, writes an OpenClaw launcher, imports OpenClaw workspace/plugin/built-in skills, patches the workspace `AGENTS.md`, and rebuilds the index.
 
+The OpenClaw installer modifies the selected workspace. Run it only in the intended workspace, or pass `--no-agents-patch` if you do not want it to patch `AGENTS.md`.
+
 Linux:
 
 ```bash
@@ -290,7 +302,7 @@ Hermes users should distinguish plain migration from context reduction:
 - `migrate-hermes` copies skills into the Unlimited Skills library but leaves `~/.hermes/skills` untouched.
 - `install-hermes --mode evacuate-visible-skills` copies skills into the library, moves originals into a rollback backup, and leaves only the `unlimited-skills` router visible to Hermes.
 
-If Hermes loads all visible skills into startup context, use the router-only context reduction mode.
+If Hermes loads all visible skills into startup context, use `install-hermes --mode evacuate-visible-skills`. Plain `router-only` installation mirrors native skills into the library but leaves existing visible skills in place, so it does not reduce Hermes startup context by itself.
 
 Dry run first:
 
@@ -521,4 +533,4 @@ The repository source code is MIT licensed. See [LICENSE](LICENSE).
 
 The MIT license covers the local Community Core: router, installers, migrations, local search, local daemon, local learning logs, and bundled repository contents.
 
-AI4sale-hosted catalog access, `community-skills` catalog/submissions, adapted collection update streams, registered local enhancement scripts, signed hosted archives, dashboard features, support, cloud sync, marketplace, team skill sync, Enterprise Skill Lock, and enterprise private registries require a registered installation and are governed separately. See [docs/registration-and-licensing.md](docs/registration-and-licensing.md) and [SERVICE-TERMS.md](SERVICE-TERMS.md).
+AI4sale-hosted catalog access, `community-skills` catalog/submissions, adapted collection update streams, registered local enhancement scripts, SHA256-verified hosted archives, dashboard features, support, cloud sync, marketplace, team skill sync, Enterprise Skill Lock, and enterprise private registries require a registered installation and are governed separately. See [docs/registration-and-licensing.md](docs/registration-and-licensing.md) and [SERVICE-TERMS.md](SERVICE-TERMS.md).
