@@ -70,8 +70,8 @@ if [[ -z "$source_root" || -z "$target_root" || -z "$collection" ]]; then
 fi
 
 if [[ ! -d "$source_root" ]]; then
-  echo "Source root not found: $source_root"
-  exit 0
+  echo "Source root not found: $source_root" >&2
+  exit 1
 fi
 
 if command -v python3 >/dev/null 2>&1; then

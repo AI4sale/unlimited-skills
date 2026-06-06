@@ -20,7 +20,7 @@ Unlimited Skills turns a folder full of skills into an action library for agents
 
 It is built around one practical rule: the agent should not know every skill all the time. It should know how to ask for the right skill when work starts.
 
-The current version is built for Codex first, with migration scripts for Claude Code, OpenClaw, Hermes, and Vellum AI.
+The current version is built for Codex first, with migration scripts for Claude Code, OpenClaw, Hermes, and Vellum AI. Hermes also has a router-only installer for agents that load every visible skill at startup.
 
 > **Sorry, yes, we patch `AGENTS.md`.**
 >
@@ -57,7 +57,8 @@ Working now:
 - agent-driven one-skill adaptation workflow;
 - usage and feedback logs;
 - draft generation for new skills;
-- migration scripts for Codex, Claude Code, OpenClaw, Hermes, and Vellum AI.
+- migration scripts for Codex, Claude Code, OpenClaw, Hermes, and Vellum AI;
+- Hermes router-only context-reduction installer and rollback scripts.
 
 In development:
 
@@ -140,6 +141,58 @@ The installer creates an isolated venv under `~/.unlimited-skills/.venv` and wri
 
 Restart Codex after installing the router skill.
 
+## Install for Hermes
+
+Hermes users should distinguish plain migration from context reduction:
+
+- `migrate-hermes` copies skills into the Unlimited Skills library but leaves `~/.hermes/skills` untouched.
+- `install-hermes --mode evacuate-visible-skills` copies skills into the library, moves originals into a rollback backup, and leaves only the `unlimited-skills` router visible to Hermes.
+
+If Hermes loads all visible skills into startup context, use the router-only context reduction mode.
+
+Dry run first:
+
+```powershell
+.\scripts\install-hermes.ps1 -Mode evacuate-visible-skills
+```
+
+```bash
+./scripts/install-hermes.sh --mode evacuate-visible-skills
+```
+
+Apply:
+
+```powershell
+.\scripts\install-hermes.ps1 -Mode evacuate-visible-skills -Apply
+```
+
+```bash
+./scripts/install-hermes.sh --mode evacuate-visible-skills --apply
+```
+
+The install report shows the proof that context was reduced:
+
+```text
+Before:
+  visible SKILL.md count: 184
+After:
+  visible SKILL.md count: 1
+  visible skills:
+    - unlimited-skills
+```
+
+Rollback with the manifest printed by the installer:
+
+```powershell
+.\scripts\rollback-hermes.ps1 -Manifest "$env:USERPROFILE\.unlimited-skills\backups\hermes-visible-skills-YYYYMMDD-HHMMSS\manifest.json" -Apply
+```
+
+```bash
+./scripts/rollback-hermes.sh --manifest "$HOME/.unlimited-skills/backups/hermes-visible-skills-YYYYMMDD-HHMMSS/manifest.json" --apply
+```
+
+See `docs/integrations/hermes.md` and `docs/context-reduction-model.md` for the full model.
+
 ## Migrate skills
 
 All migration scripts run as dry runs unless you pass `-Apply` on Windows or `--apply` on macOS/Linux.
@@ -178,7 +231,7 @@ OpenClaw:
 ./scripts/migrate-openclaw.sh --source-root "$HOME/.openclaw/skills" --apply
 ```
 
-Hermes:
+Hermes plain migration imports skills into the Unlimited Skills library. It does **not** reduce Hermes startup context if the original skills remain in `~/.hermes/skills`.
 
 ```powershell
 .\scripts\migrate-hermes.ps1 -SourceRoot "$env:USERPROFILE\.hermes\skills" -Apply
@@ -187,6 +240,8 @@ Hermes:
 ```bash
 ./scripts/migrate-hermes.sh --source-root "$HOME/.hermes/skills" --apply
 ```
+
+For context reduction, use `install-hermes --mode evacuate-visible-skills --apply` instead.
 
 Vellum AI:
 

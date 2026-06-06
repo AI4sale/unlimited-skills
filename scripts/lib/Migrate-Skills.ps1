@@ -16,8 +16,8 @@ param(
 $ErrorActionPreference = "Stop"
 
 if (-not (Test-Path $SourceRoot)) {
-  Write-Host "Source root not found: $SourceRoot"
-  return
+  Write-Error "Source root not found: $SourceRoot"
+  exit 1
 }
 
 $source = Resolve-Path $SourceRoot

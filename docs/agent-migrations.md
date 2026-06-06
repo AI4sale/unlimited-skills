@@ -99,6 +99,8 @@ Default source:
 %USERPROFILE%\.hermes\skills
 ```
 
+Plain migration copies Hermes skills into the Unlimited Skills library but does not reduce context if Hermes still scans the original visible skill root.
+
 Override it when needed:
 
 ```powershell
@@ -108,6 +110,18 @@ Override it when needed:
 ```bash
 ./scripts/migrate-hermes.sh --source-root "$HOME/.hermes/skills" --apply
 ```
+
+For Hermes context reduction, use the adapter installer instead:
+
+```powershell
+.\scripts\install-hermes.ps1 -Mode evacuate-visible-skills -Apply
+```
+
+```bash
+./scripts/install-hermes.sh --mode evacuate-visible-skills --apply
+```
+
+This moves real skills out of the Hermes-visible directory, installs only the `unlimited-skills` router, writes a rollback manifest, and prints before/after visible skill counts.
 
 ## Vellum AI
 
