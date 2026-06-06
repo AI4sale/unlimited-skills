@@ -15,7 +15,7 @@ from typing import Any
 
 from . import __version__
 
-DEFAULT_SERVICE_URL = os.environ.get("UNLIMITED_SKILLS_SERVICE_URL", "https://opportunity.ai4.sale/api/unlimited-skills")
+DEFAULT_SERVICE_URL = os.environ.get("UNLIMITED_SKILLS_SERVICE_URL", "https://unlimited.ai4.sale")
 REGISTRATION_NAME = "registration.json"
 
 

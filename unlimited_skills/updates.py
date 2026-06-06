@@ -34,6 +34,8 @@ class CollectionUpdate:
     version: str
     archive_url: str
     sha256: str
+    signature: str = ""
+    pack_id: str = ""
     notes: str = ""
     format: str = "skill-collection-zip-v1"
 
@@ -115,6 +117,8 @@ def parse_updates(data: dict[str, Any]) -> list[CollectionUpdate]:
                 version=version,
                 archive_url=archive_url,
                 sha256=sha256,
+                signature=str(item.get("signature") or ""),
+                pack_id=str(item.get("pack_id") or ""),
                 notes=str(item.get("notes") or ""),
                 format=str(item.get("format") or "skill-collection-zip-v1"),
             )
@@ -130,7 +134,10 @@ def validate_collection_name(collection: str) -> None:
 class UpdateClient:
     def __init__(self, state: RegistrationState, *, timeout: float = 30.0) -> None:
         if not state.registered:
-            raise RegistrationRequired("Hosted catalog and adapted collection updates require a registered installation.")
+            raise RegistrationRequired(
+                "Official skill updates require registration. The MIT core remains fully usable offline: local search, "
+                "local skill library, local imports, router skill, daemon, reindex, list, and view."
+            )
         self.state = state
         self.timeout = timeout
 
