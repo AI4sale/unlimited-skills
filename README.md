@@ -14,6 +14,8 @@ Keep thousands of `SKILL.md` files out of the always-loaded context. Ask one tin
 
 **v0.1.0 alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, and enterprise governance features are roadmap items.
 
+[Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
+
 </div>
 
 ## What it is
@@ -106,7 +108,7 @@ For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md). For v
 
 Unlimited Skills is open source under the MIT license. Voluntary donations help fund adapters, migration scripts, indexing work, hosted registry maintenance, and the learning-loop roadmap.
 
-Donate at [https://opportunity.ai4.sale/donate/unlimited-skills](https://opportunity.ai4.sale/donate/unlimited-skills), or use GitHub's Sponsor button generated from [.github/FUNDING.yml](.github/FUNDING.yml).
+Donate at [https://opportunity.ai4.sale/donate/unlimited-skills](https://opportunity.ai4.sale/donate/unlimited-skills), use GitHub's Sponsor button generated from [.github/FUNDING.yml](.github/FUNDING.yml), or see [DONATE.md](DONATE.md).
 
 Donations are voluntary support payments. They are non-refundable unless a separate written agreement says otherwise, and they are not investments, securities, loans, equity, revenue share, voting rights, ownership interests, subscriptions, pre-orders, or purchases of hosted-service access. See [SERVICE-TERMS.md](SERVICE-TERMS.md).
 
