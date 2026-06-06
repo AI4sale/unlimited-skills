@@ -44,7 +44,7 @@ def test_hermes_install_evacuates_visible_skills_and_leaves_only_router(tmp_path
     assert [p.parent.name for p in visible_root.rglob("SKILL.md")] == ["unlimited-skills"]
 
     assert (install_root / "library" / "hermes" / "skills" / "alpha" / "SKILL.md").is_file()
-    assert (install_root / "library" / "hermes" / "skills" / "beta" / "SKILL.md").is_file()
+    assert (install_root / "library" / "hermes" / "skills" / "category" / "beta" / "SKILL.md").is_file()
 
     router = visible_root / "unlimited-skills" / "SKILL.md"
     router_text = router.read_text(encoding="utf-8")
@@ -63,6 +63,36 @@ def test_hermes_install_evacuates_visible_skills_and_leaves_only_router(tmp_path
     assert manifest["visible_root"] == str(visible_root)
     assert manifest["before_visible_count"] == 2
     assert {item["name"] for item in manifest["items"]} == {"alpha", "beta"}
+
+
+def test_hermes_install_preserves_relative_paths_and_only_excludes_root_router(tmp_path: Path) -> None:
+    hermes_home = tmp_path / ".hermes"
+    visible_root = hermes_home / "skills"
+    install_root = tmp_path / ".unlimited-skills"
+    write_skill(visible_root, "unlimited-skills")
+    write_skill(visible_root / "autonomous-ai-agents", "unlimited-skills")
+    write_skill(visible_root / "creative", "manim-video")
+    write_skill(visible_root / "ecc-imports", "manim-video")
+
+    report = install_hermes(
+        HermesInstallOptions(
+            hermes_home=hermes_home,
+            install_root=install_root,
+            repo_root=ROOT,
+            mode="evacuate-visible-skills",
+            apply=True,
+            skip_reindex=True,
+        )
+    )
+
+    library_skills = install_root / "library" / "hermes" / "skills"
+    assert report.migrated_count == 3
+    assert report.after_visible_count == 1
+    assert (visible_root / "unlimited-skills" / "SKILL.md").is_file()
+    assert not (visible_root / "autonomous-ai-agents" / "unlimited-skills").exists()
+    assert (library_skills / "autonomous-ai-agents" / "unlimited-skills" / "SKILL.md").is_file()
+    assert (library_skills / "creative" / "manim-video" / "SKILL.md").is_file()
+    assert (library_skills / "ecc-imports" / "manim-video" / "SKILL.md").is_file()
 
 
 def test_hermes_install_dry_run_does_not_change_visible_skills(tmp_path: Path) -> None:

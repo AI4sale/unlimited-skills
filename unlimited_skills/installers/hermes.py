@@ -220,7 +220,12 @@ def install_hermes(options: HermesInstallOptions) -> HermesInstallReport:
     sh_launcher, ps_launcher = _launcher_paths(visible_root)
 
     before_count = count_visible_skills(visible_root)
-    skill_dirs = iter_skill_dirs(visible_root, exclude_names={ROUTER_NAME})
+    router_target_resolved = router_target.resolve() if router_target.exists() else router_target
+    skill_dirs = [
+        skill_dir
+        for skill_dir in iter_skill_dirs(visible_root)
+        if skill_dir.resolve() != router_target_resolved
+    ]
     if options.mode == "router-only":
         skill_dirs = []
 
@@ -259,7 +264,7 @@ def install_hermes(options: HermesInstallOptions) -> HermesInstallReport:
     if options.mode == "evacuate-visible-skills":
         for skill_dir in sorted(skill_dirs, key=lambda path: len(path.relative_to(visible_root).parts), reverse=True):
             relative = skill_dir.relative_to(visible_root)
-            library_destination = library_skills / skill_dir.name
+            library_destination = library_skills / relative
             backup_destination = backup_visible_root / relative
             copy_skill_tree(skill_dir, library_destination)
             move_skill_tree(skill_dir, backup_destination)
