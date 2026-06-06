@@ -53,6 +53,26 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "{{HERMES_PS_LAUNCHER}}" vie
 
 For inventory-style questions such as "what skills do you have?", search broad task terms first, then summarize matching library skills. Do not paste every result or every skill body into the conversation. Treat the library as a retrieval layer, not as context that should always be loaded.
 
+## Windows / Git Bash Safety Rules
+
+Hermes on Windows commonly runs terminal commands through Git Bash/MSYS while Python may be Windows-native. Avoid these failure modes:
+
+- Do not execute `scripts/unlimited-skills.sh` directly from Windows-native Python `subprocess` with `shell=False`; Windows will raise `OSError: [WinError 193] %1 is not a valid Win32 application` because `.sh` is not a Win32 executable. Use `terminal()`/Git Bash directly, or explicitly invoke `bash ".../unlimited-skills.sh" ...`.
+- When a Bash command writes output that Windows Python will read, use an explicit Windows-style path such as `C:/Users/<user>/AppData/Local/Temp/skills.json`; do not rely on `/tmp/...`, which may resolve differently between MSYS Bash and Windows-native Python.
+- For JSON inventory processing, prefer a single shell pipeline that writes to a Windows path before Python parses it:
+
+```bash
+tmp="${LOCALAPPDATA//\\//}/Temp/unlimited-skills.json"
+"{{HERMES_SH_LAUNCHER}}" list --limit 0 --json > "$tmp"
+TMP_PATH="$tmp" python - <<'PY'
+import json
+import os
+with open(os.environ["TMP_PATH"], encoding="utf-8") as f:
+    data = json.load(f)
+print(data["total"], len({s["name"] for s in data["skills"]}))
+PY
+```
+
 ## Common Commands
 
 ```bash
