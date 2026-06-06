@@ -59,6 +59,7 @@ Hermes on Windows commonly runs terminal commands through Git Bash/MSYS while Py
 
 - Do not execute `scripts/unlimited-skills.sh` directly from Windows-native Python `subprocess` with `shell=False`; Windows will raise `OSError: [WinError 193] %1 is not a valid Win32 application` because `.sh` is not a Win32 executable. Use `terminal()`/Git Bash directly, or explicitly invoke `bash ".../unlimited-skills.sh" ...`.
 - When a Bash command writes output that Windows Python will read, use an explicit Windows-style path such as `C:/Users/<user>/AppData/Local/Temp/skills.json`; do not rely on `/tmp/...`, which may resolve differently between MSYS Bash and Windows-native Python.
+- When editing Git Bash launchers that invoke Windows-native Python, do not append an empty `:${PYTHONPATH:-}` segment to a Windows-style repo path. If `PYTHONPATH` is empty, `PYTHONPATH='C:/repo:'` may be treated as a literal path containing a trailing colon and make imports fail. Use an `if [[ -n "${PYTHONPATH:-}" ]]` branch instead.
 - For JSON inventory processing, prefer a single shell pipeline that writes to a Windows path before Python parses it:
 
 ```bash
