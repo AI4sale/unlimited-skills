@@ -120,6 +120,30 @@ def test_hermes_install_dry_run_does_not_change_visible_skills(tmp_path: Path) -
     assert not (install_root / "library" / "hermes" / "skills" / "alpha").exists()
 
 
+def test_hermes_router_only_mirrors_native_skills_without_evacuating(tmp_path: Path) -> None:
+    hermes_home = tmp_path / ".hermes"
+    visible_root = hermes_home / "skills"
+    install_root = tmp_path / ".unlimited-skills"
+    write_skill(visible_root, "alpha", "v1")
+
+    report = install_hermes(
+        HermesInstallOptions(
+            hermes_home=hermes_home,
+            install_root=install_root,
+            repo_root=ROOT,
+            mode="router-only",
+            apply=True,
+            skip_reindex=True,
+        )
+    )
+
+    assert report.migrated_count == 1
+    assert report.after_visible_count == 2
+    assert (visible_root / "alpha" / "SKILL.md").is_file()
+    assert (visible_root / "unlimited-skills" / "SKILL.md").is_file()
+    assert (install_root / "library" / "hermes" / "skills" / "alpha" / "SKILL.md").is_file()
+
+
 def test_hermes_install_missing_skill_root_is_explicit_not_silent(tmp_path: Path) -> None:
     hermes_home = tmp_path / ".hermes"
     install_root = tmp_path / ".unlimited-skills"

@@ -9,6 +9,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from unlimited_skills.registration import RegistrationState, build_registration_payload, with_install_id
+from unlimited_skills.team import TeamClient
 from unlimited_skills.updates import (
     RegistrationRequired,
     UpdateClient,
@@ -163,6 +164,81 @@ class RegistrationUpdatesTest(unittest.TestCase):
 
             self.assertEqual(path.read_bytes(), script_body)
             self.assertEqual(path.name, "local-skill-enhancer-0.1.0.py")
+
+    def test_registered_team_create_manual_join_approval_and_sync_use_service_token(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "library"
+            state = RegistrationState(install_id="uls_inst_test", server_url="https://updates.example.test", license_token="tok_test")
+            calls: list[str] = []
+
+            def fake_urlopen(request, timeout=30.0):
+                self.assertEqual(request.headers.get("Authorization"), "Bearer tok_test")
+                body = json.loads(request.data.decode("utf-8"))
+                self.assertEqual(body["install_id"], "uls_inst_test")
+                self.assertNotIn("SKILL.md", request.data.decode("utf-8"))
+                calls.append(request.full_url)
+                if request.full_url.endswith("/v1/teams"):
+                    self.assertEqual(body["team_name"], "AI4SALE")
+                    return FakeResponse(
+                        json.dumps(
+                            {
+                                "team_id": "team_123",
+                                "team_name": "AI4SALE",
+                                "team_token": "team_tok",
+                                "role": "owner",
+                                "status": "active",
+                                "join_code": "join_abc",
+                            }
+                        ).encode("utf-8")
+                    )
+                if request.full_url.endswith("/v1/teams/join"):
+                    self.assertEqual(body["join_code"], "join_abc")
+                    return FakeResponse(json.dumps({"team_id": "team_123", "team_name": "AI4SALE", "team_token": "member_tok", "role": "pending", "status": "pending"}).encode("utf-8"))
+                if request.full_url.endswith("/v1/teams/team_123/members/pending"):
+                    self.assertEqual(body["team_token"], "team_tok")
+                    return FakeResponse(json.dumps({"items": [{"install_id": "uls_inst_member", "status": "pending"}]}).encode("utf-8"))
+                if request.full_url.endswith("/v1/teams/team_123/members/uls_inst_member/approve"):
+                    self.assertEqual(body["team_token"], "team_tok")
+                    return FakeResponse(json.dumps({"team_id": "team_123", "install_id": "uls_inst_member", "status": "active", "role": "member"}).encode("utf-8"))
+                if request.full_url.endswith("/v1/teams/team_123/approval-mode"):
+                    self.assertEqual(body["team_token"], "team_tok")
+                    self.assertEqual(body["mode"], "auto")
+                    self.assertEqual(body["hours"], 24)
+                    return FakeResponse(json.dumps({"team_id": "team_123", "approval_mode": "auto", "auto_approve_until": "2026-06-07T00:00:00Z"}).encode("utf-8"))
+                if request.full_url.endswith("/v1/teams/team_123/sync"):
+                    self.assertEqual(body["team_token"], "team_tok")
+                    return FakeResponse(json.dumps({"updates": []}).encode("utf-8"))
+                raise AssertionError(f"Unexpected URL: {request.full_url}")
+
+            client = TeamClient(state)
+            with patch("urllib.request.urlopen", fake_urlopen):
+                team, create_response = client.create(root, name="AI4SALE")
+                joined, _ = client.join(root, join_code="join_abc")
+                pending = client.pending(team)
+                approved = client.approve(team, member_install_id="uls_inst_member")
+                mode = client.set_mode(team, mode="auto", hours=24)
+                updates = client.sync_manifest(root, team)
+
+            self.assertEqual(team.team_id, "team_123")
+            self.assertEqual(team.role, "owner")
+            self.assertEqual(create_response["join_code"], "join_abc")
+            self.assertEqual(joined.role, "pending")
+            self.assertEqual(joined.status, "pending")
+            self.assertEqual(pending["items"][0]["install_id"], "uls_inst_member")
+            self.assertEqual(approved["status"], "active")
+            self.assertEqual(mode["approval_mode"], "auto")
+            self.assertEqual(updates, [])
+            self.assertEqual(
+                calls,
+                [
+                    "https://updates.example.test/v1/teams",
+                    "https://updates.example.test/v1/teams/join",
+                    "https://updates.example.test/v1/teams/team_123/members/pending",
+                    "https://updates.example.test/v1/teams/team_123/members/uls_inst_member/approve",
+                    "https://updates.example.test/v1/teams/team_123/approval-mode",
+                    "https://updates.example.test/v1/teams/team_123/sync",
+                ],
+            )
 
     def test_enhancement_script_checksum_mismatch_fails(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

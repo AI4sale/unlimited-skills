@@ -21,7 +21,9 @@ from .registration import (
     save_registration,
     set_telemetry,
 )
+from .native import DEFAULT_AGENT_ORDER, sync_native_sources
 from .self_update import DEFAULT_PUBLIC_REPO, apply_public_repo_update, check_public_repo_update
+from .team import TeamClient, load_team_state, redacted_team_status, save_team_state, team_state_path
 from .updates import UpdateClient
 
 
@@ -396,16 +398,36 @@ def log_event(root: Path, event_type: str, payload: dict) -> None:
     )
 
 
+def _native_sync_disabled(args: argparse.Namespace) -> bool:
+    env_value = os.environ.get("UNLIMITED_SKILLS_DISABLE_NATIVE_SYNC", "").strip().lower()
+    return bool(getattr(args, "no_native_sync", False) or env_value in {"1", "true", "yes", "on"})
+
+
+def maybe_sync_native(args: argparse.Namespace, root: Path) -> list[dict]:
+    if _native_sync_disabled(args):
+        return []
+    agents = getattr(args, "native_agent", None) or None
+    results = sync_native_sources(root, agents=agents, apply=True, refresh_collection=True)
+    if any(item.imported_count for item in results):
+        save_index(root)
+    return [asdict(item) for item in results]
+
+
 def cmd_reindex(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
+    native_sync = maybe_sync_native(args, root)
     path = save_index(root)
     count = len(json.loads(read_text(path)))
-    print(f"Indexed {count} skills: {path}")
+    if args.json:
+        print(json.dumps({"root": str(root), "indexed": count, "index": str(path), "native_sync": native_sync}, ensure_ascii=False, indent=2))
+    else:
+        print(f"Indexed {count} skills: {path}")
     return 0
 
 
 def cmd_search(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
+    maybe_sync_native(args, root)
     if args.mode == "lexical":
         hits = lexical_search(root, args.query, args.limit, args.collection, args.fresh)
     elif args.mode == "vector":
@@ -418,6 +440,7 @@ def cmd_search(args: argparse.Namespace) -> int:
 
 def cmd_list(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
+    maybe_sync_native(args, root)
     hits = list_skills(root, collection=args.collection, filter_text=args.filter, fresh=args.fresh)
     shown = hits[: args.limit] if args.limit > 0 else hits
     payload = {
@@ -450,6 +473,7 @@ def cmd_list(args: argparse.Namespace) -> int:
 
 def cmd_vector_reindex(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
+    maybe_sync_native(args, root)
     records = load_records(root, fresh=args.fresh)
     client = chroma_client(root)
     try:
@@ -486,6 +510,7 @@ def cmd_vector_reindex(args: argparse.Namespace) -> int:
 
 def cmd_view(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
+    maybe_sync_native(args, root)
     path = find_by_name(root, args.name)
     if not path:
         print(f"Skill not found: {args.name}", file=sys.stderr)
@@ -497,6 +522,7 @@ def cmd_view(args: argparse.Namespace) -> int:
 
 def cmd_where(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
+    maybe_sync_native(args, root)
     path = find_by_name(root, args.name)
     if not path:
         print(f"Skill not found: {args.name}", file=sys.stderr)
@@ -507,6 +533,7 @@ def cmd_where(args: argparse.Namespace) -> int:
 
 def cmd_use(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
+    maybe_sync_native(args, root)
     path = find_by_name(root, args.name)
     payload = {"name": args.name, "query": args.query, "task": args.task, "path": str(path) if path else ""}
     log_event(root, "skill_used", payload)
@@ -622,6 +649,34 @@ def cmd_install_pack(args: argparse.Namespace) -> int:
         "items": [asdict(item) for item in results[: args.limit]],
     }
     print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_sync_native(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    agents = args.agent or list(DEFAULT_AGENT_ORDER)
+    results = sync_native_sources(root, agents=agents, apply=not args.dry_run, refresh_collection=not args.no_refresh)
+    reindexed = False
+    if not args.dry_run and not args.skip_reindex:
+        save_index(root)
+        reindexed = True
+    payload = {
+        "root": str(root),
+        "dry_run": args.dry_run,
+        "agents": agents,
+        "reindexed": reindexed,
+        "results": [asdict(item) for item in results],
+    }
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0
+    for item in results:
+        status = "skipped" if item.skipped else f"{item.imported_count} skills"
+        suffix = f" ({item.reason})" if item.reason else ""
+        print(f"{item.collection}: {status}{suffix}")
+        print(f"  source: {item.source_root}")
+    if reindexed:
+        print("Lexical index rebuilt.")
     return 0
 
 
@@ -801,6 +856,81 @@ def cmd_enhance_run(args: argparse.Namespace) -> int:
     return client.run_enhancement_script(root, apply=args.apply, limit=args.limit, target_dir=target_dir)
 
 
+def cmd_team_status(args: argparse.Namespace) -> int:
+    payload = redacted_team_status(load_team_state())
+    payload["team_file"] = str(team_state_path())
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_team_create(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    client = TeamClient(load_registration(), timeout=args.timeout)
+    team, response = client.create(root, name=args.name)
+    path = save_team_state(team)
+    payload = redacted_team_status(team)
+    payload["team_file"] = str(path)
+    if "join_code" in response:
+        payload["join_code"] = response["join_code"]
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_team_join(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    client = TeamClient(load_registration(), timeout=args.timeout)
+    team, _ = client.join(root, join_code=args.join_code)
+    path = save_team_state(team)
+    payload = redacted_team_status(team)
+    payload["team_file"] = str(path)
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_team_sync(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    registration = load_registration()
+    team = load_team_state()
+    team_client = TeamClient(registration, timeout=args.timeout)
+    updates = team_client.sync_manifest(root, team)
+    if args.collection:
+        updates = [item for item in updates if item.collection == args.collection]
+    if args.dry_run:
+        print(json.dumps({"root": str(root), "dry_run": True, "count": len(updates), "updates": [item.__dict__ for item in updates]}, ensure_ascii=False, indent=2))
+        return 0
+    update_client = UpdateClient(registration, timeout=args.timeout)
+    applied = [update_client.apply(root, item) for item in updates]
+    reindexed = False
+    if not args.skip_reindex:
+        save_index(root)
+        reindexed = True
+    team = team_client.mark_synced(team)
+    save_team_state(team)
+    print(json.dumps({"root": str(root), "applied": applied, "reindexed": reindexed, "team": redacted_team_status(team)}, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_team_pending(args: argparse.Namespace) -> int:
+    team = load_team_state()
+    client = TeamClient(load_registration(), timeout=args.timeout)
+    print(json.dumps(client.pending(team), ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_team_approve(args: argparse.Namespace) -> int:
+    team = load_team_state()
+    client = TeamClient(load_registration(), timeout=args.timeout)
+    print(json.dumps(client.approve(team, member_install_id=args.install_id), ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_team_mode(args: argparse.Namespace) -> int:
+    team = load_team_state()
+    client = TeamClient(load_registration(), timeout=args.timeout)
+    print(json.dumps(client.set_mode(team, mode=args.mode, hours=args.hours), ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
 def cmd_self_update_check(args: argparse.Namespace) -> int:
     status = check_public_repo_update(repo=args.repo, install_root=Path(args.install_root).expanduser() if args.install_root else None, timeout=args.timeout)
     payload = status.to_json()
@@ -850,7 +980,18 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--root", default=str(DEFAULT_ROOT), help="Skill library root.")
     sub = parser.add_subparsers(dest="command", required=True)
 
+    def add_native_sync_options(command: argparse.ArgumentParser) -> None:
+        command.add_argument(
+            "--native-agent",
+            action="append",
+            choices=list(DEFAULT_AGENT_ORDER),
+            help="Native agent skill root to sync before this command. Repeat for multiple agents. Defaults to all known agents.",
+        )
+        command.add_argument("--no-native-sync", action="store_true", help="Skip automatic sync from native agent skill roots.")
+
     reindex = sub.add_parser("reindex", help="Rebuild the lexical JSON index.")
+    add_native_sync_options(reindex)
+    reindex.add_argument("--json", action="store_true")
     reindex.set_defaults(func=cmd_reindex)
 
     vector_reindex = sub.add_parser("vector-reindex", help="Rebuild the Chroma vector index.")
@@ -858,6 +999,7 @@ def build_parser() -> argparse.ArgumentParser:
     vector_reindex.add_argument("--batch-size", type=int, default=32)
     vector_reindex.add_argument("--fresh", action="store_true")
     vector_reindex.add_argument("--verbose", action="store_true")
+    add_native_sync_options(vector_reindex)
     vector_reindex.set_defaults(func=cmd_vector_reindex)
 
     search = sub.add_parser("search", help="Search skills.")
@@ -869,6 +1011,7 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("--json", action="store_true")
     search.add_argument("--fresh", action="store_true")
     search.add_argument("--require-vector", action="store_true")
+    add_native_sync_options(search)
     search.set_defaults(func=cmd_search)
 
     list_parser = sub.add_parser("list", help="List available skills in the library.")
@@ -879,20 +1022,24 @@ def build_parser() -> argparse.ArgumentParser:
     list_parser.add_argument("--paths", action="store_true", help="Include SKILL.md paths in text output.")
     list_parser.add_argument("--json", action="store_true")
     list_parser.add_argument("--fresh", action="store_true")
+    add_native_sync_options(list_parser)
     list_parser.set_defaults(func=cmd_list)
 
     view = sub.add_parser("view", help="Print full SKILL.md for a skill.")
     view.add_argument("name")
+    add_native_sync_options(view)
     view.set_defaults(func=cmd_view)
 
     where = sub.add_parser("where", help="Print a SKILL.md path.")
     where.add_argument("name")
+    add_native_sync_options(where)
     where.set_defaults(func=cmd_where)
 
     use = sub.add_parser("use", help="Record that the agent used a skill.")
     use.add_argument("name")
     use.add_argument("--query", default="")
     use.add_argument("--task", default="")
+    add_native_sync_options(use)
     use.set_defaults(func=cmd_use)
 
     feedback = sub.add_parser("feedback", help="Record accepted/rejected feedback for a skill match.")
@@ -930,6 +1077,14 @@ def build_parser() -> argparse.ArgumentParser:
     install_pack_parser.add_argument("--keep-clone", default="", help="Optional path where the upstream clone should be kept.")
     install_pack_parser.add_argument("--limit", type=int, default=20, help="Maximum imported items to include in JSON output.")
     install_pack_parser.set_defaults(func=cmd_install_pack)
+
+    sync_native = sub.add_parser("sync-native", help="Mirror native agent skill roots into the Unlimited Skills library.")
+    sync_native.add_argument("--agent", action="append", choices=list(DEFAULT_AGENT_ORDER), help="Agent to sync. Repeat for multiple agents. Defaults to all.")
+    sync_native.add_argument("--dry-run", action="store_true", help="Report what would be imported without writing files.")
+    sync_native.add_argument("--no-refresh", action="store_true", help="Do not replace skills already mirrored in the same collection.")
+    sync_native.add_argument("--skip-reindex", action="store_true", help="Do not rebuild the lexical index after syncing.")
+    sync_native.add_argument("--json", action="store_true")
+    sync_native.set_defaults(func=cmd_sync_native)
 
     adapt_one = sub.add_parser("adapt-one", help="Print an agent adaptation task for one skill.")
     adapt_one.add_argument("name_or_path", help="Skill name, SKILL.md path, or skill directory path.")
@@ -1012,6 +1167,37 @@ def build_parser() -> argparse.ArgumentParser:
     enhance_run.add_argument("--limit", type=int, default=0, help="Maximum skills to inspect. Use 0 for all.")
     enhance_run.add_argument("--timeout", type=float, default=30.0)
     enhance_run.set_defaults(func=cmd_enhance_run)
+
+    team = sub.add_parser("team", help="Register and synchronize team skill collections.")
+    team_sub = team.add_subparsers(dest="team_command", required=True)
+    team_status = team_sub.add_parser("status", help="Show local team registration state.")
+    team_status.set_defaults(func=cmd_team_status)
+    team_create = team_sub.add_parser("create", help="Create a registered team and join this installation as owner.")
+    team_create.add_argument("name", help="Team name.")
+    team_create.add_argument("--timeout", type=float, default=30.0)
+    team_create.set_defaults(func=cmd_team_create)
+    team_join = team_sub.add_parser("join", help="Join an existing registered team with a join code.")
+    team_join.add_argument("join_code", help="Team join code from the owner/admin.")
+    team_join.add_argument("--timeout", type=float, default=30.0)
+    team_join.set_defaults(func=cmd_team_join)
+    team_sync = team_sub.add_parser("sync", help="Download and install skill collections assigned to this team.")
+    team_sync.add_argument("--collection", default="", help="Only sync one assigned collection.")
+    team_sync.add_argument("--dry-run", action="store_true", help="Show assigned updates without downloading archives.")
+    team_sync.add_argument("--skip-reindex", action="store_true", help="Do not rebuild the lexical index after syncing.")
+    team_sync.add_argument("--timeout", type=float, default=30.0)
+    team_sync.set_defaults(func=cmd_team_sync)
+    team_pending = team_sub.add_parser("pending", help="List pending join requests for the master instance.")
+    team_pending.add_argument("--timeout", type=float, default=30.0)
+    team_pending.set_defaults(func=cmd_team_pending)
+    team_approve = team_sub.add_parser("approve", help="Approve a pending team instance by install_id.")
+    team_approve.add_argument("install_id", help="Pending installation id to approve.")
+    team_approve.add_argument("--timeout", type=float, default=30.0)
+    team_approve.set_defaults(func=cmd_team_approve)
+    team_mode = team_sub.add_parser("mode", help="Set team join approval mode. Default mode is manual.")
+    team_mode.add_argument("mode", choices=["manual", "auto"])
+    team_mode.add_argument("--hours", type=int, default=24, help="Auto-approval window. Community plans are capped at 24 hours.")
+    team_mode.add_argument("--timeout", type=float, default=30.0)
+    team_mode.set_defaults(func=cmd_team_mode)
 
     self_update = sub.add_parser("self-update", help="Check or apply public repo releases for the local Unlimited Skills core.")
     self_update_sub = self_update.add_subparsers(dest="self_update_command", required=True)

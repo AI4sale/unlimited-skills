@@ -3,6 +3,8 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+import pytest
+
 from unlimited_skills.installers import openclaw
 from unlimited_skills.installers.openclaw import OpenClawInstallOptions, install_openclaw
 
@@ -143,7 +145,10 @@ def test_openclaw_plugin_symlink_is_migrated(tmp_path: Path, monkeypatch) -> Non
     real_plugin = write_skill(tmp_path / "actual-plugin", "browser-automation")
     plugin_link = openclaw_home / "plugin-skills" / "browser-automation"
     plugin_link.parent.mkdir(parents=True)
-    plugin_link.symlink_to(real_plugin, target_is_directory=True)
+    try:
+        plugin_link.symlink_to(real_plugin, target_is_directory=True)
+    except OSError as exc:
+        pytest.skip(f"Symlink creation is not permitted in this environment: {exc}")
 
     def fake_sources(openclaw_home_arg, workspace_root_arg, include_builtin, include_plugin_skills):
         return [

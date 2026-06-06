@@ -226,8 +226,6 @@ def install_hermes(options: HermesInstallOptions) -> HermesInstallReport:
         for skill_dir in iter_skill_dirs(visible_root)
         if skill_dir.resolve() != router_target_resolved
     ]
-    if options.mode == "router-only":
-        skill_dirs = []
 
     messages: list[str] = []
     if before_count == 0:
@@ -261,12 +259,12 @@ def install_hermes(options: HermesInstallOptions) -> HermesInstallReport:
     manifest_path = backup_root / "manifest.json"
     manifest_items: list[dict[str, str]] = []
 
-    if options.mode == "evacuate-visible-skills":
-        for skill_dir in sorted(skill_dirs, key=lambda path: len(path.relative_to(visible_root).parts), reverse=True):
-            relative = skill_dir.relative_to(visible_root)
-            library_destination = library_skills / relative
+    for skill_dir in sorted(skill_dirs, key=lambda path: len(path.relative_to(visible_root).parts), reverse=True):
+        relative = skill_dir.relative_to(visible_root)
+        library_destination = library_skills / relative
+        copy_skill_tree(skill_dir, library_destination)
+        if options.mode == "evacuate-visible-skills":
             backup_destination = backup_visible_root / relative
-            copy_skill_tree(skill_dir, library_destination)
             move_skill_tree(skill_dir, backup_destination)
             prune_empty_parents(skill_dir.parent, visible_root)
             manifest_items.append(

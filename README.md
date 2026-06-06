@@ -139,6 +139,15 @@ unlimited-skills updates check
 unlimited-skills updates apply
 ```
 
+Mirror native agent skill roots into the local library:
+
+```bash
+unlimited-skills sync-native --agent hermes
+unlimited-skills search "security review" --native-agent hermes
+```
+
+`search`, `list`, `view`, `where`, `use`, `reindex`, and `vector-reindex` automatically sync known native skill roots before running. This means newly installed Codex, Claude Code, Hermes, and OpenClaw skills are mirrored under `~/.unlimited-skills/library` and become searchable through the router without manual migration. Pass `--no-native-sync` or set `UNLIMITED_SKILLS_DISABLE_NATIVE_SYNC=1` to skip this behavior.
+
 Download and run the registered local enhancer:
 
 ```bash
@@ -168,7 +177,16 @@ The registry client sends only install id, client version, collection versions, 
 
 Using the hosted `community-skills` catalog or pushing skills into it also requires registration. Submitting to `community-skills` is an explicit upload of the selected skill or pack, not background telemetry. See [docs/community-skills.md](docs/community-skills.md).
 
-Planned team feature: registered teams will be able to publish encrypted private skill-pack updates from a master instance and synchronize them across child instances. Up to 10 team instances are planned to be included in the free team license. See [docs/team-skill-sync.md](docs/team-skill-sync.md).
+Team sync MVP: registered teams can create a team, join instances, approve pending instances from the master instance, and synchronize assigned catalog collections across team nodes. The first node that runs `team create` becomes the master. Default team mode is manual approval. The master may enable auto-approval for up to 24 hours on community plans; longer windows require business or enterprise access. See [docs/team-skill-sync.md](docs/team-skill-sync.md).
+
+```bash
+unlimited-skills team create "My Team"
+unlimited-skills team join <join-code>
+unlimited-skills team pending
+unlimited-skills team approve <install-id>
+unlimited-skills team mode auto --hours 24
+unlimited-skills team sync
+```
 
 Planned enterprise feature: Enterprise Skill Lock will let managed instances refuse unmanaged skill delivery and direct operators to a corporate administrator or approved enterprise update channel. See [docs/enterprise-skill-lock.md](docs/enterprise-skill-lock.md).
 
