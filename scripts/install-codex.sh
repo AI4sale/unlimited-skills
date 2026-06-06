@@ -13,7 +13,8 @@ Options:
   --install-root PATH    Unlimited Skills install root. Defaults to ~/.unlimited-skills.
   --python CMD           Python executable. Defaults to python3, then python.
   --mode MODE            default, bundled, or adapt-installed. Defaults to default.
-  --agents-file PATH     Patch this AGENTS.md file with Unlimited Skills routing instructions.
+  --agents-file PATH     Patch this AGENTS.md file. Defaults to ./AGENTS.md.
+  --no-agents-patch      Do not patch AGENTS.md.
   --skip-pip-install     Only install the router skill and launcher.
   -h, --help             Show this help.
 EOF
@@ -27,6 +28,7 @@ python_cmd=""
 skip_pip_install=0
 mode="default"
 agents_file=""
+no_agents_patch=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -53,6 +55,10 @@ while [[ $# -gt 0 ]]; do
     --agents-file)
       agents_file="$2"
       shift 2
+      ;;
+    --no-agents-patch)
+      no_agents_patch=1
+      shift
       ;;
     --skip-pip-install)
       skip_pip_install=1
@@ -134,7 +140,10 @@ exec "$python_cmd" -m unlimited_skills.cli --root "$library_root" "\$@"
 EOF
 chmod +x "$launcher"
 
-if [[ -n "$agents_file" ]]; then
+if [[ "$no_agents_patch" -eq 0 ]]; then
+  if [[ -z "$agents_file" ]]; then
+    agents_file="$PWD/AGENTS.md"
+  fi
   agents_dir="$(dirname -- "$agents_file")"
   mkdir -p "$agents_dir"
   agents_block="$(cat <<EOF
@@ -227,7 +236,9 @@ echo "Installed Unlimited Skills venv: $venv"
 echo "Install mode: $mode"
 echo "Library root: $library_root"
 echo "Launcher: $launcher"
-if [[ -n "$agents_file" ]]; then
+if [[ "$no_agents_patch" -eq 0 ]]; then
   echo "Patched AGENTS.md: $agents_file"
+else
+  echo "Skipped AGENTS.md patch."
 fi
 echo "Restart Codex so the router skill appears in the available skill list."

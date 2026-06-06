@@ -6,6 +6,7 @@ param(
   [ValidateSet("default", "bundled", "adapt-installed")]
   [string]$Mode = "default",
   [string]$AgentsFile = "",
+  [switch]$NoAgentsPatch,
   [switch]$SkipPipInstall
 )
 
@@ -52,8 +53,9 @@ param(
 & "$cliPython" -m unlimited_skills.cli --root "$libraryRoot" @Args
 "@ | Set-Content -LiteralPath $launcher -Encoding UTF8
 
-if ($AgentsFile) {
-  $agentsPath = [System.IO.Path]::GetFullPath($AgentsFile)
+if (-not $NoAgentsPatch) {
+  $agentsTarget = if ($AgentsFile) { $AgentsFile } else { Join-Path (Get-Location) "AGENTS.md" }
+  $agentsPath = [System.IO.Path]::GetFullPath($agentsTarget)
   $agentsDir = Split-Path $agentsPath -Parent
   if ($agentsDir) {
     New-Item -ItemType Directory -Force -Path $agentsDir | Out-Null
@@ -127,5 +129,9 @@ Write-Host "Library root: $libraryRoot"
 Write-Host "Launcher: $launcher"
 if ($AgentsFile) {
   Write-Host "Patched AGENTS.md: $AgentsFile"
+} elseif (-not $NoAgentsPatch) {
+  Write-Host "Patched AGENTS.md: $(Join-Path (Get-Location) "AGENTS.md")"
+} else {
+  Write-Host "Skipped AGENTS.md patch."
 }
 Write-Host "Restart Codex so the router skill appears in the available skill list."

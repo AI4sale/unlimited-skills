@@ -24,7 +24,7 @@ The current version is built for Codex first, with migration scripts for Claude 
 
 > **Sorry, yes, we patch `AGENTS.md`.**
 >
-> Agents often look only at `.agents/skills`, `.codex/skills`, or the visible skill list before saying a skill is missing. The optional `AGENTS.md` patch adds a managed instruction block that tells the agent to query Unlimited Skills first.
+> Agents often look only at `.agents/skills`, `.codex/skills`, or the visible skill list before saying a skill is missing. The installer patches `AGENTS.md` by default with a managed instruction block that tells the agent to query Unlimited Skills first. Pass the opt-out flag if you do not want that.
 
 ## Why this exists
 
@@ -105,6 +105,7 @@ Windows PowerShell:
 .\scripts\install-codex.ps1
 .\scripts\install-codex.ps1 -Mode bundled
 .\scripts\install-codex.ps1 -AgentsFile C:\path\to\project\AGENTS.md
+.\scripts\install-codex.ps1 -NoAgentsPatch
 ```
 
 macOS/Linux:
@@ -113,6 +114,7 @@ macOS/Linux:
 ./scripts/install-codex.sh
 ./scripts/install-codex.sh --mode bundled
 ./scripts/install-codex.sh --agents-file /path/to/project/AGENTS.md
+./scripts/install-codex.sh --no-agents-patch
 ```
 
 More install examples:
@@ -127,7 +129,7 @@ More install examples:
 
 Default mode installs the router, migrates already installed skills, and indexes them. Bundled mode installs the pre-adapted packs shipped in this repo, then adds local skills only when they do not duplicate existing skill names. Adapt-installed mode prepares installed local skills for the one-skill agent adaptation workflow.
 
-For Codex projects, patching `AGENTS.md` is recommended. It adds a managed Unlimited Skills block that tells the agent to query the external library before claiming that a named skill is unavailable. Existing `AGENTS.md` content is preserved, and the managed block is replaced in place on repeat installs.
+For Codex projects, patching `AGENTS.md` is the default. If `AgentsFile` / `--agents-file` is not passed, the installer patches `./AGENTS.md` in the current directory. Run the installer from the target project root, or pass an explicit `AGENTS.md` path. Existing `AGENTS.md` content is preserved, and the managed block is replaced in place on repeat installs. Use `-NoAgentsPatch` or `--no-agents-patch` to skip it.
 
 The installer creates an isolated venv under `~/.unlimited-skills/.venv` and writes a Codex-local launcher:
 
