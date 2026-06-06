@@ -29,24 +29,41 @@ def iter_skill_dirs(root: Path, exclude_names: Iterable[str] = ()) -> list[Path]
     if not root.is_dir():
         return []
     skill_dirs: list[Path] = []
+    seen: set[str] = set()
+
+    def add_skill_dir(skill_dir: Path, rel: Path) -> None:
+        if should_ignore_path(rel):
+            return
+        if skill_dir.name in excluded:
+            return
+        key = str(skill_dir)
+        if key in seen:
+            return
+        seen.add(key)
+        skill_dirs.append(skill_dir)
+
     for skill_file in sorted(root.rglob("SKILL.md")):
         try:
             rel = skill_file.relative_to(root)
         except ValueError:
             rel = skill_file
-        if should_ignore_path(rel):
+        add_skill_dir(skill_file.parent, rel)
+
+    for child in sorted(root.iterdir()):
+        if not child.is_symlink() or not child.is_dir():
             continue
-        skill_dir = skill_file.parent
-        if skill_dir.name in excluded:
+        target = child.resolve()
+        if not target.is_dir():
             continue
-        skill_dirs.append(skill_dir)
+        for skill_file in sorted(target.rglob("SKILL.md")):
+            rel = skill_file.relative_to(target)
+            synthetic_skill_dir = child / rel.parent
+            add_skill_dir(synthetic_skill_dir, child.relative_to(root) / rel)
     return skill_dirs
 
 
 def count_skill_files(root: Path) -> int:
-    if not root.is_dir():
-        return 0
-    return sum(1 for skill_file in root.rglob("SKILL.md") if not should_ignore_path(skill_file.relative_to(root)))
+    return len(iter_skill_dirs(root))
 
 
 def copy_skill_tree(source: Path, destination: Path) -> None:

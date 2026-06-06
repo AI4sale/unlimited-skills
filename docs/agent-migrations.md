@@ -78,17 +78,33 @@ If your Claude Code skills are project-local, pass the project path:
 Default source:
 
 ```text
-%USERPROFILE%\.openclaw\skills
+%USERPROFILE%\.openclaw\workspace\skills
 ```
 
 Override it when needed:
 
 ```powershell
-.\scripts\migrate-openclaw.ps1 -SourceRoot "D:\openclaw\skills" -Apply
+.\scripts\migrate-openclaw.ps1 -Apply
+.\scripts\migrate-openclaw.ps1 -SourceRoot "D:\openclaw\workspace\skills" -Apply
 ```
 
 ```bash
-./scripts/migrate-openclaw.sh --source-root "$HOME/.openclaw/skills" --apply
+./scripts/migrate-openclaw.sh --apply
+./scripts/migrate-openclaw.sh --source-root "$HOME/.openclaw/workspace/skills" --apply
+```
+
+Prefer the full OpenClaw installer when setting up an agent:
+
+```bash
+./scripts/install-openclaw.sh --mode bundled
+```
+
+The installer also imports detected plugin and built-in OpenClaw skills into separate collections:
+
+```text
+openclaw-workspace
+openclaw-plugin
+openclaw-builtin
 ```
 
 ## Hermes

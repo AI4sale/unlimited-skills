@@ -20,7 +20,7 @@ Unlimited Skills turns a folder full of skills into an action library for agents
 
 It is built around one practical rule: the agent should not know every skill all the time. It should know how to ask for the right skill when work starts.
 
-The current version is built for Codex first, with migration scripts for Claude Code, OpenClaw, Hermes, and Vellum AI. Hermes also has a router-only installer for agents that load every visible skill at startup.
+The current version is built for Codex first, with full installers for Codex, OpenClaw, and Hermes, plus migration scripts for Claude Code, OpenClaw, Hermes, and Vellum AI.
 
 > **Sorry, yes, we patch `AGENTS.md`.**
 >
@@ -58,6 +58,7 @@ Working now:
 - usage and feedback logs;
 - draft generation for new skills;
 - migration scripts for Codex, Claude Code, OpenClaw, Hermes, and Vellum AI;
+- OpenClaw installer for workspace/plugin/built-in skills;
 - Hermes router-only context-reduction installer and rollback scripts.
 
 In development:
@@ -140,6 +141,44 @@ The installer creates an isolated venv under `~/.unlimited-skills/.venv` and wri
 ```
 
 Restart Codex after installing the router skill.
+
+## Install for OpenClaw
+
+OpenClaw needs a full installer, not just a migration script. The installer puts the router skill into the OpenClaw workspace, writes an OpenClaw launcher, imports OpenClaw workspace/plugin/built-in skills, patches the workspace `AGENTS.md`, and rebuilds the index.
+
+Linux:
+
+```bash
+./scripts/install-openclaw.sh --mode bundled
+```
+
+Windows PowerShell:
+
+```powershell
+.\scripts\install-openclaw.ps1 -Mode bundled
+```
+
+Useful options:
+
+```bash
+./scripts/install-openclaw.sh --workspace-root "$HOME/.openclaw/workspace"
+./scripts/install-openclaw.sh --no-builtin
+./scripts/install-openclaw.sh --no-plugin-skills
+./scripts/install-openclaw.sh --no-agents-patch
+./scripts/install-openclaw.sh --vector-reindex
+```
+
+Default OpenClaw paths:
+
+```text
+workspace skills:  ~/.openclaw/workspace/skills
+plugin skills:     ~/.openclaw/plugin-skills
+built-in skills:   /usr/local/lib/node_modules/openclaw/skills
+browser plugin:    /usr/local/lib/node_modules/openclaw/dist/extensions/browser/skills
+router target:     ~/.openclaw/workspace/skills/unlimited-skills
+launcher:          ~/.openclaw/workspace/skills/unlimited-skills/scripts/unlimited-skills.sh
+AGENTS.md:         ~/.openclaw/workspace/AGENTS.md
+```
 
 ## Install for Hermes
 
@@ -224,12 +263,14 @@ Claude Code:
 OpenClaw:
 
 ```powershell
-.\scripts\migrate-openclaw.ps1 -SourceRoot "$env:USERPROFILE\.openclaw\skills" -Apply
+.\scripts\migrate-openclaw.ps1 -Apply
 ```
 
 ```bash
-./scripts/migrate-openclaw.sh --source-root "$HOME/.openclaw/skills" --apply
+./scripts/migrate-openclaw.sh --apply
 ```
+
+OpenClaw migration-only scripts use `~/.openclaw/workspace/skills` by default. Prefer `install-openclaw.*` for a full OpenClaw setup.
 
 Hermes plain migration imports skills into the Unlimited Skills library. It does **not** reduce Hermes startup context if the original skills remain in `~/.hermes/skills`.
 

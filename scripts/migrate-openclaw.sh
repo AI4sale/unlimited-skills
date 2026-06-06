@@ -2,7 +2,8 @@
 set -euo pipefail
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
-source_root="${HOME}/.openclaw/skills"
+openclaw_home="${OPENCLAW_HOME:-${HOME}/.openclaw}"
+source_root="${OPENCLAW_WORKSPACE:-${openclaw_home}/workspace}/skills"
 target_root="${UNLIMITED_SKILLS_ROOT:-${HOME}/.unlimited-skills/library}"
 extra_args=()
 
@@ -26,5 +27,5 @@ done
 exec "$script_dir/lib/migrate-skills.sh" \
   --source-root "$source_root" \
   --target-root "$target_root" \
-  --collection "openclaw" \
+  --collection "openclaw-workspace" \
   "${extra_args[@]}"

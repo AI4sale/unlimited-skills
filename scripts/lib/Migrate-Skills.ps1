@@ -10,6 +10,7 @@ param(
 
   [string[]]$ExcludeNames = @(),
   [switch]$SkipExistingNames,
+  [switch]$AllowNodeModules,
   [switch]$Apply
 )
 
@@ -28,6 +29,9 @@ $manifestDir = Join-Path $targetRootPath "manifests"
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $manifest = Join-Path $manifestDir "$Collection-migration-$timestamp.json"
 $excludedDirs = @("node_modules", ".git", ".venv", "__pycache__", ".chroma-skills", ".learning", ".pytest_cache", ".mypy_cache", ".ruff_cache")
+if ($AllowNodeModules) {
+  $excludedDirs = $excludedDirs | Where-Object { $_ -ne "node_modules" }
+}
 $existingNames = @{}
 if ($SkipExistingNames -and (Test-Path $targetRootPath)) {
   Get-ChildItem -LiteralPath $targetRootPath -Recurse -Filter "SKILL.md" -File |

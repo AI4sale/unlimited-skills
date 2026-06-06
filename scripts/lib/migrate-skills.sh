@@ -13,6 +13,7 @@ Options:
   --collection NAME      Collection name under the target root.
   --exclude-name NAME    Exclude a skill directory name. Can be repeated.
   --skip-existing-names  Do not copy a skill when any existing collection already has the same skill directory name.
+  --allow-node-modules   Do not exclude paths that contain node_modules.
   --apply                Copy files. Without this flag, the script prints a dry-run JSON plan.
   -h, --help             Show this help.
 EOF
@@ -23,6 +24,7 @@ target_root=""
 collection=""
 apply=0
 skip_existing_names=0
+allow_node_modules=0
 exclude_names=()
 excluded_dirs=("node_modules" ".git" ".venv" "__pycache__" ".chroma-skills" ".learning" ".pytest_cache" ".mypy_cache" ".ruff_cache")
 
@@ -48,6 +50,10 @@ while [[ $# -gt 0 ]]; do
       skip_existing_names=1
       shift
       ;;
+    --allow-node-modules)
+      allow_node_modules=1
+      shift
+      ;;
     --apply)
       apply=1
       shift
@@ -63,6 +69,15 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ "$allow_node_modules" -eq 1 ]]; then
+  filtered_excluded_dirs=()
+  for excluded in "${excluded_dirs[@]}"; do
+    [[ "$excluded" == "node_modules" ]] && continue
+    filtered_excluded_dirs+=("$excluded")
+  done
+  excluded_dirs=("${filtered_excluded_dirs[@]}")
+fi
 
 if [[ -z "$source_root" || -z "$target_root" || -z "$collection" ]]; then
   usage >&2
