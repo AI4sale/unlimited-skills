@@ -34,7 +34,12 @@ if ($AllowNodeModules) {
 }
 $existingNames = @{}
 if ($SkipExistingNames -and (Test-Path $targetRootPath)) {
+  $targetSkillsFullPath = [System.IO.Path]::GetFullPath($targetSkills)
   Get-ChildItem -LiteralPath $targetRootPath -Recurse -Filter "SKILL.md" -File |
+    Where-Object {
+      $skillPath = [System.IO.Path]::GetFullPath($_.FullName)
+      -not $skillPath.StartsWith($targetSkillsFullPath + [System.IO.Path]::DirectorySeparatorChar, [System.StringComparison]::OrdinalIgnoreCase)
+    } |
     ForEach-Object {
       $existingName = Split-Path (Split-Path $_.FullName -Parent) -Leaf
       $existingNames[$existingName] = $true

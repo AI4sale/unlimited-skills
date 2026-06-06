@@ -130,6 +130,11 @@ trap 'rm -f "$items_file" "$existing_names_file"' EXIT
 
 if [[ "$skip_existing_names" -eq 1 && -d "$target_root" ]]; then
   while IFS= read -r -d '' existing_skill; do
+    case "$existing_skill" in
+      "$target_skills"/*)
+        continue
+        ;;
+    esac
     basename "$(dirname "$existing_skill")" >> "$existing_names_file"
   done < <(find "$target_root" -type f -name 'SKILL.md' -print0)
 fi
