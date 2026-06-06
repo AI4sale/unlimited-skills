@@ -59,14 +59,18 @@ Working now:
 - draft generation for new skills;
 - migration scripts for Codex, Claude Code, OpenClaw, Hermes, and Vellum AI;
 - OpenClaw installer for workspace/plugin/built-in skills;
-- Hermes router-only context-reduction installer and rollback scripts.
+- Hermes router-only context-reduction installer and rollback scripts;
+- registered-installation state for hosted catalog and adapted collection updates;
+- hosted update client with SHA256-verified collection archives.
+- registered hosted catalog client.
 
 In development:
 
 - persistent warm daemon as the default agent retrieval path;
 - richer learning loop for accepted/rejected matches;
 - automatic skill drafting from repeated task patterns;
-- stronger per-agent installers and config adapters.
+- stronger per-agent installers and config adapters;
+- production hosted catalog API for registered installations.
 
 ## Install
 
@@ -88,6 +92,49 @@ For minimal lexical-only usage:
 ```powershell
 python -m pip install -e .
 ```
+
+## Registration and Hosted Updates
+
+The local core stays free and offline-first. Registration is not required for local search, local migration, local adaptation, bundled base packs, or the router skill.
+
+Registration is required only for AI4sale-hosted services:
+
+- hosted adapted-skill catalog;
+- adapted collection update stream;
+- signed hosted collection archives;
+- future dashboard, cloud sync, marketplace, team, and enterprise features.
+
+Register an installation:
+
+```powershell
+unlimited-skills register --key $env:UNLIMITED_SKILLS_REGISTRATION_KEY --agent codex
+```
+
+```bash
+unlimited-skills register --key "$UNLIMITED_SKILLS_REGISTRATION_KEY" --agent codex
+```
+
+Check hosted access:
+
+```bash
+unlimited-skills license status
+```
+
+Check and apply hosted adapted collection updates:
+
+```bash
+unlimited-skills catalog list
+unlimited-skills updates check
+unlimited-skills updates apply
+```
+
+The registration file is stored at:
+
+```text
+~/.unlimited-skills/registration.json
+```
+
+The update client sends only install id, client version, collection versions, source labels, and skill-count buckets. It does not send skill bodies, prompts, source code, skill names, full local paths, repository paths, customer names, environment variables, tokens, or secrets. See [docs/privacy-and-telemetry.md](docs/privacy-and-telemetry.md).
 
 ## Install for Codex
 
@@ -414,4 +461,8 @@ examples/                example libraries and commands
 
 ## License
 
-MIT
+The repository source code is MIT licensed. See [LICENSE](LICENSE).
+
+The MIT license covers the local Community Core: router, installers, migrations, local search, local daemon, local learning logs, and bundled repository contents.
+
+AI4sale-hosted catalog access, adapted collection update streams, signed hosted archives, dashboard features, support, cloud sync, marketplace, team features, and enterprise private registries require a registered installation and are governed separately. See [docs/registration-and-licensing.md](docs/registration-and-licensing.md) and [SERVICE-TERMS.md](SERVICE-TERMS.md).

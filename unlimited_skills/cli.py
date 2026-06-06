@@ -12,6 +12,16 @@ from pathlib import Path
 from typing import Iterable
 
 from .adapters import SKILL_PACKS, adapt_library, apply_agent_adaptation, adaptation_task, install_pack, next_skill_for_agent
+from .registration import (
+    DEFAULT_SERVICE_URL,
+    load_registration,
+    registration_path,
+    redacted_status,
+    register_installation,
+    save_registration,
+    set_telemetry,
+)
+from .updates import UpdateClient
 
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -679,6 +689,97 @@ def cmd_serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_register(args: argparse.Namespace) -> int:
+    if not args.key:
+        print("Pass --key or set UNLIMITED_SKILLS_REGISTRATION_KEY.", file=sys.stderr)
+        return 2
+    root = Path(args.root).expanduser()
+    state = load_registration()
+    skill_count = sum(1 for _ in iter_skills(root))
+    state = register_installation(
+        state,
+        args.key,
+        server_url=args.server_url,
+        agent=args.agent,
+        skill_count=skill_count,
+        email=args.email,
+        telemetry="on" if args.telemetry else "off",
+        timeout=args.timeout,
+    )
+    path = save_registration(state)
+    payload = redacted_status(state)
+    payload["registration_file"] = str(path)
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_license_status(args: argparse.Namespace) -> int:
+    state = load_registration()
+    payload = redacted_status(state)
+    payload["registration_file"] = str(registration_path())
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0
+    print("Registered: " + ("yes" if payload["registered"] else "no"))
+    print(f"Plan: {payload['plan']}")
+    print(f"Install ID: {payload['install_id'] or '(not created)'}")
+    print(f"Server: {payload['server_url']}")
+    print(f"Telemetry: {payload['telemetry']}")
+    print("Hosted token: " + ("present" if payload["license_token"] else "missing"))
+    return 0
+
+
+def cmd_telemetry(args: argparse.Namespace) -> int:
+    state = load_registration()
+    if args.telemetry_command in {"on", "off"}:
+        state = set_telemetry(state, args.telemetry_command)
+        save_registration(state)
+    payload = redacted_status(state)
+    print(json.dumps({"telemetry": payload["telemetry"], "registered": payload["registered"]}, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_updates_check(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    client = UpdateClient(load_registration(), timeout=args.timeout)
+    updates = client.check(root)
+    if args.collection:
+        updates = [item for item in updates if item.collection == args.collection]
+    payload = {"root": str(root), "count": len(updates), "updates": [item.__dict__ for item in updates]}
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    elif updates:
+        for item in updates:
+            print(f"{item.collection}: {item.version} ({item.notes or 'update available'})")
+    else:
+        print("No hosted collection updates available.")
+    return 0
+
+
+def cmd_updates_apply(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    client = UpdateClient(load_registration(), timeout=args.timeout)
+    updates = client.check(root)
+    if args.collection:
+        updates = [item for item in updates if item.collection == args.collection]
+    if args.dry_run:
+        print(json.dumps({"root": str(root), "dry_run": True, "count": len(updates), "updates": [item.__dict__ for item in updates]}, ensure_ascii=False, indent=2))
+        return 0
+    applied = [client.apply(root, item) for item in updates]
+    if applied and not args.skip_reindex:
+        save_index(root)
+    print(json.dumps({"root": str(root), "applied": applied, "reindexed": bool(applied and not args.skip_reindex)}, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_catalog_list(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    client = UpdateClient(load_registration(), timeout=args.timeout)
+    payload = client.catalog(root)
+    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Search, load, and learn from large local skill libraries.")
     parser.add_argument("--root", default=str(DEFAULT_ROOT), help="Skill library root.")
@@ -791,6 +892,47 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--model", default=DEFAULT_EMBED_MODEL)
     serve.add_argument("--log-level", default="info")
     serve.set_defaults(func=cmd_serve)
+
+    register = sub.add_parser("register", help="Register this installation for hosted catalog and adapted collection updates.")
+    register.add_argument("--key", default=os.environ.get("UNLIMITED_SKILLS_REGISTRATION_KEY", ""), help="Registration key.")
+    register.add_argument("--server-url", default=DEFAULT_SERVICE_URL, help="Registration and update service URL.")
+    register.add_argument("--email", default="", help="Optional email; stored locally as a SHA256 hash only.")
+    register.add_argument("--agent", default="", help="Optional agent surface label, for example codex, claude-code, hermes, or openclaw.")
+    register.add_argument("--telemetry", action="store_true", help="Opt in to minimal operational telemetry.")
+    register.add_argument("--timeout", type=float, default=30.0)
+    register.set_defaults(func=cmd_register)
+
+    license_parser = sub.add_parser("license", help="Inspect registration and hosted service access.")
+    license_sub = license_parser.add_subparsers(dest="license_command", required=True)
+    license_status = license_sub.add_parser("status", help="Show current license and registration status.")
+    license_status.add_argument("--json", action="store_true")
+    license_status.set_defaults(func=cmd_license_status)
+
+    telemetry = sub.add_parser("telemetry", help="Inspect or change minimal telemetry preference.")
+    telemetry_sub = telemetry.add_subparsers(dest="telemetry_command", required=True)
+    for name in ("status", "on", "off"):
+        telemetry_item = telemetry_sub.add_parser(name)
+        telemetry_item.set_defaults(func=cmd_telemetry)
+
+    updates = sub.add_parser("updates", help="Check or apply hosted adapted collection updates.")
+    updates_sub = updates.add_subparsers(dest="updates_command", required=True)
+    updates_check = updates_sub.add_parser("check", help="Check registered hosted collection updates.")
+    updates_check.add_argument("--collection", default="", help="Only check one collection.")
+    updates_check.add_argument("--json", action="store_true")
+    updates_check.add_argument("--timeout", type=float, default=30.0)
+    updates_check.set_defaults(func=cmd_updates_check)
+    updates_apply = updates_sub.add_parser("apply", help="Download, verify, and install registered hosted collection updates.")
+    updates_apply.add_argument("--collection", default="", help="Only apply one collection.")
+    updates_apply.add_argument("--dry-run", action="store_true", help="Show available updates without downloading archives.")
+    updates_apply.add_argument("--skip-reindex", action="store_true", help="Do not rebuild the lexical index after applying updates.")
+    updates_apply.add_argument("--timeout", type=float, default=30.0)
+    updates_apply.set_defaults(func=cmd_updates_apply)
+
+    catalog = sub.add_parser("catalog", help="Query the registered hosted adapted-skill catalog.")
+    catalog_sub = catalog.add_subparsers(dest="catalog_command", required=True)
+    catalog_list = catalog_sub.add_parser("list", help="List the hosted adapted-skill catalog for this registered installation.")
+    catalog_list.add_argument("--timeout", type=float, default=30.0)
+    catalog_list.set_defaults(func=cmd_catalog_list)
 
     return parser
 
