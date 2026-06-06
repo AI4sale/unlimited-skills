@@ -6,7 +6,7 @@ By default, skills, prompts, source code, local file paths, repository names, cu
 
 ## What the hosted update client may send
 
-When a registered installation checks the hosted catalog or hosted adapted collection updates, the client sends only a minimal request:
+When a registered installation checks the hosted catalog, hosted adapted collection updates, or local enhancement script metadata, the client sends only a minimal request:
 
 - local install id;
 - client name and version;
@@ -26,6 +26,8 @@ The update client does not send:
 - filenames from private projects;
 - environment variables;
 - tokens or secrets.
+
+The local enhancement script is downloaded from the registry, but it runs on the user's machine. Skill contents are not uploaded for enhancement.
 
 ## Telemetry
 

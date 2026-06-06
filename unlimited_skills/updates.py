@@ -4,6 +4,8 @@ import hashlib
 import json
 import re
 import shutil
+import subprocess
+import sys
 import tempfile
 import time
 import urllib.error
@@ -14,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
-from .registration import RegistrationState, post_json
+from .registration import RegistrationState, post_json, unlimited_skills_home
 
 COLLECTIONS_MANIFEST = ".unlimited-skills-collections.json"
 COLLECTION_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
@@ -38,6 +40,16 @@ class CollectionUpdate:
     pack_id: str = ""
     notes: str = ""
     format: str = "skill-collection-zip-v1"
+
+
+@dataclass(frozen=True)
+class EnhancementScript:
+    script_id: str
+    version: str
+    download_url: str
+    sha256: str
+    signature: str
+    notes: str = ""
 
 
 def now_iso() -> str:
@@ -126,6 +138,25 @@ def parse_updates(data: dict[str, Any]) -> list[CollectionUpdate]:
     return updates
 
 
+def parse_enhancement_script(data: dict[str, Any]) -> EnhancementScript:
+    script_id = str(data.get("script_id") or "")
+    version = str(data.get("version") or "")
+    download_url = str(data.get("download_url") or "")
+    sha256 = str(data.get("sha256") or "")
+    signature = str(data.get("signature") or "")
+    if not script_id or not version or not download_url or not sha256:
+        raise UpdateError("Enhancement service must return script_id, version, download_url, and sha256.")
+    validate_collection_name(script_id)
+    return EnhancementScript(
+        script_id=script_id,
+        version=version,
+        download_url=download_url,
+        sha256=sha256,
+        signature=signature,
+        notes=str(data.get("notes") or ""),
+    )
+
+
 def validate_collection_name(collection: str) -> None:
     if not COLLECTION_NAME_RE.match(collection):
         raise UpdateError(f"Unsafe collection name: {collection}")
@@ -135,7 +166,7 @@ class UpdateClient:
     def __init__(self, state: RegistrationState, *, timeout: float = 30.0) -> None:
         if not state.registered:
             raise RegistrationRequired(
-                "Official skill updates require registration. The MIT core remains fully usable offline: local search, "
+                "Official registry features require registration. The MIT core remains fully usable offline: local search, "
                 "local skill library, local imports, router skill, daemon, reindex, list, and view."
             )
         self.state = state
@@ -171,6 +202,43 @@ class UpdateClient:
         )
         return response
 
+    def enhancement_script(self, root: Path) -> EnhancementScript:
+        payload = {
+            "schema_version": 1,
+            "install_id": self.state.install_id,
+            "client": {"name": "unlimited-skills", "version": __version__},
+            "collections": current_collection_state(root),
+        }
+        response = post_json(
+            f"{self.state.server_url.rstrip('/')}/v1/enhancement/script",
+            payload,
+            token=self.state.license_token,
+            timeout=self.timeout,
+        )
+        return parse_enhancement_script(response)
+
+    def download_enhancement_script(self, root: Path, target_dir: Path | None = None) -> Path:
+        script = self.enhancement_script(root)
+        target_root = target_dir or (unlimited_skills_home() / "registry-cache" / "enhancers")
+        target_root.mkdir(parents=True, exist_ok=True)
+        target = target_root / f"{script.script_id}-{script.version}.py"
+        download_file(script.download_url, target, timeout=self.timeout)
+        actual_sha = sha256_file(target)
+        if actual_sha.lower() != script.sha256.lower():
+            target.unlink(missing_ok=True)
+            raise UpdateError(f"SHA256 mismatch for {script.script_id}: expected {script.sha256}, got {actual_sha}")
+        return target
+
+    def run_enhancement_script(self, root: Path, *, apply: bool = False, limit: int = 0, target_dir: Path | None = None) -> int:
+        script_path = self.download_enhancement_script(root, target_dir=target_dir)
+        command = [sys.executable, str(script_path), "--root", str(root)]
+        if apply:
+            command.append("--apply")
+        if limit:
+            command.extend(["--limit", str(limit)])
+        completed = subprocess.run(command, check=False)
+        return int(completed.returncode)
+
     def apply(self, root: Path, update: CollectionUpdate) -> dict[str, str]:
         validate_collection_name(update.collection)
         if update.format != "skill-collection-zip-v1":
@@ -191,13 +259,17 @@ class UpdateClient:
 
 
 def download_archive(url: str, target: Path, *, timeout: float = 30.0) -> None:
+    download_file(url, target, timeout=timeout)
+
+
+def download_file(url: str, target: Path, *, timeout: float = 30.0) -> None:
     request = urllib.request.Request(url, headers={"User-Agent": f"unlimited-skills/{__version__}"})
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             with target.open("wb") as handle:
                 shutil.copyfileobj(response, handle)
     except urllib.error.URLError as exc:
-        raise UpdateError(f"Cannot download collection archive: {exc.reason}") from exc
+        raise UpdateError(f"Cannot download registry file: {exc.reason}") from exc
 
 
 def sha256_file(path: Path) -> str:

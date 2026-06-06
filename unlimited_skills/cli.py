@@ -780,6 +780,26 @@ def cmd_catalog_list(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_enhance_download(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    client = UpdateClient(load_registration(), timeout=args.timeout)
+    target_dir = Path(args.target_dir).expanduser() if args.target_dir else None
+    path = client.download_enhancement_script(root, target_dir=target_dir)
+    payload = {"root": str(root), "script": str(path)}
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+    else:
+        print(path)
+    return 0
+
+
+def cmd_enhance_run(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    client = UpdateClient(load_registration(), timeout=args.timeout)
+    target_dir = Path(args.target_dir).expanduser() if args.target_dir else None
+    return client.run_enhancement_script(root, apply=args.apply, limit=args.limit, target_dir=target_dir)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Search, load, and learn from large local skill libraries.")
     parser.add_argument("--root", default=str(DEFAULT_ROOT), help="Skill library root.")
@@ -933,6 +953,20 @@ def build_parser() -> argparse.ArgumentParser:
     catalog_list = catalog_sub.add_parser("list", help="List the hosted adapted-skill catalog for this registered installation.")
     catalog_list.add_argument("--timeout", type=float, default=30.0)
     catalog_list.set_defaults(func=cmd_catalog_list)
+
+    enhance = sub.add_parser("enhance", help="Download or run the registered local skill enhancement script.")
+    enhance_sub = enhance.add_subparsers(dest="enhance_command", required=True)
+    enhance_download = enhance_sub.add_parser("download", help="Download the registered local enhancement script without running it.")
+    enhance_download.add_argument("--target-dir", default="", help="Optional script cache directory.")
+    enhance_download.add_argument("--json", action="store_true")
+    enhance_download.add_argument("--timeout", type=float, default=30.0)
+    enhance_download.set_defaults(func=cmd_enhance_download)
+    enhance_run = enhance_sub.add_parser("run", help="Download and run the registered local enhancement script. Dry-run unless --apply is passed.")
+    enhance_run.add_argument("--target-dir", default="", help="Optional script cache directory.")
+    enhance_run.add_argument("--apply", action="store_true", help="Write enhanced SKILL.md files. Without this flag the enhancer is a dry run.")
+    enhance_run.add_argument("--limit", type=int, default=0, help="Maximum skills to inspect. Use 0 for all.")
+    enhance_run.add_argument("--timeout", type=float, default=30.0)
+    enhance_run.set_defaults(func=cmd_enhance_run)
 
     return parser
 

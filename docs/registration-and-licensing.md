@@ -25,6 +25,7 @@ Registration is required for official hosted services:
 
 - hosted adapted-skill catalog;
 - adapted collection update stream;
+- registered local skill enhancement scripts;
 - signed hosted collection archives;
 - hosted support and dashboard features;
 - future cloud sync, marketplace, team, and enterprise features.
@@ -69,10 +70,20 @@ unlimited-skills catalog list
 unlimited-skills updates check
 ```
 
+Download and run the registered local enhancer:
+
+```bash
+unlimited-skills enhance download
+unlimited-skills enhance run
+unlimited-skills enhance run --apply
+```
+
+Without registration, local skills remain "as is". With registration, the client can download the official local enhancement script from the registry. The script runs locally and is checksum-verified before use.
+
 Apply hosted collection updates:
 
 ```bash
 unlimited-skills updates apply
 ```
 
-Hosted catalog and update commands fail when the installation is not registered. Local commands such as `search`, `list`, `view`, `reindex`, `adapt`, and installer migrations continue to work without registration.
+Hosted catalog, update, and enhancement-script commands fail when the installation is not registered. Local commands such as `search`, `list`, `view`, `reindex`, `adapt`, and installer migrations continue to work without registration.

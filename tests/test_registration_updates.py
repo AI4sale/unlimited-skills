@@ -130,6 +130,67 @@ class RegistrationUpdatesTest(unittest.TestCase):
 
             self.assertEqual(payload, catalog)
 
+    def test_registered_enhancement_script_download_is_verified(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            root = tmp_path / "library"
+            target_dir = tmp_path / "cache"
+            script_body = b"#!/usr/bin/env python3\nprint('enhance local skills')\n"
+            digest = __import__("hashlib").sha256(script_body).hexdigest()
+            manifest = {
+                "script_id": "local-skill-enhancer",
+                "version": "0.1.0",
+                "download_url": "https://updates.example.test/enhancer.py",
+                "sha256": digest,
+                "signature": "ed25519:test",
+            }
+
+            def fake_urlopen(request, timeout=30.0):
+                url = request.full_url if hasattr(request, "full_url") else str(request)
+                if url.endswith("/v1/enhancement/script"):
+                    body = json.loads(request.data.decode("utf-8"))
+                    self.assertEqual(body["collections"], {})
+                    self.assertNotIn("SKILL.md", request.data.decode("utf-8"))
+                    return FakeResponse(json.dumps(manifest).encode("utf-8"))
+                if url.endswith("/enhancer.py"):
+                    return FakeResponse(script_body)
+                raise AssertionError(f"Unexpected URL: {url}")
+
+            state = RegistrationState(install_id="uls_inst_test", server_url="https://updates.example.test", license_token="tok_test")
+            client = UpdateClient(state)
+            with patch("urllib.request.urlopen", fake_urlopen):
+                path = client.download_enhancement_script(root, target_dir=target_dir)
+
+            self.assertEqual(path.read_bytes(), script_body)
+            self.assertEqual(path.name, "local-skill-enhancer-0.1.0.py")
+
+    def test_enhancement_script_checksum_mismatch_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            manifest = {
+                "script_id": "local-skill-enhancer",
+                "version": "0.1.0",
+                "download_url": "https://updates.example.test/enhancer.py",
+                "sha256": "0" * 64,
+                "signature": "ed25519:test",
+            }
+
+            def fake_urlopen(request, timeout=30.0):
+                url = request.full_url if hasattr(request, "full_url") else str(request)
+                if url.endswith("/v1/enhancement/script"):
+                    return FakeResponse(json.dumps(manifest).encode("utf-8"))
+                if url.endswith("/enhancer.py"):
+                    return FakeResponse(b"changed")
+                raise AssertionError(f"Unexpected URL: {url}")
+
+            state = RegistrationState(install_id="uls_inst_test", server_url="https://updates.example.test", license_token="tok_test")
+            client = UpdateClient(state)
+            with patch("urllib.request.urlopen", fake_urlopen):
+                with self.assertRaises(UpdateError):
+                    client.download_enhancement_script(tmp_path / "library", target_dir=tmp_path / "cache")
+
+            self.assertEqual(list((tmp_path / "cache").glob("*.py")), [])
+
     def test_collection_archives_cannot_escape_extract_dir(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)

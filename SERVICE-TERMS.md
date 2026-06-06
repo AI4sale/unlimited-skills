@@ -12,6 +12,7 @@ The following are hosted services, not part of the unrestricted MIT source-code 
 
 - official hosted adapted-skill catalog;
 - adapted collection update stream;
+- registered local skill enhancement scripts;
 - signed hosted collection archives;
 - hosted dashboards, support, cloud sync, team features, private registries, and marketplace features.
 

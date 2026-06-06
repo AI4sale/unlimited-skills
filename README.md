@@ -101,6 +101,7 @@ Registration is required only for AI4sale-hosted services:
 
 - hosted adapted-skill catalog;
 - adapted collection update stream;
+- registered local skill enhancement script;
 - signed hosted collection archives;
 - future dashboard, cloud sync, marketplace, team, and enterprise features.
 
@@ -128,13 +129,23 @@ unlimited-skills updates check
 unlimited-skills updates apply
 ```
 
+Download and run the registered local enhancer:
+
+```bash
+unlimited-skills enhance download
+unlimited-skills enhance run
+unlimited-skills enhance run --apply
+```
+
+`enhance run` is a dry run unless `--apply` is passed. The enhancer script is downloaded from the official registry, checksum-verified, cached locally, and then runs on your machine. It does not send skill bodies or prompts to the registry.
+
 The registration file is stored at:
 
 ```text
 ~/.unlimited-skills/registration.json
 ```
 
-The update client sends only install id, client version, collection versions, source labels, and skill-count buckets. It does not send skill bodies, prompts, source code, skill names, full local paths, repository paths, customer names, environment variables, tokens, or secrets. See [docs/privacy-and-telemetry.md](docs/privacy-and-telemetry.md).
+The registry client sends only install id, client version, collection versions, source labels, and skill-count buckets. It does not send skill bodies, prompts, source code, skill names, full local paths, repository paths, customer names, environment variables, tokens, or secrets. See [docs/privacy-and-telemetry.md](docs/privacy-and-telemetry.md).
 
 ## Install for Codex
 
@@ -465,4 +476,4 @@ The repository source code is MIT licensed. See [LICENSE](LICENSE).
 
 The MIT license covers the local Community Core: router, installers, migrations, local search, local daemon, local learning logs, and bundled repository contents.
 
-AI4sale-hosted catalog access, adapted collection update streams, signed hosted archives, dashboard features, support, cloud sync, marketplace, team features, and enterprise private registries require a registered installation and are governed separately. See [docs/registration-and-licensing.md](docs/registration-and-licensing.md) and [SERVICE-TERMS.md](SERVICE-TERMS.md).
+AI4sale-hosted catalog access, adapted collection update streams, registered local enhancement scripts, signed hosted archives, dashboard features, support, cloud sync, marketplace, team features, and enterprise private registries require a registered installation and are governed separately. See [docs/registration-and-licensing.md](docs/registration-and-licensing.md) and [SERVICE-TERMS.md](SERVICE-TERMS.md).
