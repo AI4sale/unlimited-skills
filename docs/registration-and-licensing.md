@@ -30,7 +30,7 @@ Registration is required for official hosted services:
 - signed hosted collection archives;
 - planned team skill sync for encrypted private team packs;
 - hosted support and dashboard features;
-- future cloud sync, marketplace, team, and enterprise features.
+- future cloud sync, marketplace, team, Enterprise Skill Lock, and enterprise features.
 
 Registered installs store their state in:
 
@@ -48,7 +48,7 @@ Planned service tiers:
 - **Registered Community**: free registration key for hosted catalog, `community-skills` access, and collection updates.
 - **Team Free**: planned free team license for up to 10 registered team instances.
 - **Pro / Team**: paid hosted workflow, dashboard, larger team sync, and collaboration features.
-- **Enterprise**: private registry, private update channel, custom security terms, and support.
+- **Enterprise**: private registry, private update channel, Enterprise Skill Lock, custom security terms, and support.
 
 The exact hosted-service terms can change independently from the MIT source license. See [../SERVICE-TERMS.md](../SERVICE-TERMS.md).
 

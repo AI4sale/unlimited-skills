@@ -152,6 +152,8 @@ Using the hosted `community-skills` catalog or pushing skills into it also requi
 
 Planned team feature: registered teams will be able to publish encrypted private skill-pack updates from a master instance and synchronize them across child instances. Up to 10 team instances are planned to be included in the free team license. See [docs/team-skill-sync.md](docs/team-skill-sync.md).
 
+Planned enterprise feature: Enterprise Skill Lock will let managed instances refuse unmanaged skill delivery and direct operators to a corporate administrator or approved enterprise update channel. See [docs/enterprise-skill-lock.md](docs/enterprise-skill-lock.md).
+
 ## Install for Codex
 
 Install the router skill into `~/.codex/skills/unlimited-skills`.
@@ -481,4 +483,4 @@ The repository source code is MIT licensed. See [LICENSE](LICENSE).
 
 The MIT license covers the local Community Core: router, installers, migrations, local search, local daemon, local learning logs, and bundled repository contents.
 
-AI4sale-hosted catalog access, `community-skills` catalog/submissions, adapted collection update streams, registered local enhancement scripts, signed hosted archives, dashboard features, support, cloud sync, marketplace, team skill sync, and enterprise private registries require a registered installation and are governed separately. See [docs/registration-and-licensing.md](docs/registration-and-licensing.md) and [SERVICE-TERMS.md](SERVICE-TERMS.md).
+AI4sale-hosted catalog access, `community-skills` catalog/submissions, adapted collection update streams, registered local enhancement scripts, signed hosted archives, dashboard features, support, cloud sync, marketplace, team skill sync, Enterprise Skill Lock, and enterprise private registries require a registered installation and are governed separately. See [docs/registration-and-licensing.md](docs/registration-and-licensing.md) and [SERVICE-TERMS.md](SERVICE-TERMS.md).
