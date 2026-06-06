@@ -746,19 +746,14 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
 
 def cmd_register(args: argparse.Namespace) -> int:
-    if not args.key:
-        print("Pass --key or set UNLIMITED_SKILLS_REGISTRATION_KEY.", file=sys.stderr)
-        return 2
     root = Path(args.root).expanduser()
     state = load_registration()
     skill_count = sum(1 for _ in iter_skills(root))
     state = register_installation(
         state,
-        args.key,
         server_url=args.server_url,
         agent=args.agent,
         skill_count=skill_count,
-        email=args.email,
         telemetry="on" if args.telemetry else "off",
         timeout=args.timeout,
     )
@@ -782,6 +777,8 @@ def cmd_license_status(args: argparse.Namespace) -> int:
     print(f"Server: {payload['server_url']}")
     print(f"Telemetry: {payload['telemetry']}")
     print("Hosted token: " + ("present" if payload["license_token"] else "missing"))
+    print(f"Device key: {payload['key_thumbprint'] or '(not created)'}")
+    print("Proof required: " + ("yes" if payload["proof_required"] else "no"))
     return 0
 
 
@@ -1113,10 +1110,8 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--log-level", default="info")
     serve.set_defaults(func=cmd_serve)
 
-    register = sub.add_parser("register", help="Register this installation for hosted catalog and adapted collection updates.")
-    register.add_argument("--key", default=os.environ.get("UNLIMITED_SKILLS_REGISTRATION_KEY", ""), help="Registration key.")
+    register = sub.add_parser("register", help="Self-register this installation for hosted catalog and adapted collection updates.")
     register.add_argument("--server-url", default=DEFAULT_SERVICE_URL, help="Registration and update service URL.")
-    register.add_argument("--email", default="", help="Optional email; stored locally as a SHA256 hash only.")
     register.add_argument("--agent", default="", help="Optional agent surface label, for example codex, claude-code, hermes, or openclaw.")
     register.add_argument("--telemetry", action="store_true", help="Opt in to minimal operational telemetry.")
     register.add_argument("--timeout", type=float, default=30.0)

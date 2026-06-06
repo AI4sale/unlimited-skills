@@ -183,6 +183,7 @@ class UpdateClient:
             f"{self.state.server_url.rstrip('/')}/v1/collections/updates",
             payload,
             token=self.state.license_token,
+            proof_state=self.state,
             timeout=self.timeout,
         )
         return parse_updates(response)
@@ -198,6 +199,7 @@ class UpdateClient:
             f"{self.state.server_url.rstrip('/')}/v1/catalog",
             payload,
             token=self.state.license_token,
+            proof_state=self.state,
             timeout=self.timeout,
         )
         return response
@@ -213,6 +215,7 @@ class UpdateClient:
             f"{self.state.server_url.rstrip('/')}/v1/enhancement/script",
             payload,
             token=self.state.license_token,
+            proof_state=self.state,
             timeout=self.timeout,
         )
         return parse_enhancement_script(response)

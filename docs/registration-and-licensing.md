@@ -48,19 +48,19 @@ Registered installs store their state in:
 ~/.unlimited-skills/registration.json
 ```
 
-The file contains the local install id, the configured service URL, the service plan, the hosted-service token, and telemetry preference.
+The file contains the local install id, the configured service URL, the service plan, the hosted-service token, the local device signing key, the public key thumbprint, and telemetry preference. Treat this file like a credential.
 
 ## Plans
 
 Planned service tiers:
 
 - **Community Core**: MIT local core, no hosted-service registration required.
-- **Registered Community**: free registration key for early-access hosted catalog, `community-skills` access, and collection updates.
+- **Registered Community**: free self-registration for early-access hosted catalog, `community-skills` access, and collection updates.
 - **Team Free**: team sync MVP for up to 10 registered team instances, with manual approval by default.
 - **Pro / Team**: paid hosted workflow, dashboard, larger team sync, longer auto-approval windows, and collaboration features.
 - **Enterprise**: private registry, private update channel, Enterprise Skill Lock, custom security terms, and support.
 
-Business and enterprise discussions start through the company intake page at [https://unlimited.ai4.sale/enterprise](https://unlimited.ai4.sale/enterprise). The page collects basic company, rollout, pricing, and deployment-model context. It does not issue a CLI registration key automatically.
+Business and enterprise discussions start through the company intake page at [https://unlimited.ai4.sale/enterprise](https://unlimited.ai4.sale/enterprise). The page collects basic company, rollout, pricing, and deployment-model context. It is separate from community CLI self-registration.
 
 The exact hosted-service terms can change independently from the MIT source license. See [../SERVICE-TERMS.md](../SERVICE-TERMS.md).
 
@@ -69,8 +69,13 @@ The exact hosted-service terms can change independently from the MIT source lice
 Register an installation:
 
 ```bash
-unlimited-skills register --key "$UNLIMITED_SKILLS_REGISTRATION_KEY" --agent codex
+unlimited-skills register --agent codex
+unlimited-skills register --agent claude-code
+unlimited-skills register --agent hermes
+unlimited-skills register --agent openclaw
 ```
+
+Registration is agent-agnostic. The `--agent` value is metadata for support and rollout diagnostics; the credential belongs to the local installation/device. During registration the client creates a random install id plus an Ed25519 device key, sends only the public key and key thumbprint to the registry, and stores the returned hosted-service token locally. Registered hosted API requests must include both the token and a signed proof from that device key.
 
 Check license status:
 

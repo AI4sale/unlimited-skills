@@ -12,6 +12,9 @@ license = "MIT"
 authors = [
   { name = "AI4sale" }
 ]
+dependencies = [
+  "cryptography>=42,<47",
+]
 keywords = ["agents", "skills", "codex", "claude-code", "chroma", "retrieval", "rag"]
 classifiers = [
   "Development Status :: 3 - Alpha",

@@ -9,6 +9,7 @@ By default, skills, prompts, source code, local file paths, repository names, cu
 When a registered installation checks the hosted catalog, hosted adapted collection updates, or local enhancement script metadata, the client sends only a minimal request:
 
 - local install id;
+- public device key and key thumbprint;
 - client name and version;
 - collection version metadata;
 - collection source label;
@@ -25,6 +26,7 @@ The update client does not send:
 - customer names;
 - filenames from private projects;
 - environment variables;
+- device private keys;
 - tokens or secrets.
 
 The local enhancement script is downloaded from the registry, but it runs on the user's machine. Skill contents are not uploaded for enhancement.
@@ -55,6 +57,8 @@ unlimited-skills telemetry off
 
 Telemetry preference is stored locally in `~/.unlimited-skills/registration.json`.
 
-## Registration email
+## Registration credential
 
-If an email is passed during registration, the CLI stores only a SHA256 hash locally. The server may receive the registration key and account details needed to issue a hosted-service token, but the local registration file does not store the raw email.
+Community registration in v0.1 does not require an email address. The CLI creates a local install id and Ed25519 device key, sends only the public key and key thumbprint to the registry, and stores the private key plus hosted-service token in `~/.unlimited-skills/registration.json`.
+
+Email-bound device registration is planned for v0.2.

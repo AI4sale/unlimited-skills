@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import base64
 import hashlib
 import json
 import os
@@ -8,10 +9,14 @@ import secrets
 import sys
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat, PublicFormat
 
 from . import __version__
 
@@ -39,11 +44,24 @@ def new_install_id() -> str:
     return "uls_inst_" + secrets.token_urlsafe(24)
 
 
-def email_hash(email: str) -> str:
-    normalized = email.strip().lower()
-    if not normalized:
-        return ""
-    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+def _b64_encode(raw: bytes) -> str:
+    return base64_urlsafe_encode(raw)
+
+
+def base64_urlsafe_encode(raw: bytes) -> str:
+    return base64.urlsafe_b64encode(raw).decode("ascii").rstrip("=")
+
+
+def base64_urlsafe_decode(value: str) -> bytes:
+    return base64.urlsafe_b64decode(value + ("=" * (-len(value) % 4)))
+
+
+def generate_device_keypair() -> tuple[str, str, str]:
+    private_key = Ed25519PrivateKey.generate()
+    private_raw = private_key.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption())
+    public_raw = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+    public_b64 = _b64_encode(public_raw)
+    return _b64_encode(private_raw), public_b64, hashlib.sha256(public_raw).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -53,15 +71,18 @@ class RegistrationState:
     server_url: str = DEFAULT_SERVICE_URL
     plan: str = ""
     license_token: str = ""
+    device_private_key: str = ""
+    device_public_key: str = ""
+    key_thumbprint: str = ""
+    proof_required: bool = True
     telemetry: str = "off"
-    registered_email_hash: str = ""
     registered_at: str = ""
     last_checked_at: str = ""
     features_enabled: tuple[str, ...] = ()
 
     @property
     def registered(self) -> bool:
-        return bool(self.install_id and self.license_token)
+        return bool(self.install_id and self.license_token and self.device_private_key)
 
     def to_json(self) -> dict[str, Any]:
         return {
@@ -70,8 +91,11 @@ class RegistrationState:
             "server_url": self.server_url,
             "plan": self.plan,
             "license_token": self.license_token,
+            "device_private_key": self.device_private_key,
+            "device_public_key": self.device_public_key,
+            "key_thumbprint": self.key_thumbprint,
+            "proof_required": self.proof_required,
             "telemetry": self.telemetry,
-            "registered_email_hash": self.registered_email_hash,
             "registered_at": self.registered_at,
             "last_checked_at": self.last_checked_at,
             "features_enabled": list(self.features_enabled),
@@ -89,8 +113,11 @@ def state_from_json(data: dict[str, Any] | None) -> RegistrationState:
         server_url=str(data.get("server_url") or DEFAULT_SERVICE_URL),
         plan=str(data.get("plan") or ""),
         license_token=str(data.get("license_token") or ""),
+        device_private_key=str(data.get("device_private_key") or ""),
+        device_public_key=str(data.get("device_public_key") or ""),
+        key_thumbprint=str(data.get("key_thumbprint") or ""),
+        proof_required=bool(data.get("proof_required", True)),
         telemetry=str(data.get("telemetry") or "off"),
-        registered_email_hash=str(data.get("registered_email_hash") or ""),
         registered_at=str(data.get("registered_at") or ""),
         last_checked_at=str(data.get("last_checked_at") or ""),
         features_enabled=tuple(str(item) for item in features),
@@ -121,8 +148,33 @@ def with_install_id(state: RegistrationState, server_url: str = "") -> Registrat
         server_url=(server_url or state.server_url or DEFAULT_SERVICE_URL).rstrip("/"),
         plan=state.plan,
         license_token=state.license_token,
+        device_private_key=state.device_private_key,
+        device_public_key=state.device_public_key,
+        key_thumbprint=state.key_thumbprint,
+        proof_required=state.proof_required,
         telemetry=state.telemetry,
-        registered_email_hash=state.registered_email_hash,
+        registered_at=state.registered_at,
+        last_checked_at=state.last_checked_at,
+        features_enabled=state.features_enabled,
+    )
+
+
+def with_install_identity(state: RegistrationState, server_url: str = "") -> RegistrationState:
+    state = with_install_id(state, server_url)
+    if state.device_private_key and state.device_public_key and state.key_thumbprint:
+        return state
+    private_key, public_key, thumbprint = generate_device_keypair()
+    return RegistrationState(
+        schema_version=state.schema_version,
+        install_id=state.install_id,
+        server_url=state.server_url,
+        plan=state.plan,
+        license_token=state.license_token,
+        device_private_key=private_key,
+        device_public_key=public_key,
+        key_thumbprint=thumbprint,
+        proof_required=True,
+        telemetry=state.telemetry,
         registered_at=state.registered_at,
         last_checked_at=state.last_checked_at,
         features_enabled=state.features_enabled,
@@ -145,7 +197,6 @@ def count_bucket(count: int) -> str:
 
 def build_registration_payload(
     state: RegistrationState,
-    registration_key: str,
     *,
     agent: str = "",
     skill_count: int = 0,
@@ -154,7 +205,8 @@ def build_registration_payload(
     return {
         "schema_version": 1,
         "install_id": state.install_id,
-        "registration_key": registration_key,
+        "public_key": state.device_public_key,
+        "key_thumbprint": state.key_thumbprint,
         "client": {
             "name": "unlimited-skills",
             "version": __version__,
@@ -167,13 +219,44 @@ def build_registration_payload(
     }
 
 
-def post_json(url: str, payload: dict[str, Any], *, token: str = "", timeout: float = 30.0) -> dict[str, Any]:
+def proof_headers(state: RegistrationState, method: str, url: str, body: bytes) -> dict[str, str]:
+    if not state.device_private_key or not state.key_thumbprint:
+        return {}
+    timestamp = str(int(time.time()))
+    nonce = secrets.token_urlsafe(16)
+    body_sha256 = hashlib.sha256(body).hexdigest()
+    path = urllib.parse.urlsplit(url).path or "/"
+    message = "\n".join([method.upper(), path, body_sha256, timestamp, nonce, state.install_id, state.key_thumbprint])
+    private_key = Ed25519PrivateKey.from_private_bytes(base64_urlsafe_decode(state.device_private_key))
+    signature = private_key.sign(message.encode("utf-8"))
+    proof = {
+        "install_id": state.install_id,
+        "key_thumbprint": state.key_thumbprint,
+        "timestamp": timestamp,
+        "nonce": nonce,
+        "body_sha256": body_sha256,
+        "signature": base64_urlsafe_encode(signature),
+    }
+    return {"X-ULS-Proof": base64_urlsafe_encode(json.dumps(proof, separators=(",", ":"), sort_keys=True).encode("utf-8"))}
+
+
+def post_json(
+    url: str,
+    payload: dict[str, Any],
+    *,
+    token: str = "",
+    proof_state: RegistrationState | None = None,
+    timeout: float = 30.0,
+) -> dict[str, Any]:
+    body = json.dumps(payload).encode("utf-8")
     headers = {"Content-Type": "application/json", "User-Agent": f"unlimited-skills/{__version__}"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
+    if token and proof_state:
+        headers.update(proof_headers(proof_state, "POST", url, body))
     request = urllib.request.Request(
         url,
-        data=json.dumps(payload).encode("utf-8"),
+        data=body,
         headers=headers,
         method="POST",
     )
@@ -196,17 +279,15 @@ def post_json(url: str, payload: dict[str, Any], *, token: str = "", timeout: fl
 
 def register_installation(
     state: RegistrationState,
-    registration_key: str,
     *,
     server_url: str = "",
     agent: str = "",
     skill_count: int = 0,
-    email: str = "",
     telemetry: str = "off",
     timeout: float = 30.0,
 ) -> RegistrationState:
-    state = with_install_id(state, server_url)
-    payload = build_registration_payload(state, registration_key, agent=agent, skill_count=skill_count, telemetry=telemetry)
+    state = with_install_identity(state, server_url)
+    payload = build_registration_payload(state, agent=agent, skill_count=skill_count, telemetry=telemetry)
     response = post_json(f"{state.server_url}/v1/installations/register", payload, timeout=timeout)
     token = str(response.get("license_token") or response.get("token") or "")
     if not token:
@@ -219,8 +300,11 @@ def register_installation(
         server_url=state.server_url,
         plan=str(response.get("plan") or "registered-community"),
         license_token=token,
+        device_private_key=state.device_private_key,
+        device_public_key=state.device_public_key,
+        key_thumbprint=str(response.get("key_thumbprint") or state.key_thumbprint),
+        proof_required=bool(response.get("proof_required", True)),
         telemetry="on" if telemetry == "on" else "off",
-        registered_email_hash=email_hash(email),
         registered_at=str(response.get("registered_at") or now_iso()),
         last_checked_at=now_iso(),
         features_enabled=tuple(str(item) for item in features),
@@ -238,6 +322,8 @@ def redacted_status(state: RegistrationState) -> dict[str, Any]:
         "registered_at": state.registered_at,
         "last_checked_at": state.last_checked_at,
         "license_token": "present" if state.license_token else "",
+        "key_thumbprint": state.key_thumbprint,
+        "proof_required": state.proof_required,
     }
 
 
@@ -250,8 +336,11 @@ def set_telemetry(state: RegistrationState, mode: str) -> RegistrationState:
         server_url=state.server_url,
         plan=state.plan,
         license_token=state.license_token,
+        device_private_key=state.device_private_key,
+        device_public_key=state.device_public_key,
+        key_thumbprint=state.key_thumbprint,
+        proof_required=state.proof_required,
         telemetry=mode,
-        registered_email_hash=state.registered_email_hash,
         registered_at=state.registered_at,
         last_checked_at=state.last_checked_at,
         features_enabled=state.features_enabled,

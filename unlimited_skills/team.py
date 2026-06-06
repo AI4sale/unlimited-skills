@@ -120,6 +120,7 @@ class TeamClient:
                 "collections": current_collection_state(root),
             },
             token=self.state.license_token,
+            proof_state=self.state,
             timeout=self.timeout,
         )
         team = self._team_from_response(response, fallback_name=name)
@@ -136,6 +137,7 @@ class TeamClient:
                 "collections": current_collection_state(root),
             },
             token=self.state.license_token,
+            proof_state=self.state,
             timeout=self.timeout,
         )
         team = self._team_from_response(response)
@@ -154,6 +156,7 @@ class TeamClient:
                 "collections": current_collection_state(root),
             },
             token=self.state.license_token,
+            proof_state=self.state,
             timeout=self.timeout,
         )
         return parse_updates(response)
@@ -180,6 +183,7 @@ class TeamClient:
                 "team_token": team.team_token,
             },
             token=self.state.license_token,
+            proof_state=self.state,
             timeout=self.timeout,
         )
         return response
@@ -194,6 +198,7 @@ class TeamClient:
                 "team_token": team.team_token,
             },
             token=self.state.license_token,
+            proof_state=self.state,
             timeout=self.timeout,
         )
         return response
@@ -210,6 +215,7 @@ class TeamClient:
                 "hours": hours,
             },
             token=self.state.license_token,
+            proof_state=self.state,
             timeout=self.timeout,
         )
         return response

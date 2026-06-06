@@ -8,7 +8,7 @@ import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
-from unlimited_skills.registration import RegistrationState, build_registration_payload, with_install_id
+from unlimited_skills.registration import RegistrationState, build_registration_payload, with_install_identity, with_install_id
 from unlimited_skills.team import TeamClient
 from unlimited_skills.updates import (
     RegistrationRequired,
@@ -45,13 +45,18 @@ def make_collection_archive(tmp_path: Path, collection: str, skill: str, descrip
     return archive
 
 
+def registered_state() -> RegistrationState:
+    return with_install_identity(
+        RegistrationState(install_id="uls_inst_test", server_url="https://updates.example.test", license_token="tok_test")
+    )
+
+
 class RegistrationUpdatesTest(unittest.TestCase):
     def test_registration_payload_does_not_include_local_paths_or_skill_contents(self) -> None:
-        state = with_install_id(RegistrationState(), server_url="https://updates.example.test")
+        state = with_install_identity(with_install_id(RegistrationState(), server_url="https://updates.example.test"))
 
         payload = build_registration_payload(
             state,
-            "reg_123",
             agent="codex",
             skill_count=184,
             telemetry="off",
@@ -59,6 +64,9 @@ class RegistrationUpdatesTest(unittest.TestCase):
 
         serialized = json.dumps(payload)
         self.assertEqual(payload["skill_count_bucket"], "51-250")
+        self.assertIn("public_key", payload)
+        self.assertIn("key_thumbprint", payload)
+        self.assertNotIn("registration_key", payload)
         self.assertNotIn("C:\\", serialized)
         self.assertNotIn("/Users/", serialized)
         self.assertNotIn("SKILL.md", serialized)
@@ -99,7 +107,7 @@ class RegistrationUpdatesTest(unittest.TestCase):
                     return FakeResponse(archive.read_bytes())
                 raise AssertionError(f"Unexpected URL: {url}")
 
-            state = RegistrationState(install_id="uls_inst_test", server_url="https://updates.example.test", license_token="tok_test")
+            state = registered_state()
             client = UpdateClient(state)
             with patch("urllib.request.urlopen", fake_urlopen):
                 updates = client.check(root)
@@ -119,12 +127,14 @@ class RegistrationUpdatesTest(unittest.TestCase):
             def fake_urlopen(request, timeout=30.0):
                 self.assertTrue(request.full_url.endswith("/v1/catalog"))
                 self.assertEqual(request.headers.get("Authorization"), "Bearer tok_test")
+                proof = next((value for key, value in request.headers.items() if key.lower() == "x-uls-proof"), "")
+                self.assertTrue(proof)
                 body = json.loads(request.data.decode("utf-8"))
                 self.assertEqual(body["install_id"], "uls_inst_test")
                 self.assertEqual(body["collections"], {})
                 return FakeResponse(json.dumps(catalog).encode("utf-8"))
 
-            state = RegistrationState(install_id="uls_inst_test", server_url="https://updates.example.test", license_token="tok_test")
+            state = registered_state()
             client = UpdateClient(state)
             with patch("urllib.request.urlopen", fake_urlopen):
                 payload = client.catalog(root)
@@ -157,7 +167,7 @@ class RegistrationUpdatesTest(unittest.TestCase):
                     return FakeResponse(script_body)
                 raise AssertionError(f"Unexpected URL: {url}")
 
-            state = RegistrationState(install_id="uls_inst_test", server_url="https://updates.example.test", license_token="tok_test")
+            state = registered_state()
             client = UpdateClient(state)
             with patch("urllib.request.urlopen", fake_urlopen):
                 path = client.download_enhancement_script(root, target_dir=target_dir)
@@ -168,7 +178,7 @@ class RegistrationUpdatesTest(unittest.TestCase):
     def test_registered_team_create_manual_join_approval_and_sync_use_service_token(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "library"
-            state = RegistrationState(install_id="uls_inst_test", server_url="https://updates.example.test", license_token="tok_test")
+            state = registered_state()
             calls: list[str] = []
 
             def fake_urlopen(request, timeout=30.0):
@@ -259,7 +269,7 @@ class RegistrationUpdatesTest(unittest.TestCase):
                     return FakeResponse(b"changed")
                 raise AssertionError(f"Unexpected URL: {url}")
 
-            state = RegistrationState(install_id="uls_inst_test", server_url="https://updates.example.test", license_token="tok_test")
+            state = registered_state()
             client = UpdateClient(state)
             with patch("urllib.request.urlopen", fake_urlopen):
                 with self.assertRaises(UpdateError):

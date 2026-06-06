@@ -126,12 +126,14 @@ Registration is required only for AI4sale-hosted services:
 Register an installation:
 
 ```powershell
-unlimited-skills register --key $env:UNLIMITED_SKILLS_REGISTRATION_KEY --agent codex
+unlimited-skills register --agent codex
 ```
 
 ```bash
-unlimited-skills register --key "$UNLIMITED_SKILLS_REGISTRATION_KEY" --agent codex
+unlimited-skills register --agent codex
 ```
+
+Use `--agent claude-code`, `--agent hermes`, or `--agent openclaw` from those surfaces. The registration flow is the same for every agent: the client creates a local installation id and Ed25519 device key, sends only the public key and client metadata to the registry, and stores the returned hosted-service token locally. Hosted API calls must present both the token and a signed device proof.
 
 Check hosted access:
 
@@ -183,7 +185,7 @@ The registration file is stored at:
 ~/.unlimited-skills/registration.json
 ```
 
-The registry client sends only install id, client version, collection versions, source labels, and skill-count buckets. It does not send skill bodies, prompts, source code, skill names, full local paths, repository paths, customer names, environment variables, tokens, or secrets. See [docs/privacy-and-telemetry.md](docs/privacy-and-telemetry.md).
+The registry client sends only install id, public device key, key thumbprint, client version, collection versions, source labels, and skill-count buckets. It does not send skill bodies, prompts, source code, skill names, full local paths, repository paths, customer names, environment variables, device private keys, tokens, or secrets. See [docs/privacy-and-telemetry.md](docs/privacy-and-telemetry.md).
 
 Using the hosted `community-skills` catalog or pushing skills into it also requires registration. Submitting to `community-skills` is an explicit upload of the selected skill or pack, not background telemetry. See [docs/community-skills.md](docs/community-skills.md).
 
@@ -200,7 +202,7 @@ unlimited-skills team sync
 
 Planned enterprise feature: Enterprise Skill Lock will let managed instances refuse unmanaged skill delivery and direct operators to a corporate administrator or approved enterprise update channel. See [docs/enterprise-skill-lock.md](docs/enterprise-skill-lock.md).
 
-Business and enterprise access starts with a company registration request at [https://unlimited.ai4.sale/enterprise](https://unlimited.ai4.sale/enterprise). That page collects basic company, rollout, pricing, and deployment-model context; it does not create a CLI registration key by itself.
+Business and enterprise access starts with a company registration request at [https://unlimited.ai4.sale/enterprise](https://unlimited.ai4.sale/enterprise). That page collects basic company, rollout, pricing, and deployment-model context; it is separate from the community CLI self-registration flow.
 
 ## Install for Codex
 
