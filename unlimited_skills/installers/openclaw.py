@@ -150,6 +150,8 @@ def _patch_agents_file(agents_file: Path, launcher: Path) -> None:
             "",
             "Unlimited Skills is the external skill memory for this agent. Treat it as the first place to ask for task-specific skills, workflows, checklists, procedures, and regression recipes that may not be visible in the always-loaded skill list.",
             "",
+            "Before doing substantive work, check whether Unlimited Skills has a relevant skill. This includes writing, editing, coding, review, debugging, research, documentation, operations, planning, and design tasks. Skip this check only when a relevant skill is already active in the current context and it is clear why that skill applies.",
+            "",
             "Before saying a skill is unavailable, query the library:",
             "",
             "```bash",

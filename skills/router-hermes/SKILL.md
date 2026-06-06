@@ -1,6 +1,6 @@
 ---
 name: unlimited-skills
-description: Primary gateway to the external Unlimited Skills library for Hermes. Use before tasks that may need a specialized workflow, checklist, domain procedure, ECC skill, or Superpowers skill not already loaded.
+description: Primary gateway to the external Unlimited Skills library for Hermes. Use before substantive work whenever a relevant skill is not already active, including writing, coding, review, debugging, research, docs, operations, planning, design, or tasks that may need an ECC, Superpowers, or Hermes skill not already loaded.
 version: 0.1.0
 source: https://github.com/AI4sale/unlimited-skills
 ---
@@ -11,14 +11,18 @@ Unlimited Skills is an external skill memory and retrieval layer. It keeps large
 
 ## When to Use
 
+Use this router before doing substantive work unless an already-loaded skill is clearly relevant and already being used for the current task.
+
 Use this router first when:
 
 - the user asks what skills, abilities, workflows, procedures, agents, or checklists are available;
 - the user names a skill that is not currently loaded;
+- the task is content writing, editing, coding, review, debugging, research, documentation, operations, planning, or design and no clearly relevant loaded skill is already active;
 - the task may benefit from specialized domain knowledge, a review checklist, a workflow, a tool procedure, or a regression-test recipe;
 - the task is security, testing, debugging, frontend, backend, infrastructure, documentation, research, data, agent, or workflow related.
 
 Do not conclude that a skill is missing just because it is absent from Hermes' visible skill list. Query Unlimited Skills first and report what the library returns.
+Do not skip this router just because the task looks simple; skip it only when a relevant skill is already active in context and the reason for using that skill is clear.
 
 ## Installed Paths
 
@@ -44,12 +48,14 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "{{HERMES_PS_LAUNCHER}}" vie
 
 ## Workflow
 
-1. Build a short search query from the user's request, project stack, error text, framework names, and domain terms.
-2. Run `search "<query>" --mode hybrid --limit 8` with the launcher above.
-3. Pick a skill only when the result is concrete enough to change the work.
-4. Run `view <skill-name>` and follow only the relevant instructions.
-5. Record usage with `use <skill-name> --query "<query>" --task "<short task>"`.
-6. If the selected skill was wrong or especially useful, record feedback with the `feedback` command.
+1. If the user asks what skills are available, run `list --limit 80` and summarize the relevant collections or names.
+2. If the user names a specific skill, run `where <skill-name>` or `view <skill-name>` before saying it is unavailable.
+3. Otherwise, build a short search query from the user's request, project stack, error text, framework names, and domain terms.
+4. Run `search "<query>" --mode hybrid --limit 8` with the launcher above.
+5. Pick a skill only when the result is concrete enough to change the work.
+6. Run `view <skill-name>` and follow only the relevant instructions.
+7. Record usage with `use <skill-name> --query "<query>" --task "<short task>"`.
+8. If the selected skill was wrong or especially useful, record feedback with the `feedback` command.
 
 For inventory-style questions such as "what skills do you have?", search broad task terms first, then summarize matching library skills. Do not paste every result or every skill body into the conversation. Treat the library as a retrieval layer, not as context that should always be loaded.
 

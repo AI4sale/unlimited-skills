@@ -1,20 +1,24 @@
 ---
 name: unlimited-skills
-description: Primary gateway to the external Unlimited Skills library. Ask this router first whenever the task may need a skill, workflow, checklist, domain procedure, or when the user asks what skills are available.
+description: Primary gateway to the external Unlimited Skills library. Ask this router first before substantive work whenever a relevant skill is not already active, including writing, coding, review, debugging, research, docs, operations, planning, or when the user asks what skills are available.
 ---
 
 # Unlimited Skills Router
 
 Unlimited Skills is the gateway to the agent's external skill memory. Treat it as the place where all task-specific skills may exist, including skills that are not listed in the current context.
 
+Use this router before doing substantive work unless an already-loaded skill is clearly relevant and already being used for the current task.
+
 Use this router first when:
 
 - the user asks what skills, abilities, agents, workflows, procedures, or checklists are available;
 - the user names a skill that is not currently loaded, including names mentioned in `AGENTS.md`;
+- the task is content writing, editing, coding, review, debugging, research, documentation, operations, planning, or design and no clearly relevant loaded skill is already active;
 - the task may benefit from specialized domain knowledge, a review checklist, a workflow, a tool procedure, or a regression-test recipe;
 - the task is security, testing, debugging, frontend, backend, infrastructure, documentation, research, data, agent, or workflow related.
 
 Do not conclude that a skill is missing just because it is absent from `.agents/skills`, `.codex/skills`, or the always-loaded skill list. Query Unlimited Skills first and report what the library returns.
+Do not skip this router just because the task looks simple; skip it only when a relevant skill is already active in context and the reason for using that skill is clear.
 
 ## Workflow
 
