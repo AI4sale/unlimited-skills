@@ -11,6 +11,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Iterable
 
+from .adapters import SKILL_PACKS, adapt_library, apply_agent_adaptation, adaptation_task, install_pack, next_skill_for_agent
+
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -64,7 +66,7 @@ class SkillHit:
 
 
 def read_text(path: Path) -> str:
-    return path.read_text(encoding="utf-8", errors="replace")
+    return path.read_text(encoding="utf-8", errors="replace").lstrip("\ufeff")
 
 
 def write_jsonl(path: Path, row: dict) -> None:
@@ -74,6 +76,7 @@ def write_jsonl(path: Path, row: dict) -> None:
 
 
 def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
+    text = text.lstrip("\ufeff")
     if not text.startswith("---"):
         return {}, text
     lines = text.splitlines()
@@ -352,6 +355,29 @@ def emit_hits(hits: list[SkillHit], as_json: bool) -> int:
     return 0
 
 
+def list_skills(root: Path, collection: str | None = None, filter_text: str = "", fresh: bool = False) -> list[SkillHit]:
+    filter_tokens = tokens(filter_text)
+    filter_lower = filter_text.lower().strip()
+    hits = []
+    for hit, body in load_records(root, fresh=fresh):
+        if collection and hit.collection != collection:
+            continue
+        if filter_tokens:
+            haystack = f"{hit.name}\n{hit.description}\n{body[:12000]}".lower()
+            if filter_lower not in haystack and not (filter_tokens & tokens(haystack)):
+                continue
+        hits.append(hit)
+    hits.sort(key=lambda item: (item.collection, item.name))
+    return hits
+
+
+def collection_counts(hits: list[SkillHit]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for hit in hits:
+        counts[hit.collection] = counts.get(hit.collection, 0) + 1
+    return dict(sorted(counts.items()))
+
+
 def log_event(root: Path, event_type: str, payload: dict) -> None:
     write_jsonl(
         root / ".learning" / EVENT_LOG,
@@ -377,6 +403,38 @@ def cmd_search(args: argparse.Namespace) -> int:
         hits = hybrid_search(root, args.query, args.limit, args.model, args.collection, args.fresh, args.require_vector)
     log_event(root, "search", {"query": args.query, "mode": args.mode, "hits": [asdict(hit) for hit in hits[:5]]})
     return emit_hits(hits, args.json)
+
+
+def cmd_list(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    hits = list_skills(root, collection=args.collection, filter_text=args.filter, fresh=args.fresh)
+    shown = hits[: args.limit] if args.limit > 0 else hits
+    payload = {
+        "root": str(root),
+        "total": len(hits),
+        "shown": len(shown),
+        "collections": collection_counts(hits),
+        "skills": [asdict(hit) for hit in shown],
+    }
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0
+    print(f"Total skills: {payload['total']}")
+    if payload["collections"]:
+        print("Collections: " + ", ".join(f"{name}={count}" for name, count in payload["collections"].items()))
+    if len(shown) < len(hits):
+        print(f"Showing first {len(shown)} skills. Use --limit 0 to show all.")
+    for hit in shown:
+        if args.names_only:
+            print(hit.name)
+            continue
+        print(f"{hit.name} [{hit.collection}]")
+        if hit.description:
+            print(f"  {hit.description}")
+        if args.paths:
+            print(f"  {hit.path}")
+    log_event(root, "list", {"collection": args.collection or "", "filter": args.filter, "shown": len(shown), "total": len(hits)})
+    return 0
 
 
 def cmd_vector_reindex(args: argparse.Namespace) -> int:
@@ -514,6 +572,102 @@ def cmd_draft_skill(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_adapt(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    results = adapt_library(
+        root,
+        collection=args.collection,
+        source_pack=args.source_pack,
+        source_repo=args.source_repo,
+        force=args.force,
+        dry_run=args.dry_run,
+    )
+    changed = [item for item in results if item.changed]
+    payload = {
+        "root": str(root),
+        "collection": args.collection,
+        "dry_run": args.dry_run,
+        "count": len(results),
+        "changed": len(changed),
+        "items": [asdict(item) for item in changed[: args.limit]],
+    }
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_packs(args: argparse.Namespace) -> int:
+    print(json.dumps(SKILL_PACKS, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_install_pack(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    results = install_pack(root, args.pack, ref=args.ref, keep_clone=Path(args.keep_clone).expanduser() if args.keep_clone else None)
+    save_index(root)
+    payload = {
+        "root": str(root),
+        "pack": args.pack,
+        "count": len(results),
+        "items": [asdict(item) for item in results[: args.limit]],
+    }
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
+def resolve_skill_path(root: Path, name_or_path: str) -> Path | None:
+    candidate = Path(name_or_path).expanduser()
+    if candidate.is_file():
+        return candidate
+    if candidate.is_dir() and (candidate / "SKILL.md").is_file():
+        return candidate / "SKILL.md"
+    return find_by_name(root, name_or_path)
+
+
+def cmd_adapt_one(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    path = resolve_skill_path(root, args.name_or_path)
+    if not path:
+        print(f"Skill not found: {args.name_or_path}", file=sys.stderr)
+        return 2
+    print(json.dumps(adaptation_task(path, root=root, source_pack=args.source_pack, source_repo=args.source_repo), ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_adapt_next(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    path = next_skill_for_agent(root, collection=args.collection)
+    if not path:
+        print(json.dumps({"status": "done", "message": "No unprocessed skills found."}, ensure_ascii=False, indent=2))
+        return 0
+    print(json.dumps(adaptation_task(path, root=root, source_pack=args.source_pack, source_repo=args.source_repo), ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_apply_adaptation(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    data = json.loads(read_text(Path(args.input).expanduser()))
+    path_value = args.path or data.get("source_path") or data.get("path")
+    if not path_value:
+        print("Adaptation JSON must include source_path, or pass --path.", file=sys.stderr)
+        return 2
+    path = resolve_skill_path(root, str(path_value))
+    if not path:
+        print(f"Skill not found: {path_value}", file=sys.stderr)
+        return 2
+    result = apply_agent_adaptation(
+        path,
+        root=root,
+        data=data,
+        source_pack=args.source_pack,
+        source_repo=args.source_repo,
+        dry_run=args.dry_run,
+    )
+    if not args.dry_run:
+        save_index(root)
+    print(json.dumps(asdict(result), ensure_ascii=False, indent=2))
+    return 0
+
+
 def cmd_serve(args: argparse.Namespace) -> int:
     try:
         import uvicorn  # type: ignore
@@ -551,6 +705,16 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("--require-vector", action="store_true")
     search.set_defaults(func=cmd_search)
 
+    list_parser = sub.add_parser("list", help="List available skills in the library.")
+    list_parser.add_argument("--collection", help="Only list one collection.")
+    list_parser.add_argument("--filter", default="", help="Filter by name, description, or body text.")
+    list_parser.add_argument("--limit", type=int, default=80, help="Maximum skills to print. Use 0 for all.")
+    list_parser.add_argument("--names-only", action="store_true", help="Print only skill names.")
+    list_parser.add_argument("--paths", action="store_true", help="Include SKILL.md paths in text output.")
+    list_parser.add_argument("--json", action="store_true")
+    list_parser.add_argument("--fresh", action="store_true")
+    list_parser.set_defaults(func=cmd_list)
+
     view = sub.add_parser("view", help="Print full SKILL.md for a skill.")
     view.add_argument("name")
     view.set_defaults(func=cmd_view)
@@ -581,6 +745,45 @@ def build_parser() -> argparse.ArgumentParser:
     draft.add_argument("--evidence", default="")
     draft.add_argument("--write", action="store_true")
     draft.set_defaults(func=cmd_draft_skill)
+
+    adapt = sub.add_parser("adapt", help="Adapt existing SKILL.md files for Unlimited Skills retrieval and learning.")
+    adapt.add_argument("--collection", help="Only adapt one collection under the library root.")
+    adapt.add_argument("--source-pack", default="", help="Set or override the source_pack metadata.")
+    adapt.add_argument("--source-repo", default="", help="Set or override the source_repo metadata.")
+    adapt.add_argument("--force", action="store_true", help="Rewrite skills even when already adapted.")
+    adapt.add_argument("--dry-run", action="store_true", help="Print what would change without writing files.")
+    adapt.add_argument("--limit", type=int, default=20, help="Maximum changed items to include in JSON output.")
+    adapt.set_defaults(func=cmd_adapt)
+
+    packs = sub.add_parser("packs", help="List known upstream skill packs.")
+    packs.set_defaults(func=cmd_packs)
+
+    install_pack_parser = sub.add_parser("install-pack", help="Clone, import, and adapt a known upstream skill pack.")
+    install_pack_parser.add_argument("pack", choices=sorted(SKILL_PACKS))
+    install_pack_parser.add_argument("--ref", default="", help="Optional git ref to import.")
+    install_pack_parser.add_argument("--keep-clone", default="", help="Optional path where the upstream clone should be kept.")
+    install_pack_parser.add_argument("--limit", type=int, default=20, help="Maximum imported items to include in JSON output.")
+    install_pack_parser.set_defaults(func=cmd_install_pack)
+
+    adapt_one = sub.add_parser("adapt-one", help="Print an agent adaptation task for one skill.")
+    adapt_one.add_argument("name_or_path", help="Skill name, SKILL.md path, or skill directory path.")
+    adapt_one.add_argument("--source-pack", default="", help="Source pack metadata override.")
+    adapt_one.add_argument("--source-repo", default="", help="Source repository metadata override.")
+    adapt_one.set_defaults(func=cmd_adapt_one)
+
+    adapt_next = sub.add_parser("adapt-next", help="Print an agent adaptation task for the next unprocessed skill.")
+    adapt_next.add_argument("--collection", help="Only process one collection.")
+    adapt_next.add_argument("--source-pack", default="", help="Source pack metadata override.")
+    adapt_next.add_argument("--source-repo", default="", help="Source repository metadata override.")
+    adapt_next.set_defaults(func=cmd_adapt_next)
+
+    apply_adaptation = sub.add_parser("apply-adaptation", help="Apply one agent-produced action-memory JSON adaptation.")
+    apply_adaptation.add_argument("input", help="JSON file produced by the current agent for one source skill.")
+    apply_adaptation.add_argument("--path", default="", help="Override source skill path/name.")
+    apply_adaptation.add_argument("--source-pack", default="", help="Source pack metadata override.")
+    apply_adaptation.add_argument("--source-repo", default="", help="Source repository metadata override.")
+    apply_adaptation.add_argument("--dry-run", action="store_true", help="Validate and print result without writing.")
+    apply_adaptation.set_defaults(func=cmd_apply_adaptation)
 
     serve = sub.add_parser("serve", help="Run the experimental warm search daemon.")
     serve.add_argument("--host", default="127.0.0.1")

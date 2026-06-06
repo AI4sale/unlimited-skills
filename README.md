@@ -34,6 +34,7 @@ Working now:
 - hybrid lexical + vector search;
 - full skill view by name;
 - Codex router skill;
+- agent-driven one-skill adaptation workflow;
 - usage and feedback logs;
 - draft generation for new skills;
 - migration scripts for Codex, Claude Code, OpenClaw, Hermes, and Vellum AI.
@@ -42,7 +43,6 @@ In development:
 
 - persistent warm daemon as the default agent retrieval path;
 - richer learning loop for accepted/rejected matches;
-- automatic description improvement from feedback;
 - automatic skill drafting from repeated task patterns;
 - stronger per-agent installers and config adapters.
 
@@ -82,6 +82,26 @@ macOS/Linux:
 ```bash
 ./scripts/install-codex.sh
 ```
+
+Install modes:
+
+```powershell
+.\scripts\install-codex.ps1
+.\scripts\install-codex.ps1 -Mode bundled
+.\scripts\install-codex.ps1 -Mode adapt-installed
+.\scripts\install-codex.ps1 -AgentsFile C:\path\to\project\AGENTS.md
+```
+
+```bash
+./scripts/install-codex.sh
+./scripts/install-codex.sh --mode bundled
+./scripts/install-codex.sh --mode adapt-installed
+./scripts/install-codex.sh --agents-file /path/to/project/AGENTS.md
+```
+
+Default mode installs the router, migrates already installed skills, and indexes them. Bundled mode installs the pre-adapted packs shipped in this repo, then adds local skills only when they do not duplicate existing skill names. Adapt-installed mode prepares installed local skills for the one-skill agent adaptation workflow.
+
+For Codex projects, patching `AGENTS.md` is recommended. It adds a managed Unlimited Skills block that tells the agent to query the external library before claiming that a named skill is unavailable.
 
 The installer creates an isolated venv under `~/.unlimited-skills/.venv` and writes a Codex-local launcher:
 
@@ -243,6 +263,12 @@ The system has four layers:
 4. **Learning loop**: logs searches, views, selected skills, accepted matches, rejected matches, and new skill drafts.
 
 The important design decision is that retrieval results are evidence, not authority. The agent still has to inspect the selected skill and decide whether it applies.
+
+## Agent adaptation
+
+Skill adaptation is an instruction workflow for the current agent, not a separate service. Codex or Claude Code prepares one source skill, rewrites it into the action-memory schema, and applies it with the CLI.
+
+See [docs/agent-skill-adaptation.md](docs/agent-skill-adaptation.md).
 
 ## Repository layout
 

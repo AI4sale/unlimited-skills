@@ -12,6 +12,7 @@ Options:
   --target-root PATH     Unlimited Skills library root.
   --collection NAME      Collection name under the target root.
   --exclude-name NAME    Exclude a skill directory name. Can be repeated.
+  --skip-existing-names  Do not copy a skill when any existing collection already has the same skill directory name.
   --apply                Copy files. Without this flag, the script prints a dry-run JSON plan.
   -h, --help             Show this help.
 EOF
@@ -21,6 +22,7 @@ source_root=""
 target_root=""
 collection=""
 apply=0
+skip_existing_names=0
 exclude_names=()
 excluded_dirs=("node_modules" ".git" ".venv" "__pycache__" ".chroma-skills" ".learning" ".pytest_cache" ".mypy_cache" ".ruff_cache")
 
@@ -41,6 +43,10 @@ while [[ $# -gt 0 ]]; do
     --exclude-name)
       exclude_names+=("$2")
       shift 2
+      ;;
+    --skip-existing-names)
+      skip_existing_names=1
+      shift
       ;;
     --apply)
       apply=1
@@ -104,7 +110,14 @@ contains_excluded_dir() {
 }
 
 items_file="$(mktemp)"
-trap 'rm -f "$items_file"' EXIT
+existing_names_file="$(mktemp)"
+trap 'rm -f "$items_file" "$existing_names_file"' EXIT
+
+if [[ "$skip_existing_names" -eq 1 && -d "$target_root" ]]; then
+  while IFS= read -r -d '' existing_skill; do
+    basename "$(dirname "$existing_skill")" >> "$existing_names_file"
+  done < <(find "$target_root" -type f -name 'SKILL.md' -print0)
+fi
 
 while IFS= read -r -d '' skill_file; do
   if contains_excluded_dir "$skill_file"; then
@@ -113,6 +126,9 @@ while IFS= read -r -d '' skill_file; do
   skill_dir="$(dirname "$skill_file")"
   name="$(basename "$skill_dir")"
   if is_excluded_name "$name"; then
+    continue
+  fi
+  if [[ "$skip_existing_names" -eq 1 ]] && grep -Fxq "$name" "$existing_names_file"; then
     continue
   fi
   destination="$target_skills/$name"

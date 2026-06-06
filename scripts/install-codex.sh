@@ -12,6 +12,8 @@ Options:
   --codex-home PATH      Codex home directory. Defaults to ~/.codex.
   --install-root PATH    Unlimited Skills install root. Defaults to ~/.unlimited-skills.
   --python CMD           Python executable. Defaults to python3, then python.
+  --mode MODE            default, bundled, or adapt-installed. Defaults to default.
+  --agents-file PATH     Patch this AGENTS.md file with Unlimited Skills routing instructions.
   --skip-pip-install     Only install the router skill and launcher.
   -h, --help             Show this help.
 EOF
@@ -23,6 +25,8 @@ codex_home="${HOME}/.codex"
 install_root="${HOME}/.unlimited-skills"
 python_cmd=""
 skip_pip_install=0
+mode="default"
+agents_file=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -42,6 +46,14 @@ while [[ $# -gt 0 ]]; do
       python_cmd="$2"
       shift 2
       ;;
+    --mode)
+      mode="$2"
+      shift 2
+      ;;
+    --agents-file)
+      agents_file="$2"
+      shift 2
+      ;;
     --skip-pip-install)
       skip_pip_install=1
       shift
@@ -55,8 +67,17 @@ while [[ $# -gt 0 ]]; do
       usage >&2
       exit 2
       ;;
-  esac
+esac
 done
+
+case "$mode" in
+  default|bundled|adapt-installed)
+    ;;
+  *)
+    echo "Invalid --mode: $mode" >&2
+    exit 2
+    ;;
+esac
 
 repo_root="$(cd -- "$repo_root" && pwd)"
 skill_source="$repo_root/skills/skill-router"
@@ -84,6 +105,7 @@ cp -R "$skill_source" "$skill_target"
 
 venv="$install_root/.venv"
 venv_python="$venv/bin/python"
+library_root="$install_root/library"
 
 if [[ "$skip_pip_install" -eq 0 ]]; then
   if [[ ! -x "$venv_python" ]]; then
@@ -93,20 +115,119 @@ if [[ "$skip_pip_install" -eq 0 ]]; then
   "$venv_python" -m pip install -e "$repo_root[all]"
 fi
 
+cli_python="$python_cmd"
+if [[ -x "$venv_python" ]]; then
+  cli_python="$venv_python"
+fi
+export PYTHONPATH="$repo_root:${PYTHONPATH:-}"
+
 launcher="$skill_target/scripts/unlimited-skills.sh"
 mkdir -p "$(dirname "$launcher")"
 cat > "$launcher" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ -x "$venv_python" ]]; then
-  exec "$venv_python" -m unlimited_skills.cli "\$@"
+  exec "$venv_python" -m unlimited_skills.cli --root "$library_root" "\$@"
 fi
 export PYTHONPATH="$repo_root:\${PYTHONPATH:-}"
-exec "$python_cmd" -m unlimited_skills.cli "\$@"
+exec "$python_cmd" -m unlimited_skills.cli --root "$library_root" "\$@"
 EOF
 chmod +x "$launcher"
 
+if [[ -n "$agents_file" ]]; then
+  agents_dir="$(dirname -- "$agents_file")"
+  mkdir -p "$agents_dir"
+  agents_block="$(cat <<EOF
+<!-- BEGIN UNLIMITED SKILLS -->
+## Unlimited Skills Library
+
+Unlimited Skills is the external skill memory for this agent. Treat it as the first place to ask for task-specific skills, workflows, checklists, procedures, and regression recipes.
+
+Before saying a skill is unavailable, query the library:
+
+\`\`\`bash
+"$launcher" search "<task or skill name>" --mode hybrid --limit 8
+"$launcher" where <skill-name>
+"$launcher" view <skill-name>
+\`\`\`
+
+For inventory questions, query the library before answering:
+
+\`\`\`bash
+"$launcher" list --limit 80
+\`\`\`
+
+Do not rely only on .agents/skills, .codex/skills, or the visible skill list. The library may contain skills that are intentionally not loaded into context.
+<!-- END UNLIMITED SKILLS -->
+EOF
+)"
+  tmp_agents="$(mktemp)"
+  if [[ -f "$agents_file" ]]; then
+    AGENTS_BLOCK="$agents_block" "$python_cmd" - "$agents_file" "$tmp_agents" <<'PY'
+from pathlib import Path
+import os
+import re
+import sys
+
+path = Path(sys.argv[1])
+out = Path(sys.argv[2])
+block = os.environ["AGENTS_BLOCK"]
+text = path.read_text(encoding="utf-8", errors="replace")
+pattern = r"(?s)<!-- BEGIN UNLIMITED SKILLS -->.*?<!-- END UNLIMITED SKILLS -->"
+if re.search(pattern, text):
+    text = re.sub(pattern, block, text)
+elif text.strip():
+    text = text.rstrip() + "\n\n" + block + "\n"
+else:
+    text = block + "\n"
+out.write_text(text, encoding="utf-8")
+PY
+    mv "$tmp_agents" "$agents_file"
+  else
+    printf '%s\n' "$agents_block" > "$agents_file"
+    rm -f "$tmp_agents"
+  fi
+fi
+
+migrate="$repo_root/scripts/lib/migrate-skills.sh"
+
+if [[ "$mode" == "bundled" ]]; then
+  for pack in ecc superpowers; do
+    pack_root="$repo_root/packs/$pack/skills"
+    if [[ -d "$pack_root" ]]; then
+      "$migrate" --source-root "$pack_root" --target-root "$library_root" --collection "$pack" --apply
+    fi
+  done
+fi
+
+if [[ -d "$codex_home/skills" ]]; then
+  migrate_args=(
+    --source-root "$codex_home/skills"
+    --target-root "$library_root"
+    --collection "codex"
+    --exclude-name ".system"
+    --exclude-name "unlimited-skills"
+    --exclude-name "skill-library"
+    --apply
+  )
+  if [[ "$mode" == "bundled" ]]; then
+    migrate_args+=(--skip-existing-names)
+  fi
+  "$migrate" "${migrate_args[@]}"
+fi
+
+if [[ "$mode" == "adapt-installed" ]]; then
+  "$cli_python" -m unlimited_skills.cli --root "$library_root" adapt --collection codex --source-pack codex
+fi
+
+"$cli_python" -m unlimited_skills.cli --root "$library_root" reindex
+
 echo "Installed Codex router skill: $skill_target"
 echo "Installed Unlimited Skills venv: $venv"
+echo "Install mode: $mode"
+echo "Library root: $library_root"
 echo "Launcher: $launcher"
+if [[ -n "$agents_file" ]]; then
+  echo "Patched AGENTS.md: $agents_file"
+fi
 echo "Restart Codex so the router skill appears in the available skill list."

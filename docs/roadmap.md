@@ -7,6 +7,8 @@
 - Chroma vector index.
 - Hybrid lexical + vector retrieval.
 - Codex router skill.
+- Agent-driven one-skill adaptation workflow.
+- Bundled Superpowers pack adapted into action-memory schema.
 - Usage and feedback logging.
 - Basic skill drafting command.
 - Safe dry-run migration scripts.

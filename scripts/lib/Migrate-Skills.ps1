@@ -9,6 +9,7 @@ param(
   [string]$Collection,
 
   [string[]]$ExcludeNames = @(),
+  [switch]$SkipExistingNames,
   [switch]$Apply
 )
 
@@ -27,6 +28,14 @@ $manifestDir = Join-Path $targetRootPath "manifests"
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
 $manifest = Join-Path $manifestDir "$Collection-migration-$timestamp.json"
 $excludedDirs = @("node_modules", ".git", ".venv", "__pycache__", ".chroma-skills", ".learning", ".pytest_cache", ".mypy_cache", ".ruff_cache")
+$existingNames = @{}
+if ($SkipExistingNames -and (Test-Path $targetRootPath)) {
+  Get-ChildItem -LiteralPath $targetRootPath -Recurse -Filter "SKILL.md" -File |
+    ForEach-Object {
+      $existingName = Split-Path (Split-Path $_.FullName -Parent) -Leaf
+      $existingNames[$existingName] = $true
+    }
+}
 
 $skillFiles = Get-ChildItem -LiteralPath $source -Recurse -Filter "SKILL.md" -File
 $items = @()
@@ -39,6 +48,9 @@ foreach ($file in $skillFiles) {
   $skillDir = Split-Path $file.FullName -Parent
   $name = Split-Path $skillDir -Leaf
   if ($ExcludeNames -contains $name) {
+    continue
+  }
+  if ($SkipExistingNames -and $existingNames.ContainsKey($name)) {
     continue
   }
   $relative = Resolve-Path -LiteralPath $skillDir -Relative
