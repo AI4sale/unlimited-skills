@@ -19,6 +19,15 @@ You can use, copy, fork, modify, self-host, and redistribute the local Unlimited
 
 Registration is not required for local or offline usage.
 
+Registration is also not required to update the local Unlimited Skills core from the public repository:
+
+```bash
+unlimited-skills self-update check
+unlimited-skills self-update apply
+```
+
+That command checks public GitHub releases for `AI4sale/unlimited-skills`, falls back to the latest tag when releases are not available yet, updates the local source checkout or archive install, refreshes the installed Codex router `SKILL.md` without touching its launcher scripts, and rebuilds the local skill index.
+
 ## Registered Hosted Services
 
 Registration is required for official hosted services:

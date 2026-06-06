@@ -21,6 +21,7 @@ from .registration import (
     save_registration,
     set_telemetry,
 )
+from .self_update import DEFAULT_PUBLIC_REPO, apply_public_repo_update, check_public_repo_update
 from .updates import UpdateClient
 
 
@@ -800,6 +801,50 @@ def cmd_enhance_run(args: argparse.Namespace) -> int:
     return client.run_enhancement_script(root, apply=args.apply, limit=args.limit, target_dir=target_dir)
 
 
+def cmd_self_update_check(args: argparse.Namespace) -> int:
+    status = check_public_repo_update(repo=args.repo, install_root=Path(args.install_root).expanduser() if args.install_root else None, timeout=args.timeout)
+    payload = status.to_json()
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2))
+        return 0
+    print(f"Install root: {status.install_root}")
+    print(f"Public repo: {status.repo}")
+    print(f"Current version: {status.current_version}")
+    print(f"Latest release: {status.latest_tag} ({status.latest_version})")
+    print(f"Git checkout: {'yes' if status.is_git_checkout else 'no'}")
+    if status.is_git_checkout:
+        print(f"Current ref: {status.current_ref or '(unknown)'}")
+        print(f"Dirty: {'yes' if status.dirty else 'no'}")
+    print(f"Update available: {'yes' if status.update_available else 'no'}")
+    if status.release_url:
+        print(f"Release: {status.release_url}")
+    return 0
+
+
+def cmd_self_update_apply(args: argparse.Namespace) -> int:
+    status = check_public_repo_update(repo=args.repo, install_root=Path(args.install_root).expanduser() if args.install_root else None, timeout=args.timeout)
+    if args.dry_run:
+        print(json.dumps({"dry_run": True, "status": status.to_json()}, ensure_ascii=False, indent=2))
+        return 0
+    result = apply_public_repo_update(status, allow_dirty=args.allow_dirty, method=args.method, timeout=args.timeout)
+    router_refreshed = refresh_codex_router_skill(Path(result.install_root).expanduser()) if result.reindex_recommended and not args.skip_router_refresh else ""
+    reindexed = False
+    if result.reindex_recommended and not args.skip_reindex:
+        save_index(Path(args.root).expanduser())
+        reindexed = True
+    print(json.dumps({"result": result.to_json(), "reindexed": reindexed, "router_refreshed": router_refreshed}, ensure_ascii=False, indent=2))
+    return 0
+
+
+def refresh_codex_router_skill(install_root: Path) -> str:
+    source = install_root / "skills" / "skill-router" / "SKILL.md"
+    target = Path.home() / ".codex" / "skills" / "unlimited-skills" / "SKILL.md"
+    if not source.is_file() or not target.parent.is_dir():
+        return ""
+    target.write_text(read_text(source), encoding="utf-8")
+    return str(target)
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Search, load, and learn from large local skill libraries.")
     parser.add_argument("--root", default=str(DEFAULT_ROOT), help="Skill library root.")
@@ -967,6 +1012,25 @@ def build_parser() -> argparse.ArgumentParser:
     enhance_run.add_argument("--limit", type=int, default=0, help="Maximum skills to inspect. Use 0 for all.")
     enhance_run.add_argument("--timeout", type=float, default=30.0)
     enhance_run.set_defaults(func=cmd_enhance_run)
+
+    self_update = sub.add_parser("self-update", help="Check or apply public repo releases for the local Unlimited Skills core.")
+    self_update_sub = self_update.add_subparsers(dest="self_update_command", required=True)
+    self_update_check = self_update_sub.add_parser("check", help="Check the latest public Unlimited Skills release.")
+    self_update_check.add_argument("--repo", default=DEFAULT_PUBLIC_REPO, help="GitHub repo in owner/name form.")
+    self_update_check.add_argument("--install-root", default="", help="Override the detected Unlimited Skills source checkout.")
+    self_update_check.add_argument("--json", action="store_true")
+    self_update_check.add_argument("--timeout", type=float, default=30.0)
+    self_update_check.set_defaults(func=cmd_self_update_check)
+    self_update_apply = self_update_sub.add_parser("apply", help="Update the local Unlimited Skills core to the latest public release.")
+    self_update_apply.add_argument("--repo", default=DEFAULT_PUBLIC_REPO, help="GitHub repo in owner/name form.")
+    self_update_apply.add_argument("--install-root", default="", help="Override the detected Unlimited Skills source checkout.")
+    self_update_apply.add_argument("--method", choices=["auto", "git", "archive"], default="auto", help="Use git checkout when possible, or source archive fallback.")
+    self_update_apply.add_argument("--allow-dirty", action="store_true", help="Allow updating a dirty git checkout.")
+    self_update_apply.add_argument("--dry-run", action="store_true", help="Show the planned update without changing files.")
+    self_update_apply.add_argument("--skip-router-refresh", action="store_true", help="Do not refresh the installed Codex router SKILL.md after updating.")
+    self_update_apply.add_argument("--skip-reindex", action="store_true", help="Do not rebuild the local skill index after updating.")
+    self_update_apply.add_argument("--timeout", type=float, default=30.0)
+    self_update_apply.set_defaults(func=cmd_self_update_apply)
 
     return parser
 

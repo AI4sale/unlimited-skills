@@ -63,6 +63,7 @@ Working now:
 - registered-installation state for hosted catalog and adapted collection updates;
 - hosted update client with SHA256-verified collection archives.
 - registered hosted catalog client.
+- public repo self-update checks and applies latest releases/tags.
 
 In development:
 
@@ -139,6 +140,15 @@ unlimited-skills enhance run --apply
 ```
 
 `enhance run` is a dry run unless `--apply` is passed. The enhancer script is downloaded from the official registry, checksum-verified, cached locally, and then runs on your machine. It does not send skill bodies or prompts to the registry.
+
+Update the local Unlimited Skills core from the public repository:
+
+```bash
+unlimited-skills self-update check
+unlimited-skills self-update apply
+```
+
+Self-update does not require hosted-service registration. It checks the latest public GitHub release for `AI4sale/unlimited-skills`, falls back to the latest tag when releases are not available yet, updates the local source checkout when possible, refreshes the installed Codex router `SKILL.md` without touching its launcher scripts, and rebuilds the local skill index unless `--skip-reindex` is passed.
 
 The registration file is stored at:
 
