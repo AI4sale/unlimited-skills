@@ -16,10 +16,18 @@ All scripts default to dry-run mode.
 .\scripts\migrate-codex.ps1
 ```
 
+```bash
+./scripts/migrate-codex.sh
+```
+
 Apply explicitly:
 
 ```powershell
 .\scripts\migrate-codex.ps1 -Apply
+```
+
+```bash
+./scripts/migrate-codex.sh --apply
 ```
 
 ## Codex
@@ -42,6 +50,10 @@ Codex also needs the router skill installed:
 .\scripts\install-codex.ps1
 ```
 
+```bash
+./scripts/install-codex.sh
+```
+
 ## Claude Code
 
 Default source:
@@ -54,6 +66,11 @@ If your Claude Code skills are project-local, pass the project path:
 
 ```powershell
 .\scripts\migrate-claude-code.ps1 -SourceRoot "D:\repo\.agents\skills" -Apply
+```
+
+```bash
+./scripts/migrate-claude-code.sh --source-root "$HOME/.claude/skills" --apply
+./scripts/migrate-claude-code.sh --source-root "/path/to/repo/.agents/skills" --apply
 ```
 
 ## OpenClaw
@@ -70,6 +87,10 @@ Override it when needed:
 .\scripts\migrate-openclaw.ps1 -SourceRoot "D:\openclaw\skills" -Apply
 ```
 
+```bash
+./scripts/migrate-openclaw.sh --source-root "$HOME/.openclaw/skills" --apply
+```
+
 ## Hermes
 
 Default source:
@@ -84,6 +105,10 @@ Override it when needed:
 .\scripts\migrate-hermes.ps1 -SourceRoot "D:\hermes\skills" -Apply
 ```
 
+```bash
+./scripts/migrate-hermes.sh --source-root "$HOME/.hermes/skills" --apply
+```
+
 ## Vellum AI
 
 Default source:
@@ -96,4 +121,8 @@ Override it when needed:
 
 ```powershell
 .\scripts\migrate-vellum-ai.ps1 -SourceRoot "D:\vellum\skills" -Apply
+```
+
+```bash
+./scripts/migrate-vellum-ai.sh --source-root "$HOME/.vellum-ai/skills" --apply
 ```

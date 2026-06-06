@@ -69,29 +69,43 @@ python -m pip install -e .
 
 ## Install for Codex
 
-Install the router skill into `~/.codex/skills/unlimited-skills`:
+Install the router skill into `~/.codex/skills/unlimited-skills`.
+
+Windows PowerShell:
 
 ```powershell
 .\scripts\install-codex.ps1
+```
+
+macOS/Linux:
+
+```bash
+./scripts/install-codex.sh
 ```
 
 The installer creates an isolated venv under `~/.unlimited-skills/.venv` and writes a Codex-local launcher:
 
 ```text
 ~/.codex/skills/unlimited-skills/scripts/unlimited-skills.ps1
+~/.codex/skills/unlimited-skills/scripts/unlimited-skills.sh
 ```
 
 Restart Codex after installing the router skill.
 
 ## Migrate skills
 
-All migration scripts run as dry runs unless you pass `-Apply`.
+All migration scripts run as dry runs unless you pass `-Apply` on Windows or `--apply` on macOS/Linux.
 
 Codex:
 
 ```powershell
 .\scripts\migrate-codex.ps1
 .\scripts\migrate-codex.ps1 -Apply
+```
+
+```bash
+./scripts/migrate-codex.sh
+./scripts/migrate-codex.sh --apply
 ```
 
 Claude Code:
@@ -101,10 +115,19 @@ Claude Code:
 .\scripts\migrate-claude-code.ps1 -SourceRoot "$env:USERPROFILE\.claude\skills" -Apply
 ```
 
+```bash
+./scripts/migrate-claude-code.sh --source-root "$HOME/.claude/skills"
+./scripts/migrate-claude-code.sh --source-root "$HOME/.claude/skills" --apply
+```
+
 OpenClaw:
 
 ```powershell
 .\scripts\migrate-openclaw.ps1 -SourceRoot "$env:USERPROFILE\.openclaw\skills" -Apply
+```
+
+```bash
+./scripts/migrate-openclaw.sh --source-root "$HOME/.openclaw/skills" --apply
 ```
 
 Hermes:
@@ -113,10 +136,18 @@ Hermes:
 .\scripts\migrate-hermes.ps1 -SourceRoot "$env:USERPROFILE\.hermes\skills" -Apply
 ```
 
+```bash
+./scripts/migrate-hermes.sh --source-root "$HOME/.hermes/skills" --apply
+```
+
 Vellum AI:
 
 ```powershell
 .\scripts\migrate-vellum-ai.ps1 -SourceRoot "$env:USERPROFILE\.vellum-ai\skills" -Apply
+```
+
+```bash
+./scripts/migrate-vellum-ai.sh --source-root "$HOME/.vellum-ai/skills" --apply
 ```
 
 You can point every migration script at any custom source root that contains recursive `SKILL.md` files.

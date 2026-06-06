@@ -10,6 +10,7 @@
 - Usage and feedback logging.
 - Basic skill drafting command.
 - Safe dry-run migration scripts.
+- Windows, macOS, and Linux installer/migration scripts.
 
 ## In development
 
