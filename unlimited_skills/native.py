@@ -46,6 +46,11 @@ def _claude_home() -> Path:
     return Path(os.environ.get("CLAUDE_HOME") or _home_path(".claude"))
 
 
+def _claude_project_root() -> Path | None:
+    value = os.environ.get("UNLIMITED_SKILLS_CLAUDE_PROJECT_ROOT") or os.environ.get("CLAUDE_PROJECT_DIR") or ""
+    return Path(value).expanduser() if value else None
+
+
 def _hermes_home() -> Path:
     return Path(os.environ.get("HERMES_HOME") or _home_path(".hermes"))
 
@@ -66,6 +71,9 @@ def native_sources(agent: str = "") -> list[NativeSource]:
         sources.append(NativeSource("codex", "codex", _codex_home() / "skills"))
     if "claude-code" in wanted or "claude" in wanted:
         sources.append(NativeSource("claude-code", "claude-code", _claude_home() / "skills"))
+        claude_project_root = _claude_project_root()
+        if claude_project_root is not None:
+            sources.append(NativeSource("claude-code", "claude-code-project", claude_project_root / ".claude" / "skills"))
     if "hermes" in wanted:
         sources.append(NativeSource("hermes", "hermes", _hermes_home() / "skills"))
     if "openclaw" in wanted:

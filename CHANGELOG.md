@@ -6,6 +6,7 @@
 
 - Full Claude Code installer for personal skills, project skills, router launchers, `CLAUDE.md` patching, bundled/adapt-installed modes, and optional vector reindexing.
 - Claude Code router skill with shell and PowerShell launcher placeholders.
+- Claude Code router launchers now remember the installed project root so later project `.claude/skills` additions are mirrored on the next router CLI call.
 
 ### Changed
 

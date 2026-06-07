@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from unlimited_skills.installers.claude_code import ClaudeCodeInstallOptions, install_claude_code
@@ -60,6 +61,13 @@ def test_claude_code_install_bundled_imports_personal_and_project_skills(tmp_pat
     assert (router_target / "scripts" / "unlimited-skills.sh").is_file()
     assert (router_target / "scripts" / "unlimited-skills.ps1").is_file()
     assert (project_root / "CLAUDE.md").is_file()
+
+    shell_launcher = (router_target / "scripts" / "unlimited-skills.sh").read_text(encoding="utf-8")
+    ps_launcher = (router_target / "scripts" / "unlimited-skills.ps1").read_text(encoding="utf-8")
+    assert "UNLIMITED_SKILLS_CLAUDE_PROJECT_ROOT" in shell_launcher
+    assert project_root.as_posix() in shell_launcher
+    assert "UNLIMITED_SKILLS_CLAUDE_PROJECT_ROOT" in ps_launcher
+    assert json.dumps(str(project_root)) in ps_launcher
 
     router_text = (router_target / "SKILL.md").read_text(encoding="utf-8")
     assert "{{CLAUDE_SH_LAUNCHER}}" not in router_text

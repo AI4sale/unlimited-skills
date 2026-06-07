@@ -110,10 +110,11 @@ def _router_source(repo_root: Path) -> Path:
     return repo_root / "skills" / "skill-router"
 
 
-def _write_launchers(sh_launcher: Path, ps_launcher: Path, repo_root: Path, library_root: Path, python_executable: str) -> None:
+def _write_launchers(sh_launcher: Path, ps_launcher: Path, repo_root: Path, library_root: Path, project_root: Path, python_executable: str) -> None:
     sh_launcher.parent.mkdir(parents=True, exist_ok=True)
     sh_repo_root = shlex.quote(str(repo_root).replace("\\", "/"))
     sh_library_root = shlex.quote(str(library_root).replace("\\", "/"))
+    sh_project_root = shlex.quote(str(project_root).replace("\\", "/"))
     sh_python = shlex.quote(str(python_executable).replace("\\", "/"))
     sh_launcher.write_text(
         "#!/usr/bin/env bash\n"
@@ -123,6 +124,7 @@ def _write_launchers(sh_launcher: Path, ps_launcher: Path, repo_root: Path, libr
         "else\n"
         f"  export PYTHONPATH={sh_repo_root}\n"
         "fi\n"
+        f"export UNLIMITED_SKILLS_CLAUDE_PROJECT_ROOT={sh_project_root}\n"
         f"exec {sh_python} -m unlimited_skills.cli --root {sh_library_root} \"$@\"\n",
         encoding="utf-8",
     )
@@ -137,6 +139,7 @@ def _write_launchers(sh_launcher: Path, ps_launcher: Path, repo_root: Path, libr
         ")\n\n"
         "$ErrorActionPreference = \"Stop\"\n"
         f"$env:PYTHONPATH = {json.dumps(str(repo_root))} + [System.IO.Path]::PathSeparator + $env:PYTHONPATH\n"
+        f"$env:UNLIMITED_SKILLS_CLAUDE_PROJECT_ROOT = {json.dumps(str(project_root))}\n"
         f"& {json.dumps(python_executable)} -m unlimited_skills.cli --root {json.dumps(str(library_root))} @Args\n",
         encoding="utf-8",
     )
@@ -274,7 +277,7 @@ def install_claude_code(options: ClaudeCodeInstallOptions) -> ClaudeCodeInstallR
         shutil.rmtree(router_target)
     router_target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(router_source, router_target)
-    _write_launchers(sh_launcher, ps_launcher, repo_root, library_root, options.python_executable)
+    _write_launchers(sh_launcher, ps_launcher, repo_root, library_root, project_root, options.python_executable)
     _render_router_skill(router_target / "SKILL.md", sh_launcher, ps_launcher, library_root)
 
     claude_patched = False

@@ -41,3 +41,18 @@ def test_search_auto_syncs_native_hermes_skills(tmp_path: Path, monkeypatch, cap
     assert exit_code == 0
     assert "native-review [hermes]" in output
     assert (root / "hermes" / "skills" / "native-review" / "SKILL.md").is_file()
+
+
+def test_sync_native_sources_mirrors_claude_personal_and_project_skills(tmp_path: Path, monkeypatch) -> None:
+    monkeypatch.setenv("CLAUDE_HOME", str(tmp_path / ".claude-home"))
+    monkeypatch.setenv("UNLIMITED_SKILLS_CLAUDE_PROJECT_ROOT", str(tmp_path / "project"))
+    write_skill(tmp_path / ".claude-home" / "skills", "personal-skill", "personal Claude Code skill")
+    write_skill(tmp_path / "project" / ".claude" / "skills", "project-skill", "project Claude Code skill")
+    root = tmp_path / ".unlimited-skills" / "library"
+
+    results = sync_native_sources(root, agents=["claude-code"])
+
+    assert [item.collection for item in results] == ["claude-code", "claude-code-project"]
+    assert [item.imported_count for item in results] == [1, 1]
+    assert (root / "claude-code" / "skills" / "personal-skill" / "SKILL.md").is_file()
+    assert (root / "claude-code-project" / "skills" / "project-skill" / "SKILL.md").is_file()

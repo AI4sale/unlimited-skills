@@ -264,7 +264,7 @@ Restart Codex after installing the router skill.
 
 Install the router skill into `~/.claude/skills/unlimited-skills`.
 
-Claude Code's current skills documentation defines personal skills at `~/.claude/skills/<skill-name>/SKILL.md` and project skills at `.claude/skills/<skill-name>/SKILL.md`. The installer follows that layout: it installs one visible router skill, migrates existing personal and project skills into the Unlimited Skills library, patches `CLAUDE.md` by default, and rebuilds the index.
+Claude Code's current skills documentation defines personal skills at `~/.claude/skills/<skill-name>/SKILL.md` and project skills at `.claude/skills/<skill-name>/SKILL.md`. The installer follows that layout: it installs one visible router skill, migrates existing personal and project skills into the Unlimited Skills library, patches `CLAUDE.md` by default, writes launchers that remember the selected project root, and rebuilds the index.
 
 Choose one path:
 
@@ -314,6 +314,8 @@ library root:     ~/.unlimited-skills/library
 ```
 
 If `~/.claude/skills` already existed, Claude Code should detect the new router skill in the current session. If the top-level skills directory did not exist before installation, restart Claude Code so the new directory is watched.
+
+After installation, newly added Claude Code skills are mirrored into Unlimited Skills on the next router CLI call. Personal skills under `~/.claude/skills` sync into `claude-code`; project skills under the installed project root's `.claude/skills` sync into `claude-code-project`. This is not a background file watcher; it happens when the router runs `search`, `list`, `view`, `where`, `use`, `reindex`, or `vector-reindex`.
 
 ## Install for OpenClaw
 
