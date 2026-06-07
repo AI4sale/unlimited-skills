@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Iterable
 
 from .adapters import SKILL_PACKS, adapt_library, apply_agent_adaptation, adaptation_task, install_pack, next_skill_for_agent
+from .doctor import build_doctor_report, doctor_json, format_doctor_text
 from .registration import (
     DEFAULT_SERVICE_URL,
     load_registration,
@@ -745,6 +746,13 @@ def cmd_serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_doctor(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    report = build_doctor_report(root, agent=args.agent)
+    print(doctor_json(report) if args.json else format_doctor_text(report))
+    return 0
+
+
 def cmd_register(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     state = load_registration()
@@ -1109,6 +1117,11 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--model", default=DEFAULT_EMBED_MODEL)
     serve.add_argument("--log-level", default="info")
     serve.set_defaults(func=cmd_serve)
+
+    doctor = sub.add_parser("doctor", help="Inspect local Unlimited Skills setup without hosted calls or registration.")
+    doctor.add_argument("--json", action="store_true", help="Print machine-readable diagnostics.")
+    doctor.add_argument("--agent", choices=["codex", "claude-code", "hermes", "openclaw", "all"], default="all", help="Limit agent diagnostics.")
+    doctor.set_defaults(func=cmd_doctor)
 
     register = sub.add_parser("register", help="Self-register this installation for hosted catalog and adapted collection updates.")
     register.add_argument("--server-url", default=DEFAULT_SERVICE_URL, help="Registration and update service URL.")

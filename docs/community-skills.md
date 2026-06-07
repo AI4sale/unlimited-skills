@@ -2,6 +2,8 @@
 
 Status: planned registry feature.
 
+The registered adapted-skill catalog is separate from `community-skills`: it is already populated and delivered through registered hosted catalog/update commands. The `community-skills` submission surface remains planned unless current code explicitly implements it.
+
 The `community-skills` catalog is a hosted registry surface for shared community skill packs and individual community skill submissions.
 
 Registration is required to:

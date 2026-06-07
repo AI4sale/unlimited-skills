@@ -2,35 +2,54 @@
 
 ## Supported Version
 
-`v0.1.0-alpha` is a developer preview. Security fixes should target the current `main` branch first.
+`v0.1.2-alpha` is a developer preview. Security fixes should target the current `main` branch first.
 
-## Reporting
+## Responsible Disclosure
 
 Report security issues privately before public disclosure.
 
 - Email: security@ai4.sale
-- Include affected version or commit, reproduction steps, expected impact, and any logs or archive samples needed to reproduce.
+- Include affected version or commit, reproduction steps, expected impact, and the smallest safe logs or archive samples needed to reproduce.
 
-Do not include live credentials, private keys, customer data, or unrelated secrets in reports.
+Do not send live credentials, private keys, customer data, tokens, secrets, full repository paths, environment dumps, or unrelated private data in reports. If a secret was exposed while reproducing an issue, rotate it before sending the report.
 
 ## Local-First Boundary
 
-The MIT core is designed to work offline. Local commands such as `search`, `list`, `view`, `where`, `reindex`, `adapt`, installers, migration scripts, and local learning logs do not require registration.
+The MIT Community Core is designed to work offline. Local commands such as `search`, `list`, `view`, `where`, `use`, `feedback`, `reindex`, `vector-reindex`, `serve`, `adapt`, installers, migration scripts, local learning logs, native sync, and public self-update do not require registration.
 
-The hosted registry client must not upload skill bodies, prompts, source code, full local paths, repository paths, customer names, environment variables, tokens, or secrets during catalog, update, enhancement, or team-sync checks.
+Registration is required only for official AI4sale-hosted services: hosted adapted catalog, community catalog/submissions, adapted collection updates, registered local enhancement scripts, hosted archives, team sync, dashboard/cloud/business/enterprise features, and future hosted services.
+
+The hosted clients must not upload:
+
+- skill bodies;
+- prompts or conversation history;
+- source code;
+- full local paths or repository paths;
+- customer names;
+- environment variables;
+- tokens, secrets, or credentials;
+- device private keys.
 
 ## Hosted Archives And Enhancers
 
-Current v0.1.0-alpha behavior:
+Current `v0.1.2-alpha` behavior:
 
-- collection archives are SHA256-verified before extraction;
+- hosted collection archives are SHA256-verified before extraction;
 - zip extraction rejects path traversal;
 - local enhancement scripts are SHA256-verified before execution;
-- hosted features require a registered installation token.
+- hosted features require a registered installation token and signed device proof;
+- cryptographic signature metadata may be returned by the service, but client-side cryptographic signature verification is planned and not currently enforced.
 
-Known limitation:
+Use "SHA256-verified hosted collection archives" for the current security boundary. Do not describe hosted archives as cryptographically verified until client enforcement exists.
 
-- cryptographic signature verification for hosted archive metadata is planned, but the current client enforces checksum verification only.
+## Known Security Limitations In v0.1.2-alpha
+
+- Cryptographic signature verification for hosted archive metadata is planned, but the current client enforces SHA256 verification only.
+- The hosted registry is early-access and availability may be limited.
+- Community submissions are planned and must be explicit uploads when implemented.
+- Enterprise Skill Lock is planned, not implemented in the public alpha.
+- Warm daemon mode is experimental and binds to `127.0.0.1` by default; do not expose it on public interfaces.
+- The GitHub clone is the v0.1.2 distribution path because repo assets are required. PyPI packaging is not the supported alpha install path yet.
 
 ## Scope
 
@@ -40,7 +59,8 @@ In scope:
 - hosted update or enhancement downloads that bypass checksum verification;
 - leakage of local skill contents, prompts, secrets, or full paths through hosted client payloads;
 - unsafe installer behavior that overwrites unrelated files outside documented target roots;
-- authentication or authorization issues in registered hosted flows.
+- authentication or authorization issues in registered hosted flows;
+- doctor or status commands that print registration tokens or device private keys.
 
 Out of scope for this public alpha policy:
 

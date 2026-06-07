@@ -55,7 +55,7 @@ The file contains the local install id, the configured service URL, the service 
 Planned service tiers:
 
 - **Community Core**: MIT local core, no hosted-service registration required.
-- **Registered Community**: free self-registration for early-access hosted catalog, `community-skills` access, and collection updates.
+- **Registered Community**: free self-registration for early-access hosted adapted catalog, `community-skills` access when available, and collection updates. The registered hosted catalog is populated, but availability may be limited during alpha and exact contents are delivered only through registered catalog/update commands.
 - **Team Free**: team sync MVP for up to 10 registered team instances, with manual approval by default.
 - **Pro / Team**: paid hosted workflow, dashboard, larger team sync, longer auto-approval windows, and collaboration features.
 - **Enterprise**: private registry, private update channel, Enterprise Skill Lock, custom security terms, and support.

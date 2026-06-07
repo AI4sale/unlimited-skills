@@ -101,9 +101,19 @@ For minimal lexical-only usage:
 python -m pip install -e .
 ```
 
-PyPI packaging is not the v0.1.0 distribution path. Install from a GitHub clone for now, because the router skills, scripts, docs, and bundled packs are repo assets. A PyPI package should wait until wheel asset inclusion is tested.
+PyPI packaging is not the v0.1.2 distribution path. Install from a GitHub clone for now, because the router skills, scripts, docs, and bundled packs are repo assets. A PyPI package should wait until wheel asset inclusion is tested.
 
 For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md). For vulnerability reporting and hosted-download security boundaries, see [SECURITY.md](SECURITY.md).
+
+## Product Editions
+
+See [docs/product-editions.md](docs/product-editions.md) for the full edition table.
+
+- **Community Core**: MIT, local-first, no registration. Local search, list, view, where, use, feedback, reindex, vector-reindex, adapt, serve, installers, migration scripts, native sync, and public self-update stay available offline.
+- **Registered Community**: free registration for hosted adapted catalog access, early-access collection updates, registered local enhancer downloads, and future official community catalog/submissions.
+- **Team Free**: registered team sync MVP with master approval and up to 10 instances when enforced server-side.
+- **Pro / Team**: planned paid hosted collaboration, dashboard, private packs, collection assignment, longer auto-approval windows, and support.
+- **Enterprise**: planned private registry, Enterprise Skill Lock, policy controls, SSO/on-prem/VPC options later.
 
 ## Support
 
@@ -152,7 +162,15 @@ unlimited-skills updates check
 unlimited-skills updates apply
 ```
 
-Hosted catalog/update access is early-access. The client is implemented, but the official registry requires registration and may have limited availability while v0.1 is in alpha.
+Hosted catalog/update access is registration-gated early access. The registered catalog is populated, but availability may be limited while v0.1 is in alpha. Exact hosted catalog contents are delivered through registered catalog/update commands, not published in the MIT repo.
+
+Run a local-only diagnostic without registration or hosted calls:
+
+```bash
+unlimited-skills doctor
+unlimited-skills doctor --json
+unlimited-skills doctor --agent hermes
+```
 
 Mirror native agent skill roots into the local library:
 

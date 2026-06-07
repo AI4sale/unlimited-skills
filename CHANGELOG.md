@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Local-only `unlimited-skills doctor` command with JSON output and agent-specific checks for Codex, Claude Code, Hermes, and OpenClaw.
+- Product editions, public core boundary, support matrix, release process, and known limitations docs for public alpha review.
+
+### Changed
+
+- Hardened public alpha documentation for the v0.1.2-alpha release boundary.
+- Aligned `SECURITY.md` supported-version wording with v0.1.2-alpha.
+- Clarified that hosted catalog/update access is registration-gated early access and already populated without publishing private registered skill bodies in the MIT repo.
+- Clarified that hosted collection archives are SHA256-verified today; cryptographic signature verification is planned, not currently enforced.
+
 ## v0.1.2-alpha
 
 ### Added
