@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
-from .registration import RegistrationState, post_json, unlimited_skills_home
+from .registration import RegistrationState, is_secure_or_local_url, post_json, unlimited_skills_home
 
 COLLECTIONS_MANIFEST = ".unlimited-skills-collections.json"
 COLLECTION_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
@@ -266,6 +266,8 @@ def download_archive(url: str, target: Path, *, timeout: float = 30.0) -> None:
 
 
 def download_file(url: str, target: Path, *, timeout: float = 30.0) -> None:
+    if not is_secure_or_local_url(url):
+        raise UpdateError("Registry download URL must use HTTPS. Plain HTTP is allowed only for localhost development.")
     request = urllib.request.Request(url, headers={"User-Agent": f"unlimited-skills/{__version__}"})
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:

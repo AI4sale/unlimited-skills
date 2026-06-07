@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
-from .registration import RegistrationState, post_json, unlimited_skills_home
+from .registration import RegistrationState, post_json, unlimited_skills_home, write_private_json
 from .updates import CollectionUpdate, current_collection_state, parse_updates
 
 
@@ -80,9 +80,7 @@ def load_team_state(home: Path | None = None) -> TeamState:
 
 def save_team_state(state: TeamState, home: Path | None = None) -> Path:
     path = team_state_path(home)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(state.to_json(), ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    return path
+    return write_private_json(path, state.to_json())
 
 
 def redacted_team_status(state: TeamState) -> dict[str, Any]:

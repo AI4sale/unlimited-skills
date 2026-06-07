@@ -22,6 +22,7 @@ from . import __version__
 
 DEFAULT_SERVICE_URL = os.environ.get("UNLIMITED_SKILLS_SERVICE_URL", "https://unlimited.ai4.sale")
 REGISTRATION_NAME = "registration.json"
+LOCAL_DEVELOPMENT_HOSTS = {"localhost", "127.0.0.1", "::1"}
 
 
 class RegistrationError(RuntimeError):
@@ -34,6 +35,41 @@ def unlimited_skills_home() -> Path:
 
 def registration_path(home: Path | None = None) -> Path:
     return (home or unlimited_skills_home()) / REGISTRATION_NAME
+
+
+def is_secure_or_local_url(url: str) -> bool:
+    parsed = urllib.parse.urlsplit(url)
+    if parsed.scheme == "https":
+        return True
+    host = (parsed.hostname or "").lower()
+    return parsed.scheme == "http" and (host in LOCAL_DEVELOPMENT_HOSTS or host.endswith(".localhost"))
+
+
+def require_secure_url(url: str, *, purpose: str = "Hosted service") -> None:
+    if not is_secure_or_local_url(url):
+        raise RegistrationError(f"{purpose} URL must use HTTPS. Plain HTTP is allowed only for localhost development.")
+
+
+def write_private_json(path: Path, data: dict[str, Any]) -> Path:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    if os.name != "nt":
+        os.chmod(path.parent, 0o700)
+    content = json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    temp = path.with_name(f".{path.name}.{secrets.token_urlsafe(8)}.tmp")
+    fd: int | None = None
+    try:
+        fd = os.open(str(temp), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "w", encoding="utf-8") as handle:
+            fd = None
+            handle.write(content)
+        os.replace(temp, path)
+        if os.name != "nt":
+            os.chmod(path, 0o600)
+    finally:
+        if fd is not None:
+            os.close(fd)
+        temp.unlink(missing_ok=True)
+    return path
 
 
 def now_iso() -> str:
@@ -136,9 +172,7 @@ def load_registration(home: Path | None = None) -> RegistrationState:
 
 def save_registration(state: RegistrationState, home: Path | None = None) -> Path:
     path = registration_path(home)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(state.to_json(), ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-    return path
+    return write_private_json(path, state.to_json())
 
 
 def with_install_id(state: RegistrationState, server_url: str = "") -> RegistrationState:
@@ -248,6 +282,7 @@ def post_json(
     proof_state: RegistrationState | None = None,
     timeout: float = 30.0,
 ) -> dict[str, Any]:
+    require_secure_url(url)
     body = json.dumps(payload).encode("utf-8")
     headers = {"Content-Type": "application/json", "User-Agent": f"unlimited-skills/{__version__}"}
     if token:

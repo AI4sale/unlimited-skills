@@ -2,19 +2,30 @@ from __future__ import annotations
 
 import io
 import json
+import os
+import stat
 import tempfile
 import unittest
 import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
-from unlimited_skills.registration import RegistrationState, build_registration_payload, with_install_identity, with_install_id
-from unlimited_skills.team import TeamClient
+from unlimited_skills.registration import (
+    RegistrationError,
+    RegistrationState,
+    build_registration_payload,
+    post_json,
+    save_registration,
+    with_install_identity,
+    with_install_id,
+)
+from unlimited_skills.team import TeamClient, TeamState, save_team_state
 from unlimited_skills.updates import (
     RegistrationRequired,
     UpdateClient,
     UpdateError,
     current_collection_state,
+    download_file,
     parse_updates,
     safe_extract_zip,
     sha256_file,
@@ -75,6 +86,28 @@ class RegistrationUpdatesTest(unittest.TestCase):
     def test_hosted_updates_require_registered_installation(self) -> None:
         with self.assertRaises(RegistrationRequired):
             UpdateClient(RegistrationState())
+
+    def test_hosted_service_rejects_non_local_plain_http(self) -> None:
+        with self.assertRaises(RegistrationError):
+            post_json("http://updates.example.test/v1/catalog", {}, token="tok_test", proof_state=registered_state())
+
+    def test_registry_download_rejects_non_local_plain_http(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(UpdateError):
+                download_file("http://updates.example.test/ecc.zip", Path(tmp) / "ecc.zip")
+
+    def test_registration_and_team_state_are_private_on_posix(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp) / "state"
+            registration_file = save_registration(registered_state(), home=home)
+            team_file = save_team_state(TeamState(team_id="team_1", team_token="team_tok", status="active"), home=home)
+
+            self.assertTrue(registration_file.is_file())
+            self.assertTrue(team_file.is_file())
+            if os.name != "nt":
+                self.assertEqual(stat.S_IMODE(home.stat().st_mode), 0o700)
+                self.assertEqual(stat.S_IMODE(registration_file.stat().st_mode), 0o600)
+                self.assertEqual(stat.S_IMODE(team_file.stat().st_mode), 0o600)
 
     def test_current_collection_state_uses_versions_and_count_buckets(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
