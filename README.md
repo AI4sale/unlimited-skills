@@ -208,6 +208,8 @@ The registration file is stored at:
 
 The registry client sends only install id, public device key, key thumbprint, client version, collection versions, source labels, and skill-count buckets. It does not send skill bodies, prompts, source code, skill names, full local paths, repository paths, customer names, environment variables, device private keys, tokens, or secrets. See [docs/privacy-and-telemetry.md](docs/privacy-and-telemetry.md).
 
+For the public client-facing hosted registry contract, see [docs/hosted-registry-api.md](docs/hosted-registry-api.md), [docs/hosted-catalog-model.md](docs/hosted-catalog-model.md), and [docs/registry-contract-tests.md](docs/registry-contract-tests.md).
+
 Using the hosted `community-skills` catalog or pushing skills into it also requires registration. Submitting to `community-skills` is an explicit upload of the selected skill or pack, not background telemetry. See [docs/community-skills.md](docs/community-skills.md).
 
 Team sync MVP: registered teams can create a team, join instances, approve pending instances from the master instance, and synchronize assigned catalog collections across team nodes. The first node that runs `team create` becomes the master. Default team mode is manual approval. The master may enable auto-approval for up to 24 hours on community plans; longer windows require business or enterprise access. See [docs/team-skill-sync.md](docs/team-skill-sync.md).

@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "team_id": "team_example_01",
+  "team_name": "Example Team",
+  "team_token": "uls_team_token_example_redacted",
+  "role": "owner",
+  "status": "active",
+  "joined_at": "2026-06-07T12:15:00Z",
+  "join_code": "uls_join_example_redacted",
+  "request_id": "req_example_team_create"
+}

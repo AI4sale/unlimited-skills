@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills enhancement script response",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["script_id", "version", "download_url", "sha256"],
+  "properties": {
+    "script_id": { "type": "string" },
+    "version": { "type": "string" },
+    "download_url": { "type": "string", "format": "uri" },
+    "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+    "signature": { "type": "string" },
+    "notes": { "type": "string" }
+  }
+}

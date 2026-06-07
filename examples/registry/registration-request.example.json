@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "install_id": "uls_inst_example_01",
+  "public_key": "example_public_device_key_base64url",
+  "key_thumbprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "client": {
+    "name": "unlimited-skills",
+    "version": "0.1.2",
+    "python": "3.12.0",
+    "os": "linux"
+  },
+  "agent": "codex",
+  "skill_count_bucket": "51-250",
+  "telemetry": false
+}

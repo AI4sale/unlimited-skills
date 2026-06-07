@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills error response",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "error", "request_id"],
+  "properties": {
+    "schema_version": { "type": "integer" },
+    "error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": ["registration_required", "invalid_proof", "forbidden", "not_found", "rate_limited", "server_error"]
+        },
+        "message": { "type": "string" },
+        "retry_after_seconds": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "request_id": { "type": "string" }
+  }
+}

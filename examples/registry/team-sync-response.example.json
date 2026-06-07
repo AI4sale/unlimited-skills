@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "updates": [
+    {
+      "collection": "adapted-agentops",
+      "version": "2026.06.07",
+      "archive_url": "https://unlimited.ai4.sale/v1/packs/ai4sale-adapted-agentops/download?version=2026.06.07&download=uls_download_example_redacted",
+      "sha256": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+      "signature": "",
+      "pack_id": "ai4sale-adapted-agentops",
+      "notes": "Team-assigned SHA256-verified archive.",
+      "format": "skill-collection-zip-v1"
+    }
+  ]
+}

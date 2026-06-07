@@ -1,0 +1,50 @@
+{
+  "schema_version": 1,
+  "request_id": "req_example_catalog",
+  "server_time": "2026-06-07T12:05:00Z",
+  "plan": "registered-community",
+  "features_enabled": [
+    "hosted_catalog",
+    "collection_updates"
+  ],
+  "total_collections": 2,
+  "total_skills": 40,
+  "catalog": {
+    "snapshot_note": "Early-access snapshot. Counts move over time; exact hosted contents are delivered only to registered installs.",
+    "collections": [
+      {
+        "collection": "adapted-codex",
+        "display_name": "Adapted Codex Skills",
+        "description": "Sanitized metadata for an AI4sale-maintained registered adapted-skill collection.",
+        "version": "2026.06.07",
+        "visibility": "registered-community",
+        "skill_count": 24,
+        "compatible_agents": ["codex", "claude-code"],
+        "min_client_version": "0.1.2",
+        "platforms": ["windows", "macos", "linux"],
+        "skill_format": "skill-collection-zip-v1",
+        "update_available": true,
+        "installed_version": "2026.06.01",
+        "tags": ["adapted", "coding-agent"],
+        "release_notes": "Sanitized catalog metadata only. Skill bodies are not included in public examples.",
+        "updated_at": "2026-06-07T12:00:00Z"
+      },
+      {
+        "collection": "adapted-agentops",
+        "display_name": "Adapted Agent Operations Skills",
+        "description": "Sanitized metadata for registered operations and QA skill workflows.",
+        "version": "2026.06.07",
+        "visibility": "registered-community",
+        "skill_count": 16,
+        "compatible_agents": ["codex", "hermes", "openclaw"],
+        "min_client_version": "0.1.2",
+        "platforms": ["windows", "macos", "linux"],
+        "skill_format": "skill-collection-zip-v1",
+        "update_available": false,
+        "tags": ["adapted", "operations"],
+        "release_notes": "Sanitized metadata only.",
+        "updated_at": "2026-06-07T12:00:00Z"
+      }
+    ]
+  }
+}

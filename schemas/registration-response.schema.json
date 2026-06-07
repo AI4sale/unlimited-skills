@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills registration response",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "install_id", "plan", "license_token", "key_thumbprint", "proof_required", "registered_at", "features_enabled"],
+  "properties": {
+    "schema_version": { "type": "integer" },
+    "install_id": { "type": "string", "pattern": "^uls_inst_" },
+    "plan": { "type": "string", "enum": ["community-core", "registered-community", "team-free", "pro", "team", "business", "enterprise"] },
+    "license_token": { "type": "string" },
+    "key_thumbprint": { "type": "string" },
+    "proof_required": { "type": "boolean" },
+    "registered_at": { "type": "string", "format": "date-time" },
+    "features_enabled": { "type": "array", "items": { "type": "string" } },
+    "server_time": { "type": "string", "format": "date-time" },
+    "request_id": { "type": "string" }
+  }
+}

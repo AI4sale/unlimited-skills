@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills team sync request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "install_id", "client", "team_token", "collections"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "install_id": { "type": "string", "pattern": "^uls_inst_" },
+    "client": { "type": "object" },
+    "team_token": { "type": "string" },
+    "collections": { "type": "object" }
+  }
+}

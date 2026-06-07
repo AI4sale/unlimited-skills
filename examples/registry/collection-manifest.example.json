@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "collections": {
+    "adapted-codex": {
+      "version": "2026.06.07",
+      "source": "hosted",
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "updated_at": "2026-06-07T12:10:00Z",
+      "archive_format": "skill-collection-zip-v1",
+      "pack_id": "ai4sale-adapted-codex"
+    }
+  }
+}

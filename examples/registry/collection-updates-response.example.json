@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "updates": [
+    {
+      "collection": "adapted-codex",
+      "version": "2026.06.07",
+      "archive_url": "https://unlimited.ai4.sale/v1/packs/ai4sale-adapted-codex/download?version=2026.06.07&download=uls_download_example_redacted",
+      "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "signature": "",
+      "pack_id": "ai4sale-adapted-codex",
+      "notes": "SHA256-verified archive; signature verification planned.",
+      "format": "skill-collection-zip-v1"
+    }
+  ]
+}

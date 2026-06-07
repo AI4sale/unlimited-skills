@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "script_id": "local-skill-enhancer",
+  "version": "0.1.0",
+  "download_url": "https://unlimited.ai4.sale/v1/enhancement/script/download?version=0.1.0&download=uls_download_example_redacted",
+  "sha256": "fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210",
+  "signature": "",
+  "notes": "Registered local-only enhancement script. Runs on the client machine."
+}

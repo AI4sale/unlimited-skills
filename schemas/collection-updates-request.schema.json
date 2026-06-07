@@ -1,0 +1,5 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills collection updates request",
+  "$ref": "catalog-request.schema.json"
+}

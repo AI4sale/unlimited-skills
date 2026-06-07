@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "install_id": "uls_inst_example_01",
+  "plan": "registered-community",
+  "license_token": "uls_token_example_redacted",
+  "key_thumbprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "proof_required": true,
+  "registered_at": "2026-06-07T12:00:00Z",
+  "features_enabled": [
+    "hosted_catalog",
+    "collection_updates",
+    "signed_pack_downloads",
+    "local_skill_enhancement"
+  ],
+  "server_time": "2026-06-07T12:00:00Z",
+  "request_id": "req_example_registration"
+}

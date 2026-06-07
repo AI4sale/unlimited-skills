@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills catalog request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "install_id", "client", "collections"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "install_id": { "type": "string", "pattern": "^uls_inst_" },
+    "client": {
+      "type": "object",
+      "required": ["name", "version"],
+      "additionalProperties": true,
+      "properties": {
+        "name": { "type": "string", "const": "unlimited-skills" },
+        "version": { "type": "string" }
+      }
+    },
+    "collections": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["version", "source", "skill_count_bucket"],
+        "properties": {
+          "version": { "type": "string" },
+          "source": { "type": "string" },
+          "skill_count_bucket": { "type": "string", "enum": ["0", "1-10", "11-50", "51-250", "251-1000", "1000+"] }
+        }
+      }
+    }
+  }
+}

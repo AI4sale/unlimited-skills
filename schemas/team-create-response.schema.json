@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills team create response",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "team_id", "team_name", "team_token", "role", "status", "joined_at"],
+  "properties": {
+    "schema_version": { "type": "integer" },
+    "team_id": { "type": "string" },
+    "team_name": { "type": "string" },
+    "team_token": { "type": "string" },
+    "role": { "type": "string" },
+    "status": { "type": "string" },
+    "joined_at": { "type": "string", "format": "date-time" },
+    "join_code": { "type": "string" }
+  }
+}

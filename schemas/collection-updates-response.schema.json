@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills collection updates response",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "updates"],
+  "properties": {
+    "schema_version": { "type": "integer" },
+    "updates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["collection", "version", "archive_url", "sha256"],
+        "properties": {
+          "collection": { "type": "string" },
+          "version": { "type": "string" },
+          "archive_url": { "type": "string", "format": "uri" },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "signature": { "type": "string" },
+          "pack_id": { "type": "string" },
+          "notes": { "type": "string" },
+          "format": { "type": "string", "const": "skill-collection-zip-v1" }
+        }
+      }
+    }
+  }
+}

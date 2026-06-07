@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "install_id": "uls_inst_example_01",
+  "client": {
+    "name": "unlimited-skills",
+    "version": "0.1.2"
+  },
+  "team_name": "Example Team",
+  "collections": {
+    "adapted-codex": {
+      "version": "2026.06.07",
+      "source": "hosted",
+      "skill_count_bucket": "11-50"
+    }
+  }
+}

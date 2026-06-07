@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills registration request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "install_id", "public_key", "key_thumbprint", "client", "agent", "skill_count_bucket", "telemetry"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "install_id": { "type": "string", "pattern": "^uls_inst_" },
+    "public_key": { "type": "string", "minLength": 32 },
+    "key_thumbprint": { "type": "string", "minLength": 64, "maxLength": 64 },
+    "client": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string", "const": "unlimited-skills" },
+        "version": { "type": "string" },
+        "python": { "type": "string" },
+        "os": { "type": "string" }
+      }
+    },
+    "agent": {
+      "type": "string",
+      "pattern": "^(codex|claude-code|hermes|openclaw|vellum-ai|unknown|[A-Za-z0-9._-]{1,64})$"
+    },
+    "skill_count_bucket": {
+      "type": "string",
+      "enum": ["0", "1-10", "11-50", "51-250", "251-1000", "1000+"]
+    },
+    "telemetry": { "type": "boolean" }
+  }
+}

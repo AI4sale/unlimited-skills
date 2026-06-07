@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills local collection manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "collections"],
+  "properties": {
+    "schema_version": { "type": "integer" },
+    "collections": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": true,
+        "required": ["version", "source"],
+        "properties": {
+          "version": { "type": "string" },
+          "source": { "type": "string", "enum": ["hosted", "local", "bundled", "native"] },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "updated_at": { "type": "string", "format": "date-time" },
+          "archive_format": { "type": "string" },
+          "pack_id": { "type": "string" }
+        }
+      }
+    }
+  }
+}
