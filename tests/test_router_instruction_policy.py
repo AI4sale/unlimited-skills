@@ -9,6 +9,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 def test_router_skills_require_skill_lookup_before_substantive_work() -> None:
     for path in [
         REPO_ROOT / "skills" / "skill-router" / "SKILL.md",
+        REPO_ROOT / "skills" / "router-claude-code" / "SKILL.md",
         REPO_ROOT / "skills" / "router-openclaw" / "SKILL.md",
         REPO_ROOT / "skills" / "router-hermes" / "SKILL.md",
     ]:
@@ -22,6 +23,7 @@ def test_agents_patches_require_skill_lookup_before_substantive_work() -> None:
     for path in [
         REPO_ROOT / "scripts" / "install-codex.ps1",
         REPO_ROOT / "scripts" / "install-codex.sh",
+        REPO_ROOT / "unlimited_skills" / "installers" / "claude_code.py",
         REPO_ROOT / "unlimited_skills" / "installers" / "openclaw.py",
     ]:
         text = path.read_text(encoding="utf-8")

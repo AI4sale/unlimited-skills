@@ -12,7 +12,7 @@
 
 Keep thousands of `SKILL.md` files out of the always-loaded context. Ask one tiny router skill what the task needs. Load only the selected skill.
 
-**v0.1.0 alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, and enterprise governance features are roadmap items.
+**v0.1.2 alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, and enterprise governance features are roadmap items.
 
 [Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
 
@@ -24,7 +24,7 @@ Unlimited Skills turns a folder full of skills into an action library for agents
 
 It is built around one practical rule: the agent should not know every skill all the time. It should know how to ask for the right skill when work starts.
 
-The current version is built for Codex first, with full installers for Codex, OpenClaw, and Hermes, plus migration scripts for Claude Code, OpenClaw, Hermes, and Vellum AI.
+The current version is built for Codex first, with full installers for Codex, Claude Code, OpenClaw, and Hermes, plus migration scripts for Codex, Claude Code, OpenClaw, Hermes, and Vellum AI.
 
 > **Sorry, yes, we patch `AGENTS.md`.**
 >
@@ -63,6 +63,7 @@ Working now:
 - draft generation for new skills;
 - migration scripts for Codex, Claude Code, OpenClaw, Hermes, and Vellum AI;
 - OpenClaw installer for workspace/plugin/built-in skills;
+- Claude Code installer for personal/project skills and `CLAUDE.md` patching;
 - Hermes router-only context-reduction installer and rollback scripts;
 - registered-installation state for hosted catalog and adapted collection updates;
 - hosted update client with SHA256-verified collection archives;
@@ -258,6 +259,61 @@ The installer creates an isolated venv under `~/.unlimited-skills/.venv` and wri
 ```
 
 Restart Codex after installing the router skill.
+
+## Install for Claude Code
+
+Install the router skill into `~/.claude/skills/unlimited-skills`.
+
+Claude Code's current skills documentation defines personal skills at `~/.claude/skills/<skill-name>/SKILL.md` and project skills at `.claude/skills/<skill-name>/SKILL.md`. The installer follows that layout: it installs one visible router skill, migrates existing personal and project skills into the Unlimited Skills library, patches `CLAUDE.md` by default, and rebuilds the index.
+
+Choose one path:
+
+| Mode | What happens | Use when |
+| --- | --- | --- |
+| `default` | Install the router, migrate already installed Claude Code personal/project skills, index them. | You already have Claude Code skills installed locally. |
+| `bundled` | Install the router, add bundled ECC + Superpowers packs, then add local Claude Code skills only when names do not duplicate. | You want a ready skill library immediately. |
+| `adapt-installed` | Install the router, migrate local Claude Code skills, structurally normalize them, and index them. | You want to prepare local skills for one-by-one agent adaptation. |
+
+Windows PowerShell:
+
+```powershell
+.\scripts\install-claude-code.ps1
+.\scripts\install-claude-code.ps1 -Mode bundled
+.\scripts\install-claude-code.ps1 -ClaudeFile C:\path\to\project\CLAUDE.md
+.\scripts\install-claude-code.ps1 -NoClaudePatch
+```
+
+macOS/Linux/WSL:
+
+```bash
+./scripts/install-claude-code.sh
+./scripts/install-claude-code.sh --mode bundled
+./scripts/install-claude-code.sh --claude-file /path/to/project/CLAUDE.md
+./scripts/install-claude-code.sh --no-claude-patch
+```
+
+Useful options:
+
+```bash
+./scripts/install-claude-code.sh --project-root "$PWD"
+./scripts/install-claude-code.sh --no-project-skills
+./scripts/install-claude-code.sh --vector-reindex
+./scripts/install-claude-code.sh --json
+```
+
+Default Claude Code paths:
+
+```text
+personal skills:  ~/.claude/skills
+project skills:   ./.claude/skills
+router target:    ~/.claude/skills/unlimited-skills
+shell launcher:   ~/.claude/skills/unlimited-skills/scripts/unlimited-skills.sh
+PowerShell:       ~/.claude/skills/unlimited-skills/scripts/unlimited-skills.ps1
+CLAUDE.md:        ./CLAUDE.md
+library root:     ~/.unlimited-skills/library
+```
+
+If `~/.claude/skills` already existed, Claude Code should detect the new router skill in the current session. If the top-level skills directory did not exist before installation, restart Claude Code so the new directory is watched.
 
 ## Install for OpenClaw
 

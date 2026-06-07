@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.1.2-alpha
+
+### Added
+
+- Full Claude Code installer for personal skills, project skills, router launchers, `CLAUDE.md` patching, bundled/adapt-installed modes, and optional vector reindexing.
+- Claude Code router skill with shell and PowerShell launcher placeholders.
+
+### Changed
+
+- Raised package version to `0.1.2`.
+- README now documents Claude Code as a full installer target instead of migration-only.
+
 ## v0.1.0-alpha
 
 Developer preview for a local-first skill router and context reducer.
