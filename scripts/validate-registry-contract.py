@@ -10,6 +10,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 SCHEMAS = ROOT / "schemas"
 EXAMPLES = ROOT / "examples" / "registry"
+COMMUNITY_EXAMPLES = ROOT / "examples" / "community"
 SHA256_RE = re.compile(r"^[a-f0-9]{64}$")
 FORBIDDEN_KEYS = {
     "skill_body",
@@ -95,13 +96,25 @@ def validate_examples(examples: dict[str, Any]) -> None:
         raise ContractError("catalog response example must mark the count as an early-access snapshot")
 
 
+def validate_community_examples(examples: dict[str, Any]) -> None:
+    require_fields(examples["list-response.example.json"], ["items"], COMMUNITY_EXAMPLES / "list-response.example.json")
+    require_fields(examples["search-response.example.json"], ["items"], COMMUNITY_EXAMPLES / "search-response.example.json")
+    require_fields(examples["preview-response.example.json"], ["item", "included_skill_names", "install_plan", "warnings"], COMMUNITY_EXAMPLES / "preview-response.example.json")
+    require_fields(examples["install-response.example.json"], ["install_plan"], COMMUNITY_EXAMPLES / "install-response.example.json")
+    require_fields(examples["submission-preview.example.json"], ["metadata", "skills", "files", "warnings"], COMMUNITY_EXAMPLES / "submission-preview.example.json")
+    require_fields(examples["submission-status.example.json"], ["submissions"], COMMUNITY_EXAMPLES / "submission-status.example.json")
+
+
 def main() -> int:
     schema_files = sorted(SCHEMAS.glob("*.json"))
     example_files = sorted(EXAMPLES.glob("*.json"))
+    community_example_files = sorted(COMMUNITY_EXAMPLES.glob("*.json"))
     if not schema_files:
         raise ContractError("No schema files found")
     if not example_files:
         raise ContractError("No registry example files found")
+    if not community_example_files:
+        raise ContractError("No community example files found")
 
     for path in schema_files:
         load_json(path)
@@ -109,7 +122,11 @@ def main() -> int:
     for name, payload in examples.items():
         validate_no_private_fields(EXAMPLES / name, payload)
     validate_examples(examples)
-    print(json.dumps({"schemas": len(schema_files), "examples": len(example_files), "status": "ok"}, sort_keys=True))
+    community_examples = {path.name: load_json(path) for path in community_example_files}
+    for name, payload in community_examples.items():
+        validate_no_private_fields(COMMUNITY_EXAMPLES / name, payload)
+    validate_community_examples(community_examples)
+    print(json.dumps({"schemas": len(schema_files), "registry_examples": len(example_files), "community_examples": len(community_example_files), "status": "ok"}, sort_keys=True))
     return 0
 
 

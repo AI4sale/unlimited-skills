@@ -12,6 +12,13 @@ from pathlib import Path
 from typing import Iterable
 
 from .adapters import SKILL_PACKS, adapt_library, apply_agent_adaptation, adaptation_task, install_pack, next_skill_for_agent
+from .community import (
+    CommunityClient,
+    build_submission_draft,
+    confirm_upload_or_fail,
+    list_installed_community_items,
+    remove_community_item,
+)
 from .doctor import build_doctor_report, doctor_json, format_doctor_text
 from .registration import (
     DEFAULT_SERVICE_URL,
@@ -841,6 +848,170 @@ def cmd_catalog_list(args: argparse.Namespace) -> int:
     return 0
 
 
+def _split_csv(value: str) -> tuple[str, ...]:
+    return tuple(item.strip() for item in (value or "").split(",") if item.strip())
+
+
+def _emit_community_items(items, *, as_json: bool) -> int:
+    payload = {"count": len(items), "items": [asdict(item) for item in items]}
+    if as_json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    if not items:
+        print("No community skills found.")
+        return 0
+    for item in items:
+        label = item.display_name or item.name
+        version = f" {item.version}" if item.version else ""
+        print(f"{item.item_id}: {label}{version} [{item.kind}]")
+        if item.description:
+            print(f"  {item.description}")
+        if item.publisher:
+            print(f"  publisher: {item.publisher}")
+    return 0
+
+
+def cmd_community_list(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    client = CommunityClient(load_registration(), timeout=args.timeout)
+    items = client.list_community_items(root, limit=args.limit, compatible_agent=args.compatible_agent, tags=_split_csv(args.tags))
+    return _emit_community_items(items, as_json=args.json)
+
+
+def cmd_community_search(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    client = CommunityClient(load_registration(), timeout=args.timeout)
+    items = client.search_community_items(
+        root,
+        query=args.query,
+        tags=_split_csv(args.tags),
+        compatible_agent=args.compatible_agent,
+        limit=args.limit,
+    )
+    return _emit_community_items(items, as_json=args.json)
+
+
+def cmd_community_preview(args: argparse.Namespace) -> int:
+    client = CommunityClient(load_registration(), timeout=args.timeout)
+    preview = client.preview_community_item(args.catalog_item_id)
+    payload = asdict(preview)
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    item = preview.item
+    print(f"{item.item_id}: {item.display_name or item.name} [{item.kind}]")
+    if preview.description or item.description:
+        print(preview.description or item.description)
+    if preview.included_skill_names:
+        print("Skills: " + ", ".join(preview.included_skill_names))
+    if preview.warnings:
+        print("Warnings: " + "; ".join(preview.warnings))
+    return 0
+
+
+def cmd_community_install(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    client = CommunityClient(load_registration(), timeout=args.timeout)
+    if not args.dry_run and not args.yes:
+        if not sys.stdin.isatty():
+            raise RuntimeError("Community install requires --yes in non-interactive mode.")
+        typed = input("Type INSTALL to install this community item: ")
+        if typed.strip() != "INSTALL":
+            raise RuntimeError("Community install cancelled.")
+    result = client.install_community_item(
+        root,
+        item_id=args.catalog_item_id,
+        target_collection=args.collection,
+        dry_run=args.dry_run,
+        force=args.force,
+    )
+    reindexed = False
+    if not args.dry_run and not args.skip_reindex:
+        save_index(root)
+        reindexed = True
+    payload = {"result": asdict(result), "reindexed": reindexed}
+    if args.json or args.dry_run:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(f"Installed {payload['result']['collection']} {payload['result']['version']}")
+        if reindexed:
+            print("Lexical index rebuilt.")
+    return 0
+
+
+def cmd_community_submit(args: argparse.Namespace) -> int:
+    draft = build_submission_draft(
+        Path(args.path),
+        name=args.name,
+        description=args.description,
+        tags=_split_csv(args.tags),
+        compatible_agents=tuple(args.compatible_agent or ()),
+        visibility=args.visibility,
+    )
+    payload = {
+        "preview_path": draft.preview_path,
+        "name": draft.name,
+        "description": draft.description,
+        "skills": list(draft.skills),
+        "files": [{key: value for key, value in row.items() if key != "content_base64"} for row in draft.files],
+        "total_bytes": draft.total_bytes,
+        "warnings": list(draft.warnings),
+        "note": "Community submission uploads the selected skill/pack content for maintainer review.",
+    }
+    if args.dry_run:
+        payload["result"] = asdict(CommunityClient(load_registration(), timeout=args.timeout).submit_community_skill(draft, dry_run=True))
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    client = CommunityClient(load_registration(), timeout=args.timeout)
+    confirm = confirm_upload_or_fail(args.yes)
+    result = client.submit_community_skill(draft, confirm=confirm)
+    payload["result"] = asdict(result)
+    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_community_submission_status(args: argparse.Namespace) -> int:
+    client = CommunityClient(load_registration(), timeout=args.timeout)
+    payload = client.get_submission_status(args.submission_id)
+    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_community_installed(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    installed = list_installed_community_items(root)
+    payload = {"root": str(root), "count": len(installed), "items": [asdict(item) for item in installed]}
+    if args.refresh:
+        client = CommunityClient(load_registration(), timeout=args.timeout)
+        payload["refresh"] = {"available_count": len(client.list_community_items(root, limit=1))}
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    if not installed:
+        print("No installed community skills found.")
+        return 0
+    for item in installed:
+        print(f"{item.collection}: {item.name} {item.version} [{item.source}]")
+    return 0
+
+
+def cmd_community_remove(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    result = remove_community_item(root, args.collection_or_skill_name, dry_run=args.dry_run or not args.yes, force=args.force)
+    reindexed = False
+    if result.get("removed") and not args.skip_reindex:
+        save_index(root)
+        reindexed = True
+    payload = {"result": result, "reindexed": reindexed}
+    if args.json or result.get("dry_run"):
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(f"Removed {result['collection']}")
+        if reindexed:
+            print("Lexical index rebuilt.")
+    return 0
+
+
 def cmd_enhance_download(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     client = UpdateClient(load_registration(), timeout=args.timeout)
@@ -1161,6 +1332,68 @@ def build_parser() -> argparse.ArgumentParser:
     catalog_list = catalog_sub.add_parser("list", help="List the hosted adapted-skill catalog for this registered installation.")
     catalog_list.add_argument("--timeout", type=float, default=30.0)
     catalog_list.set_defaults(func=cmd_catalog_list)
+
+    community = sub.add_parser("community", help="Browse, install, submit, and manage registered community skills.")
+    community_sub = community.add_subparsers(dest="community_command", required=True)
+    community_list = community_sub.add_parser("list", help="List registered community catalog skills.")
+    community_list.add_argument("--limit", type=int, default=50)
+    community_list.add_argument("--tags", default="", help="Comma-separated tag filter.")
+    community_list.add_argument("--compatible-agent", default="", choices=["", "codex", "claude-code", "hermes", "openclaw", "vellum-ai"])
+    community_list.add_argument("--json", action="store_true")
+    community_list.add_argument("--timeout", type=float, default=30.0)
+    community_list.set_defaults(func=cmd_community_list)
+    community_search = community_sub.add_parser("search", help="Search registered community skills.")
+    community_search.add_argument("query")
+    community_search.add_argument("--limit", type=int, default=20)
+    community_search.add_argument("--tags", default="", help="Comma-separated tag filter.")
+    community_search.add_argument("--compatible-agent", default="", choices=["", "codex", "claude-code", "hermes", "openclaw", "vellum-ai"])
+    community_search.add_argument("--json", action="store_true")
+    community_search.add_argument("--timeout", type=float, default=30.0)
+    community_search.set_defaults(func=cmd_community_search)
+    community_preview = community_sub.add_parser("preview", help="Preview sanitized community skill metadata and install warnings.")
+    community_preview.add_argument("catalog_item_id")
+    community_preview.add_argument("--json", action="store_true")
+    community_preview.add_argument("--timeout", type=float, default=30.0)
+    community_preview.set_defaults(func=cmd_community_preview)
+    community_install = community_sub.add_parser("install", help="Install a registered community skill or pack.")
+    community_install.add_argument("catalog_item_id")
+    community_install.add_argument("--collection", default="", help="Override local target collection.")
+    community_install.add_argument("--dry-run", action="store_true", help="Show server install plan without downloading or writing.")
+    community_install.add_argument("--force", action="store_true", help="Allow overwriting the target collection when the service plan permits it.")
+    community_install.add_argument("--yes", action="store_true", help="Confirm install in non-interactive mode.")
+    community_install.add_argument("--skip-reindex", action="store_true", help="Do not rebuild the lexical index after install.")
+    community_install.add_argument("--json", action="store_true")
+    community_install.add_argument("--timeout", type=float, default=30.0)
+    community_install.set_defaults(func=cmd_community_install)
+    community_submit = community_sub.add_parser("submit", help="Preview and submit a selected local skill or pack for community review.")
+    community_submit.add_argument("path")
+    community_submit.add_argument("--name", default="")
+    community_submit.add_argument("--description", default="")
+    community_submit.add_argument("--tags", default="", help="Comma-separated submission tags.")
+    community_submit.add_argument("--compatible-agent", action="append", choices=["codex", "claude-code", "hermes", "openclaw", "vellum-ai"])
+    community_submit.add_argument("--visibility", default="registered-community", choices=["registered-community", "team-free", "pro", "enterprise"])
+    community_submit.add_argument("--dry-run", action="store_true", help="Validate and write preview without uploading.")
+    community_submit.add_argument("--yes", action="store_true", help="Confirm upload in non-interactive mode.")
+    community_submit.add_argument("--json", action="store_true", help="Accepted for consistency; submit output is JSON.")
+    community_submit.add_argument("--timeout", type=float, default=30.0)
+    community_submit.set_defaults(func=cmd_community_submit)
+    community_status = community_sub.add_parser("submission-status", help="Show one submission status, or recent submissions when no id is provided.")
+    community_status.add_argument("submission_id", nargs="?", default="")
+    community_status.add_argument("--timeout", type=float, default=30.0)
+    community_status.set_defaults(func=cmd_community_submission_status)
+    community_installed = community_sub.add_parser("installed", help="List locally installed community skills without hosted calls by default.")
+    community_installed.add_argument("--refresh", action="store_true", help="Check hosted service for refresh metadata; requires registration.")
+    community_installed.add_argument("--json", action="store_true")
+    community_installed.add_argument("--timeout", type=float, default=30.0)
+    community_installed.set_defaults(func=cmd_community_installed)
+    community_remove = community_sub.add_parser("remove", help="Remove a locally installed community item.")
+    community_remove.add_argument("collection_or_skill_name")
+    community_remove.add_argument("--dry-run", action="store_true", help="Show what would be removed.")
+    community_remove.add_argument("--force", action="store_true", help="Allow removal when the item is not marked as community-installed.")
+    community_remove.add_argument("--yes", action="store_true", help="Actually remove without interactive confirmation.")
+    community_remove.add_argument("--skip-reindex", action="store_true", help="Do not rebuild the lexical index after removal.")
+    community_remove.add_argument("--json", action="store_true")
+    community_remove.set_defaults(func=cmd_community_remove)
 
     enhance = sub.add_parser("enhance", help="Download or run the registered local skill enhancement script.")
     enhance_sub = enhance.add_subparsers(dest="enhance_command", required=True)

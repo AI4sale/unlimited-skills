@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "item_id": "comm_browser_qa",
+      "kind": "skill",
+      "name": "browser-qa",
+      "display_name": "Browser QA",
+      "description": "Sanitized metadata for browser test planning and verification.",
+      "version": "2026.06.08",
+      "publisher": "community-maintainers",
+      "visibility": "registered-community",
+      "compatible_agents": ["codex", "openclaw"],
+      "tags": ["browser", "qa"],
+      "skill_count": 1,
+      "updated_at": "2026-06-08T10:00:00Z",
+      "min_client_version": "0.1.2",
+      "license_label": "community review",
+      "install_target": "community",
+      "trust": {
+        "reviewed": true,
+        "review_status": "approved"
+      },
+      "stats": {
+        "installs_bucket": "1-10"
+      }
+    }
+  ]
+}

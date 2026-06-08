@@ -4,7 +4,7 @@ The public repo validates the hosted registry contract without including the pri
 
 ## What To Validate
 
-- Every file under `schemas/` and `examples/registry/` is valid JSON.
+- Every file under `schemas/`, `examples/registry/`, and `examples/community/` is valid JSON.
 - Registry examples contain no private `SKILL.md` bodies.
 - Registry examples contain no prompts, source code, local paths, repository paths, customer names, environment variables, secrets, or device private keys.
 - Placeholder hosted tokens are allowed only when clearly redacted, for example `uls_token_example_redacted`.
@@ -13,6 +13,8 @@ The public repo validates the hosted registry contract without including the pri
 - Registration response examples contain fields needed by `register_installation`: `license_token` or `token`, `plan`, `features_enabled`, and `proof_required`.
 - Catalog request examples include collection state only, not local skill names or paths.
 - Catalog response examples can show an early-access snapshot count, but not private skill bodies.
+- Community list/search/preview/install/status examples are sanitized metadata only.
+- Community submission preview examples show selected file metadata, checksums, warnings, and byte counts without embedding upload content.
 - Signature metadata is documented as optional/planned. Current client enforcement is SHA256 verification plus safe zip extraction.
 
 ## Script

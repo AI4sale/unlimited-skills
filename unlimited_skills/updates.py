@@ -311,7 +311,7 @@ def resolve_collection_source(extracted: Path, collection: str) -> Path:
     raise UpdateError("Collection archive must contain a skills/ directory.")
 
 
-def install_collection(root: Path, update: CollectionUpdate, source: Path) -> None:
+def install_collection(root: Path, update: CollectionUpdate, source: Path, *, source_label: str = "hosted") -> None:
     target = root / update.collection
     backup = root / f".{update.collection}.update-backup"
     if backup.exists():
@@ -336,7 +336,7 @@ def install_collection(root: Path, update: CollectionUpdate, source: Path) -> No
         manifest["collections"] = collections
     collections[update.collection] = {
         "version": update.version,
-        "source": "hosted",
+        "source": source_label,
         "sha256": update.sha256,
         "updated_at": now_iso(),
     }

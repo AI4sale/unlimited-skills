@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "submissions": [
+    {
+      "submission_id": "sub_example_redacted",
+      "status": "pending_review",
+      "reviewer_notes": "Queued for maintainer review.",
+      "updated_at": "2026-06-08T10:15:00Z"
+    }
+  ]
+}

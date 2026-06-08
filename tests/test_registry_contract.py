@@ -13,6 +13,7 @@ from unlimited_skills.updates import UpdateError, parse_enhancement_script, pars
 
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES = ROOT / "examples" / "registry"
+COMMUNITY_EXAMPLES = ROOT / "examples" / "community"
 SCHEMAS = ROOT / "schemas"
 
 
@@ -21,7 +22,7 @@ def load_example(name: str) -> dict:
 
 
 def test_all_registry_schemas_and_examples_are_valid_json() -> None:
-    for path in [*SCHEMAS.glob("*.json"), *EXAMPLES.glob("*.json")]:
+    for path in [*SCHEMAS.glob("*.json"), *EXAMPLES.glob("*.json"), *COMMUNITY_EXAMPLES.glob("*.json")]:
         json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -93,13 +94,23 @@ def test_catalog_response_example_uses_snapshot_count_without_skill_bodies() -> 
 
 
 def test_registry_examples_use_only_redacted_placeholders_for_tokens() -> None:
-    for path in EXAMPLES.glob("*.json"):
+    for path in [*EXAMPLES.glob("*.json"), *COMMUNITY_EXAMPLES.glob("*.json")]:
         payload = json.loads(path.read_text(encoding="utf-8"))
         serialized = json.dumps(payload).lower()
         assert "private_key" not in serialized
         assert "secret" not in serialized
         if "token" in serialized:
             assert "redacted" in serialized
+
+
+def test_community_examples_are_sanitized_metadata_only() -> None:
+    for path in COMMUNITY_EXAMPLES.glob("*.json"):
+        serialized = path.read_text(encoding="utf-8").lower()
+        assert "skill.md" not in serialized
+        assert "```" not in serialized
+        assert "content_base64" not in serialized
+        assert "c:\\" not in serialized
+        assert "/users/" not in serialized
 
 
 def test_registry_contract_validation_script_passes() -> None:

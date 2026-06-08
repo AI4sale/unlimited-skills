@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "metadata": {
+    "name": "browser-qa",
+    "description": "Community submission preview with sanitized metadata only.",
+    "tags": ["browser", "qa"],
+    "compatible_agents": ["codex"],
+    "visibility": "registered-community",
+    "skill_count": 1
+  },
+  "skills": ["browser-qa"],
+  "files": [
+    {
+      "path": "skills/browser-qa/skill-document.md",
+      "bytes": 512,
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+    }
+  ],
+  "total_bytes": 512,
+  "warnings": [],
+  "note": "Community submission uploads the selected skill or pack content for maintainer review after explicit confirmation."
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills community preview response",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "item", "manifest_summary", "included_skill_names", "install_plan", "warnings"],
+  "properties": {
+    "schema_version": { "type": "integer" },
+    "item": { "type": "object" },
+    "manifest_summary": { "type": "object" },
+    "included_skill_names": { "type": "array", "items": { "type": "string" } },
+    "description": { "type": "string" },
+    "release_notes": { "type": "string" },
+    "required_capabilities": { "type": "array", "items": { "type": "string" } },
+    "install_plan": { "type": "object" },
+    "warnings": { "type": "array", "items": { "type": "string" } }
+  }
+}

@@ -7,6 +7,8 @@
 - Local-only `unlimited-skills doctor` command with JSON output and agent-specific checks for Codex, Claude Code, Hermes, and OpenClaw.
 - Product editions, public core boundary, support matrix, release process, and known limitations docs for public alpha review.
 - Hosted registry API contract docs, catalog model docs, JSON schemas, sanitized examples, and registry contract tests.
+- Registered `community` CLI namespace for community catalog list/search/preview/install, explicit submit preview/confirmation, submission status, local installed listing, and local remove.
+- Community catalog schemas, sanitized examples, submission review docs, and privacy docs for explicit community submissions.
 
 ### Changed
 
@@ -15,6 +17,7 @@
 - Clarified that hosted catalog/update access is registration-gated early access and already populated without publishing private registered skill bodies in the MIT repo.
 - Clarified that hosted collection archives are SHA256-verified today; cryptographic signature verification is planned, not currently enforced.
 - Documented the official registered hosted catalog as populated early-access while keeping private skill bodies out of the public MIT repo.
+- Clarified that community list/search/preview/update checks do not upload skill bodies, while `community submit` uploads only the selected skill or pack after confirmation.
 
 ## v0.1.2-alpha
 

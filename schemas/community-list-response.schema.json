@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills community list response",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "items"],
+  "properties": {
+    "schema_version": { "type": "integer" },
+    "items": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/communityItem" }
+    }
+  },
+  "$defs": {
+    "communityItem": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["item_id", "kind", "name", "description", "version", "publisher", "visibility", "compatible_agents", "tags", "skill_count", "install_target"],
+      "properties": {
+        "item_id": { "type": "string" },
+        "kind": { "type": "string", "enum": ["skill", "pack", "collection"] },
+        "name": { "type": "string" },
+        "display_name": { "type": "string" },
+        "description": { "type": "string" },
+        "version": { "type": "string" },
+        "publisher": { "type": "string" },
+        "visibility": { "type": "string", "enum": ["registered-community", "team-free", "pro", "enterprise"] },
+        "compatible_agents": { "type": "array", "items": { "type": "string" } },
+        "tags": { "type": "array", "items": { "type": "string" } },
+        "skill_count": { "type": "integer", "minimum": 0 },
+        "updated_at": { "type": "string" },
+        "min_client_version": { "type": "string" },
+        "license_label": { "type": "string" },
+        "install_target": { "type": "string" },
+        "trust": { "type": "object" },
+        "stats": { "type": "object" }
+      }
+    }
+  }
+}

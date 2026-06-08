@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills community submission status response",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "submissions"],
+  "properties": {
+    "schema_version": { "type": "integer" },
+    "submissions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["submission_id", "status"],
+        "properties": {
+          "submission_id": { "type": "string" },
+          "status": { "type": "string", "enum": ["draft", "uploaded", "pending_review", "changes_requested", "approved", "published", "rejected", "withdrawn"] },
+          "reviewer_notes": { "type": "string" },
+          "updated_at": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -55,6 +55,8 @@ The proof JSON contains:
 
 Catalog and update checks must not include user local skill names or local paths.
 
+Community list/search requests may include a user-supplied query, tags, compatible-agent filter, client metadata, install id, and collection version state. They must not include local skill bodies.
+
 ## Common Response Fields
 
 Hosted responses may include:
@@ -84,6 +86,30 @@ Returns hosted collection updates for local collection versions. Update archives
 ### `POST /v1/enhancement/script`
 
 Returns metadata and a download URL for the registered local enhancement script. The script is SHA256-verified before execution and runs locally.
+
+### `POST /v1/community/list`
+
+Returns registered community catalog item metadata. This is a hosted metadata call only; it must not receive local skill bodies.
+
+### `POST /v1/community/search`
+
+Searches registered community catalog item metadata by user-supplied query, tags, and compatible-agent filters. This endpoint must not receive local skill bodies.
+
+### `POST /v1/community/preview`
+
+Returns sanitized item metadata, manifest summary, included skill names from hosted public metadata, release notes, required capabilities, install plan summary, and warnings. Preview does not require or expose full skill bodies.
+
+### `POST /v1/community/install`
+
+Returns a community install plan for a catalog item. The plan includes target collection, version, archive URL, SHA256, skill count, and warnings. The client downloads the archive, verifies SHA256, rejects path traversal, installs locally, and rebuilds the lexical index.
+
+### `POST /v1/community/submit`
+
+Uploads only the selected skill or pack after local validation, preview generation, and explicit user confirmation. This is the only community flow that sends selected skill content to the registry for maintainer review.
+
+### `POST /v1/community/submission-status`
+
+Returns one submission status when `submission_id` is supplied, or recent submissions for the installation when omitted. Public client responses expose reviewer notes when provided, but not private review internals.
 
 ### `POST /v1/teams`
 

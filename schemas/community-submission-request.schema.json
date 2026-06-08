@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills community submission request",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "install_id", "client", "metadata", "skills", "files", "total_bytes", "preview_sha256"],
+  "properties": {
+    "schema_version": { "type": "integer" },
+    "install_id": { "type": "string" },
+    "client": { "type": "object" },
+    "metadata": { "type": "object" },
+    "skills": { "type": "array", "items": { "type": "string" } },
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path", "bytes", "sha256", "content_base64"],
+        "properties": {
+          "path": { "type": "string" },
+          "bytes": { "type": "integer", "minimum": 0 },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "content_base64": { "type": "string" }
+        }
+      }
+    },
+    "total_bytes": { "type": "integer", "minimum": 0 },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "preview_sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" }
+  }
+}

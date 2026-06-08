@@ -68,6 +68,7 @@ Working now:
 - registered-installation state for hosted catalog and adapted collection updates;
 - hosted update client with SHA256-verified collection archives;
 - registered hosted catalog client;
+- registered community skills client for list/search/preview/install/submit/status/local remove;
 - registered team create/join/approval/sync MVP;
 - native skill sync for Codex, Claude Code, Hermes, and OpenClaw roots;
 - public repo self-update checks and applies latest releases/tags.
@@ -164,6 +165,23 @@ unlimited-skills updates apply
 
 Hosted catalog/update access is registration-gated early access. The registered catalog is populated, but availability may be limited while v0.1 is in alpha. Exact hosted catalog contents are delivered through registered catalog/update commands, not published in the MIT repo.
 
+Browse, preview, install, and submit registered community skills:
+
+```bash
+unlimited-skills community list
+unlimited-skills community search "browser qa"
+unlimited-skills community preview <catalog-item-id>
+unlimited-skills community install <catalog-item-id> --dry-run
+unlimited-skills community install <catalog-item-id> --yes
+unlimited-skills community submit ./my-skill --dry-run
+unlimited-skills community submit ./my-skill --yes
+unlimited-skills community submission-status
+unlimited-skills community installed
+unlimited-skills community remove community --dry-run
+```
+
+`catalog` is the official registered hosted catalog and collection metadata. `community` is the user-facing community discovery, submission, install, and local management flow. Community list/search/preview/install/status calls do not upload local skill bodies. `community submit` is the explicit exception: it uploads only the selected skill or pack after local validation, preview generation, and confirmation.
+
 Run a local-only diagnostic without registration or hosted calls:
 
 ```bash
@@ -210,7 +228,7 @@ The registry client sends only install id, public device key, key thumbprint, cl
 
 For the public client-facing hosted registry contract, see [docs/hosted-registry-api.md](docs/hosted-registry-api.md), [docs/hosted-catalog-model.md](docs/hosted-catalog-model.md), and [docs/registry-contract-tests.md](docs/registry-contract-tests.md).
 
-Using the hosted `community-skills` catalog or pushing skills into it also requires registration. Submitting to `community-skills` is an explicit upload of the selected skill or pack, not background telemetry. See [docs/community-skills.md](docs/community-skills.md).
+Using the hosted `community-skills` catalog or pushing skills into it also requires registration. Submitting to `community-skills` is an explicit upload of the selected skill or pack, not background telemetry. See [docs/community-skills.md](docs/community-skills.md) and [docs/community-submission-review.md](docs/community-submission-review.md).
 
 Team sync MVP: registered teams can create a team, join instances, approve pending instances from the master instance, and synchronize assigned catalog collections across team nodes. The first node that runs `team create` becomes the master. Default team mode is manual approval. The master may enable auto-approval for up to 24 hours on community plans; longer windows require business or enterprise access. See [docs/team-skill-sync.md](docs/team-skill-sync.md).
 

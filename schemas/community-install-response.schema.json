@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills community install response",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "install_plan"],
+  "properties": {
+    "schema_version": { "type": "integer" },
+    "name": { "type": "string" },
+    "install_plan": {
+      "type": "object",
+      "required": ["collection", "version", "archive_url", "sha256"],
+      "properties": {
+        "collection": { "type": "string" },
+        "version": { "type": "string" },
+        "archive_url": { "type": "string", "format": "uri" },
+        "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+        "skill_count": { "type": "integer", "minimum": 0 },
+        "warnings": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  }
+}

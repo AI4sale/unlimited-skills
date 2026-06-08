@@ -6,14 +6,15 @@ By default, skills, prompts, source code, local file paths, repository names, cu
 
 ## What the hosted update client may send
 
-When a registered installation checks the hosted catalog, hosted adapted collection updates, or local enhancement script metadata, the client sends only a minimal request:
+When a registered installation checks the hosted catalog, hosted adapted collection updates, local enhancement script metadata, or community catalog list/search metadata, the client sends only a minimal request:
 
 - local install id;
 - public device key and key thumbprint;
 - client name and version;
 - collection version metadata;
 - collection source label;
-- skill count bucket.
+- skill count bucket;
+- compatible agent filter, tags, and query string for community search when supplied by the user.
 
 The update client does not send:
 
@@ -31,7 +32,9 @@ The update client does not send:
 
 The local enhancement script is downloaded from the registry, but it runs on the user's machine. Skill contents are not uploaded for enhancement.
 
-Community publishing is different: when a user submits or pushes a skill to the hosted `community-skills` catalog, the selected skill or pack is intentionally uploaded for review/publication. The client must show that explicit upload action separately from telemetry, search, update checks, or local enhancement.
+Community publishing is different: when a user runs `community submit`, the selected skill or pack is intentionally uploaded for review/publication. Before upload, the client writes a local preview, prints the selected file list, metadata, byte counts, and warnings, and requires explicit confirmation. This is separate from telemetry, search, update checks, installed listing, preview, install-plan checks, or local enhancement.
+
+`community installed` is local-only unless `--refresh` is passed.
 
 ## Telemetry
 

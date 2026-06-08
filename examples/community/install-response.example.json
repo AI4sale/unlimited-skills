@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "name": "react-quality-pack",
+  "install_plan": {
+    "collection": "community",
+    "version": "2026.06.08",
+    "archive_url": "https://unlimited.ai4.sale/downloads/community/react-quality-pack.zip?download=community_download_example_redacted",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "skill_count": 6,
+    "warnings": ["Archive is verified by SHA256 before extraction."]
+  }
+}

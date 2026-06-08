@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "item_id": "comm_react_quality_pack",
+      "kind": "pack",
+      "name": "react-quality-pack",
+      "display_name": "React Quality Pack",
+      "description": "Sanitized community metadata for frontend review and QA workflows.",
+      "version": "2026.06.08",
+      "publisher": "community-maintainers",
+      "visibility": "registered-community",
+      "compatible_agents": ["codex", "claude-code"],
+      "tags": ["frontend", "qa"],
+      "skill_count": 6,
+      "updated_at": "2026-06-08T10:00:00Z",
+      "min_client_version": "0.1.2",
+      "license_label": "community review",
+      "install_target": "community",
+      "trust": {
+        "reviewed": true,
+        "reviewer": "ai4sale-maintainers",
+        "review_status": "approved"
+      },
+      "stats": {
+        "installs_bucket": "11-50",
+        "rating": 4.8
+      }
+    }
+  ]
+}
