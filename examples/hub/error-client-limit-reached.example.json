@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "error": {
+    "code": "client_limit_reached",
+    "message": "Registered Community Local Skill Hub supports up to 100 active client instances."
+  }
+}

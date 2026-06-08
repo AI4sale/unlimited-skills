@@ -24,6 +24,8 @@ The public MIT core must remain local-first. Registration gates hosted services 
 - migration scripts
 - local daemon and local learning logs
 
+`serve` is the free local daemon and remains unregistered.
+
 ## Commands That Require Registration
 
 - `register`
@@ -49,6 +51,12 @@ The public MIT core must remain local-first. Registration gates hosted services 
 - `community install`
 - `community submit`
 - `community submission-status`
+- `hub serve`
+- `hub clients`
+- `hub token create`
+- `remote search`
+- `remote resolve`
+- `remote view`
 
 `license status` reads local registration state only. It must work without registration and show unregistered status.
 
@@ -65,3 +73,7 @@ Community submission is the explicit exception: `community submit <path>` upload
 Public repo self-update remains unregistered because it updates the MIT public core from GitHub. Hosted skill updates require registration.
 
 Team status may read local `team.json` without a hosted refresh. Any hosted status refresh, member listing, approval, rejection, revocation, collection listing, sync, or leave operation requires registration.
+
+`hub status`, `hub init`, `hub doctor`, `remote configure`, and `remote status` may read or write local configuration without hosted calls. `hub serve` is a separate registration-required product command and must not be confused with the free `serve` daemon.
+
+Local `search`, `list`, and `view` remain unregistered even when remote hub support exists.

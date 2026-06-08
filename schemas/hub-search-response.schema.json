@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "query": { "type": "string" },
+    "results": {
+      "items": {
+        "additionalProperties": true,
+        "properties": {
+          "collection": { "type": "string" },
+          "confidence": { "maximum": 1, "minimum": 0, "type": "number" },
+          "name": { "type": "string" },
+          "sha256": { "type": "string" },
+          "skill_kind": { "type": "string" }
+        },
+        "required": ["name", "collection", "confidence", "sha256"],
+        "type": "object"
+      },
+      "type": "array"
+    },
+    "schema_version": { "const": 1 }
+  },
+  "required": ["schema_version", "query", "results"],
+  "title": "Local Skill Hub search response",
+  "type": "object"
+}

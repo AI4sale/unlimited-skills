@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "query": "review this Python API for authentication issues",
+  "selected": [
+    {
+      "name": "security-review",
+      "collection": "registered-community",
+      "confidence": 0.84,
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "body": "Sanitized example body for a pure-text security review skill.",
+      "skill_kind": "pure_text",
+      "hub_behavior": "distribute_body",
+      "requires_local_install": false,
+      "missing_capabilities": [],
+      "warnings": []
+    }
+  ],
+  "context_budget": {
+    "max_skills": 2,
+    "max_chars": 12000,
+    "used_chars": 62
+  }
+}

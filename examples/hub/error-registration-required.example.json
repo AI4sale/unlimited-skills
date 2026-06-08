@@ -1,0 +1,7 @@
+{
+  "schema_version": 1,
+  "error": {
+    "code": "registration_required",
+    "message": "Registration is required for Local Skill Hub. The MIT local core still works offline."
+  }
+}

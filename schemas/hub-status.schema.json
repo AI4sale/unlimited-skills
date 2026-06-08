@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "active_client_count": { "minimum": 0, "type": "integer" },
+    "active_client_limit": { "const": 100 },
+    "allowlisted_skills": { "minimum": 0, "type": "integer" },
+    "catalog_audit_verdict": { "enum": ["YES_WITH_ALLOWLIST", "YES_ALL_HUB_READY", "NO_UNTIL_BLOCKERS_FIXED"] },
+    "distribution_mode": { "const": "allowlist_only" },
+    "full_catalog_distribution_allowed": { "type": "boolean" },
+    "hosted_query_forwarding": { "const": false },
+    "hub_id": { "type": "string" },
+    "plan": { "enum": ["registered-community", "team-free", "business", "enterprise", "community-core"] },
+    "registered": { "type": "boolean" },
+    "schema_version": { "const": 1 },
+    "skills_total": { "minimum": 0, "type": "integer" },
+    "vector_index_present": { "type": "boolean" }
+  },
+  "required": [
+    "schema_version",
+    "hub_id",
+    "registered",
+    "plan",
+    "active_client_count",
+    "active_client_limit",
+    "full_catalog_distribution_allowed",
+    "distribution_mode",
+    "catalog_audit_verdict",
+    "hosted_query_forwarding"
+  ],
+  "title": "Local Skill Hub status",
+  "type": "object"
+}

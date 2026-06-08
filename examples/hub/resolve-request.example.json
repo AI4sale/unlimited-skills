@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "query": "review this Python API for authentication issues",
+  "context_budget": {
+    "max_skills": 2,
+    "max_chars": 12000
+  }
+}

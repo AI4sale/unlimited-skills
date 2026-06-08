@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "query": "run Playwright trace diagnostics",
+  "selected": [
+    {
+      "name": "playwright-trace",
+      "collection": "registered-community",
+      "confidence": 0.79,
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "body": "Sanitized example body for a tool skill that requires local capabilities.",
+      "skill_kind": "tool",
+      "hub_behavior": "distribute_body_with_local_install_plan",
+      "requires_local_install": true,
+      "missing_capabilities": ["playwright"],
+      "warnings": ["Client must install local tool requirements before use."]
+    }
+  ],
+  "context_budget": {
+    "max_skills": 2,
+    "max_chars": 12000,
+    "used_chars": 75
+  }
+}

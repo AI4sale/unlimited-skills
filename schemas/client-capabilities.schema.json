@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "agent": { "enum": ["codex", "claude-code", "hermes", "openclaw", "vellum-ai", "unknown"] },
+    "arch": { "enum": ["x86_64", "arm64"] },
+    "available_tools": { "items": { "type": "string" }, "type": "array" },
+    "client_id": { "type": "string" },
+    "env_vars_present": { "items": { "type": "string" }, "type": "array" },
+    "installed_packages": {
+      "additionalProperties": false,
+      "properties": {
+        "npm": { "items": { "type": "string" }, "type": "array" },
+        "python": { "items": { "type": "string" }, "type": "array" }
+      },
+      "required": ["python", "npm"],
+      "type": "object"
+    },
+    "node": { "type": "string" },
+    "os": { "enum": ["linux", "macos", "windows"] },
+    "python": { "type": "string" },
+    "schema_version": { "const": 1 }
+  },
+  "required": ["schema_version", "client_id", "agent", "os", "arch", "available_tools", "installed_packages", "env_vars_present"],
+  "title": "Local Skill Hub client capabilities",
+  "type": "object"
+}

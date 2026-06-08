@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "client_capabilities": { "$ref": "client-capabilities.schema.json" },
+    "context_budget": {
+      "additionalProperties": false,
+      "properties": {
+        "max_chars": { "default": 12000, "minimum": 1, "type": "integer" },
+        "max_skills": { "default": 2, "minimum": 1, "type": "integer" }
+      },
+      "type": "object"
+    },
+    "query": { "type": "string" },
+    "schema_version": { "const": 1 }
+  },
+  "required": ["schema_version", "query"],
+  "title": "Local Skill Hub resolve request",
+  "type": "object"
+}
