@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
+from .registration import is_secure_or_local_url
 from .updates import safe_extract_zip, sha256_file
 
 DEFAULT_PUBLIC_REPO = "AI4sale/unlimited-skills"
@@ -106,8 +107,11 @@ def tags_api_url(repo: str, api_base: str = DEFAULT_API_BASE) -> str:
 
 
 def fetch_latest_release(repo: str = DEFAULT_PUBLIC_REPO, *, api_base: str = DEFAULT_API_BASE, timeout: float = 30.0) -> PublicRelease:
+    url = release_api_url(repo, api_base)
+    if not is_secure_or_local_url(url):
+        raise SelfUpdateError("Public repo release API URL must use HTTPS. Plain HTTP is allowed only for localhost development.")
     request = urllib.request.Request(
-        release_api_url(repo, api_base),
+        url,
         headers={"User-Agent": f"unlimited-skills/{__version__}", "Accept": "application/vnd.github+json"},
     )
     try:
@@ -128,8 +132,11 @@ def fetch_latest_release(repo: str = DEFAULT_PUBLIC_REPO, *, api_base: str = DEF
 
 
 def fetch_latest_tag_as_release(repo: str = DEFAULT_PUBLIC_REPO, *, api_base: str = DEFAULT_API_BASE, timeout: float = 30.0) -> PublicRelease:
+    url = tags_api_url(repo, api_base)
+    if not is_secure_or_local_url(url):
+        raise SelfUpdateError("Public repo tags API URL must use HTTPS. Plain HTTP is allowed only for localhost development.")
     request = urllib.request.Request(
-        tags_api_url(repo, api_base),
+        url,
         headers={"User-Agent": f"unlimited-skills/{__version__}", "Accept": "application/vnd.github+json"},
     )
     try:
@@ -329,6 +336,8 @@ def apply_archive_release(root: Path, zipball_url: str, *, timeout: float = 30.0
 
 
 def download_release_archive(url: str, target: Path, *, timeout: float = 30.0) -> None:
+    if not is_secure_or_local_url(url):
+        raise SelfUpdateError("Public repo release archive URL must use HTTPS. Plain HTTP is allowed only for localhost development.")
     request = urllib.request.Request(url, headers={"User-Agent": f"unlimited-skills/{__version__}"})
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:

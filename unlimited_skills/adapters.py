@@ -29,6 +29,7 @@ SKILL_PACKS = {
     },
 }
 IGNORED_PARTS = {".git", ".venv", ".chroma-skills", ".learning", "node_modules", "__pycache__"}
+PACK_REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/@+-]{0,200}$")
 DEFAULT_UNSPECIFIED = "Not specified by the source skill."
 ACTION_SECTIONS = [
     "when_to_use",
@@ -555,11 +556,12 @@ def install_pack(root: Path, pack: str, ref: str = "", keep_clone: Path | None =
         known = ", ".join(sorted(SKILL_PACKS))
         raise RuntimeError(f"Unknown skill pack: {pack}. Known packs: {known}")
     spec = SKILL_PACKS[pack]
+    safe_ref = validate_pack_ref(ref) if ref else ""
     with tempfile.TemporaryDirectory(prefix=f"unlimited-skills-{pack}-") as tmp:
         clone_dir = Path(tmp) / pack
         subprocess.run(["git", "clone", "--depth", "1", spec["repo"], str(clone_dir)], check=True)
-        if ref:
-            subprocess.run(["git", "-C", str(clone_dir), "fetch", "--depth", "1", "origin", ref], check=True)
+        if safe_ref:
+            subprocess.run(["git", "-C", str(clone_dir), "fetch", "--depth", "1", "origin", safe_ref], check=True)
             subprocess.run(["git", "-C", str(clone_dir), "checkout", "FETCH_HEAD"], check=True)
         results = copy_skill_dirs(clone_dir, root, spec["collection"], pack, spec["homepage"])
         if keep_clone:
@@ -567,3 +569,12 @@ def install_pack(root: Path, pack: str, ref: str = "", keep_clone: Path | None =
                 shutil.rmtree(keep_clone)
             shutil.copytree(clone_dir, keep_clone)
         return results
+
+
+def validate_pack_ref(ref: str) -> str:
+    value = ref.strip()
+    if not value or not PACK_REF_RE.match(value):
+        raise RuntimeError(f"Unsafe git ref: {ref}")
+    if ".." in value or value.endswith(".lock"):
+        raise RuntimeError(f"Unsafe git ref: {ref}")
+    return value

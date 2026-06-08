@@ -121,6 +121,11 @@ class SelfUpdateTest(unittest.TestCase):
         self.assertEqual(status.latest_tag, "")
         self.assertIn("no GitHub releases or tags yet", status.notes)
 
+    def test_release_check_rejects_non_local_plain_http_api_base(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaises(SelfUpdateError):
+                check_public_repo_update(install_root=Path(tmp), api_base="http://example.test")
+
     def test_apply_git_release_blocks_dirty_checkout(self) -> None:
         status = SelfUpdateStatus(
             repo="AI4sale/unlimited-skills",
@@ -203,6 +208,26 @@ class SelfUpdateTest(unittest.TestCase):
             self.assertTrue((target / "pyproject.toml").is_file())
             self.assertTrue((target / "unlimited_skills" / "__init__.py").is_file())
             self.assertFalse((target / ".git").exists())
+
+    def test_archive_update_rejects_non_local_plain_http_release_url(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            status = SelfUpdateStatus(
+                repo="AI4sale/unlimited-skills",
+                install_root=str(Path(tmp) / "install"),
+                current_version="0.1.0",
+                latest_version="0.2.0",
+                latest_tag="v0.2.0",
+                update_available=True,
+                is_git_checkout=False,
+                dirty=False,
+                current_ref="",
+                release_url="",
+                zipball_url="http://example.test/release.zip",
+                published_at="",
+            )
+
+            with self.assertRaises(SelfUpdateError):
+                apply_public_repo_update(status, method="archive")
 
     def test_refresh_codex_router_skill_updates_only_skill_md(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
