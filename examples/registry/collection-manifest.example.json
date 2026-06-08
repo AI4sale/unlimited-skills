@@ -1,13 +1,21 @@
 {
   "schema_version": 1,
   "collections": {
-    "adapted-codex": {
-      "version": "2026.06.07",
+    "ecc": {
+      "version": "0.1.0",
       "source": "hosted",
       "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       "updated_at": "2026-06-07T12:10:00Z",
       "archive_format": "skill-collection-zip-v1",
-      "pack_id": "ai4sale-adapted-codex"
+      "pack_id": "ecc-skill-pack"
+    },
+    "superpowers": {
+      "version": "0.1.0",
+      "source": "hosted",
+      "sha256": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+      "updated_at": "2026-06-07T12:10:00Z",
+      "archive_format": "skill-collection-zip-v1",
+      "pack_id": "superpowers-skill-pack"
     }
   }
 }

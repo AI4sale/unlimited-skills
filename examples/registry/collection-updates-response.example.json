@@ -2,13 +2,23 @@
   "schema_version": 1,
   "updates": [
     {
-      "collection": "adapted-codex",
-      "version": "2026.06.07",
-      "archive_url": "https://unlimited.ai4.sale/v1/packs/ai4sale-adapted-codex/download?version=2026.06.07&download=uls_download_example_redacted",
+      "collection": "ecc",
+      "version": "0.1.0",
+      "archive_url": "https://unlimited.ai4.sale/v1/packs/ecc-skill-pack/download?version=0.1.0&download=uls_download_example_redacted",
       "sha256": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       "signature": "",
-      "pack_id": "ai4sale-adapted-codex",
-      "notes": "SHA256-verified archive; signature verification planned.",
+      "pack_id": "ecc-skill-pack",
+      "notes": "Registered starter ECC pack adapted from affaan-m/ECC.",
+      "format": "skill-collection-zip-v1"
+    },
+    {
+      "collection": "superpowers",
+      "version": "0.1.0",
+      "archive_url": "https://unlimited.ai4.sale/v1/packs/superpowers-skill-pack/download?version=0.1.0&download=uls_download_example_redacted",
+      "sha256": "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+      "signature": "",
+      "pack_id": "superpowers-skill-pack",
+      "notes": "Registered starter Superpowers pack adapted from obra/superpowers.",
       "format": "skill-collection-zip-v1"
     }
   ]

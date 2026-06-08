@@ -30,10 +30,12 @@ def test_all_registry_schemas_and_examples_are_valid_json() -> None:
 def test_parse_updates_accepts_registry_update_example() -> None:
     updates = parse_updates(load_example("collection-updates-response.example.json"))
 
-    assert len(updates) == 1
-    assert updates[0].collection == "adapted-codex"
-    assert updates[0].format == "skill-collection-zip-v1"
-    assert len(updates[0].sha256) == 64
+    by_collection = {item.collection: item for item in updates}
+    assert {"ecc", "superpowers"}.issubset(by_collection)
+    assert by_collection["ecc"].format == "skill-collection-zip-v1"
+    assert by_collection["superpowers"].format == "skill-collection-zip-v1"
+    assert len(by_collection["ecc"].sha256) == 64
+    assert len(by_collection["superpowers"].sha256) == 64
 
 
 def test_parse_updates_rejects_update_missing_sha256() -> None:
@@ -88,7 +90,8 @@ def test_catalog_response_example_uses_snapshot_count_without_skill_bodies() -> 
     payload = load_example("catalog-response.example.json")
     serialized = json.dumps(payload).lower()
 
-    assert payload["total_skills"] >= 40
+    assert payload["total_skills"] >= 267
+    assert {"ecc", "superpowers"}.issubset({item["collection"] for item in payload["catalog"]["collections"]})
     assert "snapshot" in serialized
     assert "skill.md" not in serialized
     assert "```" not in serialized

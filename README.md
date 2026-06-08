@@ -163,7 +163,7 @@ unlimited-skills updates check
 unlimited-skills updates apply
 ```
 
-Hosted catalog/update access is registration-gated early access. The registered catalog is populated, but availability may be limited while v0.1 is in alpha. Exact hosted catalog contents are delivered through registered catalog/update commands, not published in the MIT repo.
+Hosted catalog/update access is registration-gated early access. A clean registered install should receive starter catalog metadata and updates for `ecc` and `superpowers`; additional hosted catalog contents are delivered through registered catalog/update commands as they become available.
 
 Browse, preview, install, and submit registered community skills:
 

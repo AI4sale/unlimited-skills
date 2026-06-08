@@ -28,6 +28,7 @@ FORBIDDEN_KEYS = {
     "device_private_key",
 }
 TOKEN_KEYS = {"token", "license_token", "team_token", "member_token"}
+STARTER_COLLECTIONS = {"ecc", "superpowers"}
 
 
 class ContractError(RuntimeError):
@@ -91,10 +92,20 @@ def validate_examples(examples: dict[str, Any]) -> None:
     catalog_response = examples["catalog-response.example.json"]
     total_skills = int(catalog_response.get("total_skills") or 0)
     snapshot_note = json.dumps(catalog_response, ensure_ascii=False).lower()
-    if total_skills < 40:
-        raise ContractError("catalog response example should show an early-access snapshot with at least 40 skills")
+    collections = catalog_response.get("catalog", {}).get("collections", [])
+    collection_names = {str(item.get("collection") or "") for item in collections if isinstance(item, dict)}
+    missing_starters = sorted(STARTER_COLLECTIONS - collection_names)
+    if missing_starters:
+        raise ContractError(f"catalog response example missing registered starter collections: {', '.join(missing_starters)}")
+    if total_skills < 267:
+        raise ContractError("catalog response example should include the registered starter catalog skill count")
     if "snapshot" not in snapshot_note:
         raise ContractError("catalog response example must mark the count as an early-access snapshot")
+
+    update_collections = {str(item.get("collection") or "") for item in examples["collection-updates-response.example.json"]["updates"]}
+    missing_update_starters = sorted(STARTER_COLLECTIONS - update_collections)
+    if missing_update_starters:
+        raise ContractError(f"collection updates example missing clean-install starter updates: {', '.join(missing_update_starters)}")
 
 
 def validate_community_examples(examples: dict[str, Any]) -> None:

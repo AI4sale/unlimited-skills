@@ -6,6 +6,13 @@ Unlimited Skills separates the local MIT core from hosted catalog surfaces.
 
 The registered hosted catalog is AI4sale-maintained, registration-gated, already populated in early access, and delivered through hosted catalog/update commands. The public MIT repository documents schemas and sanitized examples only; it does not publish private registered skill bodies.
 
+Registered clean installs must not receive an empty catalog. The baseline registered community catalog includes starter metadata and update archives for:
+
+- `ecc`: adapted Everything Claude Code skills from [affaan-m/ECC](https://github.com/affaan-m/ECC);
+- `superpowers`: adapted Superpowers workflow skills from [obra/superpowers](https://github.com/obra/superpowers).
+
+The hosted registry may add more community collections over time, but these two starter packs are the minimum useful registered catalog surface.
+
 ## Community-Skills Catalog
 
 The `community-skills` catalog is the planned/early-access community publishing surface. Community submissions require explicit upload confirmation and intentionally upload only the selected skill or pack. Telemetry, catalog checks, update checks, and enhancement script metadata calls do not upload local skill bodies.
