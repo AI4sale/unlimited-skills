@@ -35,6 +35,7 @@ The smoke suite covers:
 - vector sidecar fast path without Chroma startup;
 - Local Skill Hub allowlist-only runtime behavior with a synthetic fixture;
 - Local Skill Hub token create/list/revoke and protected endpoint checks for missing, wrong, revoked, and valid tokens;
+- Local Skill Hub client lifecycle persistence, active-client quota, metrics, and audit-log checks;
 - remote Local Skill Hub client configure/status/search/resolve/view checks against a fake token-protected hub;
 - explicit remote fallback checks for `local_allowed` and `hub_required`;
 - hub allowlist bootstrap and cached `hub serve` wiring checks;

@@ -20,6 +20,10 @@ X-ULS-Hub-Token: <hub_client_token>
 
 `GET /health` remains unauthenticated for local liveness checks. Other `/v1/...` hub endpoints require a valid, non-revoked hub token.
 
+Client records are persisted in the local hub state and count against the active-client quota only while non-deactivated and recently seen. Operators can inspect clients, deactivate stale clients, and inspect metrics without exposing raw hub tokens.
+
+Audit logs are local JSONL files under `~/.unlimited-skills/hub/logs/`. They intentionally avoid raw query text, raw tokens, secrets, and skill bodies.
+
 The remote client sends both headers for compatibility. Configure it with an environment variable when possible:
 
 ```bash

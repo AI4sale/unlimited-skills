@@ -16,14 +16,18 @@ from pydantic import BaseModel, Field
 from . import __version__
 from .cli import DEFAULT_ROOT, read_text, split_frontmatter
 from .hub import HUB_FEATURE_FLAGS, HUB_DEFAULT_PORT, verify_hub_token
-from .hub_allowlist import cached_allowlist_path, validate_allowlist
-from .registration import redact_sensitive_text, unlimited_skills_home
+from .hub_allowlist import cached_allowlist_path, hub_clients_path, hub_logs_dir, validate_allowlist
+from .registration import redact_sensitive_text, unlimited_skills_home, write_private_json
 
 
 DEFAULT_ALLOWLIST_PATH = Path(os.environ.get("UNLIMITED_SKILLS_HUB_ALLOWLIST", cached_allowlist_path()))
 DEFAULT_HUB_ROOT = Path(os.environ.get("UNLIMITED_SKILLS_ROOT", str(DEFAULT_ROOT))).expanduser()
 WORD_RE = re.compile(r"[a-zA-Z0-9][a-zA-Z0-9_.+#/-]*")
 ACTIVE_CLIENT_WINDOW_SECONDS = 30 * 24 * 60 * 60
+
+
+def now_iso() -> str:
+    return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
 
 
 @dataclass(frozen=True)
@@ -96,7 +100,11 @@ class HubState:
         self.allowlist_path = allowlist_path.expanduser()
         self.home = home or unlimited_skills_home()
         self.started_at = time.time()
-        self.clients: dict[str, dict[str, Any]] = {}
+        self.clients_path = hub_clients_path(self.home)
+        self.audit_path = hub_logs_dir(self.home) / "audit.jsonl"
+        self.clients: dict[str, dict[str, Any]] = self.load_clients()
+        self.request_count = 0
+        self.events_by_type: dict[str, int] = {}
         manifest = load_allowlist_manifest(self.allowlist_path)
         self.source_audit = manifest.get("source_audit", {})
         self.policy = manifest.get("policy", {})
@@ -106,27 +114,121 @@ class HubState:
     @property
     def active_client_count(self) -> int:
         cutoff = time.time() - ACTIVE_CLIENT_WINDOW_SECONDS
-        return sum(1 for item in self.clients.values() if float(item.get("last_seen_at", 0)) >= cutoff)
+        return sum(1 for item in self.clients.values() if not bool(item.get("deactivated")) and float(item.get("last_seen_at", 0)) >= cutoff)
 
-    def register_client(self, request: ClientRegisterRequest) -> dict[str, Any]:
-        if self.active_client_count >= HUB_FEATURE_FLAGS["max_hub_clients"]:
-            raise HTTPException(status_code=403, detail={"code": "client_limit_reached", "message": "Registered Local Skill Hub supports up to 100 active client instances."})
+    def load_clients(self) -> dict[str, dict[str, Any]]:
+        if not self.clients_path.is_file():
+            write_private_json(self.clients_path, {"schema_version": 1, "clients": []})
+            return {}
+        try:
+            payload = json.loads(self.clients_path.read_text(encoding="utf-8-sig"))
+        except (OSError, json.JSONDecodeError):
+            payload = {}
+        clients = payload.get("clients", []) if isinstance(payload, dict) else []
+        records: dict[str, dict[str, Any]] = {}
+        if isinstance(clients, list):
+            for item in clients:
+                if not isinstance(item, dict):
+                    continue
+                client_id = str(item.get("client_id") or "")
+                if client_id:
+                    records[client_id] = item
+        return records
+
+    def save_clients(self) -> None:
+        write_private_json(
+            self.clients_path,
+            {
+                "schema_version": 1,
+                "updated_at": now_iso(),
+                "active_client_window_seconds": ACTIVE_CLIENT_WINDOW_SECONDS,
+                "active_client_limit": HUB_FEATURE_FLAGS["max_hub_clients"],
+                "clients": sorted(self.clients.values(), key=lambda item: str(item.get("client_id") or "")),
+            },
+        )
+
+    def audit(self, event: str, **fields: Any) -> None:
+        self.request_count += 1
+        self.events_by_type[event] = self.events_by_type.get(event, 0) + 1
+        payload = {
+            "schema_version": 1,
+            "ts": now_iso(),
+            "event": event,
+            **{key: redact_sensitive_text(value) for key, value in fields.items() if value not in (None, "")},
+        }
+        self.audit_path.parent.mkdir(parents=True, exist_ok=True)
+        with self.audit_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(payload, ensure_ascii=False, sort_keys=True) + "\n")
+
+    def _client_from_request(self, request: ClientRegisterRequest) -> tuple[str, dict[str, Any]]:
         raw = json.dumps(model_payload(request), sort_keys=True)
         client_id = request.capabilities.client_id if request.capabilities and request.capabilities.client_id else "uls_client_" + hashlib.sha256(raw.encode("utf-8")).hexdigest()[:24]
-        self.clients[client_id] = {
+        now = time.time()
+        previous = self.clients.get(client_id, {})
+        record = {
             "client_id": client_id,
             "display_name": request.display_name,
             "agent": request.capabilities.agent if request.capabilities else "unknown",
-            "last_seen_at": time.time(),
+            "os": request.capabilities.os if request.capabilities else "",
+            "arch": request.capabilities.arch if request.capabilities else "",
+            "first_seen_at": previous.get("first_seen_at") or now,
+            "last_seen_at": now,
+            "request_count": int(previous.get("request_count") or 0) + 1,
+            "deactivated": False,
+            "capabilities": model_payload(request.capabilities) if request.capabilities else {},
         }
+        return client_id, record
+
+    def register_client(self, request: ClientRegisterRequest) -> dict[str, Any]:
+        client_id, record = self._client_from_request(request)
+        already_active = client_id in self.clients and not bool(self.clients[client_id].get("deactivated"))
+        if not already_active and self.active_client_count >= HUB_FEATURE_FLAGS["max_hub_clients"]:
+            raise HTTPException(status_code=403, detail={"code": "client_limit_reached", "message": "Registered Local Skill Hub supports up to 100 active client instances."})
+        self.clients[client_id] = record
+        self.save_clients()
+        self.audit("client_registered", client_id=client_id, agent=record["agent"], display_name=record["display_name"])
         return {"schema_version": 1, "client_id": client_id, "active_client_count": self.active_client_count, "active_client_limit": HUB_FEATURE_FLAGS["max_hub_clients"]}
 
     def heartbeat(self, request: ClientRegisterRequest) -> dict[str, Any]:
         client_id = request.capabilities.client_id if request.capabilities and request.capabilities.client_id else ""
         if client_id and client_id in self.clients:
             self.clients[client_id]["last_seen_at"] = time.time()
+            self.clients[client_id]["deactivated"] = False
+            self.clients[client_id]["request_count"] = int(self.clients[client_id].get("request_count") or 0) + 1
+            self.save_clients()
+            self.audit("client_heartbeat", client_id=client_id, agent=self.clients[client_id].get("agent"))
             return {"schema_version": 1, "client_id": client_id, "active_client_count": self.active_client_count}
         return self.register_client(request)
+
+    def deactivate_client(self, client_id: str) -> dict[str, Any]:
+        if client_id not in self.clients:
+            raise HTTPException(status_code=404, detail={"code": "client_not_found", "message": "Client is not registered with this hub."})
+        self.clients[client_id]["deactivated"] = True
+        self.clients[client_id]["deactivated_at"] = time.time()
+        self.save_clients()
+        self.audit("client_deactivated", client_id=client_id)
+        return {"schema_version": 1, "client_id": client_id, "status": "deactivated", "active_client_count": self.active_client_count}
+
+    def list_clients(self) -> dict[str, Any]:
+        return {
+            "schema_version": 1,
+            "active_client_count": self.active_client_count,
+            "active_client_limit": HUB_FEATURE_FLAGS["max_hub_clients"],
+            "clients": [
+                {
+                    "client_id": str(item.get("client_id") or ""),
+                    "display_name": str(item.get("display_name") or ""),
+                    "agent": str(item.get("agent") or "unknown"),
+                    "os": str(item.get("os") or ""),
+                    "arch": str(item.get("arch") or ""),
+                    "first_seen_at": item.get("first_seen_at"),
+                    "last_seen_at": item.get("last_seen_at"),
+                    "request_count": int(item.get("request_count") or 0),
+                    "deactivated": bool(item.get("deactivated")),
+                }
+                for item in sorted(self.clients.values(), key=lambda value: str(value.get("client_id") or ""))
+            ],
+        }
 
     def status(self) -> dict[str, Any]:
         return {
@@ -145,6 +247,32 @@ class HubState:
             "vector_index_present": False,
             "hosted_query_forwarding": False,
             "allowlist_path": str(self.allowlist_path),
+            "clients_path": str(self.clients_path),
+            "audit_log_path": str(self.audit_path),
+        }
+
+    def metrics(self) -> dict[str, Any]:
+        return {
+            "schema_version": 1,
+            "uptime_seconds": round(time.time() - self.started_at, 3),
+            "requests_total": self.request_count,
+            "events_by_type": dict(sorted(self.events_by_type.items())),
+            "clients": {
+                "registered_total": len(self.clients),
+                "active": self.active_client_count,
+                "deactivated": sum(1 for item in self.clients.values() if bool(item.get("deactivated"))),
+                "limit": HUB_FEATURE_FLAGS["max_hub_clients"],
+                "active_window_seconds": ACTIVE_CLIENT_WINDOW_SECONDS,
+            },
+            "skills": {
+                "total": len(self.allowlisted),
+                "allowlisted_body": len([item for item in self.allowlisted.values() if item.body_allowed]),
+                "local_install_plan": len([item for item in self.allowlisted.values() if item.requires_local_install]),
+            },
+            "distribution_mode": "allowlist_only",
+            "hub_executes_skills": False,
+            "hosted_query_forwarding": False,
+            "audit_log_path": str(self.audit_path),
         }
 
 
@@ -512,7 +640,13 @@ def create_app(root: Path | None = None, allowlist_path: Path | None = None) -> 
 
     @app.get("/v1/hub/status")
     def status(_token: dict[str, Any] = Depends(require_hub_token)) -> dict[str, Any]:
+        state.audit("hub_status", token_id=_token.get("token_id"), token_label=_token.get("label"))
         return state.status()
+
+    @app.get("/v1/hub/metrics")
+    def metrics(_token: dict[str, Any] = Depends(require_hub_token)) -> dict[str, Any]:
+        state.audit("hub_metrics", token_id=_token.get("token_id"), token_label=_token.get("label"))
+        return state.metrics()
 
     @app.post("/v1/clients/register")
     def register_client(request: ClientRegisterRequest, _token: dict[str, Any] = Depends(require_hub_token)) -> dict[str, Any]:
@@ -522,29 +656,44 @@ def create_app(root: Path | None = None, allowlist_path: Path | None = None) -> 
     def heartbeat(request: ClientRegisterRequest, _token: dict[str, Any] = Depends(require_hub_token)) -> dict[str, Any]:
         return state.heartbeat(request)
 
+    @app.get("/v1/clients")
+    def clients(_token: dict[str, Any] = Depends(require_hub_token)) -> dict[str, Any]:
+        state.audit("clients_listed", token_id=_token.get("token_id"), token_label=_token.get("label"))
+        return state.list_clients()
+
+    @app.post("/v1/clients/{client_id}/deactivate")
+    def deactivate_client(client_id: str, _token: dict[str, Any] = Depends(require_hub_token)) -> dict[str, Any]:
+        return state.deactivate_client(client_id)
+
     @app.post("/v1/skills/search")
     def search(request: SkillSearchRequest, _token: dict[str, Any] = Depends(require_hub_token)) -> dict[str, Any]:
+        state.audit("skills_search", token_id=_token.get("token_id"), query_sha256=hashlib.sha256(request.query.encode("utf-8")).hexdigest(), limit=request.limit)
         return {"schema_version": 1, "query": request.query, "results": search_skills(state, request.query, request.limit, include_local_install_plan=request.include_local_install_plan)}
 
     @app.post("/v1/skills/resolve")
     def resolve(request: SkillResolveRequest, _token: dict[str, Any] = Depends(require_hub_token)) -> dict[str, Any]:
+        state.audit("skills_resolve", token_id=_token.get("token_id"), query_sha256=hashlib.sha256(request.query.encode("utf-8")).hexdigest(), max_skills=request.context_budget.max_skills)
         return resolve_skills(state, request)
 
     @app.get("/v1/skills/{name}")
     def skill(name: str, _token: dict[str, Any] = Depends(require_hub_token)) -> dict[str, Any]:
+        state.audit("skill_viewed", token_id=_token.get("token_id"), skill_name=name)
         return get_skill_by_name(state, name)
 
     @app.get("/v1/skills/{name}/manifest")
     def skill_manifest(name: str, _token: dict[str, Any] = Depends(require_hub_token)) -> dict[str, Any]:
+        state.audit("skill_manifest_viewed", token_id=_token.get("token_id"), skill_name=name)
         payload = get_skill_by_name(state, name)["skill"]
         return {"schema_version": 1, "manifest": payload.get("runtime_manifest", {}), "install_plan": {key: value for key, value in payload.items() if key not in {"body", "runtime_manifest"}}}
 
     @app.post("/v1/skills/use")
     def skill_use(request: SkillEventRequest, _token: dict[str, Any] = Depends(require_hub_token)) -> dict[str, Any]:
+        state.audit("skill_used", token_id=_token.get("token_id"), skill_name=request.skill_name, verdict=request.verdict)
         return {"schema_version": 1, "accepted": True, "event": "use", "skill_name": request.skill_name}
 
     @app.post("/v1/skills/feedback")
     def skill_feedback(request: SkillEventRequest, _token: dict[str, Any] = Depends(require_hub_token)) -> dict[str, Any]:
+        state.audit("skill_feedback", token_id=_token.get("token_id"), skill_name=request.skill_name, verdict=request.verdict)
         return {"schema_version": 1, "accepted": True, "event": "feedback", "skill_name": request.skill_name, "verdict": request.verdict}
 
     return app

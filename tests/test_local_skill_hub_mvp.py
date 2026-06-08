@@ -255,6 +255,62 @@ def test_client_registration_enforces_100_active_client_limit(tmp_path: Path, mo
     assert overflow.json()["error"]["code"] == "client_limit_reached"
 
 
+def test_client_registry_persists_across_hub_restart_and_deactivation_frees_quota(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home = tmp_path / "home" / ".unlimited-skills"
+    root = tmp_path / "library"
+    allowlist = tmp_path / "hub-allowlist.v1.json"
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home))
+    write_skill(root, "test-pack", "pure-skill", "security review")
+    write_allowlist(allowlist)
+    raw_token = create_hub_token("persistent", home=home)["raw_token"]
+
+    client = TestClient(create_app(root=root, allowlist_path=allowlist))
+    headers = {"Authorization": f"Bearer {raw_token}"}
+    registered = client.post(
+        "/v1/clients/register",
+        headers=headers,
+        json={"schema_version": 1, "display_name": "Codex Desktop", "capabilities": {"schema_version": 1, "client_id": "uls_client_persist", "agent": "codex", "os": "windows", "arch": "x86_64"}},
+    )
+    assert registered.status_code == 200
+    clients_path = home / "hub" / "clients.json"
+    clients_payload = json.loads(clients_path.read_text(encoding="utf-8"))
+    assert clients_payload["clients"][0]["client_id"] == "uls_client_persist"
+    assert "raw_token" not in json.dumps(clients_payload)
+
+    restarted = TestClient(create_app(root=root, allowlist_path=allowlist))
+    listed = restarted.get("/v1/clients", headers=headers)
+    assert listed.status_code == 200
+    assert listed.json()["clients"][0]["client_id"] == "uls_client_persist"
+
+    deactivated = restarted.post("/v1/clients/uls_client_persist/deactivate", headers=headers)
+    assert deactivated.status_code == 200
+    assert deactivated.json()["active_client_count"] == 0
+
+
+def test_hub_metrics_and_audit_log_are_token_protected_and_redacted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home = tmp_path / "home" / ".unlimited-skills"
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home))
+    client = make_client(tmp_path, monkeypatch, with_token=False)
+    raw_token = create_hub_token("metrics", home=home)["raw_token"]
+    headers = {"Authorization": f"Bearer {raw_token}"}
+
+    denied = client.get("/v1/hub/metrics")
+    assert denied.status_code == 401
+
+    search = client.post("/v1/skills/search", headers=headers, json={"schema_version": 1, "query": "secret customer query", "limit": 5})
+    metrics = client.get("/v1/hub/metrics", headers=headers)
+
+    assert search.status_code == 200
+    assert metrics.status_code == 200
+    payload = metrics.json()
+    assert payload["requests_total"] >= 2
+    assert payload["clients"]["limit"] == 100
+    audit_text = (home / "hub" / "logs" / "audit.jsonl").read_text(encoding="utf-8")
+    assert "skills_search" in audit_text
+    assert "secret customer query" not in audit_text
+    assert raw_token not in audit_text
+
+
 def test_protected_endpoints_reject_missing_wrong_and_revoked_tokens(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     home = tmp_path / "home" / ".unlimited-skills"
     monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home))

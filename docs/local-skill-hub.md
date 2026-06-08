@@ -72,8 +72,11 @@ MVP endpoints:
 
 - `GET /health`
 - `GET /v1/hub/status`
+- `GET /v1/hub/metrics`
 - `POST /v1/clients/register`
 - `POST /v1/clients/heartbeat`
+- `GET /v1/clients`
+- `POST /v1/clients/{client_id}/deactivate`
 - `POST /v1/skills/search`
 - `POST /v1/skills/resolve`
 - `GET /v1/skills/{name}`
@@ -88,6 +91,15 @@ Authentication:
 - Tokens are created with `unlimited-skills hub token create --label <label>`.
 - Tokens can be listed and revoked with `hub token list` and `hub token revoke <token_id>`.
 - Token values are stored as hashes and are printed only once when created.
+
+Client lifecycle and observability:
+
+- Registered clients are persisted in `~/.unlimited-skills/hub/clients.json`.
+- The active-client quota counts non-deactivated clients seen within the last 30 days.
+- `POST /v1/clients/{client_id}/deactivate` removes a client from the active quota without deleting its audit trail.
+- `GET /v1/hub/metrics` exposes local counters for uptime, request events, client quota, and skill totals.
+- Hub audit events are written to `~/.unlimited-skills/hub/logs/audit.jsonl`.
+- Audit events record event names, client/token ids, skill names, and query SHA256 values; raw hub tokens and raw search text are not logged.
 
 Remote client:
 
