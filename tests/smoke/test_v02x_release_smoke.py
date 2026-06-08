@@ -191,9 +191,11 @@ def test_vector_sidecar_fast_path_uses_sidecar_without_chroma(isolated_env: dict
 def test_local_skill_hub_allowlist_runtime_or_pending(isolated_env: dict[str, Path]) -> None:
     pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
+    from unlimited_skills.hub import create_hub_token
     from unlimited_skills.hub_server import create_app
 
     root = isolated_env["root"]
+    home = isolated_env["uls_home"]
     write_skill(root, "registry/test-pack/skills/pure-skill", "pure-skill", "security review")
     write_skill(root, "registry/test-pack/skills/tool-skill", "tool-skill", "playwright diagnostics")
     write_skill(root, "registry/test-pack/skills/blocked-skill", "blocked-skill", "blocked")
@@ -231,6 +233,8 @@ def test_local_skill_hub_allowlist_runtime_or_pending(isolated_env: dict[str, Pa
         encoding="utf-8",
     )
     client = TestClient(create_app(root=root, allowlist_path=allowlist))
+    raw_token = create_hub_token("allowlist-smoke", home=home)["raw_token"]
+    client.headers.update({"Authorization": f"Bearer {raw_token}"})
 
     status = client.get("/v1/hub/status").json()
     assert status["distribution_mode"] == "allowlist_only"
@@ -249,7 +253,7 @@ def test_hub_token_enforcement_or_pending(isolated_env: dict[str, Path]) -> None
     import unlimited_skills.hub as hub
 
     if not all(hasattr(hub, name) for name in ("create_hub_token", "load_hub_config", "revoke_hub_token", "verify_hub_token")):
-        pytest.skip("Hub token enforcement not implemented yet; tracked by feat/hub-token-enforcement-v1.")
+        pytest.skip("Hub token enforcement is missing on this branch; required for v0.2.1-alpha RC.")
     pytest.importorskip("fastapi")
     from fastapi.testclient import TestClient
     from unlimited_skills.hub_server import create_app
@@ -299,7 +303,7 @@ def test_remote_client_runtime_or_pending(isolated_env: dict[str, Path]) -> None
     try:
         import unlimited_skills.remote_client  # noqa: F401
     except ImportError:
-        pytest.skip("Remote hub client runtime not implemented yet; tracked by feat/remote-hub-client-v1.")
+        pytest.skip("Remote hub client runtime is missing on this branch; required for v0.2.1-alpha RC.")
 
     class FakeResponse:
         def __init__(self, payload: dict):
@@ -354,7 +358,7 @@ def test_hub_allowlist_bootstrap_or_pending(isolated_env: dict[str, Path]) -> No
     try:
         import unlimited_skills.hub_allowlist  # noqa: F401
     except ImportError:
-        pytest.skip("Hub allowlist bootstrap not implemented yet; tracked by feat/hub-allowlist-sync-bootstrap-v1.")
+        pytest.skip("Hub allowlist bootstrap is missing on this branch; required for v0.2.1-alpha RC.")
 
     from unlimited_skills.registration import RegistrationState, save_registration, with_install_identity
 
@@ -419,7 +423,7 @@ def test_redaction_for_tokens_headers_and_device_keys() -> None:
 def test_docs_security_claims_are_consistent() -> None:
     root = Path(__file__).resolve().parents[2]
     docs = "\n".join(path.read_text(encoding="utf-8", errors="replace") for path in [root / "SECURITY.md", root / "README.md", *list((root / "docs").glob("*.md"))]).lower()
-    assert "v0.2.0-alpha" in (root / "SECURITY.md").read_text(encoding="utf-8", errors="replace")
+    assert "v0.2.1-alpha" in (root / "SECURITY.md").read_text(encoding="utf-8", errors="replace")
     assert "sha256" in docs
     assert "cryptographic signature verification is planned" in docs
     assert "serve` is the free local daemon and remains unregistered" in docs

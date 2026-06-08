@@ -34,20 +34,20 @@ The smoke suite covers:
 - Hermes visible-skill context risk detection through `doctor`;
 - vector sidecar fast path without Chroma startup;
 - Local Skill Hub allowlist-only runtime behavior with a synthetic fixture;
+- Local Skill Hub token create/list/revoke and protected endpoint checks for missing, wrong, revoked, and valid tokens;
+- remote Local Skill Hub client configure/status/search/resolve/view checks against a fake token-protected hub;
+- explicit remote fallback checks for `local_allowed` and `hub_required`;
+- hub allowlist bootstrap and cached `hub serve` wiring checks;
 - token/secret redaction;
 - docs/security claims for SHA256, planned signature verification, unregistered `serve`, registered `hub serve`, and allowlist-only full-catalog-disabled hub policy;
 - self-update and install-pack git ref validation;
 - production hosted network blocking by default.
 
-## Pending Scenarios
+## Feature Detection
 
-Some checks are feature-detected:
+The smoke suite is feature-detected so older topic branches can still report explicit skips. On the v0.2.1-alpha integration branch, the hub token, remote client, and allowlist bootstrap checks must run as real scenarios and should not be skipped.
 
-- Hub token enforcement is skipped until `feat/hub-token-enforcement-v1` is merged.
-- Remote hub client runtime is skipped until `feat/remote-hub-client-v1` is merged.
-- Hub allowlist bootstrap/sync is skipped until `feat/hub-allowlist-sync-bootstrap-v1` is merged.
-
-These are explicit skips, not fake passes. After the corresponding code is present, the smoke tests execute the real behavior.
+Any skip for those three surfaces on a release integration branch means the branch is missing the corresponding runtime code and is not a valid RC.
 
 ## Network Policy
 

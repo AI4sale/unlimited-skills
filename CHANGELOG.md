@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.2.1-alpha
+
+### Added
+
+- Integrated Local Skill Hub token enforcement, remote hub client runtime, allowlist bootstrap, and v0.2.x release smoke coverage into one release-candidate branch.
+- Local Skill Hub client token checks for protected `/v1/...` APIs; `/health` remains open for liveness.
+- Remote Local Skill Hub client commands for `remote configure`, `remote status`, `remote search`, `remote resolve`, and `remote view` with explicit fallback policy.
+- Allowlist bootstrap and cached `hub serve` wiring for local fixtures and registered hosted allowlist metadata.
+- Release smoke suite scenarios that exercise hub tokens, remote client behavior, allowlist bootstrap, redaction, and production-hosted-call blocking without mutating real HOME.
+
+### Changed
+
+- Raised package version to `0.2.1`.
+- Updated alpha security and release documentation to describe the integrated Local Skill Hub runtime stack.
+- Clarified that Local Skill Hub remains allowlist-only, full catalog distribution remains disabled, and hosted registry services do not receive local hub search queries by default.
+- Clarified that SHA256 verification is the current hosted archive boundary; cryptographic signature verification remains planned until signed manifest verification is implemented.
+
 ## v0.2.0-alpha
 
 ### Added

@@ -1,6 +1,6 @@
 # Known Limitations
 
-`v0.2.0-alpha` is a developer preview, not a stable production SLA.
+`v0.2.1-alpha` is a developer preview, not a stable production SLA.
 
 - Hosted registry access is early-access.
 - The registered hosted catalog exists and is populated, but availability may be limited during alpha.
@@ -8,7 +8,7 @@
 - Community submissions are planned and not fully implemented unless current code explicitly says otherwise.
 - Enterprise Skill Lock is planned.
 - Cryptographic signature verification is planned. SHA256 verification is enforced today for hosted collection archives and enhancement scripts.
-- PyPI is not the v0.2.0 distribution path because router skills, scripts, docs, and bundled packs are repo assets.
+- PyPI is not the v0.2.x distribution path because router skills, scripts, docs, and bundled packs are repo assets.
 - Warm daemon mode is experimental and not the default retrieval path.
 - Team sync is an MVP; server-side enforcement of limits and paid plan behavior may evolve.
 - Local Skill Hub runtime is MVP alpha. The public repo includes docs, schemas, sanitized examples, CLI commands, and an allowlist-backed local FastAPI runtime when `server` extras are installed.
