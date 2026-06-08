@@ -73,6 +73,7 @@ Working now:
 - native skill sync for Codex, Claude Code, Hermes, and OpenClaw roots;
 - public repo self-update checks and applies latest releases/tags;
 - allowlist-backed Local Skill Hub runtime MVP for local/controlled LAN testing when `server` extras are installed;
+- Local Skill Hub allowlist bootstrap/sync with validated cached allowlist metadata;
 - remote Local Skill Hub client commands: `remote configure`, `remote status`, `remote search`, `remote resolve`, and `remote view`.
 
 In development:
@@ -125,8 +126,12 @@ Local Skill Hub is an MVP alpha surface. It defaults to `127.0.0.1`; binding to 
 Local Skill Hub client setup:
 
 ```bash
+unlimited-skills hub init --allowlist examples/hub/allowlist-fixture.v1.json
+# or, for registered hosted allowlist metadata:
+unlimited-skills hub sync
 unlimited-skills hub token create --label "codex-laptop"
 export ULS_HUB_TOKEN="<hub_client_token>"
+unlimited-skills hub serve
 unlimited-skills remote configure --url http://127.0.0.1:8766 --token-env ULS_HUB_TOKEN --fallback local_allowed
 unlimited-skills remote status
 unlimited-skills remote search "security review"

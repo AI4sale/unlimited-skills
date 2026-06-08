@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "allowlist_sha256": { "type": "string" },
+    "allowlist_url": { "type": "string" },
+    "catalog_audit_verdict": { "const": "YES_WITH_ALLOWLIST" },
+    "distribution_mode": { "const": "allowlist_only" },
+    "free_active_client_instance_limit": { "const": 100 },
+    "full_catalog_distribution_allowed": { "const": false },
+    "notes": { "type": "string" },
+    "requires_registration": { "const": true },
+    "schema_version": { "const": 1 }
+  },
+  "required": [
+    "schema_version",
+    "distribution_mode",
+    "catalog_audit_verdict",
+    "full_catalog_distribution_allowed",
+    "requires_registration",
+    "free_active_client_instance_limit",
+    "allowlist_sha256"
+  ],
+  "title": "Local Skill Hub allowlist sync response",
+  "type": "object"
+}

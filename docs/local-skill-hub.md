@@ -32,11 +32,41 @@ Local search queries are not sent to the hosted registry by default. Hosted regi
 
 ## Runtime MVP v1
 
-The first runtime MVP starts from a local `hub-allowlist.v1.json` input:
+Bootstrap local hub state:
 
 ```bash
-unlimited-skills hub serve --allowlist ~/.unlimited-skills/hub/hub-allowlist.v1.json
+unlimited-skills hub init
+unlimited-skills hub init --allowlist examples/hub/allowlist-fixture.v1.json
+unlimited-skills hub sync --dry-run
+unlimited-skills hub sync
 ```
+
+`hub init` creates:
+
+```text
+~/.unlimited-skills/hub/
+  hub.json
+  allowlist.v1.json
+  allowlist.meta.json
+  clients.json
+  logs/
+```
+
+`hub init --allowlist <file>` is the offline/dev fixture path and does not require hosted registration. `hub sync` is the registered hosted refresh path and requires registration. See [hub-allowlist-sync.md](hub-allowlist-sync.md).
+
+Start from the cached allowlist:
+
+```bash
+unlimited-skills hub serve
+```
+
+Or pass an explicit fixture path:
+
+```bash
+unlimited-skills hub serve --allowlist ./examples/hub/allowlist-fixture.v1.json
+```
+
+If neither an explicit allowlist nor a cached allowlist exists, startup fails clearly. The hub never falls back to full catalog distribution.
 
 MVP endpoints:
 

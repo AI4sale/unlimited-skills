@@ -29,6 +29,7 @@ from .hub import (
     cmd_hub_init,
     cmd_hub_serve,
     cmd_hub_status,
+    cmd_hub_sync,
     cmd_hub_token_create,
     cmd_hub_token_list,
     cmd_hub_token_revoke,
@@ -1591,6 +1592,8 @@ def build_parser() -> argparse.ArgumentParser:
     hub = sub.add_parser("hub", help="Registered Local Skill Hub contract and alpha commands.")
     hub_sub = hub.add_subparsers(dest="hub_command", required=True)
     hub_init = hub_sub.add_parser("init", help="Initialize local Local Skill Hub contract state.")
+    hub_init.add_argument("--allowlist", default="", help="Validate and cache a local hub allowlist fixture.")
+    hub_init.add_argument("--json", action="store_true")
     hub_init.set_defaults(func=cmd_hub_init)
     hub_status = hub_sub.add_parser("status", help="Show Local Skill Hub status without hosted calls.")
     hub_status.add_argument("--json", action="store_true")
@@ -1599,11 +1602,16 @@ def build_parser() -> argparse.ArgumentParser:
     hub_serve.add_argument("--host", default="127.0.0.1")
     hub_serve.add_argument("--port", type=int, default=HUB_DEFAULT_PORT)
     hub_serve.add_argument("--log-level", default="info")
-    hub_serve.add_argument("--allowlist", default="", help="Path to hub-allowlist.v1.json. Defaults to ~/.unlimited-skills/hub/hub-allowlist.v1.json.")
+    hub_serve.add_argument("--allowlist", default="", help="Path to allowlist.v1.json. Defaults to cached ~/.unlimited-skills/hub/allowlist.v1.json.")
     hub_serve.add_argument("--allow-lan", action="store_true", help="Allow binding Local Skill Hub to a non-localhost address when an active hub token exists.")
     hub_serve.set_defaults(func=cmd_hub_serve)
     hub_clients = hub_sub.add_parser("clients", help="List Local Skill Hub clients.")
     hub_clients.set_defaults(func=cmd_hub_clients)
+    hub_sync = hub_sub.add_parser("sync", help="Refresh registered Local Skill Hub allowlist/catalog metadata.")
+    hub_sync.add_argument("--dry-run", action="store_true")
+    hub_sync.add_argument("--json", action="store_true")
+    hub_sync.add_argument("--timeout", type=float, default=30.0)
+    hub_sync.set_defaults(func=cmd_hub_sync)
     hub_token = hub_sub.add_parser("token", help="Manage Local Skill Hub client tokens.")
     hub_token_sub = hub_token.add_subparsers(dest="hub_token_command", required=True)
     hub_token_create = hub_token_sub.add_parser("create", help="Create a Local Skill Hub client token.")

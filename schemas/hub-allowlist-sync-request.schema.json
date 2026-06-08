@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "client": {
+      "additionalProperties": false,
+      "properties": {
+        "name": { "const": "unlimited-skills" },
+        "version": { "type": "string" }
+      },
+      "required": ["name", "version"],
+      "type": "object"
+    },
+    "current_allowlist_sha256": { "type": "string" },
+    "hub_id": { "type": "string" },
+    "install_id": { "type": "string" },
+    "schema_version": { "const": 1 }
+  },
+  "required": ["schema_version", "install_id", "client", "current_allowlist_sha256", "hub_id"],
+  "title": "Local Skill Hub allowlist sync request",
+  "type": "object"
+}

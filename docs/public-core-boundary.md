@@ -52,6 +52,7 @@ The public MIT core must remain local-first. Registration gates hosted services 
 - `community submit`
 - `community submission-status`
 - `hub serve`
+- `hub sync`
 - `hub clients`
 - `hub token create`
 - `hub token list`
@@ -75,8 +76,8 @@ Public repo self-update remains unregistered because it updates the MIT public c
 
 Team status may read local `team.json` without a hosted refresh. Any hosted status refresh, member listing, approval, rejection, revocation, collection listing, sync, or leave operation requires registration.
 
-`hub status`, `hub init`, `hub doctor`, `remote configure`, and `remote status` may read or write local configuration without hosted calls. `hub serve` is a separate registration-required product command and must not be confused with the free `serve` daemon.
+`hub status`, `hub init`, `hub doctor`, `remote configure`, and `remote status` may read or write local configuration without hosted calls. `hub init --allowlist <file>` is allowed without registration because the operator explicitly supplies a local fixture allowlist. Official `hub sync` requires registration and must not upload local skill bodies. `hub serve` is a separate registration-required product command and must not be confused with the free `serve` daemon.
 
 Local `search`, `list`, and `view` remain unregistered even when remote hub support exists.
 
-Local Skill Hub client tokens are local credentials stored as hashes in `hub.json`. They protect the registered local/LAN hub only and must not be confused with hosted registration tokens.
+Local Skill Hub client tokens are local credentials stored as hashes in `~/.unlimited-skills/hub/hub.json`. They protect the registered local/LAN hub only and must not be confused with hosted registration tokens.
