@@ -17,6 +17,12 @@ Options:
   --mode MODE            router-only or evacuate-visible-skills. Defaults to router-only.
   --skip-pip-install     Do not create/update ~/.unlimited-skills/.venv.
   --skip-reindex         Do not rebuild the lexical index.
+  --remote-first         Configure router instructions to prefer Local Skill Hub remote resolve.
+  --no-remote            Disable remote-first configuration.
+  --remote-hub-url URL   Local Skill Hub URL.
+  --hub-token-env NAME   Environment variable that contains the hub token. Preferred.
+  --hub-token TOKEN      Hub token to store in private remote.json. Avoid for shared machines.
+  --remote-fallback MODE local_allowed or hub_required. Defaults to local_allowed.
   --json                 Print JSON report.
   --apply                Actually change files. Without this flag, prints a dry-run report.
   -h, --help             Show this help.
@@ -34,6 +40,12 @@ python_cmd=""
 mode="router-only"
 skip_pip_install=0
 skip_reindex=0
+remote_first=0
+no_remote=0
+remote_hub_url=""
+hub_token_env=""
+hub_token=""
+remote_fallback="local_allowed"
 apply=0
 json=0
 
@@ -66,6 +78,30 @@ while [[ $# -gt 0 ]]; do
     --skip-reindex)
       skip_reindex=1
       shift
+      ;;
+    --remote-first)
+      remote_first=1
+      shift
+      ;;
+    --no-remote)
+      no_remote=1
+      shift
+      ;;
+    --remote-hub-url)
+      remote_hub_url="$2"
+      shift 2
+      ;;
+    --hub-token-env)
+      hub_token_env="$2"
+      shift 2
+      ;;
+    --hub-token)
+      hub_token="$2"
+      shift 2
+      ;;
+    --remote-fallback)
+      remote_fallback="$2"
+      shift 2
       ;;
     --json)
       json=1
@@ -150,6 +186,22 @@ fi
 if [[ "$skip_reindex" -eq 1 ]]; then
   args+=(--skip-reindex)
 fi
+if [[ "$remote_first" -eq 1 ]]; then
+  args+=(--remote-first)
+fi
+if [[ "$no_remote" -eq 1 ]]; then
+  args+=(--no-remote)
+fi
+if [[ -n "$remote_hub_url" ]]; then
+  args+=(--remote-hub-url "$remote_hub_url")
+fi
+if [[ -n "$hub_token_env" ]]; then
+  args+=(--hub-token-env "$hub_token_env")
+fi
+if [[ -n "$hub_token" ]]; then
+  args+=(--hub-token "$hub_token")
+fi
+args+=(--remote-fallback "$remote_fallback")
 if [[ "$json" -eq 1 ]]; then
   args+=(--json)
 fi

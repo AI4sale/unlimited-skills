@@ -13,6 +13,13 @@ param(
   [switch]$SkipPipInstall,
   [switch]$SkipReindex,
   [switch]$VectorReindex,
+  [switch]$RemoteFirst,
+  [switch]$NoRemote,
+  [string]$RemoteHubUrl = "",
+  [string]$HubTokenEnv = "",
+  [string]$HubToken = "",
+  [ValidateSet("local_allowed", "hub_required")]
+  [string]$RemoteFallback = "local_allowed",
   [switch]$Json
 )
 
@@ -51,6 +58,12 @@ if ($NoBuiltin) { $argsList += "--no-builtin" }
 if ($NoPluginSkills) { $argsList += "--no-plugin-skills" }
 if ($SkipReindex) { $argsList += "--skip-reindex" }
 if ($VectorReindex) { $argsList += "--vector-reindex" }
+if ($RemoteFirst) { $argsList += "--remote-first" }
+if ($NoRemote) { $argsList += "--no-remote" }
+if ($RemoteHubUrl) { $argsList += @("--remote-hub-url", $RemoteHubUrl) }
+if ($HubTokenEnv) { $argsList += @("--hub-token-env", $HubTokenEnv) }
+if ($HubToken) { $argsList += @("--hub-token", $HubToken) }
+if ($RemoteFallback) { $argsList += @("--remote-fallback", $RemoteFallback) }
 if ($Json) { $argsList += "--json" }
 
 & $cliPython @argsList

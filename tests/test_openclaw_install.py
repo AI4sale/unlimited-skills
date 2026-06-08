@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import os
+import json
 from pathlib import Path
 
 import pytest
 
 from unlimited_skills.installers import openclaw
 from unlimited_skills.installers.openclaw import OpenClawInstallOptions, install_openclaw
+from unlimited_skills.installers.remote import RemoteHubInstallOptions
 
 
 def write_skill(root: Path, name: str, description: str = "test skill") -> Path:
@@ -26,7 +28,8 @@ def make_repo(root: Path) -> Path:
         "---\nname: unlimited-skills\ndescription: test router\n---\n\n"
         "# Router\n\n"
         "{{OPENCLAW_SH_LAUNCHER}}\n"
-        "{{UNLIMITED_SKILLS_LIBRARY_ROOT}}\n",
+        "{{UNLIMITED_SKILLS_LIBRARY_ROOT}}\n"
+        "{{REMOTE_HUB_ROUTER_BLOCK}}\n",
         encoding="utf-8",
     )
     write_skill(root / "packs" / "ecc" / "skills", "security-review")
@@ -205,3 +208,44 @@ def test_openclaw_reinstall_refreshes_same_collection_skills(tmp_path: Path, mon
     library_skill = install_root / "library" / "local" / "openclaw-workspace" / "skills" / "custom-skill" / "SKILL.md"
     assert second.migrations[0].migrated_count == 1
     assert "description: v2" in library_skill.read_text(encoding="utf-8")
+
+
+def test_openclaw_remote_first_router_uses_token_env_without_raw_token(tmp_path: Path, monkeypatch) -> None:
+    repo_root = make_repo(tmp_path / "repo")
+    openclaw_home = tmp_path / ".openclaw"
+    workspace_root = openclaw_home / "workspace"
+    install_root = tmp_path / ".unlimited-skills"
+    write_skill(workspace_root / "skills", "redmine")
+
+    def fake_sources(openclaw_home_arg, workspace_root_arg, include_builtin, include_plugin_skills):
+        return [("openclaw-workspace", workspace_root_arg / "skills")]
+
+    monkeypatch.setattr(openclaw, "_openclaw_sources", fake_sources)
+
+    report = install_openclaw(
+        OpenClawInstallOptions(
+            openclaw_home=openclaw_home,
+            workspace_root=workspace_root,
+            install_root=install_root,
+            repo_root=repo_root,
+            include_builtin=False,
+            include_plugin_skills=False,
+            skip_reindex=True,
+            remote=RemoteHubInstallOptions(
+                remote_first=True,
+                remote_hub_url="http://127.0.0.1:8766",
+                hub_token_env="ULS_HUB_TOKEN",
+                remote_fallback="hub_required",
+            ),
+        )
+    )
+
+    router_text = (workspace_root / "skills" / "unlimited-skills" / "SKILL.md").read_text(encoding="utf-8")
+    remote_config = json.loads((install_root / "remote.json").read_text(encoding="utf-8"))
+    assert report.remote_first is True
+    assert "remote resolve" in router_text
+    assert "--agent openclaw" in router_text
+    assert "hub_required" in router_text
+    assert "ULS_HUB_TOKEN" in router_text
+    assert remote_config["token_env"] == "ULS_HUB_TOKEN"
+    assert "token" not in remote_config

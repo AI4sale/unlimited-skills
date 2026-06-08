@@ -16,6 +16,12 @@ Options:
   --agents-file PATH     Patch this AGENTS.md file. Defaults to $CODEX_HOME/AGENTS.md.
   --no-agents-patch      Do not patch AGENTS.md.
   --skip-pip-install     Only install the router skill and launcher.
+  --remote-first         Configure router instructions to prefer Local Skill Hub remote resolve.
+  --no-remote            Disable remote-first configuration.
+  --remote-hub-url URL   Local Skill Hub URL.
+  --hub-token-env NAME   Environment variable that contains the hub token. Preferred.
+  --hub-token TOKEN      Hub token to store in private remote.json. Avoid for shared machines.
+  --remote-fallback MODE local_allowed or hub_required. Defaults to local_allowed.
   -h, --help             Show this help.
 EOF
 }
@@ -29,6 +35,12 @@ skip_pip_install=0
 mode="default"
 agents_file=""
 no_agents_patch=0
+remote_first=0
+no_remote=0
+remote_hub_url=""
+hub_token_env=""
+hub_token=""
+remote_fallback="local_allowed"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -63,6 +75,30 @@ while [[ $# -gt 0 ]]; do
     --skip-pip-install)
       skip_pip_install=1
       shift
+      ;;
+    --remote-first)
+      remote_first=1
+      shift
+      ;;
+    --no-remote)
+      no_remote=1
+      shift
+      ;;
+    --remote-hub-url)
+      remote_hub_url="$2"
+      shift 2
+      ;;
+    --hub-token-env)
+      hub_token_env="$2"
+      shift 2
+      ;;
+    --hub-token)
+      hub_token="$2"
+      shift 2
+      ;;
+    --remote-fallback)
+      remote_fallback="$2"
+      shift 2
       ;;
     -h|--help)
       usage
@@ -129,6 +165,26 @@ if [[ -x "$venv_python" ]]; then
   cli_python="$venv_python"
 fi
 export PYTHONPATH="$repo_root:${PYTHONPATH:-}"
+remote_enabled=0
+if [[ "$no_remote" -eq 0 && ( "$remote_first" -eq 1 || -n "$remote_hub_url" || -n "$hub_token_env" || -n "$hub_token" ) ]]; then
+  remote_enabled=1
+fi
+if [[ "$no_remote" -eq 1 && ( "$remote_first" -eq 1 || -n "$remote_hub_url" || -n "$hub_token_env" || -n "$hub_token" ) ]]; then
+  echo "--no-remote cannot be combined with remote hub options." >&2
+  exit 2
+fi
+if [[ "$remote_enabled" -eq 1 && -z "$remote_hub_url" ]]; then
+  echo "--remote-hub-url is required when remote-first mode is enabled." >&2
+  exit 2
+fi
+if [[ "$remote_enabled" -eq 1 && -n "$hub_token_env" && -n "$hub_token" ]]; then
+  echo "Use either --hub-token-env or --hub-token, not both." >&2
+  exit 2
+fi
+if [[ "$remote_enabled" -eq 1 && -z "$hub_token_env" && -z "$hub_token" ]]; then
+  echo "Remote-first mode requires --hub-token-env or --hub-token." >&2
+  exit 2
+fi
 
 launcher="$skill_target/scripts/unlimited-skills.sh"
 mkdir -p "$(dirname "$launcher")"
@@ -146,6 +202,50 @@ export UNLIMITED_SKILLS_ROOT="$library_root"
 exec "$python_cmd" -m unlimited_skills.cli --root "$library_root" "\$@"
 EOF
 chmod +x "$launcher"
+
+remote_block=""
+token_source=""
+if [[ "$remote_enabled" -eq 1 ]]; then
+  export UNLIMITED_SKILLS_HOME="$install_root"
+  remote_args=(--root "$library_root" remote configure --url "$remote_hub_url" --fallback "$remote_fallback")
+  if [[ -n "$hub_token_env" ]]; then
+    remote_args+=(--token-env "$hub_token_env")
+    token_source="env:$hub_token_env"
+  else
+    remote_args+=(--token "$hub_token")
+    token_source="private remote.json"
+  fi
+  "$cli_python" -m unlimited_skills.cli "${remote_args[@]}" >/dev/null
+  remote_block="$(cat <<EOF
+## Remote-First Local Skill Hub Mode
+
+This install is configured for remote-first skill routing through Local Skill Hub.
+
+- Hub URL: \`$remote_hub_url\`
+- Token source: \`$token_source\`
+- Fallback policy: \`$remote_fallback\`
+
+Before local \`search\`/\`view\`, prefer remote resolution:
+
+\`\`\`bash
+"$launcher" remote resolve "<task or skill name>" --agent codex --max-skills 2 --max-chars 12000
+\`\`\`
+
+Use only the selected skill bodies returned by the hub. If a selected skill is metadata-only or requires a local install plan, surface the missing capability warning instead of pretending the skill is ready.
+
+Never print, paste, or store the raw hub token in visible router files, prompts, or logs.
+EOF
+)"
+fi
+"$cli_python" - "$skill_target/SKILL.md" "$remote_block" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+block = sys.argv[2]
+text = path.read_text(encoding="utf-8")
+path.write_text(text.replace("{{REMOTE_HUB_ROUTER_BLOCK}}", block), encoding="utf-8")
+PY
 
 if [[ "$no_agents_patch" -eq 0 ]]; then
   if [[ -z "$agents_file" ]]; then
@@ -213,6 +313,14 @@ echo "Installed Unlimited Skills venv: $venv"
 echo "Install mode: $mode"
 echo "Library root: $library_root"
 echo "Launcher: $launcher"
+if [[ "$remote_enabled" -eq 1 ]]; then
+  echo "Remote-first hub: enabled"
+  echo "Remote hub URL: $remote_hub_url"
+  echo "Remote fallback: $remote_fallback"
+  echo "Remote token source: $token_source"
+else
+  echo "Remote-first hub: disabled"
+fi
 if [[ "$no_agents_patch" -eq 0 ]]; then
   echo "Patched AGENTS.md: $agents_file"
 else

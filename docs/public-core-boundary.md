@@ -60,6 +60,8 @@ The public MIT core must remain local-first. Registration gates hosted services 
 
 `remote search`, `remote resolve`, and `remote view` are Local Skill Hub client commands. They do not require hosted registration on the client machine, but they require a configured hub URL and hub client token when using the hub. With `fallback=local_allowed`, they can fall back to the local MIT library if the hub is unavailable. With `fallback=hub_required`, they fail clearly. They never query the hosted registry by default.
 
+Remote-first installer flags for Codex, Claude Code, Hermes, and OpenClaw write local remote hub config and router instructions only. They do not register the client, do not gate local MIT commands, and do not store raw hub tokens in visible router files. Prefer `--hub-token-env ULS_HUB_TOKEN`; `--hub-token` stores the raw token only in private `remote.json`.
+
 `license status` reads local registration state only. It must work without registration and show unregistered status.
 
 No registration, no official hosted skill updates. Local skills remain usable.

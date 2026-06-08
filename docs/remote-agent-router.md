@@ -29,6 +29,27 @@ unlimited-skills remote configure --url http://127.0.0.1:8766 --token-env ULS_HU
 
 For quick local testing, `--token <hub_client_token>` is allowed. That stores the raw token in `~/.unlimited-skills/remote.json` with private file permissions where the platform supports them. The CLI never prints the token.
 
+## Remote-First Installer Mode
+
+Codex, Claude Code, Hermes, and OpenClaw installers accept remote-first Local Skill Hub options:
+
+```bash
+--remote-first
+--remote-hub-url http://127.0.0.1:8766
+--hub-token-env ULS_HUB_TOKEN
+--remote-fallback local_allowed
+```
+
+`--hub-token-env` is preferred because visible router files can reference the environment variable name without storing the raw token. `--hub-token <token>` is allowed only as a convenience path; installers write it to private `remote.json` and do not write it into visible `SKILL.md`, `AGENTS.md`, `CLAUDE.md`, or text reports.
+
+Remote-first router instructions prefer:
+
+```bash
+unlimited-skills remote resolve "<task or skill name>" --agent <agent> --max-skills 2 --max-chars 12000
+```
+
+If the selected skill is metadata-only or requires a local install plan, the router must surface the missing capability warning instead of treating the skill as ready.
+
 Check the configured hub:
 
 ```bash

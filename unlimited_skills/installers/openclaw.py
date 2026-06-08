@@ -15,6 +15,7 @@ from unlimited_skills.agents_patch import patch_agents_file
 from unlimited_skills.cli import save_index
 
 from .common import copy_skill_tree, iter_skill_dirs
+from .remote import RemoteHubInstallOptions, configure_remote_if_enabled, remote_messages, remote_report_lines, render_remote_router_block
 
 INSTALL_MODES = {"default", "bundled", "adapt-installed"}
 ROUTER_NAME = "unlimited-skills"
@@ -34,6 +35,7 @@ class OpenClawInstallOptions:
     skip_reindex: bool = False
     vector_reindex: bool = False
     python_executable: str = sys.executable
+    remote: RemoteHubInstallOptions = field(default_factory=RemoteHubInstallOptions)
 
 
 @dataclass
@@ -57,6 +59,11 @@ class OpenClawInstallReport:
     agents_patched: bool = False
     lexical_index: str = "skipped"
     vector_index: str = "skipped"
+    remote_config: str = ""
+    remote_first: bool = False
+    remote_hub_url: str = ""
+    remote_fallback: str = "local_allowed"
+    remote_token_source: str = ""
     migrations: list[MigrationResult] = field(default_factory=list)
     messages: list[str] = field(default_factory=list)
 
@@ -95,6 +102,16 @@ class OpenClawInstallReport:
                 f"  vector index: {self.vector_index}",
             ]
         )
+        lines.extend(["", *remote_report_lines(
+            RemoteHubInstallOptions(
+                remote_first=self.remote_first,
+                remote_hub_url=self.remote_hub_url,
+                hub_token_env=self.remote_token_source.removeprefix("env:") if self.remote_token_source.startswith("env:") else "",
+                hub_token="stored" if self.remote_token_source == "private remote.json" else "",
+                remote_fallback=self.remote_fallback,
+            ),
+            self.remote_config,
+        )])
         if self.messages:
             lines.extend(["", "Messages:"])
             lines.extend(f"  - {message}" for message in self.messages)
@@ -130,11 +147,12 @@ def _write_launcher(launcher: Path, repo_root: Path, library_root: Path, python_
         pass
 
 
-def _render_router_skill(router_skill: Path, launcher: Path, library_root: Path) -> None:
+def _render_router_skill(router_skill: Path, launcher: Path, library_root: Path, remote: RemoteHubInstallOptions) -> None:
     text = router_skill.read_text(encoding="utf-8", errors="replace")
     replacements = {
         "{{OPENCLAW_SH_LAUNCHER}}": launcher.as_posix(),
         "{{UNLIMITED_SKILLS_LIBRARY_ROOT}}": library_root.as_posix(),
+        "{{REMOTE_HUB_ROUTER_BLOCK}}": render_remote_router_block("openclaw", launcher.as_posix(), remote),
     }
     for needle, value in replacements.items():
         text = text.replace(needle, value)
@@ -251,6 +269,7 @@ def install_openclaw(options: OpenClawInstallOptions) -> OpenClawInstallReport:
     launcher = router_target / "scripts" / "unlimited-skills.sh"
     agents_file = Path(options.agents_file).expanduser() if options.agents_file else workspace_root / "AGENTS.md"
     messages: list[str] = []
+    messages.extend(remote_messages(options.remote))
 
     router_source = _router_source(repo_root)
     if not router_source.is_dir():
@@ -261,7 +280,8 @@ def install_openclaw(options: OpenClawInstallOptions) -> OpenClawInstallReport:
     router_target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(router_source, router_target)
     _write_launcher(launcher, repo_root, library_root, options.python_executable)
-    _render_router_skill(router_target / "SKILL.md", launcher, library_root)
+    remote_config = configure_remote_if_enabled(options.remote, install_root)
+    _render_router_skill(router_target / "SKILL.md", launcher, library_root, options.remote)
 
     agents_patched = False
     if options.patch_agents:
@@ -326,6 +346,11 @@ def install_openclaw(options: OpenClawInstallOptions) -> OpenClawInstallReport:
         agents_patched=agents_patched,
         lexical_index=lexical_index,
         vector_index=vector_index,
+        remote_config=remote_config,
+        remote_first=options.remote.enabled,
+        remote_hub_url=options.remote.remote_hub_url if options.remote.enabled else "",
+        remote_fallback=options.remote.remote_fallback,
+        remote_token_source=(f"env:{options.remote.hub_token_env}" if options.remote.hub_token_env else ("private remote.json" if options.remote.hub_token else "")),
         migrations=migrations,
         messages=messages,
     )
@@ -359,6 +384,12 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--python-executable", default=sys.executable)
     parser.add_argument("--skip-reindex", action="store_true")
     parser.add_argument("--vector-reindex", action="store_true")
+    parser.add_argument("--remote-first", action="store_true")
+    parser.add_argument("--no-remote", action="store_true")
+    parser.add_argument("--remote-hub-url", default="")
+    parser.add_argument("--hub-token-env", default="")
+    parser.add_argument("--hub-token", default="")
+    parser.add_argument("--remote-fallback", choices=sorted({"local_allowed", "hub_required"}), default="local_allowed")
     parser.add_argument("--json", action="store_true")
     return parser
 
@@ -381,6 +412,14 @@ def main(argv: list[str] | None = None) -> int:
             skip_reindex=args.skip_reindex,
             vector_reindex=args.vector_reindex,
             python_executable=args.python_executable,
+            remote=RemoteHubInstallOptions(
+                remote_first=args.remote_first,
+                remote_hub_url=args.remote_hub_url,
+                hub_token_env=args.hub_token_env,
+                hub_token=args.hub_token,
+                remote_fallback=args.remote_fallback,
+                no_remote=args.no_remote,
+            ),
         )
     )
     print(json.dumps(asdict(report), ensure_ascii=False, indent=2) if args.json else report.format_text())

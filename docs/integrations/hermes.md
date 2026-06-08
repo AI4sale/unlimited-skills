@@ -79,6 +79,34 @@ If you already moved skills out of Hermes' visible directory, install just the r
 .\scripts\install-hermes.ps1 -Mode router-only -Apply
 ```
 
+## Remote-first router mode
+
+After creating a Local Skill Hub token, install Hermes in remote-first mode:
+
+```bash
+export ULS_HUB_TOKEN="<hub_client_token>"
+./scripts/install-hermes.sh \
+  --mode evacuate-visible-skills \
+  --remote-first \
+  --remote-hub-url http://127.0.0.1:8766 \
+  --hub-token-env ULS_HUB_TOKEN \
+  --remote-fallback hub_required \
+  --apply
+```
+
+```powershell
+$env:ULS_HUB_TOKEN = "<hub_client_token>"
+.\scripts\install-hermes.ps1 `
+  -Mode evacuate-visible-skills `
+  -RemoteFirst `
+  -RemoteHubUrl http://127.0.0.1:8766 `
+  -HubTokenEnv ULS_HUB_TOKEN `
+  -RemoteFallback hub_required `
+  -Apply
+```
+
+The visible Hermes skill directory should still contain only `unlimited-skills`. The router calls `remote resolve` and loads only selected skill bodies from the hub. `-HubToken`/`--hub-token` is available for quick tests, but token-env is preferred and raw tokens are not written into visible router files.
+
 ## Expected report
 
 A successful context-reduction install prints a report shaped like this:

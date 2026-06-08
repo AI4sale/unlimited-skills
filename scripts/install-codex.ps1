@@ -7,7 +7,14 @@ param(
   [string]$Mode = "default",
   [string]$AgentsFile = "",
   [switch]$NoAgentsPatch,
-  [switch]$SkipPipInstall
+  [switch]$SkipPipInstall,
+  [switch]$RemoteFirst,
+  [switch]$NoRemote,
+  [string]$RemoteHubUrl = "",
+  [string]$HubTokenEnv = "",
+  [string]$HubToken = "",
+  [ValidateSet("local_allowed", "hub_required")]
+  [string]$RemoteFallback = "local_allowed"
 )
 
 $ErrorActionPreference = "Stop"
@@ -43,6 +50,19 @@ if (-not $SkipPipInstall) {
 
 $cliPython = if (Test-Path $venvPython) { $venvPython } else { $Python }
 $env:PYTHONPATH = "$RepoRoot;$env:PYTHONPATH"
+$remoteEnabled = (-not $NoRemote) -and ($RemoteFirst -or $RemoteHubUrl -or $HubTokenEnv -or $HubToken)
+if ($NoRemote -and ($RemoteFirst -or $RemoteHubUrl -or $HubTokenEnv -or $HubToken)) {
+  throw "-NoRemote cannot be combined with remote hub options."
+}
+if ($remoteEnabled -and -not $RemoteHubUrl) {
+  throw "-RemoteHubUrl is required when remote-first mode is enabled."
+}
+if ($remoteEnabled -and $HubTokenEnv -and $HubToken) {
+  throw "Use either -HubTokenEnv or -HubToken, not both."
+}
+if ($remoteEnabled -and -not ($HubTokenEnv -or $HubToken)) {
+  throw "Remote-first mode requires -HubTokenEnv or -HubToken."
+}
 
 $launcher = Join-Path $skillTarget "scripts\unlimited-skills.ps1"
 New-Item -ItemType Directory -Force -Path (Split-Path $launcher -Parent) | Out-Null
@@ -58,6 +78,46 @@ param(
 `$env:UNLIMITED_SKILLS_ROOT = "$libraryRoot"
 & "$cliPython" -m unlimited_skills.cli --root "$libraryRoot" @Args
 "@ | Set-Content -LiteralPath $launcher -Encoding UTF8
+
+$skillFile = Join-Path $skillTarget "SKILL.md"
+$remoteBlock = ""
+if ($remoteEnabled) {
+  $env:UNLIMITED_SKILLS_HOME = $InstallRoot
+  $remoteArgs = @("--root", $libraryRoot, "remote", "configure", "--url", $RemoteHubUrl, "--fallback", $RemoteFallback)
+  if ($HubTokenEnv) {
+    $remoteArgs += @("--token-env", $HubTokenEnv)
+    $tokenSource = "env:$HubTokenEnv"
+  } else {
+    $remoteArgs += @("--token", $HubToken)
+    $tokenSource = "private remote.json"
+  }
+  & $cliPython -m unlimited_skills.cli @remoteArgs | Out-Null
+  $remoteBlock = @"
+## Remote-First Local Skill Hub Mode
+
+This install is configured for remote-first skill routing through Local Skill Hub.
+
+- Hub URL: ``$RemoteHubUrl``
+- Token source: ``$tokenSource``
+- Fallback policy: ``$RemoteFallback``
+
+Before local ``search``/``view``, prefer remote resolution:
+
+````powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File "$launcher" remote resolve "<task or skill name>" --agent codex --max-skills 2 --max-chars 12000
+````
+
+Use only the selected skill bodies returned by the hub. If a selected skill is metadata-only or requires a local install plan, surface the missing capability warning instead of pretending the skill is ready.
+
+Never print, paste, or store the raw hub token in visible router files, prompts, or logs.
+
+"@
+}
+if (Test-Path $skillFile) {
+  $skillText = Get-Content -LiteralPath $skillFile -Raw
+  $skillText = $skillText.Replace("{{REMOTE_HUB_ROUTER_BLOCK}}", $remoteBlock.TrimEnd())
+  Set-Content -LiteralPath $skillFile -Value $skillText -Encoding UTF8
+}
 
 if (-not $NoAgentsPatch) {
   $agentsTarget = if ($AgentsFile) { $AgentsFile } else { Join-Path $CodexHome "AGENTS.md" }
@@ -130,6 +190,14 @@ Write-Host "Installed Unlimited Skills venv: $venv"
 Write-Host "Install mode: $Mode"
 Write-Host "Library root: $libraryRoot"
 Write-Host "Launcher: $launcher"
+if ($remoteEnabled) {
+  Write-Host "Remote-first hub: enabled"
+  Write-Host "Remote hub URL: $RemoteHubUrl"
+  Write-Host "Remote fallback: $RemoteFallback"
+  Write-Host "Remote token source: $tokenSource"
+} else {
+  Write-Host "Remote-first hub: disabled"
+}
 if ($AgentsFile) {
   Write-Host "Patched AGENTS.md: $AgentsFile"
 } elseif (-not $NoAgentsPatch) {

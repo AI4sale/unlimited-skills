@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from unlimited_skills.installers.claude_code import ClaudeCodeInstallOptions, install_claude_code
+from unlimited_skills.installers.remote import RemoteHubInstallOptions
 
 
 def write_skill(root: Path, name: str, description: str = "test skill") -> Path:
@@ -24,7 +25,8 @@ def make_repo(root: Path) -> Path:
         "# Router\n\n"
         "{{CLAUDE_SH_LAUNCHER}}\n"
         "{{CLAUDE_PS_LAUNCHER}}\n"
-        "{{UNLIMITED_SKILLS_LIBRARY_ROOT}}\n",
+        "{{UNLIMITED_SKILLS_LIBRARY_ROOT}}\n"
+        "{{REMOTE_HUB_ROUTER_BLOCK}}\n",
         encoding="utf-8",
     )
     write_skill(root / "packs" / "ecc" / "skills", "security-review")
@@ -149,3 +151,68 @@ def test_claude_code_reinstall_refreshes_same_collection_skills(tmp_path: Path) 
     library_skill = install_root / "library" / "local" / "claude-code" / "skills" / "custom-skill" / "SKILL.md"
     assert second.migrations[0].migrated_count == 1
     assert "description: v2" in library_skill.read_text(encoding="utf-8")
+
+
+def test_claude_code_remote_first_router_config_uses_token_env(tmp_path: Path) -> None:
+    repo_root = make_repo(tmp_path / "repo")
+    claude_home = tmp_path / ".claude-home"
+    project_root = tmp_path / "project"
+    install_root = tmp_path / ".unlimited-skills"
+
+    report = install_claude_code(
+        ClaudeCodeInstallOptions(
+            claude_home=claude_home,
+            project_root=project_root,
+            install_root=install_root,
+            repo_root=repo_root,
+            skip_reindex=True,
+            remote=RemoteHubInstallOptions(
+                remote_first=True,
+                remote_hub_url="http://127.0.0.1:8766",
+                hub_token_env="ULS_HUB_TOKEN",
+                remote_fallback="hub_required",
+            ),
+        )
+    )
+
+    router_text = (claude_home / "skills" / "unlimited-skills" / "SKILL.md").read_text(encoding="utf-8")
+    remote_config = json.loads((install_root / "remote.json").read_text(encoding="utf-8"))
+    assert report.remote_first is True
+    assert "remote resolve" in router_text
+    assert "--agent claude-code" in router_text
+    assert "hub_required" in router_text
+    assert "ULS_HUB_TOKEN" in router_text
+    assert remote_config["token_env"] == "ULS_HUB_TOKEN"
+    assert "token" not in remote_config
+
+
+def test_claude_code_remote_first_redacts_raw_token_from_visible_outputs(tmp_path: Path) -> None:
+    repo_root = make_repo(tmp_path / "repo")
+    claude_home = tmp_path / ".claude-home"
+    project_root = tmp_path / "project"
+    install_root = tmp_path / ".unlimited-skills"
+    raw_token = "uls_hub_raw_secret_for_test"
+
+    report = install_claude_code(
+        ClaudeCodeInstallOptions(
+            claude_home=claude_home,
+            project_root=project_root,
+            install_root=install_root,
+            repo_root=repo_root,
+            skip_reindex=True,
+            remote=RemoteHubInstallOptions(
+                remote_first=True,
+                remote_hub_url="http://127.0.0.1:8766",
+                hub_token=raw_token,
+                remote_fallback="local_allowed",
+            ),
+        )
+    )
+
+    router_text = (claude_home / "skills" / "unlimited-skills" / "SKILL.md").read_text(encoding="utf-8")
+    report_text = report.format_text()
+    remote_config = json.loads((install_root / "remote.json").read_text(encoding="utf-8"))
+    assert raw_token not in router_text
+    assert raw_token not in report_text
+    assert remote_config["token"] == raw_token
+    assert report.remote_token_source == "private remote.json"

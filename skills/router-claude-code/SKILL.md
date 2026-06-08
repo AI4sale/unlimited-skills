@@ -27,6 +27,8 @@ Do not conclude that a skill is missing just because it is absent from `~/.claud
 5. Record usage with `use <skill-name> --query "<query>" --task "<short task>"`.
 6. If the selected skill was wrong or especially useful, record feedback with the `feedback` command.
 
+{{REMOTE_HUB_ROUTER_BLOCK}}
+
 ## Commands
 
 Use the shell launcher on macOS, Linux, and WSL:

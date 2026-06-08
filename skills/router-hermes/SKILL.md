@@ -57,6 +57,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "{{HERMES_PS_LAUNCHER}}" vie
 7. Record usage with `use <skill-name> --query "<query>" --task "<short task>"`.
 8. If the selected skill was wrong or especially useful, record feedback with the `feedback` command.
 
+{{REMOTE_HUB_ROUTER_BLOCK}}
+
 For inventory-style questions such as "what skills do you have?", search broad task terms first, then summarize matching library skills. Do not paste every result or every skill body into the conversation. Treat the library as a retrieval layer, not as context that should always be loaded.
 
 ## Windows / Git Bash Safety Rules

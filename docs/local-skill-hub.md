@@ -101,6 +101,18 @@ unlimited-skills remote view browser-qa
 
 `remote search`, `remote resolve`, and `remote view` call only the configured Local Skill Hub. They do not call the hosted registry and they do not forward local search queries to AI4sale hosted services by default. The client sends the hub token in `Authorization: Bearer <token>` and `X-ULS-Hub-Token` for compatibility.
 
+Install a remote-first router after the hub is configured:
+
+```bash
+export ULS_HUB_TOKEN="<hub_client_token>"
+./scripts/install-codex.sh --remote-first --remote-hub-url http://127.0.0.1:8766 --hub-token-env ULS_HUB_TOKEN --remote-fallback local_allowed
+./scripts/install-claude-code.sh --remote-first --remote-hub-url http://127.0.0.1:8766 --hub-token-env ULS_HUB_TOKEN --remote-fallback local_allowed
+./scripts/install-hermes.sh --mode evacuate-visible-skills --remote-first --remote-hub-url http://127.0.0.1:8766 --hub-token-env ULS_HUB_TOKEN --remote-fallback hub_required --apply
+./scripts/install-openclaw.sh --remote-first --remote-hub-url http://127.0.0.1:8766 --hub-token-env ULS_HUB_TOKEN --remote-fallback local_allowed
+```
+
+Remote-first installers render router instructions that prefer `remote resolve` before local search. Raw hub tokens are never written into visible router files; prefer token-env configuration for shared machines.
+
 Launch policy:
 
 - Full catalog: no.

@@ -141,6 +141,17 @@ unlimited-skills remote view security-review
 
 Use `--fallback hub_required` when an agent must fail instead of using local fallback. Use `--token <hub_client_token>` only for quick local tests; it stores the raw token in `~/.unlimited-skills/remote.json` with private file permissions where supported.
 
+Remote-first agent install examples:
+
+```bash
+./scripts/install-codex.sh --remote-first --remote-hub-url http://127.0.0.1:8766 --hub-token-env ULS_HUB_TOKEN --remote-fallback local_allowed
+./scripts/install-claude-code.sh --remote-first --remote-hub-url http://127.0.0.1:8766 --hub-token-env ULS_HUB_TOKEN --remote-fallback local_allowed
+./scripts/install-hermes.sh --mode evacuate-visible-skills --remote-first --remote-hub-url http://127.0.0.1:8766 --hub-token-env ULS_HUB_TOKEN --remote-fallback hub_required --apply
+./scripts/install-openclaw.sh --remote-first --remote-hub-url http://127.0.0.1:8766 --hub-token-env ULS_HUB_TOKEN --remote-fallback local_allowed
+```
+
+The installers write remote hub config under the selected install root and render remote-first router instructions. They prefer `--hub-token-env`; if `--hub-token` is used, the raw token is stored only in private `remote.json` and is not written into visible router files.
+
 ## Support
 
 Unlimited Skills is open source under the MIT license. Voluntary donations help fund adapters, migration scripts, indexing work, hosted registry maintenance, and the learning-loop roadmap.

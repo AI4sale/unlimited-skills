@@ -50,6 +50,8 @@ OpenClaw launcher:
 7. Record usage with `use <skill-name> --query "<query>" --task "<short task>"`.
 8. If the selected skill was wrong or especially useful, record feedback with the `feedback` command.
 
+{{REMOTE_HUB_ROUTER_BLOCK}}
+
 Do not paste every result or every skill body into the conversation. Treat the library as a retrieval layer, not as context that should always be loaded.
 
 ## Common Commands

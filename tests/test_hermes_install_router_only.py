@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from unlimited_skills.installers.hermes import HermesInstallOptions, count_visible_skills, install_hermes
+from unlimited_skills.installers.remote import RemoteHubInstallOptions
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -163,3 +164,40 @@ def test_hermes_install_missing_skill_root_is_explicit_not_silent(tmp_path: Path
     assert report.migrated_count == 0
     assert "No Hermes skills found" in "\n".join(report.messages)
     assert (hermes_home / "skills" / "unlimited-skills" / "SKILL.md").is_file()
+
+
+def test_hermes_remote_first_evacuate_keeps_only_router_and_redacts_token(tmp_path: Path) -> None:
+    hermes_home = tmp_path / ".hermes"
+    visible_root = hermes_home / "skills"
+    install_root = tmp_path / ".unlimited-skills"
+    raw_token = "uls_hub_hermes_secret"
+    write_skill(visible_root, "alpha")
+    write_skill(visible_root, "beta")
+
+    report = install_hermes(
+        HermesInstallOptions(
+            hermes_home=hermes_home,
+            install_root=install_root,
+            repo_root=ROOT,
+            mode="evacuate-visible-skills",
+            apply=True,
+            skip_reindex=True,
+            remote=RemoteHubInstallOptions(
+                remote_first=True,
+                remote_hub_url="http://127.0.0.1:8766",
+                hub_token=raw_token,
+                remote_fallback="hub_required",
+            ),
+        )
+    )
+
+    router_text = (visible_root / "unlimited-skills" / "SKILL.md").read_text(encoding="utf-8")
+    report_text = report.format_text()
+    remote_config = json.loads((install_root / "remote.json").read_text(encoding="utf-8"))
+    assert [p.parent.name for p in visible_root.rglob("SKILL.md")] == ["unlimited-skills"]
+    assert "remote resolve" in router_text
+    assert "--agent hermes" in router_text
+    assert "hub_required" in router_text
+    assert raw_token not in router_text
+    assert raw_token not in report_text
+    assert remote_config["token"] == raw_token

@@ -13,6 +13,7 @@ from pathlib import Path
 from unlimited_skills.cli import save_index
 
 from .common import copy_skill_tree, count_skill_files, iter_skill_dirs, move_skill_tree, prune_empty_parents
+from .remote import RemoteHubInstallOptions, configure_remote_if_enabled, remote_messages, remote_report_lines, render_remote_router_block, validate_remote_options
 
 INSTALL_MODES = {"router-only", "evacuate-visible-skills"}
 ROUTER_NAME = "unlimited-skills"
@@ -27,6 +28,7 @@ class HermesInstallOptions:
     apply: bool = False
     skip_reindex: bool = False
     python_executable: str = sys.executable
+    remote: RemoteHubInstallOptions = field(default_factory=RemoteHubInstallOptions)
 
 
 @dataclass
@@ -43,6 +45,11 @@ class HermesInstallReport:
     launcher: str = ""
     lexical_index: str = "skipped"
     vector_index: str = "skipped"
+    remote_config: str = ""
+    remote_first: bool = False
+    remote_hub_url: str = ""
+    remote_fallback: str = "local_allowed"
+    remote_token_source: str = ""
     rollback_manifest: str | None = None
     messages: list[str] = field(default_factory=list)
 
@@ -78,6 +85,17 @@ class HermesInstallReport:
                 "Index:",
                 f"  lexical index: {self.lexical_index}",
                 f"  vector index: {self.vector_index}",
+                "",
+                *remote_report_lines(
+                    RemoteHubInstallOptions(
+                        remote_first=self.remote_first,
+                        remote_hub_url=self.remote_hub_url,
+                        hub_token_env=self.remote_token_source.removeprefix("env:") if self.remote_token_source.startswith("env:") else "",
+                        hub_token="stored" if self.remote_token_source == "private remote.json" else "",
+                        remote_fallback=self.remote_fallback,
+                    ),
+                    self.remote_config,
+                ),
                 "",
                 "Rollback:",
                 f"  manifest: {self.rollback_manifest or '<none>'}",
@@ -170,12 +188,13 @@ def _write_launchers(sh_launcher: Path, ps_launcher: Path, repo_root: Path, libr
     )
 
 
-def _render_router_skill(router_skill: Path, sh_launcher: Path, ps_launcher: Path, library_root: Path) -> None:
+def _render_router_skill(router_skill: Path, sh_launcher: Path, ps_launcher: Path, library_root: Path, remote: RemoteHubInstallOptions) -> None:
     text = router_skill.read_text(encoding="utf-8", errors="replace")
     replacements = {
         "{{HERMES_SH_LAUNCHER}}": sh_launcher.as_posix(),
         "{{HERMES_PS_LAUNCHER}}": ps_launcher.as_posix(),
         "{{UNLIMITED_SKILLS_LIBRARY_ROOT}}": library_root.as_posix(),
+        "{{REMOTE_HUB_ROUTER_BLOCK}}": render_remote_router_block("hermes", sh_launcher.as_posix(), remote),
     }
     for needle, value in replacements.items():
         text = text.replace(needle, value)
@@ -232,6 +251,8 @@ def install_hermes(options: HermesInstallOptions) -> HermesInstallReport:
     ]
 
     messages: list[str] = []
+    validate_remote_options(options.remote)
+    messages.extend(remote_messages(options.remote))
     if before_count == 0:
         messages.append(f"No Hermes skills found under {visible_root}. Nothing to evacuate. Router can still be installed.")
     if not options.apply:
@@ -248,6 +269,10 @@ def install_hermes(options: HermesInstallOptions) -> HermesInstallReport:
         visible_skills_after=_visible_skill_names(visible_root),
         router_installed=router_target.is_dir(),
         launcher=str(sh_launcher),
+        remote_first=options.remote.enabled,
+        remote_hub_url=options.remote.remote_hub_url if options.remote.enabled else "",
+        remote_fallback=options.remote.remote_fallback,
+        remote_token_source=(f"env:{options.remote.hub_token_env}" if options.remote.hub_token_env else ("private remote.json" if options.remote.hub_token else "")),
         messages=messages,
     )
 
@@ -285,7 +310,8 @@ def install_hermes(options: HermesInstallOptions) -> HermesInstallReport:
     router_target.parent.mkdir(parents=True, exist_ok=True)
     shutil.copytree(router_source, router_target)
     _write_launchers(sh_launcher, ps_launcher, repo_root, library_root, options.python_executable)
-    _render_router_skill(router_target / "SKILL.md", sh_launcher, ps_launcher, library_root)
+    remote_config = configure_remote_if_enabled(options.remote, install_root)
+    _render_router_skill(router_target / "SKILL.md", sh_launcher, ps_launcher, library_root, options.remote)
 
     rollback_manifest: str | None = None
     if options.mode == "evacuate-visible-skills":
@@ -318,6 +344,11 @@ def install_hermes(options: HermesInstallOptions) -> HermesInstallReport:
         launcher=str(sh_launcher),
         lexical_index=lexical_index,
         vector_index="skipped",
+        remote_config=remote_config,
+        remote_first=options.remote.enabled,
+        remote_hub_url=options.remote.remote_hub_url if options.remote.enabled else "",
+        remote_fallback=options.remote.remote_fallback,
+        remote_token_source=(f"env:{options.remote.hub_token_env}" if options.remote.hub_token_env else ("private remote.json" if options.remote.hub_token else "")),
         rollback_manifest=rollback_manifest,
         messages=messages,
     )
@@ -372,6 +403,12 @@ def build_parser() -> argparse.ArgumentParser:
     install.add_argument("--mode", choices=sorted(INSTALL_MODES), default="router-only")
     install.add_argument("--python-executable", default=sys.executable)
     install.add_argument("--skip-reindex", action="store_true")
+    install.add_argument("--remote-first", action="store_true")
+    install.add_argument("--no-remote", action="store_true")
+    install.add_argument("--remote-hub-url", default="")
+    install.add_argument("--hub-token-env", default="")
+    install.add_argument("--hub-token", default="")
+    install.add_argument("--remote-fallback", choices=sorted({"local_allowed", "hub_required"}), default="local_allowed")
     install.add_argument("--json", action="store_true", help="Print JSON instead of a text report.")
     install.add_argument("--apply", action="store_true", help="Actually change files. Omit for dry-run.")
 
@@ -395,6 +432,14 @@ def main(argv: list[str] | None = None) -> int:
                 apply=args.apply,
                 skip_reindex=args.skip_reindex,
                 python_executable=args.python_executable,
+                remote=RemoteHubInstallOptions(
+                    remote_first=args.remote_first,
+                    remote_hub_url=args.remote_hub_url,
+                    hub_token_env=args.hub_token_env,
+                    hub_token=args.hub_token,
+                    remote_fallback=args.remote_fallback,
+                    no_remote=args.no_remote,
+                ),
             )
         )
         print(json.dumps(report.__dict__, ensure_ascii=False, indent=2) if args.json else report.format_text())

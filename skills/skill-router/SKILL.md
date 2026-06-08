@@ -31,6 +31,8 @@ Do not skip this router just because the task looks simple; skip it only when a 
 7. Record usage with `$env:USERPROFILE\.codex\skills\unlimited-skills\scripts\unlimited-skills.ps1 use <skill-name> --query "<query>" --task "<short task>"`.
 8. If the selected skill was wrong or especially useful, record feedback with the same launcher and the `feedback` command.
 
+{{REMOTE_HUB_ROUTER_BLOCK}}
+
 ## Commands
 
 ```powershell
