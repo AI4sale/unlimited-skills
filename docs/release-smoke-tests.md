@@ -39,7 +39,7 @@ The smoke suite covers:
 - explicit remote fallback checks for `local_allowed` and `hub_required`;
 - hub allowlist bootstrap and cached `hub serve` wiring checks;
 - token/secret redaction;
-- docs/security claims for SHA256, planned signature verification, unregistered `serve`, registered `hub serve`, and allowlist-only full-catalog-disabled hub policy;
+- docs/security claims for SHA256 archive verification, required signed hosted manifests, unregistered `serve`, registered `hub serve`, and allowlist-only full-catalog-disabled hub policy;
 - self-update and install-pack git ref validation;
 - production hosted network blocking by default.
 

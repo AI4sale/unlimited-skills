@@ -36,6 +36,7 @@ Registration is required for official hosted services:
 - hosted `community-skills` catalog and submissions;
 - adapted collection update stream;
 - registered local skill enhancement scripts;
+- signed hosted manifests for official hosted delivery metadata;
 - SHA256-verified hosted collection archives;
 - registered team sync MVP with master approval;
 - planned encrypted private team-pack publishing;

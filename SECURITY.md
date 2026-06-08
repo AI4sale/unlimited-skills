@@ -34,13 +34,15 @@ The hosted clients must not upload:
 
 Current `v0.2.1-alpha` behavior:
 
+- hosted remote manifests must include valid signed manifest envelopes;
+- signatures verify hosted manifest authenticity;
 - hosted collection archives are SHA256-verified before extraction;
 - zip extraction rejects path traversal;
 - local enhancement scripts are SHA256-verified before execution;
 - hosted features require a registered installation token and signed device proof;
-- cryptographic signature metadata may be returned by the service, but client-side cryptographic signature verification is planned and not currently enforced.
+- private signing keys are never shipped in the client.
 
-Use "SHA256-verified hosted collection archives" for the current security boundary. Do not describe hosted archives as cryptographically verified until client enforcement exists.
+Use "signed hosted manifests plus SHA256-verified hosted collection archives" for the current security boundary. Do not describe hosted archive bytes as cryptographically signed or cryptographically verified unless archive-byte signatures are implemented separately.
 
 ## Local Skill Hub MVP Boundary
 
@@ -56,7 +58,7 @@ Current `v0.2.1-alpha` limitations:
 
 ## Known Security Limitations In v0.2.1-alpha
 
-- Cryptographic signature verification for hosted archive metadata is planned, but the current client enforces SHA256 verification only.
+- Hosted manifest signatures verify manifest authenticity; archive bytes are still verified with SHA256 and safe extraction, not archive-byte signatures.
 - The hosted registry is early-access and availability may be limited.
 - Community submissions are planned and must be explicit uploads when implemented.
 - Enterprise Skill Lock is planned, not implemented in the public alpha.

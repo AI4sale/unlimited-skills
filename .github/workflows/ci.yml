@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - "release/**"
+      - "feat/**"
+      - "fix/**"
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PYTHONUNBUFFERED: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+jobs:
+  lint-basic:
+    name: Basic lint and compile
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install package
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .
+      - name: Compile Python modules
+        run: python -m compileall -q unlimited_skills
+      - name: Git diff check
+        run: git diff --check
+
+  tests:
+    name: Full pytest suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[all]" pytest
+      - name: Run tests
+        env:
+          USERPROFILE: ${{ runner.temp }}/ci-userprofile
+        run: |
+          mkdir -p "$USERPROFILE"
+          python -m pytest tests -q
+
+  smoke:
+    name: v0.2.x smoke suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install smoke dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[all]" pytest
+      - name: Run isolated smoke suite
+        run: python scripts/run-v0.2x-smoke-tests.py
+
+  docs-security-claims:
+    name: Docs and security claims
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install docs test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e . pytest
+      - name: Check release/security docs
+        run: |
+          python -m pytest tests/test_public_alpha_docs.py tests/test_registry_contract.py tests/smoke/test_v02x_release_smoke.py::test_docs_security_claims_are_consistent -q

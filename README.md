@@ -180,6 +180,7 @@ Registration is required only for AI4sale-hosted services:
 - hosted `community-skills` catalog and submissions;
 - adapted collection update stream;
 - registered local skill enhancement script;
+- signed hosted manifests for official hosted delivery metadata;
 - SHA256-verified hosted collection archives;
 - future dashboard, cloud sync, marketplace, team skill sync, and enterprise features.
 

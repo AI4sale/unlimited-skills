@@ -21,11 +21,14 @@ Use this checklist before tagging a public alpha release.
 
 ## Security Wording Checklist
 
-- Use "SHA256-verified hosted collection archives" for current hosted archive security.
-- Do not claim client-enforced cryptographic signature verification until it is implemented.
+- State that hosted remote manifests require valid signed manifest envelopes.
+- State that signatures verify manifest authenticity.
+- State that SHA256 verifies downloaded archive bytes against the signed manifest.
+- Do not claim archive-byte signature verification unless that is implemented separately.
 - State that zip extraction rejects path traversal.
 - State that enhancement scripts are SHA256-verified before execution.
 - State that hosted clients must not upload skill bodies, prompts, source code, full paths, repo paths, customer names, env vars, tokens, secrets, or device private keys.
+- State that private signing keys are never shipped in the client or committed to the repo.
 
 ## Smoke Tests
 
@@ -57,6 +60,16 @@ Additional alpha checks:
 - Claude Code sandbox: project `.claude/skills` are mirrored on router CLI call.
 
 ## Tag And Release Checklist
+
+Required merge order for `v0.2.1-alpha`:
+
+1. PR #13: `release/v0.2.1-alpha-hub-runtime-integration`
+2. PR #14: `feat/remote-hub-router-installers-v1`
+3. PR #15: `feat/capability-aware-local-install-plans-v1`
+4. PR #16: `feat/signed-hub-manifests-v1`
+5. PR: `release/v0.2.1-alpha-ci-and-merge-gate`
+
+Complete [releases/v0.2.1-alpha-checklist.md](releases/v0.2.1-alpha-checklist.md) before tagging.
 
 ```bash
 git tag v0.2.1-alpha
