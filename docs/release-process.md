@@ -29,6 +29,16 @@ Use this checklist before tagging a public alpha release.
 
 ## Smoke Tests
 
+Run the repeatable v0.2.x smoke suite first:
+
+```bash
+python scripts/run-v0.2x-smoke-tests.py
+```
+
+See [release-smoke-tests.md](release-smoke-tests.md) for coverage, expected skips, and extension rules.
+
+Legacy ad hoc checks may still be useful for manual verification:
+
 ```bash
 python -m pip install -e ".[all]"
 unlimited-skills reindex
