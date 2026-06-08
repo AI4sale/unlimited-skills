@@ -81,11 +81,11 @@ def test_claude_code_install_bundled_imports_personal_and_project_skills(tmp_pat
     assert "scripts/unlimited-skills.sh" in claude_text
     assert "scripts/unlimited-skills.ps1" in claude_text
 
-    assert (library / "ecc" / "skills" / "security-review" / "SKILL.md").is_file()
-    assert (library / "superpowers" / "skills" / "systematic-debugging" / "SKILL.md").is_file()
-    assert (library / "claude-code" / "skills" / "article-writing" / "SKILL.md").is_file()
-    assert not (library / "claude-code" / "skills" / "unlimited-skills" / "SKILL.md").exists()
-    assert (library / "claude-code-project" / "skills" / "project-checklist" / "SKILL.md").is_file()
+    assert (library / "registry" / "ecc" / "skills" / "security-review" / "SKILL.md").is_file()
+    assert (library / "registry" / "superpowers" / "skills" / "systematic-debugging" / "SKILL.md").is_file()
+    assert (library / "local" / "claude-code" / "skills" / "article-writing" / "SKILL.md").is_file()
+    assert not (library / "local" / "claude-code" / "skills" / "unlimited-skills" / "SKILL.md").exists()
+    assert (library / "local" / "claude-code-project" / "skills" / "project-checklist" / "SKILL.md").is_file()
     assert (library / ".unlimited-skills-index.json").is_file()
 
     counts = {item.collection: item.migrated_count for item in report.migrations}
@@ -118,8 +118,8 @@ def test_claude_code_install_can_skip_claude_patch_and_project_skills(tmp_path: 
     assert report.claude_patched is False
     assert not (project_root / "CLAUDE.md").exists()
     assert (claude_home / "skills" / "unlimited-skills" / "SKILL.md").is_file()
-    assert (install_root / "library" / "claude-code" / "skills" / "article-writing" / "SKILL.md").is_file()
-    assert not (install_root / "library" / "claude-code-project").exists()
+    assert (install_root / "library" / "local" / "claude-code" / "skills" / "article-writing" / "SKILL.md").is_file()
+    assert not (install_root / "library" / "local" / "claude-code-project").exists()
 
 
 def test_claude_code_reinstall_refreshes_same_collection_skills(tmp_path: Path) -> None:
@@ -146,6 +146,6 @@ def test_claude_code_reinstall_refreshes_same_collection_skills(tmp_path: Path) 
     )
     second = install_claude_code(options)
 
-    library_skill = install_root / "library" / "claude-code" / "skills" / "custom-skill" / "SKILL.md"
+    library_skill = install_root / "library" / "local" / "claude-code" / "skills" / "custom-skill" / "SKILL.md"
     assert second.migrations[0].migrated_count == 1
     assert "description: v2" in library_skill.read_text(encoding="utf-8")

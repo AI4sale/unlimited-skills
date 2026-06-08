@@ -11,6 +11,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from unlimited_skills.adapters import adapt_library
+from unlimited_skills.agents_patch import patch_agents_file
 from unlimited_skills.cli import save_index
 
 from .common import copy_skill_tree, iter_skill_dirs
@@ -171,31 +172,23 @@ def _patch_agents_file(agents_file: Path, launcher: Path) -> None:
             "",
         ]
     )
-    pattern_start = "<!-- BEGIN UNLIMITED SKILLS -->"
-    pattern_end = "<!-- END UNLIMITED SKILLS -->"
-    text = agents_file.read_text(encoding="utf-8", errors="replace") if agents_file.is_file() else ""
-    start = text.find(pattern_start)
-    end = text.find(pattern_end)
-    if start >= 0 and end >= start:
-        end += len(pattern_end)
-        text = text[:start].rstrip() + "\n\n" + block.rstrip() + "\n" + text[end:].lstrip()
-    elif text.strip():
-        text = text.rstrip() + "\n\n" + block
-    else:
-        text = block
-    agents_file.write_text(text, encoding="utf-8")
+    patch_agents_file(agents_file, block)
 
 
-def _existing_skill_names(library_root: Path, exclude_collection: str = "") -> set[str]:
+def _existing_skill_names(library_root: Path, exclude_target: Path | None = None) -> set[str]:
     if not library_root.is_dir():
         return set()
     names = set()
+    exclude_target_resolved = exclude_target.resolve() if exclude_target else None
     for path in library_root.rglob("SKILL.md"):
-        try:
-            collection = path.relative_to(library_root).parts[0]
-        except (IndexError, ValueError):
-            collection = ""
-        if exclude_collection and collection == exclude_collection:
+        if exclude_target_resolved:
+            try:
+                resolved = path.resolve()
+            except OSError:
+                resolved = path
+            if resolved == exclude_target_resolved or exclude_target_resolved in resolved.parents:
+                continue
+        if "duplicates" in path.relative_to(library_root).parts:
             continue
         names.add(path.parent.name)
     return names
@@ -208,13 +201,14 @@ def _migrate_source(
     *,
     exclude_names: set[str] | None = None,
     skip_existing_names: bool = True,
+    registry_collection: bool = False,
 ) -> MigrationResult:
     source_root = Path(source_root).expanduser()
     if not source_root.is_dir():
         return MigrationResult(collection=collection, source_root=str(source_root), migrated_count=0, skipped=True, reason="source root not found")
 
-    target_skills = library_root / collection / "skills"
-    existing = _existing_skill_names(library_root, exclude_collection=collection) if skip_existing_names else set()
+    target_skills = library_root / ("registry" if registry_collection else "local") / collection / "skills"
+    existing = _existing_skill_names(library_root, exclude_target=target_skills) if skip_existing_names else set()
     excluded = exclude_names or set()
     migrated = 0
     for skill_dir in iter_skill_dirs(source_root, exclude_names=excluded):
@@ -283,6 +277,7 @@ def install_openclaw(options: OpenClawInstallOptions) -> OpenClawInstallReport:
                     library_root,
                     pack,
                     skip_existing_names=False,
+                    registry_collection=True,
                 )
             )
 
@@ -298,8 +293,7 @@ def install_openclaw(options: OpenClawInstallOptions) -> OpenClawInstallReport:
         )
 
     if options.mode == "adapt-installed":
-        for collection in ("openclaw-workspace", "openclaw-plugin", "openclaw-builtin"):
-            adapt_library(library_root, collection=collection, source_pack=collection)
+        adapt_library(library_root, collection="local", source_pack="local")
 
     lexical_index = "skipped"
     if not options.skip_reindex:

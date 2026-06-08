@@ -1,7 +1,7 @@
 param(
   [string]$RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot "..")).Path,
   [string]$CodexHome = (Join-Path $env:USERPROFILE ".codex"),
-  [string]$InstallRoot = (Join-Path $env:USERPROFILE ".unlimited-skills"),
+  [string]$InstallRoot = "",
   [string]$Python = "python",
   [ValidateSet("default", "bundled", "adapt-installed")]
   [string]$Mode = "default",
@@ -12,6 +12,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 
+if (-not $InstallRoot) {
+  $InstallRoot = Join-Path $CodexHome ".unlimited-skills"
+}
+
 $skillSource = Join-Path $RepoRoot "skills\skill-router"
 $skillTarget = Join-Path $CodexHome "skills\unlimited-skills"
 
@@ -20,10 +24,10 @@ if (-not (Test-Path $skillSource)) {
 }
 
 New-Item -ItemType Directory -Force -Path (Split-Path $skillTarget -Parent) | Out-Null
-if (Test-Path $skillTarget) {
-  Remove-Item -LiteralPath $skillTarget -Recurse -Force
+New-Item -ItemType Directory -Force -Path $skillTarget | Out-Null
+Get-ChildItem -LiteralPath $skillSource -Force | ForEach-Object {
+  Copy-Item -LiteralPath $_.FullName -Destination $skillTarget -Recurse -Force
 }
-Copy-Item -LiteralPath $skillSource -Destination $skillTarget -Recurse
 
 $venv = Join-Path $InstallRoot ".venv"
 $venvPython = Join-Path $venv "Scripts\python.exe"
@@ -50,11 +54,13 @@ param(
 
 `$ErrorActionPreference = "Stop"
 `$env:PYTHONPATH = "$RepoRoot;`$env:PYTHONPATH"
+`$env:UNLIMITED_SKILLS_HOME = "$InstallRoot"
+`$env:UNLIMITED_SKILLS_ROOT = "$libraryRoot"
 & "$cliPython" -m unlimited_skills.cli --root "$libraryRoot" @Args
 "@ | Set-Content -LiteralPath $launcher -Encoding UTF8
 
 if (-not $NoAgentsPatch) {
-  $agentsTarget = if ($AgentsFile) { $AgentsFile } else { Join-Path (Get-Location) "AGENTS.md" }
+  $agentsTarget = if ($AgentsFile) { $AgentsFile } else { Join-Path $CodexHome "AGENTS.md" }
   $agentsPath = [System.IO.Path]::GetFullPath($agentsTarget)
   $agentsDir = Split-Path $agentsPath -Parent
   if ($agentsDir) {
@@ -85,19 +91,16 @@ powershell -NoProfile -ExecutionPolicy Bypass -File "{LAUNCHER}" list --limit 80
 Do not rely only on `.agents/skills`, `.codex/skills`, or the visible skill list. The library may contain skills that are intentionally not loaded into context.
 <!-- END UNLIMITED SKILLS -->
 '@.Replace("{LAUNCHER}", $launcher)
-  $pattern = "(?s)<!-- BEGIN UNLIMITED SKILLS -->.*?<!-- END UNLIMITED SKILLS -->"
-  $content = if (Test-Path $agentsPath) { Get-Content -LiteralPath $agentsPath -Raw } else { "" }
-  if ([regex]::IsMatch($content, $pattern)) {
-    $content = [regex]::Replace($content, $pattern, [System.Text.RegularExpressions.MatchEvaluator]{ param($m) $agentsBlock })
-  } elseif ($content.Trim()) {
-    $content = $content.TrimEnd() + "`n`n" + $agentsBlock + "`n"
-  } else {
-    $content = $agentsBlock + "`n"
+  $env:AGENTS_BLOCK = $agentsBlock
+  & $cliPython -m unlimited_skills.agents_patch $agentsPath
+  if ($LASTEXITCODE -ne 0) {
+    throw "Failed to patch AGENTS.md: $agentsPath"
   }
-  Set-Content -LiteralPath $agentsPath -Value $content -Encoding UTF8
+  Remove-Item Env:\AGENTS_BLOCK -ErrorAction SilentlyContinue
 }
 
 $migrate = Join-Path $RepoRoot "scripts\lib\Migrate-Skills.ps1"
+$migrateCodex = Join-Path $RepoRoot "scripts\migrate-codex.ps1"
 
 if ($Mode -eq "bundled") {
   foreach ($pack in @("ecc", "superpowers")) {
@@ -109,17 +112,15 @@ if ($Mode -eq "bundled") {
 }
 
 if (Test-Path (Join-Path $CodexHome "skills")) {
-  & $migrate `
+  & $migrateCodex `
     -SourceRoot (Join-Path $CodexHome "skills") `
     -TargetRoot $libraryRoot `
-    -Collection "codex" `
-    -ExcludeNames @(".system", "unlimited-skills", "skill-library") `
-    -SkipExistingNames:($Mode -eq "bundled") `
+    -SkipExistingNames `
     -Apply
 }
 
 if ($Mode -eq "adapt-installed") {
-  & $cliPython -m unlimited_skills.cli --root $libraryRoot adapt --collection codex --source-pack codex
+  & $cliPython -m unlimited_skills.cli --root $libraryRoot adapt --collection local --source-pack local
 }
 
 & $cliPython -m unlimited_skills.cli --root $libraryRoot reindex
@@ -132,7 +133,7 @@ Write-Host "Launcher: $launcher"
 if ($AgentsFile) {
   Write-Host "Patched AGENTS.md: $AgentsFile"
 } elseif (-not $NoAgentsPatch) {
-  Write-Host "Patched AGENTS.md: $(Join-Path (Get-Location) "AGENTS.md")"
+  Write-Host "Patched AGENTS.md: $(Join-Path $CodexHome "AGENTS.md")"
 } else {
   Write-Host "Skipped AGENTS.md patch."
 }

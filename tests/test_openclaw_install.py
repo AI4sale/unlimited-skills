@@ -84,12 +84,12 @@ def test_openclaw_install_bundled_imports_workspace_plugin_and_builtin_skills(tm
     assert ".codex" not in agents_text
     assert "<!-- BEGIN UNLIMITED SKILLS -->" in agents_text
 
-    assert (library / "ecc" / "skills" / "security-review" / "SKILL.md").is_file()
-    assert (library / "superpowers" / "skills" / "systematic-debugging" / "SKILL.md").is_file()
-    assert (library / "openclaw-workspace" / "skills" / "redmine" / "SKILL.md").is_file()
-    assert not (library / "openclaw-workspace" / "skills" / "unlimited-skills" / "SKILL.md").exists()
-    assert (library / "openclaw-plugin" / "skills" / "browser-automation" / "SKILL.md").is_file()
-    assert (library / "openclaw-builtin" / "skills" / "healthcheck" / "SKILL.md").is_file()
+    assert (library / "registry" / "ecc" / "skills" / "security-review" / "SKILL.md").is_file()
+    assert (library / "registry" / "superpowers" / "skills" / "systematic-debugging" / "SKILL.md").is_file()
+    assert (library / "local" / "openclaw-workspace" / "skills" / "redmine" / "SKILL.md").is_file()
+    assert not (library / "local" / "openclaw-workspace" / "skills" / "unlimited-skills" / "SKILL.md").exists()
+    assert (library / "local" / "openclaw-plugin" / "skills" / "browser-automation" / "SKILL.md").is_file()
+    assert (library / "local" / "openclaw-builtin" / "skills" / "healthcheck" / "SKILL.md").is_file()
     assert (library / ".unlimited-skills-index.json").is_file()
 
     counts = {item.collection: item.migrated_count for item in report.migrations}
@@ -130,7 +130,7 @@ def test_openclaw_install_can_skip_agents_patch_and_optional_sources(tmp_path: P
     assert report.agents_patched is False
     assert not (workspace_root / "AGENTS.md").exists()
     assert (workspace_root / "skills" / "unlimited-skills" / "SKILL.md").is_file()
-    assert (install_root / "library" / "openclaw-workspace" / "skills" / "redmine" / "SKILL.md").is_file()
+    assert (install_root / "library" / "local" / "openclaw-workspace" / "skills" / "redmine" / "SKILL.md").is_file()
 
 
 def test_openclaw_plugin_symlink_is_migrated(tmp_path: Path, monkeypatch) -> None:
@@ -169,7 +169,7 @@ def test_openclaw_plugin_symlink_is_migrated(tmp_path: Path, monkeypatch) -> Non
         )
     )
 
-    assert (install_root / "library" / "openclaw-plugin" / "skills" / "browser-automation" / "SKILL.md").is_file()
+    assert (install_root / "library" / "local" / "openclaw-plugin" / "skills" / "browser-automation" / "SKILL.md").is_file()
 
 
 def test_openclaw_reinstall_refreshes_same_collection_skills(tmp_path: Path, monkeypatch) -> None:
@@ -202,6 +202,6 @@ def test_openclaw_reinstall_refreshes_same_collection_skills(tmp_path: Path, mon
     )
     second = install_openclaw(options)
 
-    library_skill = install_root / "library" / "openclaw-workspace" / "skills" / "custom-skill" / "SKILL.md"
+    library_skill = install_root / "library" / "local" / "openclaw-workspace" / "skills" / "custom-skill" / "SKILL.md"
     assert second.migrations[0].migrated_count == 1
     assert "description: v2" in library_skill.read_text(encoding="utf-8")

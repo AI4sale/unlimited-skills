@@ -97,8 +97,30 @@ def current_collection_state(root: Path) -> dict[str, dict[str, str]]:
     state: dict[str, dict[str, str]] = {}
     if not root.exists():
         return state
-    for child in sorted(item for item in root.iterdir() if item.is_dir() and not item.name.startswith(".")):
-        count = sum(1 for _ in child.rglob("SKILL.md"))
+    registry_root = root / "registry"
+    registry_children = sorted(item for item in registry_root.iterdir() if item.is_dir() and not item.name.startswith(".")) if registry_root.is_dir() else []
+    for child in registry_children:
+        count = sum(1 for _ in (child / "skills").rglob("SKILL.md"))
+        metadata = known.get(child.name, {}) if isinstance(known, dict) else {}
+        state[child.name] = {
+            "version": str(metadata.get("version") or "local"),
+            "source": str(metadata.get("source") or "local"),
+            "skill_count_bucket": _count_bucket(count),
+        }
+    local_root = root / "local"
+    if local_root.is_dir():
+        count = sum(1 for path in local_root.rglob("SKILL.md") if "duplicates" not in path.relative_to(local_root).parts)
+        metadata = known.get("local", {}) if isinstance(known, dict) else {}
+        state["local"] = {
+            "version": str(metadata.get("version") or "local"),
+            "source": str(metadata.get("source") or "local"),
+            "skill_count_bucket": _count_bucket(count),
+        }
+    # Backward compatibility for pre-registry-layout installs.
+    for child in sorted(item for item in root.iterdir() if item.is_dir() and not item.name.startswith(".") and item.name not in {"registry", "local", "manifests"}):
+        if child.name in state:
+            continue
+        count = sum(1 for _ in (child / "skills").rglob("SKILL.md"))
         metadata = known.get(child.name, {}) if isinstance(known, dict) else {}
         state[child.name] = {
             "version": str(metadata.get("version") or "local"),
@@ -312,8 +334,9 @@ def resolve_collection_source(extracted: Path, collection: str) -> Path:
 
 
 def install_collection(root: Path, update: CollectionUpdate, source: Path, *, source_label: str = "hosted") -> None:
-    target = root / update.collection
-    backup = root / f".{update.collection}.update-backup"
+    target = root / "registry" / update.collection
+    backup = root / "registry" / f".{update.collection}.update-backup"
+    target.parent.mkdir(parents=True, exist_ok=True)
     if backup.exists():
         shutil.rmtree(backup)
     try:

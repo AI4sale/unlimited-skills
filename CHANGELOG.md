@@ -1,9 +1,12 @@
 # Changelog
 
-## Unreleased
+## v0.2.0-alpha
 
 ### Added
 
+- Two-container library layout: `registry/` for hosted/community/team/bundled packs and `local/` for native agent mirrors and local skill-library content.
+- Deduplicated indexing by skill name so search/list/vector counts represent semantic skills instead of every physical copy.
+- Regression coverage that native sync overlays files without deleting existing local library content.
 - Local-only `unlimited-skills doctor` command with JSON output and agent-specific checks for Codex, Claude Code, Hermes, and OpenClaw.
 - Product editions, public core boundary, support matrix, release process, and known limitations docs for public alpha review.
 - Hosted registry API contract docs, catalog model docs, JSON schemas, sanitized examples, and registry contract tests.
@@ -18,6 +21,11 @@
 
 ### Changed
 
+- Raised package version to `0.2.0`.
+- Codex installs now default to the Codex-scoped library root under `~/.codex/.unlimited-skills/library` and patch `~/.codex/AGENTS.md` by default.
+- Native sync is non-destructive: it overlays changed skill files and never clears existing `local/` content.
+- Hermes native skills now install/migrate under `local/hermes/skills` instead of being treated as registry collections.
+- Community, team, update, and bundled collection installs now target `registry/<collection>/`.
 - Hardened public alpha documentation for the v0.1.2-alpha release boundary.
 - Aligned `SECURITY.md` supported-version wording with v0.1.2-alpha.
 - Clarified that hosted catalog/update access is registration-gated early access and already populated without publishing private registered skill bodies in the MIT repo.

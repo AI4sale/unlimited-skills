@@ -212,16 +212,20 @@ def _patch_claude_file(claude_file: Path, sh_launcher: Path, ps_launcher: Path) 
     claude_file.write_text(text, encoding="utf-8")
 
 
-def _existing_skill_names(library_root: Path, exclude_collection: str = "") -> set[str]:
+def _existing_skill_names(library_root: Path, exclude_target: Path | None = None) -> set[str]:
     if not library_root.is_dir():
         return set()
     names = set()
+    exclude_target_resolved = exclude_target.resolve() if exclude_target else None
     for path in library_root.rglob("SKILL.md"):
-        try:
-            collection = path.relative_to(library_root).parts[0]
-        except (IndexError, ValueError):
-            collection = ""
-        if exclude_collection and collection == exclude_collection:
+        if exclude_target_resolved:
+            try:
+                resolved = path.resolve()
+            except OSError:
+                resolved = path
+            if resolved == exclude_target_resolved or exclude_target_resolved in resolved.parents:
+                continue
+        if "duplicates" in path.relative_to(library_root).parts:
             continue
         names.add(path.parent.name)
     return names
@@ -234,13 +238,14 @@ def _migrate_source(
     *,
     exclude_names: set[str] | None = None,
     skip_existing_names: bool = True,
+    registry_collection: bool = False,
 ) -> MigrationResult:
     source_root = Path(source_root).expanduser()
     if not source_root.is_dir():
         return MigrationResult(collection=collection, source_root=str(source_root), migrated_count=0, skipped=True, reason="source root not found")
 
-    target_skills = library_root / collection / "skills"
-    existing = _existing_skill_names(library_root, exclude_collection=collection) if skip_existing_names else set()
+    target_skills = library_root / ("registry" if registry_collection else "local") / collection / "skills"
+    existing = _existing_skill_names(library_root, exclude_target=target_skills) if skip_existing_names else set()
     excluded = exclude_names or set()
     migrated = 0
     for skill_dir in iter_skill_dirs(source_root, exclude_names=excluded):
@@ -294,6 +299,7 @@ def install_claude_code(options: ClaudeCodeInstallOptions) -> ClaudeCodeInstallR
                     library_root,
                     pack,
                     skip_existing_names=False,
+                    registry_collection=True,
                 )
             )
 
@@ -319,8 +325,7 @@ def install_claude_code(options: ClaudeCodeInstallOptions) -> ClaudeCodeInstallR
         )
 
     if options.mode == "adapt-installed":
-        for collection in ("claude-code", "claude-code-project"):
-            adapt_library(library_root, collection=collection, source_pack=collection)
+        adapt_library(library_root, collection="local", source_pack="local")
 
     lexical_index = "skipped"
     if not options.skip_reindex:

@@ -616,7 +616,7 @@ def remove_community_item(root: Path, name_or_collection: str, *, dry_run: bool 
                 collection = str(candidate)
                 break
     row = items.get(collection) if isinstance(items, dict) else None
-    target = root / collection
+    target = root / "registry" / collection
     if not isinstance(row, dict) and not force:
         raise CommunityError("Refusing to remove a non-community item without --force.")
     if not target.exists():

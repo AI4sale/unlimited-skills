@@ -12,7 +12,7 @@
 
 Keep thousands of `SKILL.md` files out of the always-loaded context. Ask one tiny router skill what the task needs. Load only the selected skill.
 
-**v0.1.2 alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, and enterprise governance features are roadmap items.
+**v0.2.0 alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, and enterprise governance features are roadmap items.
 
 [Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
 
@@ -102,7 +102,7 @@ For minimal lexical-only usage:
 python -m pip install -e .
 ```
 
-PyPI packaging is not the v0.1.2 distribution path. Install from a GitHub clone for now, because the router skills, scripts, docs, and bundled packs are repo assets. A PyPI package should wait until wheel asset inclusion is tested.
+PyPI packaging is not the v0.2.0 distribution path. Install from a GitHub clone for now, because the router skills, scripts, docs, and bundled packs are repo assets. A PyPI package should wait until wheel asset inclusion is tested.
 
 For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md). For vulnerability reporting and hosted-download security boundaries, see [SECURITY.md](SECURITY.md).
 
@@ -199,7 +199,7 @@ unlimited-skills sync-native --agent hermes
 unlimited-skills search "security review" --native-agent hermes
 ```
 
-`search`, `list`, `view`, `where`, `use`, `reindex`, and `vector-reindex` automatically sync known native skill roots before running. This means newly installed Codex, Claude Code, Hermes, and OpenClaw skills are mirrored under `~/.unlimited-skills/library` and become searchable through the router without manual migration. Pass `--no-native-sync` or set `UNLIMITED_SKILLS_DISABLE_NATIVE_SYNC=1` to skip this behavior.
+`search`, `list`, `view`, `where`, `use`, `reindex`, and `vector-reindex` automatically sync known native skill roots before running. This means newly installed Codex, Claude Code, Hermes, and OpenClaw skills are mirrored under the active Unlimited Skills library and become searchable through the router without manual migration. Codex defaults to `~/.codex/.unlimited-skills/library`; other agents default to `~/.unlimited-skills/library` unless their installer overrides the root. Native sync is non-destructive: it overlays new or changed skill files and never clears the existing `local/` library. Pass `--no-native-sync` or set `UNLIMITED_SKILLS_DISABLE_NATIVE_SYNC=1` to skip this behavior.
 
 Download and run the registered local enhancer:
 
@@ -297,9 +297,9 @@ More install examples:
 
 Default mode installs the router, migrates already installed skills, and indexes them. Bundled mode installs the pre-adapted packs shipped in this repo, then adds local skills only when they do not duplicate existing skill names. Adapt-installed mode prepares installed local skills for the one-skill agent adaptation workflow.
 
-For Codex projects, patching `AGENTS.md` is the default. If `AgentsFile` / `--agents-file` is not passed, the installer patches `./AGENTS.md` in the current directory. Run the installer from the target project root, or pass an explicit `AGENTS.md` path. Existing `AGENTS.md` content is preserved, and the managed block is replaced in place on repeat installs. Use `-NoAgentsPatch` or `--no-agents-patch` to skip it.
+For Codex, patching `AGENTS.md` is the default. If `AgentsFile` / `--agents-file` is not passed, the installer patches `~/.codex/AGENTS.md` so the router is available at the Codex system level. Pass an explicit project `AGENTS.md` path only when you intentionally want project-local instructions. Existing `AGENTS.md` content is backed up as `Agents_md_YYYYMMDD_HHMMSS.back`, ECC managed blocks are replaced, and the Unlimited Skills managed block is replaced in place on repeat installs. Use `-NoAgentsPatch` or `--no-agents-patch` to skip it.
 
-The installer creates an isolated venv under `~/.unlimited-skills/.venv` and writes a Codex-local launcher:
+The installer creates an isolated venv under `~/.codex/.unlimited-skills/.venv`, stores the Codex library under `~/.codex/.unlimited-skills/library`, and writes a Codex-local launcher:
 
 ```text
 ~/.codex/skills/unlimited-skills/scripts/unlimited-skills.ps1
@@ -363,7 +363,7 @@ library root:     ~/.unlimited-skills/library
 
 If `~/.claude/skills` already existed, Claude Code should detect the new router skill in the current session. If the top-level skills directory did not exist before installation, restart Claude Code so the new directory is watched.
 
-After installation, newly added Claude Code skills are mirrored into Unlimited Skills on the next router CLI call. Personal skills under `~/.claude/skills` sync into `claude-code`; project skills under the installed project root's `.claude/skills` sync into `claude-code-project`. This is not a background file watcher; it happens when the router runs `search`, `list`, `view`, `where`, `use`, `reindex`, or `vector-reindex`.
+After installation, newly added Claude Code skills are mirrored into Unlimited Skills on the next router CLI call. Personal skills under `~/.claude/skills` sync into `local/claude-code/skills`; project skills under the installed project root's `.claude/skills` sync into `local/claude-code-project/skills`. This is not a background file watcher; it happens when the router runs `search`, `list`, `view`, `where`, `use`, `reindex`, or `vector-reindex`.
 
 ## Install for OpenClaw
 
@@ -607,9 +607,20 @@ This is the intended path for very large libraries because it avoids repeated mo
 The system has four layers:
 
 1. **Router skill**: a tiny `SKILL.md` that is always visible to the agent.
-2. **Disk library**: many real skills stored under a root such as `~/.unlimited-skills/library/<collection>/skills/<name>/SKILL.md`.
+2. **Disk library**: many real skills stored under a root such as `~/.unlimited-skills/library/registry/<collection>/skills/<name>/SKILL.md` for registry packs and `~/.unlimited-skills/library/local/...` for native agent skills.
 3. **Retrieval**: lexical scoring, Chroma vector search, and hybrid reranking.
 4. **Learning loop**: logs searches, views, selected skills, accepted matches, rejected matches, and new skill drafts.
+
+The v0.2 layout keeps the library root clean:
+
+```text
+library/
+  registry/<collection>/...   # hosted, community, team, or bundled registry packs
+  local/skills/...            # Codex-local and local skill-library content
+  local/<agent>/skills/...    # native agent mirrors such as Hermes, Claude Code, OpenClaw
+```
+
+Indexing deduplicates by skill name. If ECC, Superpowers, Hermes, or local mirrors contain the same skill name, the router indexes one semantic skill instead of counting every physical copy. The duplicate files may remain on disk, but they do not inflate search/list/vector counts.
 
 The important design decision is that retrieval results are evidence, not authority. The agent still has to inspect the selected skill and decide whether it applies.
 

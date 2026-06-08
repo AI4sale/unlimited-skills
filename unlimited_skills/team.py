@@ -104,7 +104,7 @@ class TeamSyncPlan:
                     "install_mode": item.install_mode,
                     "archive_size": item.archive_size,
                     "warnings": list(item.warnings),
-                    "local_path": str(root / item.collection),
+                    "target_path": str(root / "registry" / item.collection),
                     "update_available": item.update_available or installed.get("version") != item.version,
                 }
             )

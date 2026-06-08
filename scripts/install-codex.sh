@@ -10,10 +10,10 @@ Install the Unlimited Skills router skill for Codex on macOS/Linux.
 Options:
   --repo-root PATH       Repository root. Defaults to the parent of this script directory.
   --codex-home PATH      Codex home directory. Defaults to ~/.codex.
-  --install-root PATH    Unlimited Skills install root. Defaults to ~/.unlimited-skills.
+  --install-root PATH    Unlimited Skills install root. Defaults to $CODEX_HOME/.unlimited-skills.
   --python CMD           Python executable. Defaults to python3, then python.
   --mode MODE            default, bundled, or adapt-installed. Defaults to default.
-  --agents-file PATH     Patch this AGENTS.md file. Defaults to ./AGENTS.md.
+  --agents-file PATH     Patch this AGENTS.md file. Defaults to $CODEX_HOME/AGENTS.md.
   --no-agents-patch      Do not patch AGENTS.md.
   --skip-pip-install     Only install the router skill and launcher.
   -h, --help             Show this help.
@@ -23,7 +23,7 @@ EOF
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$(cd -- "$script_dir/.." && pwd)"
 codex_home="${HOME}/.codex"
-install_root="${HOME}/.unlimited-skills"
+install_root=""
 python_cmd=""
 skip_pip_install=0
 mode="default"
@@ -86,6 +86,9 @@ case "$mode" in
 esac
 
 repo_root="$(cd -- "$repo_root" && pwd)"
+if [[ -z "$install_root" ]]; then
+  install_root="$codex_home/.unlimited-skills"
+fi
 skill_source="$repo_root/skills/skill-router"
 skill_target="$codex_home/skills/unlimited-skills"
 
@@ -106,8 +109,8 @@ if [[ -z "$python_cmd" ]]; then
 fi
 
 mkdir -p "$(dirname "$skill_target")"
-rm -rf "$skill_target"
-cp -R "$skill_source" "$skill_target"
+mkdir -p "$skill_target"
+cp -R "$skill_source"/. "$skill_target"/
 
 venv="$install_root/.venv"
 venv_python="$venv/bin/python"
@@ -133,16 +136,20 @@ cat > "$launcher" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
 if [[ -x "$venv_python" ]]; then
+  export UNLIMITED_SKILLS_HOME="$install_root"
+  export UNLIMITED_SKILLS_ROOT="$library_root"
   exec "$venv_python" -m unlimited_skills.cli --root "$library_root" "\$@"
 fi
 export PYTHONPATH="$repo_root:\${PYTHONPATH:-}"
+export UNLIMITED_SKILLS_HOME="$install_root"
+export UNLIMITED_SKILLS_ROOT="$library_root"
 exec "$python_cmd" -m unlimited_skills.cli --root "$library_root" "\$@"
 EOF
 chmod +x "$launcher"
 
 if [[ "$no_agents_patch" -eq 0 ]]; then
   if [[ -z "$agents_file" ]]; then
-    agents_file="$PWD/AGENTS.md"
+    agents_file="$codex_home/AGENTS.md"
   fi
   agents_dir="$(dirname -- "$agents_file")"
   mkdir -p "$agents_dir"
@@ -172,35 +179,11 @@ Do not rely only on .agents/skills, .codex/skills, or the visible skill list. Th
 <!-- END UNLIMITED SKILLS -->
 EOF
 )"
-  tmp_agents="$(mktemp)"
-  if [[ -f "$agents_file" ]]; then
-    AGENTS_BLOCK="$agents_block" "$python_cmd" - "$agents_file" "$tmp_agents" <<'PY'
-from pathlib import Path
-import os
-import re
-import sys
-
-path = Path(sys.argv[1])
-out = Path(sys.argv[2])
-block = os.environ["AGENTS_BLOCK"]
-text = path.read_text(encoding="utf-8", errors="replace")
-pattern = r"(?s)<!-- BEGIN UNLIMITED SKILLS -->.*?<!-- END UNLIMITED SKILLS -->"
-if re.search(pattern, text):
-    text = re.sub(pattern, block, text)
-elif text.strip():
-    text = text.rstrip() + "\n\n" + block + "\n"
-else:
-    text = block + "\n"
-out.write_text(text, encoding="utf-8")
-PY
-    mv "$tmp_agents" "$agents_file"
-  else
-    printf '%s\n' "$agents_block" > "$agents_file"
-    rm -f "$tmp_agents"
-  fi
+  AGENTS_BLOCK="$agents_block" "$cli_python" -m unlimited_skills.agents_patch "$agents_file"
 fi
 
 migrate="$repo_root/scripts/lib/migrate-skills.sh"
+migrate_codex="$repo_root/scripts/migrate-codex.sh"
 
 if [[ "$mode" == "bundled" ]]; then
   for pack in ecc superpowers; do
@@ -212,23 +195,15 @@ if [[ "$mode" == "bundled" ]]; then
 fi
 
 if [[ -d "$codex_home/skills" ]]; then
-  migrate_args=(
-    --source-root "$codex_home/skills"
-    --target-root "$library_root"
-    --collection "codex"
-    --exclude-name ".system"
-    --exclude-name "unlimited-skills"
-    --exclude-name "skill-library"
+  "$migrate_codex" \
+    --source-root "$codex_home/skills" \
+    --target-root "$library_root" \
+    --skip-existing-names \
     --apply
-  )
-  if [[ "$mode" == "bundled" ]]; then
-    migrate_args+=(--skip-existing-names)
-  fi
-  "$migrate" "${migrate_args[@]}"
 fi
 
 if [[ "$mode" == "adapt-installed" ]]; then
-  "$cli_python" -m unlimited_skills.cli --root "$library_root" adapt --collection codex --source-pack codex
+  "$cli_python" -m unlimited_skills.cli --root "$library_root" adapt --collection local --source-pack local
 fi
 
 "$cli_python" -m unlimited_skills.cli --root "$library_root" reindex

@@ -10,6 +10,7 @@ IGNORED_DIR_NAMES = {
     ".chroma-skills",
     ".git",
     ".learning",
+    "duplicates",
     ".mypy_cache",
     ".pytest_cache",
     ".ruff_cache",
@@ -33,6 +34,8 @@ def iter_skill_dirs(root: Path, exclude_names: Iterable[str] = ()) -> list[Path]
 
     def add_skill_dir(skill_dir: Path, rel: Path) -> None:
         if should_ignore_path(rel):
+            return
+        if any(part in excluded for part in rel.parts):
             return
         if skill_dir.name in excluded:
             return

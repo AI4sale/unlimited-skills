@@ -19,7 +19,7 @@ from unlimited_skills.registration import RegistrationState, save_registration, 
 
 
 def write_skill(root: Path, collection: str, name: str, description: str) -> None:
-    skill = root / collection / "skills" / name / "SKILL.md"
+    skill = root / "registry" / collection / "skills" / name / "SKILL.md"
     skill.parent.mkdir(parents=True, exist_ok=True)
     skill.write_text(f"---\nname: {name}\ndescription: {description}\n---\n\n# {name}\nUse this skill for {description}.\n", encoding="utf-8")
 

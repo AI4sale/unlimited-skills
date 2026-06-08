@@ -57,7 +57,7 @@ class HermesInstallReport:
             f"  visible SKILL.md count: {self.before_visible_count}",
             "",
             "Migrated to library:",
-            "  collection: hermes",
+            "  local path: local/hermes/skills",
             f"  migrated skills: {self.migrated_count}",
             "",
             "After:",
@@ -219,7 +219,7 @@ def install_hermes(options: HermesInstallOptions) -> HermesInstallReport:
     repo_root = Path(options.repo_root).expanduser()
     visible_root = hermes_home / "skills"
     library_root = install_root / "library"
-    library_skills = library_root / "hermes" / "skills"
+    library_skills = library_root / "local" / "hermes" / "skills"
     router_target = visible_root / ROUTER_NAME
     sh_launcher, ps_launcher = _launcher_paths(visible_root)
 

@@ -17,7 +17,7 @@
         "install_mode": "install_or_update",
         "archive_size": 1024,
         "warnings": [],
-        "target_path": "redacted-local-library-root/team-web",
+        "target_path": "redacted-local-library-root/registry/team-web",
         "update_available": true
       }
     ],

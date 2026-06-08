@@ -54,7 +54,7 @@ Install flow:
 3. The client downloads the archive over HTTPS.
 4. The client verifies SHA256 before extraction.
 5. The client safely extracts the archive and rejects path traversal.
-6. The client installs under the requested collection, usually `community`.
+6. The client installs under `registry/<requested-collection>/`, usually `registry/community/`.
 7. The client records local installed metadata and rebuilds the lexical index unless `--skip-reindex` is passed.
 
 No downloaded community content is executed by this flow.

@@ -40,13 +40,13 @@ class FakeCompleted:
 
 
 class SelfUpdateTest(unittest.TestCase):
-    def latest_release(self, version: str = "v0.2.0") -> bytes:
+    def latest_release(self, version: str = "v0.2.1") -> bytes:
         return json.dumps(
             {
                 "tag_name": version,
                 "name": version,
-                "html_url": "https://github.com/AI4sale/unlimited-skills/releases/tag/v0.2.0",
-                "zipball_url": "https://api.github.com/repos/AI4sale/unlimited-skills/zipball/v0.2.0",
+                "html_url": f"https://github.com/AI4sale/unlimited-skills/releases/tag/{version}",
+                "zipball_url": f"https://api.github.com/repos/AI4sale/unlimited-skills/zipball/{version}",
                 "published_at": "2026-06-06T00:00:00Z",
                 "body": "Public repo update",
             }
@@ -74,8 +74,8 @@ class SelfUpdateTest(unittest.TestCase):
             with patch("urllib.request.urlopen", fake_urlopen), patch("subprocess.run", fake_run):
                 status = check_public_repo_update(install_root=root)
 
-            self.assertEqual(status.latest_tag, "v0.2.0")
-            self.assertEqual(status.latest_version, "0.2.0")
+            self.assertEqual(status.latest_tag, "v0.2.1")
+            self.assertEqual(status.latest_version, "0.2.1")
             self.assertTrue(status.update_available)
             self.assertTrue(status.is_git_checkout)
             self.assertFalse(status.dirty)

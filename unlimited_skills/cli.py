@@ -76,6 +76,7 @@ IGNORED_SKILL_PATH_PARTS = {
     ".chroma-skills",
     ".git",
     ".learning",
+    "duplicates",
     ".mypy_cache",
     ".pytest_cache",
     ".ruff_cache",
@@ -167,12 +168,37 @@ def expanded_query(query: str) -> str:
 
 def collection_for(root: Path, skill_file: Path) -> str:
     rel = skill_file.relative_to(root)
+    if len(rel.parts) > 3 and rel.parts[0] == "registry":
+        return rel.parts[1]
+    if len(rel.parts) > 2 and rel.parts[0] == "local":
+        return "local"
     return rel.parts[0] if len(rel.parts) > 1 else "default"
+
+
+def skill_identity(name: str) -> str:
+    return re.sub(r"[^a-z0-9._-]+", "-", str(name or "").strip().lower()).strip("-")
+
+
+def skill_priority(root: Path, skill_file: Path, collection: str) -> tuple[int, str]:
+    rel = skill_file.relative_to(root)
+    parts = rel.parts
+    if len(parts) > 2 and parts[0] == "local" and parts[1] == "skills":
+        return (0, str(rel).lower())
+    if collection == "ecc":
+        return (10, str(rel).lower())
+    if collection == "superpowers":
+        return (20, str(rel).lower())
+    if len(parts) > 1 and parts[0] == "registry":
+        return (30, str(rel).lower())
+    if len(parts) > 1 and parts[0] == "local":
+        return (40, str(rel).lower())
+    return (50, str(rel).lower())
 
 
 def iter_skills(root: Path) -> Iterable[tuple[SkillHit, str]]:
     if not root.exists():
         return
+    candidates = []
     for skill_file in root.rglob("SKILL.md"):
         rel_parts = skill_file.relative_to(root).parts
         if any(part in IGNORED_SKILL_PATH_PARTS for part in rel_parts):
@@ -184,7 +210,15 @@ def iter_skills(root: Path) -> Iterable[tuple[SkillHit, str]]:
         meta, body = split_frontmatter(text)
         name = meta.get("name") or skill_file.parent.name
         desc = meta.get("description") or first_body_line(body)
-        yield SkillHit(name=name, description=desc, collection=collection_for(root, skill_file), path=str(skill_file)), body
+        collection = collection_for(root, skill_file)
+        candidates.append((skill_priority(root, skill_file, collection), skill_identity(name), SkillHit(name=name, description=desc, collection=collection, path=str(skill_file)), body))
+
+    seen: set[str] = set()
+    for _priority, identity, hit, body in sorted(candidates, key=lambda item: (item[0], item[2].collection, item[2].name)):
+        if identity in seen:
+            continue
+        seen.add(identity)
+        yield hit, body
 
 
 def index_path(root: Path) -> Path:
@@ -1397,7 +1431,7 @@ def build_parser() -> argparse.ArgumentParser:
     sync_native = sub.add_parser("sync-native", help="Mirror native agent skill roots into the Unlimited Skills library.")
     sync_native.add_argument("--agent", action="append", choices=list(DEFAULT_AGENT_ORDER), help="Agent to sync. Repeat for multiple agents. Defaults to all.")
     sync_native.add_argument("--dry-run", action="store_true", help="Report what would be imported without writing files.")
-    sync_native.add_argument("--no-refresh", action="store_true", help="Do not replace skills already mirrored in the same collection.")
+    sync_native.add_argument("--no-refresh", action="store_true", help="Keep existing mirrored skill files untouched; native sync is overlay-only by default.")
     sync_native.add_argument("--skip-reindex", action="store_true", help="Do not rebuild the lexical index after syncing.")
     sync_native.add_argument("--json", action="store_true")
     sync_native.set_defaults(func=cmd_sync_native)

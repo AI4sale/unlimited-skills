@@ -17,7 +17,7 @@ Use this checklist before tagging a public alpha release.
 - Hosted catalog/update/enhancer/team commands are documented as registration-gated.
 - Public self-update remains unregistered.
 - Hosted catalog is described as registration-gated early access and populated without publishing private registered skill bodies.
-- PyPI is not presented as the v0.1.2 distribution path.
+- PyPI is not presented as the v0.2.0 distribution path.
 
 ## Security Wording Checklist
 
@@ -49,8 +49,8 @@ Additional alpha checks:
 ## Tag And Release Checklist
 
 ```bash
-git tag v0.1.2-alpha
-git push origin v0.1.2-alpha
+git tag v0.2.0-alpha
+git push origin v0.2.0-alpha
 ```
 
 Then create GitHub release notes that include:

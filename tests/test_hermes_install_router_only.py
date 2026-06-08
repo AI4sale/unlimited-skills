@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 from pathlib import Path
@@ -43,8 +43,8 @@ def test_hermes_install_evacuates_visible_skills_and_leaves_only_router(tmp_path
     assert count_visible_skills(visible_root) == 1
     assert [p.parent.name for p in visible_root.rglob("SKILL.md")] == ["unlimited-skills"]
 
-    assert (install_root / "library" / "hermes" / "skills" / "alpha" / "SKILL.md").is_file()
-    assert (install_root / "library" / "hermes" / "skills" / "category" / "beta" / "SKILL.md").is_file()
+    assert (install_root / "library" / "local" / "hermes" / "skills" / "alpha" / "SKILL.md").is_file()
+    assert (install_root / "library" / "local" / "hermes" / "skills" / "category" / "beta" / "SKILL.md").is_file()
 
     router = visible_root / "unlimited-skills" / "SKILL.md"
     router_text = router.read_text(encoding="utf-8")
@@ -85,7 +85,7 @@ def test_hermes_install_preserves_relative_paths_and_only_excludes_root_router(t
         )
     )
 
-    library_skills = install_root / "library" / "hermes" / "skills"
+    library_skills = install_root / "library" / "local" / "hermes" / "skills"
     assert report.migrated_count == 3
     assert report.after_visible_count == 1
     assert (visible_root / "unlimited-skills" / "SKILL.md").is_file()
@@ -117,7 +117,7 @@ def test_hermes_install_dry_run_does_not_change_visible_skills(tmp_path: Path) -
     assert count_visible_skills(visible_root) == 1
     assert (visible_root / "alpha" / "SKILL.md").is_file()
     assert not (visible_root / "unlimited-skills").exists()
-    assert not (install_root / "library" / "hermes" / "skills" / "alpha").exists()
+    assert not (install_root / "library" / "local" / "hermes" / "skills" / "alpha").exists()
 
 
 def test_hermes_router_only_mirrors_native_skills_without_evacuating(tmp_path: Path) -> None:
@@ -141,7 +141,7 @@ def test_hermes_router_only_mirrors_native_skills_without_evacuating(tmp_path: P
     assert report.after_visible_count == 2
     assert (visible_root / "alpha" / "SKILL.md").is_file()
     assert (visible_root / "unlimited-skills" / "SKILL.md").is_file()
-    assert (install_root / "library" / "hermes" / "skills" / "alpha" / "SKILL.md").is_file()
+    assert (install_root / "library" / "local" / "hermes" / "skills" / "alpha" / "SKILL.md").is_file()
 
 
 def test_hermes_install_missing_skill_root_is_explicit_not_silent(tmp_path: Path) -> None:

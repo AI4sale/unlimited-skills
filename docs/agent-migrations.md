@@ -3,7 +3,8 @@
 The library format is intentionally simple:
 
 ```text
-<library-root>/<collection>/skills/<skill-name>/SKILL.md
+<library-root>/registry/<collection>/skills/<skill-name>/SKILL.md
+<library-root>/local/skills/<native-relative-path>/SKILL.md
 ```
 
 Every migration script copies recursive directories that contain `SKILL.md` into a named collection.
@@ -41,8 +42,10 @@ Default source:
 Default target:
 
 ```text
-%USERPROFILE%\.unlimited-skills\library\codex\skills
+%USERPROFILE%\.codex\.unlimited-skills\library\local\skills
 ```
+
+Codex migration preserves the source directory shape under `local/skills`, including `.system` skills so they remain available through the router. Duplicate local skills that are already provided by installed hosted/enhanced collections are copied under `local/duplicates` and are not indexed. `unlimited-skills` and `skill-library` are skipped to keep the visible Codex skill surface as one router skill. Registry, community, team, and bundled packs keep their own internal pack shape under `registry/<collection>/`.
 
 Codex also needs the router skill installed:
 
@@ -115,7 +118,7 @@ Default source:
 %USERPROFILE%\.hermes\skills
 ```
 
-Plain migration copies Hermes skills into the Unlimited Skills library but does not reduce context if Hermes still scans the original visible skill root.
+Plain migration copies Hermes skills into `local/hermes/skills` inside the Unlimited Skills library but does not reduce context if Hermes still scans the original visible skill root.
 
 Override it when needed:
 

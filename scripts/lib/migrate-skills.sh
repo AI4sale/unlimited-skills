@@ -101,7 +101,7 @@ fi
 source_root="$(cd -- "$source_root" && pwd)"
 mkdir -p "$target_root"
 target_root="$(cd -- "$target_root" && pwd)"
-target_skills="$target_root/$collection/skills"
+target_skills="$target_root/registry/$collection/skills"
 manifest_dir="$target_root/manifests"
 timestamp="$(date +%Y%m%d-%H%M%S)"
 manifest="$manifest_dir/${collection}-migration-${timestamp}.json"
@@ -124,6 +124,28 @@ contains_excluded_dir() {
   return 1
 }
 
+contains_excluded_name_dir() {
+  local path="$1"
+  local excluded
+  for excluded in "${exclude_names[@]}"; do
+    [[ "$path" == *"/$excluded/"* || "$path" == *"/$excluded" ]] && return 0
+  done
+  return 1
+}
+
+copy_skill_tree() {
+  local source_dir="$1"
+  local destination_dir="$2"
+  local tar_args=()
+  local excluded
+
+  mkdir -p "$destination_dir"
+  for excluded in "${excluded_dirs[@]}"; do
+    tar_args+=(--exclude="./$excluded" --exclude="*/$excluded")
+  done
+  tar -C "$source_dir" "${tar_args[@]}" -cf - . | tar -C "$destination_dir" -xf -
+}
+
 items_file="$(mktemp)"
 existing_names_file="$(mktemp)"
 trap 'rm -f "$items_file" "$existing_names_file"' EXIT
@@ -141,6 +163,9 @@ fi
 
 while IFS= read -r -d '' skill_file; do
   if contains_excluded_dir "$skill_file"; then
+    continue
+  fi
+  if contains_excluded_name_dir "$skill_file"; then
     continue
   fi
   skill_dir="$(dirname "$skill_file")"
@@ -178,12 +203,7 @@ mkdir -p "$target_skills" "$manifest_dir"
 
 while IFS=$'\t' read -r name skill_dir destination relative; do
   [[ -z "${name:-}" ]] && continue
-  rm -rf "$destination"
-  mkdir -p "$(dirname "$destination")"
-  cp -R "$skill_dir" "$destination"
-  for excluded in "${excluded_dirs[@]}"; do
-    find "$destination" -type d -name "$excluded" -prune -exec rm -rf {} +
-  done
+  copy_skill_tree "$skill_dir" "$destination"
 done < "$items_file"
 
 "$python_json" - "$items_file" "$collection" "$source_root" "$target_root" "$manifest" <<'PY'

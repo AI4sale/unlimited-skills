@@ -186,7 +186,7 @@ def test_community_install_verifies_sha_extracts_and_reindexes_metadata(tmp_path
         result = CommunityClient(registered_state()).install_community_item(root, item_id="comm_browser_qa")
 
     assert result.installed is True
-    assert (root / "community" / "skills" / "browser-qa" / "SKILL.md").is_file()
+    assert (root / "registry" / "community" / "skills" / "browser-qa" / "SKILL.md").is_file()
     installed = list_installed_community_items(root)
     assert installed[0].source == "community"
 
@@ -251,5 +251,5 @@ def test_community_install_checksum_mismatch_fails_before_extract(tmp_path: Path
         with pytest.raises(CommunityError):
             CommunityClient(registered_state()).install_community_item(root, item_id="comm_bad_sha")
 
-    assert not (root / "community" / "skills" / "browser-qa" / "SKILL.md").exists()
+    assert not (root / "registry" / "community" / "skills" / "browser-qa" / "SKILL.md").exists()
     assert not (root / ".unlimited-skills-community.json").exists()

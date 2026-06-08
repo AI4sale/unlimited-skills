@@ -93,7 +93,7 @@ Before:
   visible SKILL.md count: 184
 
 Migrated to library:
-  collection: hermes
+  local path: local/hermes/skills
   migrated skills: 184
 
 After:

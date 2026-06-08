@@ -5,7 +5,7 @@ import shutil
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from .installers.common import copy_skill_tree, iter_skill_dirs
+from .installers.common import IGNORED_DIR_NAMES, iter_skill_dirs
 
 
 ROUTER_NAME = "unlimited-skills"
@@ -68,7 +68,7 @@ def native_sources(agent: str = "") -> list[NativeSource]:
     wanted = {agent} if agent else set(DEFAULT_AGENT_ORDER)
     sources: list[NativeSource] = []
     if "codex" in wanted:
-        sources.append(NativeSource("codex", "codex", _codex_home() / "skills"))
+        sources.append(NativeSource("codex", "local", _codex_home() / "skills"))
     if "claude-code" in wanted or "claude" in wanted:
         sources.append(NativeSource("claude-code", "claude-code", _claude_home() / "skills"))
         claude_project_root = _claude_project_root()
@@ -89,17 +89,40 @@ def native_sources(agent: str = "") -> list[NativeSource]:
     return sources
 
 
-def existing_skill_names(library_root: Path, exclude_collection: str = "") -> set[str]:
+def overlay_skill_tree(source: Path, destination: Path) -> None:
+    destination.mkdir(parents=True, exist_ok=True)
+    shutil.copytree(
+        source,
+        destination,
+        dirs_exist_ok=True,
+        ignore=shutil.ignore_patterns(*IGNORED_DIR_NAMES),
+    )
+
+
+def local_target_roots(library_root: Path, source: NativeSource) -> tuple[Path, Path, Path]:
+    local_root = library_root / "local"
+    if source.collection == "local":
+        return local_root, local_root / "skills", local_root / "duplicates"
+    collection_root = local_root / source.collection
+    return collection_root, collection_root / "skills", collection_root / "duplicates"
+
+
+def existing_skill_names(library_root: Path, exclude_root: Path | None = None) -> set[str]:
     if not library_root.is_dir():
         return set()
     names: set[str] = set()
+    exclude_resolved = exclude_root.resolve() if exclude_root else None
     for path in library_root.rglob("SKILL.md"):
-        try:
-            collection = path.relative_to(library_root).parts[0]
-        except (IndexError, ValueError):
-            collection = ""
-        if exclude_collection and collection == exclude_collection:
+        rel_parts = path.relative_to(library_root).parts
+        if "duplicates" in rel_parts:
             continue
+        if exclude_resolved:
+            try:
+                resolved = path.resolve()
+            except OSError:
+                resolved = path
+            if resolved == exclude_resolved or exclude_resolved in resolved.parents:
+                continue
         names.add(path.parent.name)
     return names
 
@@ -124,21 +147,19 @@ def sync_native_source(
             reason="source root not found",
         )
 
-    target_skills = library_root / source.collection / "skills"
-    existing = existing_skill_names(library_root, exclude_collection=source.collection) if skip_existing_names else set()
-    excluded = {ROUTER_NAME, *(exclude_names or set())}
+    target_root, target_skills, target_duplicates = local_target_roots(library_root, source)
+    existing = existing_skill_names(library_root, exclude_root=target_root) if skip_existing_names else set()
+    excluded = {ROUTER_NAME, "skill-library", *(exclude_names or set())}
     imported = 0
     for skill_dir in iter_skill_dirs(source_root, exclude_names=excluded):
-        if skip_existing_names and skill_dir.name in existing:
-            continue
         relative = skill_dir.relative_to(source_root)
-        destination = target_skills / relative
+        is_duplicate = skip_existing_names and skill_dir.name in existing
+        destination = (target_duplicates if is_duplicate else target_skills) / relative
         if apply:
-            if refresh_collection and destination.exists():
-                shutil.rmtree(destination)
-            copy_skill_tree(skill_dir, destination)
-        existing.add(skill_dir.name)
-        imported += 1
+            overlay_skill_tree(skill_dir, destination)
+        if not is_duplicate:
+            existing.add(skill_dir.name)
+            imported += 1
     return NativeSyncResult(
         agent=source.agent,
         collection=source.collection,

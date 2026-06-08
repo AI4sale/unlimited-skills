@@ -205,6 +205,9 @@ def load_local_skill_index(root: Path) -> dict[str, dict[str, str]]:
     if not root.exists():
         return records
     for skill_md in root.rglob("SKILL.md"):
+        rel_parts = skill_md.relative_to(root).parts
+        if "duplicates" in rel_parts:
+            continue
         try:
             text = read_text(skill_md)
         except OSError:
@@ -218,8 +221,10 @@ def load_local_skill_index(root: Path) -> dict[str, dict[str, str]]:
 
 def collection_for(root: Path, skill_md: Path) -> str:
     rel = skill_md.relative_to(root)
-    if len(rel.parts) >= 3 and rel.parts[1] == "skills":
-        return rel.parts[0]
+    if len(rel.parts) > 3 and rel.parts[0] == "registry":
+        return rel.parts[1]
+    if len(rel.parts) > 2 and rel.parts[0] == "local":
+        return "local"
     return rel.parts[0] if rel.parts else "default"
 
 
@@ -315,7 +320,7 @@ def get_skill_by_name(state: HubState, name: str) -> dict[str, Any]:
 
 def create_app(root: Path | None = None, allowlist_path: Path | None = None) -> FastAPI:
     state = HubState(root or DEFAULT_HUB_ROOT, allowlist_path or DEFAULT_ALLOWLIST_PATH)
-    app = FastAPI(title="Unlimited Skills Local Skill Hub", version="0.1.3-mvp")
+    app = FastAPI(title="Unlimited Skills Local Skill Hub", version="0.2.0")
     app.state.hub_state = state
 
     @app.get("/health")

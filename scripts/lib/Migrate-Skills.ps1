@@ -23,7 +23,7 @@ if (-not (Test-Path $SourceRoot)) {
 
 $source = Resolve-Path $SourceRoot
 $targetRootPath = [System.IO.Path]::GetFullPath($TargetRoot)
-$targetCollection = Join-Path $targetRootPath $Collection
+$targetCollection = Join-Path (Join-Path $targetRootPath "registry") $Collection
 $targetSkills = Join-Path $targetCollection "skills"
 $manifestDir = Join-Path $targetRootPath "manifests"
 $timestamp = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -46,12 +46,36 @@ if ($SkipExistingNames -and (Test-Path $targetRootPath)) {
     }
 }
 
+$copyTree = {
+  param(
+    [string]$SourceDir,
+    [string]$DestinationDir
+  )
+
+  New-Item -ItemType Directory -Force -Path $DestinationDir | Out-Null
+  Get-ChildItem -LiteralPath $SourceDir -Force | ForEach-Object {
+    if ($_.PSIsContainer -and ($excludedDirs -contains $_.Name)) {
+      return
+    }
+
+    $destinationPath = Join-Path $DestinationDir $_.Name
+    if ($_.PSIsContainer) {
+      & $copyTree $_.FullName $destinationPath
+    } else {
+      Copy-Item -LiteralPath $_.FullName -Destination $destinationPath -Force
+    }
+  }
+}
+
 $skillFiles = Get-ChildItem -LiteralPath $source -Recurse -Filter "SKILL.md" -File
 $items = @()
 
 foreach ($file in $skillFiles) {
   $parts = $file.FullName.Split([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar)
   if ($parts | Where-Object { $excludedDirs -contains $_ }) {
+    continue
+  }
+  if ($parts | Where-Object { $ExcludeNames -contains $_ }) {
     continue
   }
   $skillDir = Split-Path $file.FullName -Parent
@@ -81,13 +105,7 @@ if (-not $Apply) {
 New-Item -ItemType Directory -Force -Path $targetSkills, $manifestDir | Out-Null
 
 foreach ($item in $items) {
-  if (Test-Path $item.destination) {
-    Remove-Item -LiteralPath $item.destination -Recurse -Force
-  }
-  Copy-Item -LiteralPath $item.source -Destination $item.destination -Recurse
-  Get-ChildItem -LiteralPath $item.destination -Recurse -Directory -Force |
-    Where-Object { $excludedDirs -contains $_.Name } |
-    ForEach-Object { Remove-Item -LiteralPath $_.FullName -Recurse -Force }
+  & $copyTree $item.source $item.destination
 }
 
 [ordered]@{

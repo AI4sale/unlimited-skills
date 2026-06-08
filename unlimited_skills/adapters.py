@@ -28,7 +28,7 @@ SKILL_PACKS = {
         "description": "Superpowers agentic skills framework adapted for Unlimited Skills.",
     },
 }
-IGNORED_PARTS = {".git", ".venv", ".chroma-skills", ".learning", "node_modules", "__pycache__"}
+IGNORED_PARTS = {".git", ".venv", ".chroma-skills", ".learning", "duplicates", "node_modules", "__pycache__"}
 PACK_REF_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._/@+-]{0,200}$")
 DEFAULT_UNSPECIFIED = "Not specified by the source skill."
 ACTION_SECTIONS = [
@@ -118,6 +118,15 @@ class AgentAdaptedSkill:
 
 def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace").lstrip("\ufeff")
+
+
+def library_collection_for(root: Path, skill_file: Path) -> str:
+    rel = skill_file.relative_to(root)
+    if len(rel.parts) > 3 and rel.parts[0] == "registry":
+        return rel.parts[1]
+    if len(rel.parts) > 2 and rel.parts[0] == "local":
+        return "local"
+    return rel.parts[0] if len(rel.parts) > 1 else "default"
 
 
 def sha256_text(text: str) -> str:
@@ -481,7 +490,7 @@ def next_skill_for_agent(root: Path, collection: str | None = None) -> Path | No
         rel_parts = skill_file.relative_to(root).parts
         if any(part in IGNORED_PARTS for part in rel_parts):
             continue
-        if collection and (len(rel_parts) < 2 or rel_parts[0] != collection):
+        if collection and library_collection_for(root, skill_file) != collection:
             continue
         meta, _body = split_frontmatter(read_text(skill_file))
         if meta.get("unlimited_skills_agent_adapter") != AGENT_ADAPTER_VERSION:
@@ -495,7 +504,7 @@ def adapt_library(root: Path, collection: str | None = None, source_pack: str = 
         rel_parts = skill_file.relative_to(root).parts
         if any(part in IGNORED_PARTS for part in rel_parts):
             continue
-        if collection and (len(rel_parts) < 2 or rel_parts[0] != collection):
+        if collection and library_collection_for(root, skill_file) != collection:
             continue
         results.append(
             adapt_skill_file(
@@ -511,7 +520,7 @@ def adapt_library(root: Path, collection: str | None = None, source_pack: str = 
 
 
 def copy_skill_dirs(source_root: Path, target_root: Path, collection: str, source_pack: str, source_repo: str) -> list[AdaptedSkill]:
-    target_skills = target_root / collection / "skills"
+    target_skills = target_root / "registry" / collection / "skills"
     target_skills.mkdir(parents=True, exist_ok=True)
     copied = []
     candidates = sorted(source_root.rglob(SKILL_FILE), key=lambda item: (len(item.parts), str(item).lower()))

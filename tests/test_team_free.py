@@ -218,7 +218,7 @@ def test_team_sync_dry_run_json_writes_no_library_files_and_logs_audit(tmp_path:
     payload = json.loads(capsys.readouterr().out)
     assert payload["dry_run"] is True
     assert payload["plan"]["collections"][0]["collection"] == "team-web"
-    assert not (root / "team-web").exists()
+    assert not (root / "registry" / "team-web").exists()
     log = audit_log_path(home / ".unlimited-skills").read_text(encoding="utf-8")
     assert "team_sync_dry_run" in log
     assert "tok_test" not in log
@@ -247,7 +247,7 @@ def test_team_sync_yes_applies_verified_archive_and_reindexes(tmp_path: Path, mo
 
     payload = json.loads(capsys.readouterr().out)
     assert payload["applied"][0]["collection"] == "team-web"
-    assert (root / "team-web" / "skills" / "browser-qa" / "SKILL.md").is_file()
+    assert (root / "registry" / "team-web" / "skills" / "browser-qa" / "SKILL.md").is_file()
     assert (root / ".unlimited-skills-index.json").is_file()
     assert "team_sync_applied" in audit_log_path(home / ".unlimited-skills").read_text(encoding="utf-8")
 

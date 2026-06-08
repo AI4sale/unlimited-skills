@@ -145,7 +145,7 @@ class RegistrationUpdatesTest(unittest.TestCase):
     def test_current_collection_state_uses_versions_and_count_buckets(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "library"
-            skill = root / "ecc" / "skills" / "security-review" / "SKILL.md"
+            skill = root / "registry" / "ecc" / "skills" / "security-review" / "SKILL.md"
             skill.parent.mkdir(parents=True)
             skill.write_text("---\nname: security-review\n---\n\n# security-review\n", encoding="utf-8")
             (root / ".unlimited-skills-collections.json").write_text(
@@ -180,7 +180,7 @@ class RegistrationUpdatesTest(unittest.TestCase):
                 result = client.apply(root, updates[0])
 
             self.assertEqual(result["collection"], "ecc")
-            self.assertIn("description: v2", (root / "ecc" / "skills" / "security-review" / "SKILL.md").read_text(encoding="utf-8"))
+            self.assertIn("description: v2", (root / "registry" / "ecc" / "skills" / "security-review" / "SKILL.md").read_text(encoding="utf-8"))
             collection_manifest = json.loads((root / ".unlimited-skills-collections.json").read_text(encoding="utf-8"))
             self.assertEqual(collection_manifest["collections"]["ecc"]["version"], "2026.06.06")
             self.assertEqual(collection_manifest["collections"]["ecc"]["source"], "hosted")
