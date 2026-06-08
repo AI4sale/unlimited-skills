@@ -8,7 +8,7 @@ LAN mode must be explicit:
 unlimited-skills hub serve --host 0.0.0.0 --port 8766
 ```
 
-LAN mode requires client tokens. For network exposure, use a reverse proxy with TLS and normal access logging controls.
+LAN client tokens are planned, but request enforcement is not implemented in `v0.2.0-alpha`. Do not expose the hub to untrusted networks. For any LAN testing, use a reverse proxy or network control with TLS, authentication, access logging, and IP allowlisting.
 
 ## Safety Rules
 
@@ -18,6 +18,7 @@ LAN mode requires client tokens. For network exposure, use a reverse proxy with 
 - Registration tokens and device private keys are local private state under `~/.unlimited-skills/registration.json`.
 - Local search queries are not forwarded to the hosted service by default.
 - Hub logs and learning data should stay under `~/.unlimited-skills/.learning/` or `~/.unlimited-skills/hub/`.
+- Local install plan skills are metadata/resolution only until client capability checks are implemented.
 
 ## Hosted Collection Sync
 

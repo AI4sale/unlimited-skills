@@ -71,11 +71,14 @@ Working now:
 - registered community skills client for list/search/preview/install/submit/status/local remove;
 - registered Team Free create/join/members/pending/approve/reject/revoke/collections/sync/leave client;
 - native skill sync for Codex, Claude Code, Hermes, and OpenClaw roots;
-- public repo self-update checks and applies latest releases/tags.
+- public repo self-update checks and applies latest releases/tags;
+- allowlist-backed Local Skill Hub runtime MVP for local/controlled LAN testing when `server` extras are installed.
 
 In development:
 
 - persistent warm daemon as the default agent retrieval path;
+- real `remote search`, `remote resolve`, and `remote view` calls to a configured Local Skill Hub;
+- Local Skill Hub LAN client token creation and request enforcement;
 - richer learning loop for accepted/rejected matches;
 - automatic skill drafting from repeated task patterns;
 - stronger per-agent installers and config adapters;
@@ -117,6 +120,8 @@ See [docs/product-editions.md](docs/product-editions.md) for the full edition ta
 - **Enterprise**: planned private registry, Enterprise Skill Lock, policy controls, SSO/on-prem/VPC options later.
 
 Local Skill Hub is separate from the free local daemon: `unlimited-skills serve` remains unregistered, while `unlimited-skills hub serve` is registration-gated and allowlist-only. See [docs/local-skill-hub.md](docs/local-skill-hub.md).
+
+Local Skill Hub is an MVP alpha surface. In `v0.2.0-alpha`, LAN client token creation and request enforcement are not implemented yet, so keep it on `127.0.0.1` or protect LAN testing with external network controls. `remote search`, `remote resolve`, and `remote view` are contract skeletons until the next remote-client PR wires real hub calls.
 
 ## Support
 

@@ -12,6 +12,7 @@ from typing import Any
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
+from . import __version__
 from .cli import DEFAULT_ROOT, read_text, split_frontmatter
 from .hub import HUB_FEATURE_FLAGS, HUB_DEFAULT_PORT
 
@@ -320,7 +321,7 @@ def get_skill_by_name(state: HubState, name: str) -> dict[str, Any]:
 
 def create_app(root: Path | None = None, allowlist_path: Path | None = None) -> FastAPI:
     state = HubState(root or DEFAULT_HUB_ROOT, allowlist_path or DEFAULT_ALLOWLIST_PATH)
-    app = FastAPI(title="Unlimited Skills Local Skill Hub", version="0.2.0")
+    app = FastAPI(title="Unlimited Skills Local Skill Hub", version=__version__)
     app.state.hub_state = state
 
     @app.get("/health")

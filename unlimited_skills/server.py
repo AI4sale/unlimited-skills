@@ -8,6 +8,7 @@ from typing import Literal
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
+from . import __version__
 from .cli import (
     DEFAULT_EMBED_MODEL,
     DEFAULT_ROOT,
@@ -22,7 +23,7 @@ from .cli import (
 
 ROOT = Path(os.environ.get("UNLIMITED_SKILLS_ROOT", str(DEFAULT_ROOT))).expanduser()
 MODEL = os.environ.get("UNLIMITED_SKILLS_EMBED_MODEL", DEFAULT_EMBED_MODEL)
-app = FastAPI(title="Unlimited Skills", version="0.1.0")
+app = FastAPI(title="Unlimited Skills", version=__version__)
 
 
 class SearchRequest(BaseModel):

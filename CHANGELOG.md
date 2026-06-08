@@ -26,8 +26,10 @@
 - Native sync is non-destructive: it overlays changed skill files and never clears existing `local/` content.
 - Hermes native skills now install/migrate under `local/hermes/skills` instead of being treated as registry collections.
 - Community, team, update, and bundled collection installs now target `registry/<collection>/`.
+- `SECURITY.md` now uses the `v0.2.0-alpha` support boundary and documents Local Skill Hub MVP security limitations.
+- FastAPI app metadata now uses the package `__version__` instead of hardcoded app versions.
+- README, known limitations, and release notes now state that Local Skill Hub LAN token enforcement and remote search/resolve/view calls are not implemented yet.
 - Hardened public alpha documentation for the v0.1.2-alpha release boundary.
-- Aligned `SECURITY.md` supported-version wording with v0.1.2-alpha.
 - Clarified that hosted catalog/update access is registration-gated early access and already populated without publishing private registered skill bodies in the MIT repo.
 - Clarified that hosted collection archives are SHA256-verified today; cryptographic signature verification is planned, not currently enforced.
 - Documented the official registered hosted catalog as populated early-access while keeping private skill bodies out of the public MIT repo.

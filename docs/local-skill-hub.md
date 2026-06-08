@@ -56,6 +56,11 @@ Launch policy:
 - No skill execution.
 - No hosted query forwarding.
 - Local fallback must be explicit in the client/router policy.
+- LAN client token creation and request enforcement are not implemented yet. Keep the hub on `127.0.0.1` or protect LAN testing with external network controls.
+
+Traceability:
+
+- Local Skill Hub MVP runtime was tracked in [PR #6](https://github.com/AI4sale/unlimited-skills/pull/6). The PR is closed; this document is the release traceability note for the alpha MVP surface.
 
 Correct launch wording:
 

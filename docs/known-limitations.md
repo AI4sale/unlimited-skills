@@ -12,6 +12,8 @@
 - Warm daemon mode is experimental and not the default retrieval path.
 - Team sync is an MVP; server-side enforcement of limits and paid plan behavior may evolve.
 - Local Skill Hub runtime is MVP alpha. The public repo includes docs, schemas, sanitized examples, CLI commands, and an allowlist-backed local FastAPI runtime when `server` extras are installed.
+- Local Skill Hub LAN client token creation and request enforcement are not implemented yet. Keep it on `127.0.0.1` or protect LAN testing with external network controls.
+- `remote search`, `remote resolve`, and `remote view` are contract skeletons until the next remote-client PR wires real hub calls.
 - The current private registry audit verdict is `YES_WITH_ALLOWLIST` after scanning 315 skills.
 - Full catalog distribution is disabled. Local Skill Hub uses allowlist-only distribution.
 - Tool/platform skills require local install plan and client capability support.

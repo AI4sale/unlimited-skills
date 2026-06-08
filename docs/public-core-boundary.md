@@ -58,6 +58,8 @@ The public MIT core must remain local-first. Registration gates hosted services 
 - `remote resolve`
 - `remote view`
 
+`remote search`, `remote resolve`, and `remote view` are registered product commands, but in `v0.2.0-alpha` they are contract skeletons only. Real hub calls are planned for the next remote-client PR.
+
 `license status` reads local registration state only. It must work without registration and show unregistered status.
 
 No registration, no official hosted skill updates. Local skills remain usable.
