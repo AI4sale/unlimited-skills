@@ -4,6 +4,20 @@ Agent visible context should contain a tiny router only. The router asks for rel
 
 The router can query a configured Local Skill Hub. This keeps Hermes, OpenClaw, Codex, Claude Code, and Vellum AI from loading a large skill library into startup context.
 
+Remote hub requests must send the configured hub client token as:
+
+```text
+Authorization: Bearer <hub_client_token>
+```
+
+or the compatibility header:
+
+```text
+X-ULS-Hub-Token: <hub_client_token>
+```
+
+The token is a local hub token, not the hosted registration token.
+
 ## Fallback Order
 
 1. Use the remote hub if configured and reachable.

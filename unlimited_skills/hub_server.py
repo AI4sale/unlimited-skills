@@ -9,12 +9,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
 
 from . import __version__
 from .cli import DEFAULT_ROOT, read_text, split_frontmatter
-from .hub import HUB_FEATURE_FLAGS, HUB_DEFAULT_PORT
+from .hub import HUB_FEATURE_FLAGS, HUB_DEFAULT_PORT, verify_hub_token
+from .registration import redact_sensitive_text, unlimited_skills_home
 
 
 DEFAULT_ALLOWLIST_PATH = Path(os.environ.get("UNLIMITED_SKILLS_HUB_ALLOWLIST", Path.home() / ".unlimited-skills" / "hub" / "hub-allowlist.v1.json"))
@@ -77,10 +79,20 @@ class SkillResolveRequest(BaseModel):
     client_capabilities: ClientCapabilities | None = None
 
 
+class SkillEventRequest(BaseModel):
+    schema_version: int = 1
+    skill_name: str = ""
+    query: str = ""
+    task: str = ""
+    verdict: str = ""
+    notes: str = ""
+
+
 class HubState:
-    def __init__(self, root: Path, allowlist_path: Path) -> None:
+    def __init__(self, root: Path, allowlist_path: Path, home: Path | None = None) -> None:
         self.root = root.expanduser()
         self.allowlist_path = allowlist_path.expanduser()
+        self.home = home or unlimited_skills_home()
         self.started_at = time.time()
         self.clients: dict[str, dict[str, Any]] = {}
         manifest = load_allowlist_manifest(self.allowlist_path)
@@ -106,6 +118,13 @@ class HubState:
             "last_seen_at": time.time(),
         }
         return {"schema_version": 1, "client_id": client_id, "active_client_count": self.active_client_count, "active_client_limit": HUB_FEATURE_FLAGS["max_hub_clients"]}
+
+    def heartbeat(self, request: ClientRegisterRequest) -> dict[str, Any]:
+        client_id = request.capabilities.client_id if request.capabilities and request.capabilities.client_id else ""
+        if client_id and client_id in self.clients:
+            self.clients[client_id]["last_seen_at"] = time.time()
+            return {"schema_version": 1, "client_id": client_id, "active_client_count": self.active_client_count}
+        return self.register_client(request)
 
     def status(self) -> dict[str, Any]:
         return {
@@ -140,6 +159,36 @@ def load_allowlist_manifest(path: Path) -> dict[str, Any]:
     if policy.get("requires_registration") is not True:
         raise RuntimeError("Local Skill Hub MVP requires registered hub policy.")
     return data
+
+
+def hub_error(code: str, message: str, status_code: int = 401) -> HTTPException:
+    return HTTPException(
+        status_code=status_code,
+        detail={"schema_version": 1, "error": {"code": code, "message": redact_sensitive_text(message)}},
+    )
+
+
+def token_from_headers(authorization: str = "", x_uls_hub_token: str = "") -> str:
+    auth = authorization.strip()
+    if auth.lower().startswith("bearer "):
+        return auth[7:].strip()
+    return x_uls_hub_token.strip()
+
+
+def require_hub_token(
+    authorization: str = Header(default="", alias="Authorization"),
+    x_uls_hub_token: str = Header(default="", alias="X-ULS-Hub-Token"),
+) -> dict[str, Any]:
+    raw_token = token_from_headers(authorization, x_uls_hub_token)
+    ok, code, record = verify_hub_token(raw_token)
+    if ok and record is not None:
+        return record
+    messages = {
+        "hub_token_required": "Local Skill Hub client token is required.",
+        "invalid_hub_token": "Local Skill Hub client token is invalid.",
+        "hub_token_revoked": "Local Skill Hub client token is revoked.",
+    }
+    raise hub_error(code, messages.get(code, "Local Skill Hub client token was rejected."))
 
 
 def model_payload(model: BaseModel) -> dict[str, Any]:
@@ -324,29 +373,54 @@ def create_app(root: Path | None = None, allowlist_path: Path | None = None) -> 
     app = FastAPI(title="Unlimited Skills Local Skill Hub", version=__version__)
     app.state.hub_state = state
 
+    @app.exception_handler(HTTPException)
+    def http_exception_handler(_request, exc: HTTPException):
+        if isinstance(exc.detail, dict) and "schema_version" in exc.detail and "error" in exc.detail:
+            return JSONResponse(status_code=exc.status_code, content=exc.detail)
+        if isinstance(exc.detail, dict) and "code" in exc.detail:
+            return JSONResponse(status_code=exc.status_code, content={"schema_version": 1, "error": {"code": exc.detail.get("code"), "message": redact_sensitive_text(exc.detail.get("message", ""))}})
+        return JSONResponse(status_code=exc.status_code, content={"schema_version": 1, "error": {"code": "http_error", "message": redact_sensitive_text(exc.detail)}})
+
     @app.get("/health")
     def health() -> dict[str, Any]:
         return {"ok": True, "distribution_mode": "allowlist_only", "hosted_query_forwarding": False, "hub_executes_skills": False}
 
     @app.get("/v1/hub/status")
-    def status() -> dict[str, Any]:
+    def status(_token: dict[str, Any] = Depends(require_hub_token)) -> dict[str, Any]:
         return state.status()
 
     @app.post("/v1/clients/register")
-    def register_client(request: ClientRegisterRequest) -> dict[str, Any]:
+    def register_client(request: ClientRegisterRequest, _token: dict[str, Any] = Depends(require_hub_token)) -> dict[str, Any]:
         return state.register_client(request)
 
+    @app.post("/v1/clients/heartbeat")
+    def heartbeat(request: ClientRegisterRequest, _token: dict[str, Any] = Depends(require_hub_token)) -> dict[str, Any]:
+        return state.heartbeat(request)
+
     @app.post("/v1/skills/search")
-    def search(request: SkillSearchRequest) -> dict[str, Any]:
+    def search(request: SkillSearchRequest, _token: dict[str, Any] = Depends(require_hub_token)) -> dict[str, Any]:
         return {"schema_version": 1, "query": request.query, "results": search_skills(state, request.query, request.limit, include_local_install_plan=request.include_local_install_plan)}
 
     @app.post("/v1/skills/resolve")
-    def resolve(request: SkillResolveRequest) -> dict[str, Any]:
+    def resolve(request: SkillResolveRequest, _token: dict[str, Any] = Depends(require_hub_token)) -> dict[str, Any]:
         return resolve_skills(state, request)
 
     @app.get("/v1/skills/{name}")
-    def skill(name: str) -> dict[str, Any]:
+    def skill(name: str, _token: dict[str, Any] = Depends(require_hub_token)) -> dict[str, Any]:
         return get_skill_by_name(state, name)
+
+    @app.get("/v1/skills/{name}/manifest")
+    def skill_manifest(name: str, _token: dict[str, Any] = Depends(require_hub_token)) -> dict[str, Any]:
+        payload = get_skill_by_name(state, name)["skill"]
+        return {"schema_version": 1, "manifest": {key: value for key, value in payload.items() if key != "body"}}
+
+    @app.post("/v1/skills/use")
+    def skill_use(request: SkillEventRequest, _token: dict[str, Any] = Depends(require_hub_token)) -> dict[str, Any]:
+        return {"schema_version": 1, "accepted": True, "event": "use", "skill_name": request.skill_name}
+
+    @app.post("/v1/skills/feedback")
+    def skill_feedback(request: SkillEventRequest, _token: dict[str, Any] = Depends(require_hub_token)) -> dict[str, Any]:
+        return {"schema_version": 1, "accepted": True, "event": "feedback", "skill_name": request.skill_name, "verdict": request.verdict}
 
     return app
 

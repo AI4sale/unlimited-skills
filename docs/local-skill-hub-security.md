@@ -2,19 +2,30 @@
 
 Local Skill Hub is designed as a local-first service. The default bind address is `127.0.0.1`.
 
-LAN mode must be explicit:
+LAN mode must be explicit and requires at least one active hub client token:
 
 ```bash
-unlimited-skills hub serve --host 0.0.0.0 --port 8766
+unlimited-skills hub token create --label "office-laptop"
+unlimited-skills hub serve --host 0.0.0.0 --port 8766 --allow-lan
 ```
 
-LAN client tokens are planned, but request enforcement is not implemented in `v0.2.0-alpha`. Do not expose the hub to untrusted networks. For any LAN testing, use a reverse proxy or network control with TLS, authentication, access logging, and IP allowlisting.
+Without `--allow-lan`, or without an active token, the hub refuses to bind to non-localhost addresses. For serious LAN deployment, use a reverse proxy or network control with TLS, authentication, access logging, and IP allowlisting.
+
+Protected hub APIs require one of:
+
+```text
+Authorization: Bearer <hub_client_token>
+X-ULS-Hub-Token: <hub_client_token>
+```
+
+`GET /health` remains unauthenticated for local liveness checks. Other `/v1/...` hub endpoints require a valid, non-revoked hub token.
 
 ## Safety Rules
 
 - The hub does not execute skills or scripts.
 - The hub must not store secrets in logs.
 - Tokens and device proof material must be redacted in status output, errors, and audit logs.
+- Hub client tokens are stored as SHA256 hashes in `~/.unlimited-skills/hub.json`; raw token values are shown only once during creation.
 - Registration tokens and device private keys are local private state under `~/.unlimited-skills/registration.json`.
 - Local search queries are not forwarded to the hosted service by default.
 - Hub logs and learning data should stay under `~/.unlimited-skills/.learning/` or `~/.unlimited-skills/hub/`.

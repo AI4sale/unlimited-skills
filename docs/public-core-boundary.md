@@ -54,6 +54,8 @@ The public MIT core must remain local-first. Registration gates hosted services 
 - `hub serve`
 - `hub clients`
 - `hub token create`
+- `hub token list`
+- `hub token revoke`
 - `remote search`
 - `remote resolve`
 - `remote view`
@@ -79,3 +81,5 @@ Team status may read local `team.json` without a hosted refresh. Any hosted stat
 `hub status`, `hub init`, `hub doctor`, `remote configure`, and `remote status` may read or write local configuration without hosted calls. `hub serve` is a separate registration-required product command and must not be confused with the free `serve` daemon.
 
 Local `search`, `list`, and `view` remain unregistered even when remote hub support exists.
+
+Local Skill Hub client tokens are local credentials stored as hashes in `hub.json`. They protect the registered local/LAN hub only and must not be confused with hosted registration tokens.
