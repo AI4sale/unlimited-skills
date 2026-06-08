@@ -1440,6 +1440,7 @@ def build_parser() -> argparse.ArgumentParser:
     hub_serve.add_argument("--host", default="127.0.0.1")
     hub_serve.add_argument("--port", type=int, default=HUB_DEFAULT_PORT)
     hub_serve.add_argument("--log-level", default="info")
+    hub_serve.add_argument("--allowlist", default="", help="Path to hub-allowlist.v1.json. Defaults to ~/.unlimited-skills/hub/hub-allowlist.v1.json.")
     hub_serve.set_defaults(func=cmd_hub_serve)
     hub_clients = hub_sub.add_parser("clients", help="List Local Skill Hub clients.")
     hub_clients.set_defaults(func=cmd_hub_clients)

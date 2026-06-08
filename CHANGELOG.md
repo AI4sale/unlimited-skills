@@ -14,6 +14,7 @@
 - Registration-gated `unlimited-skills hub serve` boundary while existing `unlimited-skills serve` remains unregistered.
 - Registered Local Skill Hub free-tier limit of up to 100 active client instances.
 - Allowlist-only Local Skill Hub distribution model based on private registry audit verdict `YES_WITH_ALLOWLIST`.
+- Local Skill Hub MVP runtime endpoints for health, hub status, client registration, allowlist-only skill search/resolve, and skill view.
 
 ### Changed
 

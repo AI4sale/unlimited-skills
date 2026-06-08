@@ -124,7 +124,19 @@ def cmd_hub_status(args: Any) -> int:
 
 def cmd_hub_serve(args: Any) -> int:
     ensure_hub_registered()
-    raise RuntimeError(HUB_ALPHA_NOT_IMPLEMENTED)
+    allowlist = Path(args.allowlist).expanduser() if getattr(args, "allowlist", "") else unlimited_skills_home() / "hub" / "hub-allowlist.v1.json"
+    if not allowlist.is_file():
+        raise RuntimeError(f"Local Skill Hub allowlist is required: {allowlist}")
+    try:
+        import uvicorn  # type: ignore
+    except ImportError as exc:
+        raise RuntimeError("Install server dependencies with: pip install 'unlimited-skills[server]'") from exc
+    import os
+
+    os.environ["UNLIMITED_SKILLS_ROOT"] = str(Path(args.root).expanduser())
+    os.environ["UNLIMITED_SKILLS_HUB_ALLOWLIST"] = str(allowlist)
+    uvicorn.run("unlimited_skills.hub_server:create_app", host=args.host, port=args.port, log_level=args.log_level, factory=True)
+    return 0
 
 
 def cmd_hub_clients(args: Any) -> int:

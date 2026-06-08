@@ -29,3 +29,34 @@ The hosted registry provides approved catalog metadata and allowlisted collectio
 The hub does not execute skills. It does not run downloaded scripts. Tool, platform, OS-specific, and package requirements remain client-side and must be verified by the client before use.
 
 Local search queries are not sent to the hosted registry by default. Hosted registry calls are for registration, allowlisted catalog/update metadata, and explicitly requested hosted actions.
+
+## Runtime MVP v1
+
+The first runtime MVP starts from a local `hub-allowlist.v1.json` input:
+
+```bash
+unlimited-skills hub serve --allowlist ~/.unlimited-skills/hub/hub-allowlist.v1.json
+```
+
+MVP endpoints:
+
+- `GET /health`
+- `GET /v1/hub/status`
+- `POST /v1/clients/register`
+- `POST /v1/skills/search`
+- `POST /v1/skills/resolve`
+- `GET /v1/skills/{name}`
+
+Launch policy:
+
+- Full catalog: no.
+- Allowlist-only: yes.
+- Local install plan skills: metadata/resolution only until client capability checks are implemented.
+- Blocked, local-only, and needs-review skills: excluded.
+- No skill execution.
+- No hosted query forwarding.
+- Local fallback must be explicit in the client/router policy.
+
+Correct launch wording:
+
+> We can launch Registered Local Skill Hub with an allowlisted subset of the 315-skill private catalog. Full catalog distribution remains disabled until the blocked/local-only/review/tool-dependency classes are resolved.
