@@ -30,7 +30,7 @@ Goal: make semantic retrieval fast enough for large libraries.
 Planned work:
 
 - keep the embedding model loaded;
-- keep the Chroma client warm;
+- keep the embedding model warm;
 - expose local HTTP endpoints for agent tools;
 - add a small health and metrics surface;
 - add daemon install scripts for Windows and Unix.
