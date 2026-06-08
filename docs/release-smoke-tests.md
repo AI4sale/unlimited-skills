@@ -22,6 +22,14 @@ Direct Python:
 python scripts/run-v0.2x-smoke-tests.py
 ```
 
+Release finalization checks for `v0.2.1-alpha`:
+
+```bash
+python scripts/verify-v0.2.1-alpha-release.py
+python scripts/run-v0.2.1-alpha-fresh-install-smoke.py
+python scripts/run-v0.2.1-alpha-upgrade-smoke.py
+```
+
 The runner creates a temporary HOME and a temporary Unlimited Skills library root. It sets `UNLIMITED_SKILLS_HOME`, `HOME`, `USERPROFILE`, `HERMES_HOME`, and `UNLIMITED_SKILLS_DISABLE_NATIVE_SYNC` for the subprocess. It also checks common real-home install targets after the run so smoke tests do not silently mutate user-level agent configuration.
 
 ## Coverage
@@ -43,6 +51,8 @@ The smoke suite covers:
 - docs/security claims for SHA256 archive verification, required signed hosted manifests, unregistered `serve`, registered `hub serve`, and allowlist-only full-catalog-disabled hub policy;
 - self-update and install-pack git ref validation;
 - production hosted network blocking by default.
+
+The fresh install smoke installs the current GitHub-clone checkout into an isolated temp HOME and verifies `reindex`, `search`, and `view`. The upgrade smoke creates a synthetic v0.2.0-style `registry/` and `local/` library, reindexes with v0.2.1, and verifies that existing local/registry files are not deleted or rewritten.
 
 ## Feature Detection
 

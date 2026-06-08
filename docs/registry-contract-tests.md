@@ -15,7 +15,7 @@ The public repo validates the hosted registry contract without including the pri
 - Catalog response examples can show an early-access snapshot count, but not private skill bodies.
 - Community list/search/preview/install/status examples are sanitized metadata only.
 - Community submission preview examples show selected file metadata, checksums, warnings, and byte counts without embedding upload content.
-- Signature metadata is documented as optional/planned. Current client enforcement is SHA256 verification plus safe zip extraction.
+- Hosted update, enhancement, hub allowlist, and team sync examples that represent hosted manifests must include valid signed manifest envelopes. Current client enforcement is signed manifest verification first, then SHA256 verification plus safe extraction for archive bytes.
 
 ## Script
 

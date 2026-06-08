@@ -12,6 +12,7 @@
 - Remote-first router template rendering and installer flags for Codex, Claude Code, Hermes, and OpenClaw.
 - Skill runtime manifest schema, client capability reporting, capability-aware hub resolve, and dry-run remote install plans.
 - Required Ed25519 signed hosted manifest verification for hub allowlist sync, collection updates, enhancement manifests, and team sync manifests.
+- Machine-readable `v0.2.1-alpha` release manifest, release verifier, fresh install smoke, and synthetic v0.2.0 upgrade smoke.
 
 ### Changed
 
@@ -21,6 +22,7 @@
 - Clarified that hosted remote manifests require valid signatures, while archive installation still depends on SHA256 verification and safe extraction.
 - Installer reports and generated router files redact raw hub tokens; token-env configuration is preferred.
 - Tool/platform skill install plans remain metadata-only; the hub does not execute skills or install packages.
+- Release documentation now traces private registry PR #2 and public PR #13 through PR #19 before the finalization PR and tag approval.
 
 ## v0.2.0-alpha
 

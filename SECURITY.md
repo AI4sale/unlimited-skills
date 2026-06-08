@@ -56,6 +56,7 @@ Current `v0.2.1-alpha` limitations:
 - LAN bind requires explicit `--allow-lan` and at least one active hub client token. For serious LAN testing, put the hub behind a reverse proxy or network control that provides TLS, authentication, access logging, and IP allowlisting.
 - Local install plan skills are metadata/resolution only until client capability checks are implemented.
 - Full catalog distribution remains disabled; the hub may serve only allowlisted skills.
+- Release artifacts are checked by `scripts/verify-v0.2.1-alpha-release.py` for version consistency, unsafe release claims, and obvious private key/token material.
 
 ## Known Security Limitations In v0.2.1-alpha
 

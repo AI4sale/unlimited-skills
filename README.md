@@ -12,7 +12,7 @@
 
 Keep thousands of `SKILL.md` files out of the always-loaded context. Ask one tiny router skill what the task needs. Load only the selected skill.
 
-**v0.2.1 alpha RC / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, Local Skill Hub is allowlist-only alpha, and enterprise governance features are roadmap items.
+**v0.2.1 alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, Local Skill Hub is allowlist-only alpha, and enterprise governance features are roadmap items.
 
 [Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
 
@@ -109,7 +109,7 @@ python -m pip install -e .
 
 PyPI packaging is not the v0.2.x distribution path. Install from a GitHub clone for now, because the router skills, scripts, docs, and bundled packs are repo assets. A PyPI package should wait until wheel asset inclusion is tested.
 
-For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md). For vulnerability reporting and hosted-download security boundaries, see [SECURITY.md](SECURITY.md).
+For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md), [docs/releases/v0.2.1-alpha.md](docs/releases/v0.2.1-alpha.md), and [docs/releases/v0.2.1-alpha.release-manifest.json](docs/releases/v0.2.1-alpha.release-manifest.json). For vulnerability reporting and hosted-download security boundaries, see [SECURITY.md](SECURITY.md).
 
 ## Product Editions
 
