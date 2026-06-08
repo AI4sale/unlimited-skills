@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "hub_id": "uls_hub_example",
+  "registered": true,
+  "plan": "registered-community",
+  "active_client_count": 2,
+  "active_client_limit": 100,
+  "full_catalog_distribution_allowed": false,
+  "distribution_mode": "allowlist_only",
+  "catalog_audit_verdict": "YES_WITH_ALLOWLIST",
+  "skills_total": 105,
+  "allowlisted_skills": 105,
+  "vector_index_present": true,
+  "hosted_query_forwarding": false
+}

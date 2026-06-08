@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "client_id": "uls_client_example",
+  "agent": "codex",
+  "os": "linux",
+  "arch": "x86_64",
+  "python": "3.12",
+  "node": "20",
+  "available_tools": ["git", "python", "node"],
+  "installed_packages": {
+    "python": [],
+    "npm": []
+  },
+  "env_vars_present": []
+}

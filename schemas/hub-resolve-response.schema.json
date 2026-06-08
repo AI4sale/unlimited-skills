@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "context_budget": {
+      "additionalProperties": false,
+      "properties": {
+        "max_chars": { "type": "integer" },
+        "max_skills": { "type": "integer" },
+        "used_chars": { "type": "integer" }
+      },
+      "required": ["max_skills", "max_chars", "used_chars"],
+      "type": "object"
+    },
+    "query": { "type": "string" },
+    "schema_version": { "const": 1 },
+    "selected": {
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "body": { "type": "string" },
+          "collection": { "type": "string" },
+          "confidence": { "maximum": 1, "minimum": 0, "type": "number" },
+          "hub_behavior": { "type": "string" },
+          "missing_capabilities": { "items": { "type": "string" }, "type": "array" },
+          "name": { "type": "string" },
+          "requires_local_install": { "type": "boolean" },
+          "sha256": { "type": "string" },
+          "skill_kind": { "type": "string" },
+          "warnings": { "items": { "type": "string" }, "type": "array" }
+        },
+        "required": ["name", "collection", "confidence", "sha256", "body", "skill_kind", "hub_behavior", "requires_local_install", "missing_capabilities", "warnings"],
+        "type": "object"
+      },
+      "type": "array"
+    }
+  },
+  "required": ["schema_version", "query", "selected", "context_budget"],
+  "title": "Local Skill Hub resolve response",
+  "type": "object"
+}

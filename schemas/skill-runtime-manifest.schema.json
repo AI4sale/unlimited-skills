@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "assets": { "type": "object" },
+    "compatible_agents": { "items": { "enum": ["codex", "claude-code", "hermes", "openclaw", "vellum-ai"] }, "type": "array" },
+    "distribution": { "type": "object" },
+    "execution": {
+      "additionalProperties": true,
+      "properties": {
+        "client_executes": { "type": "boolean" },
+        "hub_executes": { "const": false }
+      },
+      "required": ["hub_executes"],
+      "type": "object"
+    },
+    "license": { "type": "object" },
+    "local_requirements": { "type": "object" },
+    "name": { "type": "string" },
+    "platforms": { "items": { "enum": ["linux", "macos", "windows"] }, "type": "array" },
+    "schema_version": { "const": 1 },
+    "secrets_policy": { "type": "object" },
+    "skill_kind": { "enum": ["pure_text", "asset", "tool", "platform", "secret_dependent"] }
+  },
+  "required": ["schema_version", "name", "distribution", "skill_kind", "execution"],
+  "title": "Skill runtime manifest",
+  "type": "object"
+}

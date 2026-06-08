@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "allowlist": { "items": { "type": "object" }, "type": "array" },
+    "counts": { "type": "object" },
+    "policy": {
+      "additionalProperties": true,
+      "properties": {
+        "free_active_client_instance_limit": { "const": 100 },
+        "full_catalog_distribution_allowed": { "const": false },
+        "hosted_registry_receives_search_queries_by_default": { "const": false },
+        "hub_executes_skills": { "const": false },
+        "requires_registration": { "const": true }
+      },
+      "required": ["requires_registration", "free_active_client_instance_limit", "full_catalog_distribution_allowed", "hub_executes_skills", "hosted_registry_receives_search_queries_by_default"],
+      "type": "object"
+    },
+    "schema_version": { "const": 1 },
+    "source_audit": { "type": "object" }
+  },
+  "required": ["schema_version", "source_audit", "policy", "allowlist", "counts"],
+  "title": "Local Skill Hub allowlist",
+  "type": "object"
+}

@@ -11,3 +11,8 @@
 - PyPI is not the v0.1.2 distribution path because router skills, scripts, docs, and bundled packs are repo assets.
 - Warm daemon mode is experimental and not the default retrieval path.
 - Team sync is an MVP; server-side enforcement of limits and paid plan behavior may evolve.
+- Local Skill Hub runtime is contract/MVP alpha. The public repo currently includes docs, schemas, sanitized examples, and CLI skeleton commands.
+- The current private registry audit verdict is `YES_WITH_ALLOWLIST` after scanning 315 skills.
+- Full catalog distribution is disabled. Local Skill Hub uses allowlist-only distribution.
+- Tool/platform skills require local install plan and client capability support.
+- Existing `unlimited-skills serve` remains the separate free local daemon and does not require registration.

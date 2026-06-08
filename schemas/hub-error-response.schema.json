@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "error": {
+      "additionalProperties": false,
+      "properties": {
+        "code": { "type": "string" },
+        "message": { "type": "string" }
+      },
+      "required": ["code", "message"],
+      "type": "object"
+    },
+    "schema_version": { "const": 1 }
+  },
+  "required": ["schema_version", "error"],
+  "title": "Local Skill Hub error response",
+  "type": "object"
+}

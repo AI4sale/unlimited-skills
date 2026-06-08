@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "verdict": "YES_WITH_ALLOWLIST",
+  "total_skills_scanned": 315,
+  "allowlist_total": 105,
+  "requires_local_install_plan_total": 269,
+  "excluded_total": 45,
+  "blocked_total": 26,
+  "local_only_total": 13,
+  "needs_human_review_total": 6,
+  "retrieval_only_total": 0,
+  "recommendation": "Launch Local Skill Hub with allowlist only.",
+  "public_notes": [
+    "Full catalog distribution is not enabled.",
+    "Allowlist is generated from private audit.",
+    "Private skill bodies are not included in this public summary."
+  ]
+}

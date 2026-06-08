@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "capabilities": { "$ref": "client-capabilities.schema.json" },
+    "display_name": { "type": "string" },
+    "schema_version": { "const": 1 },
+    "token": { "type": "string" }
+  },
+  "required": ["schema_version", "token", "capabilities"],
+  "title": "Local Skill Hub client register request",
+  "type": "object"
+}

@@ -10,6 +10,10 @@
 - Registered `community` CLI namespace for community catalog list/search/preview/install, explicit submit preview/confirmation, submission status, local installed listing, and local remove.
 - Community catalog schemas, sanitized examples, submission review docs, and privacy docs for explicit community submissions.
 - Team Free member listing, pending/reject/revoke flows, collection listing, leave command, sync dry-run JSON output, local redacted team audit events, and Team Free schemas/examples.
+- Local Skill Hub contract docs, public schemas, sanitized examples, and hub/remote CLI skeleton commands.
+- Registration-gated `unlimited-skills hub serve` boundary while existing `unlimited-skills serve` remains unregistered.
+- Registered Local Skill Hub free-tier limit of up to 100 active client instances.
+- Allowlist-only Local Skill Hub distribution model based on private registry audit verdict `YES_WITH_ALLOWLIST`.
 
 ### Changed
 

@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "capabilities": { "$ref": "client-capabilities.schema.json" },
+    "client_id": { "type": "string" },
+    "schema_version": { "const": 1 }
+  },
+  "required": ["schema_version", "client_id"],
+  "title": "Local Skill Hub client heartbeat",
+  "type": "object"
+}

@@ -20,6 +20,18 @@ from .community import (
     remove_community_item,
 )
 from .doctor import build_doctor_report, doctor_json, format_doctor_text
+from .hub import (
+    HUB_DEFAULT_PORT,
+    cmd_hub_clients,
+    cmd_hub_doctor,
+    cmd_hub_init,
+    cmd_hub_serve,
+    cmd_hub_status,
+    cmd_hub_token_create,
+    cmd_remote_configure,
+    cmd_remote_planned,
+    cmd_remote_status,
+)
 from .registration import (
     DEFAULT_SERVICE_URL,
     load_registration,
@@ -1416,6 +1428,47 @@ def build_parser() -> argparse.ArgumentParser:
     serve.add_argument("--model", default=DEFAULT_EMBED_MODEL)
     serve.add_argument("--log-level", default="info")
     serve.set_defaults(func=cmd_serve)
+
+    hub = sub.add_parser("hub", help="Registered Local Skill Hub contract and alpha commands.")
+    hub_sub = hub.add_subparsers(dest="hub_command", required=True)
+    hub_init = hub_sub.add_parser("init", help="Initialize local Local Skill Hub contract state.")
+    hub_init.set_defaults(func=cmd_hub_init)
+    hub_status = hub_sub.add_parser("status", help="Show Local Skill Hub status without hosted calls.")
+    hub_status.add_argument("--json", action="store_true")
+    hub_status.set_defaults(func=cmd_hub_status)
+    hub_serve = hub_sub.add_parser("serve", help="Run the registered Local Skill Hub alpha service.")
+    hub_serve.add_argument("--host", default="127.0.0.1")
+    hub_serve.add_argument("--port", type=int, default=HUB_DEFAULT_PORT)
+    hub_serve.add_argument("--log-level", default="info")
+    hub_serve.set_defaults(func=cmd_hub_serve)
+    hub_clients = hub_sub.add_parser("clients", help="List Local Skill Hub clients.")
+    hub_clients.set_defaults(func=cmd_hub_clients)
+    hub_token = hub_sub.add_parser("token", help="Manage Local Skill Hub client tokens.")
+    hub_token_sub = hub_token.add_subparsers(dest="hub_token_command", required=True)
+    hub_token_create = hub_token_sub.add_parser("create", help="Create a Local Skill Hub client token.")
+    hub_token_create.set_defaults(func=cmd_hub_token_create)
+    hub_doctor = hub_sub.add_parser("doctor", help="Inspect Local Skill Hub contract readiness.")
+    hub_doctor.set_defaults(func=cmd_hub_doctor)
+
+    remote = sub.add_parser("remote", help="Configure or query a registered Local Skill Hub.")
+    remote_sub = remote.add_subparsers(dest="remote_command", required=True)
+    remote_configure = remote_sub.add_parser("configure", help="Configure a remote Local Skill Hub endpoint.")
+    remote_configure.add_argument("--url", required=True, help="Local/LAN hub URL, for example http://127.0.0.1:8766.")
+    remote_configure.add_argument("--token", default="", help="Client token. Stored only as token_present in this contract alpha.")
+    remote_configure.add_argument("--fallback-mode", choices=["local_allowed", "hub_required"], default="local_allowed")
+    remote_configure.set_defaults(func=cmd_remote_configure)
+    remote_status = remote_sub.add_parser("status", help="Show remote hub configuration.")
+    remote_status.add_argument("--json", action="store_true")
+    remote_status.set_defaults(func=cmd_remote_status)
+    remote_search = remote_sub.add_parser("search", help="Search configured remote hub.")
+    remote_search.add_argument("query")
+    remote_search.set_defaults(func=cmd_remote_planned)
+    remote_resolve = remote_sub.add_parser("resolve", help="Resolve task-relevant skill bodies from configured remote hub.")
+    remote_resolve.add_argument("query")
+    remote_resolve.set_defaults(func=cmd_remote_planned)
+    remote_view = remote_sub.add_parser("view", help="View a skill from configured remote hub.")
+    remote_view.add_argument("skill_name")
+    remote_view.set_defaults(func=cmd_remote_planned)
 
     doctor = sub.add_parser("doctor", help="Inspect local Unlimited Skills setup without hosted calls or registration.")
     doctor.add_argument("--json", action="store_true", help="Print machine-readable diagnostics.")
