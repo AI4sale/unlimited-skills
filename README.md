@@ -54,7 +54,7 @@ Working now:
 
 - recursive `SKILL.md` discovery;
 - JSON lexical index;
-- ChromaDB vector index;
+- local vector sidecar index with ChromaDB compatibility storage;
 - hybrid lexical + vector search;
 - full skill view by name;
 - Codex router skill;
@@ -540,6 +540,13 @@ Rebuild the vector index:
 unlimited-skills vector-reindex --verbose
 ```
 
+`vector-reindex` writes two local artifacts:
+
+- `.unlimited-skills-vectors.json` for the normal query fast path;
+- `.chroma-skills/` as a compatibility ChromaDB index.
+
+If vector search says the vector index is not ready, run `unlimited-skills vector-reindex` again. After upgrading to `v0.2.0-alpha` or later, reindex once so the fast sidecar exists.
+
 Search:
 
 ```powershell
@@ -581,7 +588,7 @@ unlimited-skills draft-skill "postgres-online-migration" --description "Online P
 
 ## Warm daemon mode
 
-CLI vector search has a cold start because the embedding model is loaded for each process. The daemon keeps the process alive and warms the model once.
+CLI vector search has a cold start because the embedding model is loaded for each process. The vector sidecar removes Chroma startup from normal queries, but the first query in a new process still has to load the embedding model. The daemon keeps the process alive and caches the model after warm start.
 
 Run:
 
@@ -605,7 +612,7 @@ Invoke-RestMethod http://127.0.0.1:8765/search -Method Post -ContentType "applic
 } | ConvertTo-Json)
 ```
 
-This is the intended path for very large libraries because it avoids repeated model startup cost.
+This is the intended path for very large libraries or repeated vector/hybrid searches because it avoids repeated model startup cost.
 
 ## How it works
 
@@ -613,7 +620,7 @@ The system has four layers:
 
 1. **Router skill**: a tiny `SKILL.md` that is always visible to the agent.
 2. **Disk library**: many real skills stored under a root such as `~/.unlimited-skills/library/registry/<collection>/skills/<name>/SKILL.md` for registry packs and `~/.unlimited-skills/library/local/...` for native agent skills.
-3. **Retrieval**: lexical scoring, Chroma vector search, and hybrid reranking.
+3. **Retrieval**: lexical scoring, vector sidecar search with Chroma compatibility storage, and hybrid reranking.
 4. **Learning loop**: logs searches, views, selected skills, accepted matches, rejected matches, and new skill drafts.
 
 The v0.2 layout keeps the library root clean:

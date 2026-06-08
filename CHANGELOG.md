@@ -7,6 +7,7 @@
 - Two-container library layout: `registry/` for hosted/community/team/bundled packs and `local/` for native agent mirrors and local skill-library content.
 - Deduplicated indexing by skill name so search/list/vector counts represent semantic skills instead of every physical copy.
 - Regression coverage that native sync overlays files without deleting existing local library content.
+- Fast vector sidecar index for query-time vector search, with ChromaDB kept as compatibility storage.
 - Local-only `unlimited-skills doctor` command with JSON output and agent-specific checks for Codex, Claude Code, Hermes, and OpenClaw.
 - Product editions, public core boundary, support matrix, release process, and known limitations docs for public alpha review.
 - Hosted registry API contract docs, catalog model docs, JSON schemas, sanitized examples, and registry contract tests.
@@ -29,6 +30,7 @@
 - `SECURITY.md` now uses the `v0.2.0-alpha` support boundary and documents Local Skill Hub MVP security limitations.
 - FastAPI app metadata now uses the package `__version__` instead of hardcoded app versions.
 - README, known limitations, and release notes now state that Local Skill Hub LAN token enforcement and remote search/resolve/view calls are not implemented yet.
+- Vector search now uses the sidecar fast path before Chroma, and embedding models are cached inside long-lived processes so warm daemon mode actually avoids repeated model startup.
 - Hardened public alpha documentation for the v0.1.2-alpha release boundary.
 - Clarified that hosted catalog/update access is registration-gated early access and already populated without publishing private registered skill bodies in the MIT repo.
 - Clarified that hosted collection archives are SHA256-verified today; cryptographic signature verification is planned, not currently enforced.

@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import sys
 import time
 import warnings
 from dataclasses import asdict, dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Iterable
 
@@ -67,6 +69,7 @@ if hasattr(sys.stderr, "reconfigure"):
 DEFAULT_ROOT = Path(os.environ.get("UNLIMITED_SKILLS_ROOT", Path.home() / ".unlimited-skills" / "library"))
 INDEX_NAME = ".unlimited-skills-index.json"
 VECTOR_META_NAME = ".unlimited-skills-vector.json"
+VECTOR_SIDECAR_NAME = ".unlimited-skills-vectors.json"
 CHROMA_DIR_NAME = ".chroma-skills"
 CHROMA_COLLECTION = "unlimited_skills_v1"
 EVENT_LOG = "events.jsonl"
@@ -295,26 +298,108 @@ def vector_text(hit: SkillHit, body: str) -> str:
     )[:5000]
 
 
-def ensure_vector_deps():
+def ensure_embedding_deps():
     try:
-        import chromadb  # type: ignore
         from fastembed import TextEmbedding  # type: ignore
-        return chromadb, TextEmbedding
     except ImportError as exc:
         raise RuntimeError("Install vector dependencies with: pip install 'unlimited-skills[vector]'") from exc
+    return TextEmbedding
+
+
+def ensure_chroma_deps():
+    try:
+        import chromadb  # type: ignore
+    except ImportError as exc:
+        raise RuntimeError("Install vector dependencies with: pip install 'unlimited-skills[vector]'") from exc
+    return chromadb
 
 
 def chroma_client(root: Path):
-    chromadb, _ = ensure_vector_deps()
+    chromadb = ensure_chroma_deps()
     return chromadb.PersistentClient(path=str(root / CHROMA_DIR_NAME))
 
 
 def embed_texts(texts: list[str], model_name: str) -> list[list[float]]:
-    _, TextEmbedding = ensure_vector_deps()
+    model = embedding_model(model_name)
+    return [vec.tolist() if hasattr(vec, "tolist") else list(vec) for vec in model.embed(texts)]
+
+
+@lru_cache(maxsize=4)
+def embedding_model(model_name: str):
+    TextEmbedding = ensure_embedding_deps()
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", message=".*now uses mean pooling.*")
-        model = TextEmbedding(model_name=model_name)
-    return [vec.tolist() if hasattr(vec, "tolist") else list(vec) for vec in model.embed(texts)]
+        return TextEmbedding(model_name=model_name)
+
+
+def vector_sidecar_path(root: Path) -> Path:
+    return root / VECTOR_SIDECAR_NAME
+
+
+def vector_meta_path(root: Path) -> Path:
+    return root / VECTOR_META_NAME
+
+
+def cosine_similarity(left: list[float], right: list[float]) -> float:
+    if not left or not right or len(left) != len(right):
+        return 0.0
+    dot = 0.0
+    left_norm = 0.0
+    right_norm = 0.0
+    for l_value, r_value in zip(left, right):
+        dot += l_value * r_value
+        left_norm += l_value * l_value
+        right_norm += r_value * r_value
+    if left_norm <= 0.0 or right_norm <= 0.0:
+        return 0.0
+    return dot / (math.sqrt(left_norm) * math.sqrt(right_norm))
+
+
+def load_vector_sidecar(root: Path, model: str) -> list[dict] | None:
+    path = vector_sidecar_path(root)
+    if not path.is_file():
+        return None
+    try:
+        payload = json.loads(read_text(path))
+    except json.JSONDecodeError as exc:
+        raise RuntimeError(f"Vector sidecar is invalid JSON: {path}") from exc
+    if str(payload.get("model") or "") != model:
+        return None
+    records = payload.get("records")
+    if not isinstance(records, list):
+        raise RuntimeError(f"Vector sidecar has no records list: {path}")
+    return records
+
+
+def vector_search_sidecar(root: Path, query: str, limit: int, model: str, collection_name: str | None = None) -> list[SkillHit] | None:
+    records = load_vector_sidecar(root, model)
+    if records is None:
+        return None
+    query_embedding = embed_texts([query], model)[0]
+    scored: list[SkillHit] = []
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        collection = str(record.get("collection") or "")
+        if collection_name and collection != collection_name:
+            continue
+        embedding = record.get("embedding")
+        if not isinstance(embedding, list):
+            continue
+        score = cosine_similarity(query_embedding, [float(value) for value in embedding])
+        if score <= 0.0:
+            continue
+        scored.append(
+            SkillHit(
+                name=str(record.get("name") or ""),
+                description=str(record.get("description") or ""),
+                collection=collection,
+                path=str(record.get("path") or ""),
+                score=score,
+            )
+        )
+    scored.sort(key=lambda item: (-item.score, item.collection, item.name))
+    return scored[:limit]
 
 
 def score_skill(query: str, hit: SkillHit, body: str) -> float:
@@ -369,7 +454,15 @@ def lexical_search(root: Path, query: str, limit: int, collection: str | None = 
 
 
 def vector_search(root: Path, query: str, limit: int, model: str, collection_name: str | None = None) -> list[SkillHit]:
-    collection = chroma_client(root).get_collection(CHROMA_COLLECTION)
+    sidecar_hits = vector_search_sidecar(root, query, limit, model, collection_name=collection_name)
+    if sidecar_hits is not None:
+        return sidecar_hits
+    try:
+        collection = chroma_client(root).get_collection(CHROMA_COLLECTION)
+    except Exception as exc:
+        raise RuntimeError(
+            "Vector index is not ready. Run `unlimited-skills vector-reindex` to build the fast local vector sidecar."
+        ) from exc
     embedding = embed_texts([query], model)[0]
     result = collection.query(query_embeddings=[embedding], n_results=limit)
     metas = (result.get("metadatas") or [[]])[0]
@@ -549,6 +642,7 @@ def cmd_vector_reindex(args: argparse.Namespace) -> int:
     collection = client.get_or_create_collection(name=CHROMA_COLLECTION, metadata={"hnsw:space": "cosine"})
     batch_size = max(1, min(args.batch_size, 128))
     total = 0
+    sidecar_records: list[dict] = []
     for start in range(0, len(records), batch_size):
         batch = records[start : start + batch_size]
         ids = []
@@ -558,19 +652,45 @@ def cmd_vector_reindex(args: argparse.Namespace) -> int:
             ids.append(str(Path(hit.path)).lower().replace("\\", "/"))
             docs.append(vector_text(hit, body))
             metas.append({"name": hit.name, "description": hit.description, "collection": hit.collection, "path": hit.path})
-        collection.add(ids=ids, documents=docs, metadatas=metas, embeddings=embed_texts(docs, args.model))
+        embeddings = embed_texts(docs, args.model)
+        collection.add(ids=ids, documents=docs, metadatas=metas, embeddings=embeddings)
+        for meta, embedding in zip(metas, embeddings):
+            sidecar_records.append({**meta, "embedding": [round(float(value), 8) for value in embedding]})
         total += len(batch)
         if args.verbose:
             print(f"Indexed {total}/{len(records)}")
-    (root / VECTOR_META_NAME).write_text(
+    vector_sidecar_path(root).write_text(
         json.dumps(
-            {"collection": CHROMA_COLLECTION, "model": args.model, "count": total, "chroma_path": str(root / CHROMA_DIR_NAME)},
+            {
+                "schema_version": 1,
+                "collection": CHROMA_COLLECTION,
+                "model": args.model,
+                "count": total,
+                "generated_at": time.time(),
+                "records": sidecar_records,
+            },
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ),
+        encoding="utf-8",
+    )
+    vector_meta_path(root).write_text(
+        json.dumps(
+            {
+                "collection": CHROMA_COLLECTION,
+                "model": args.model,
+                "count": total,
+                "chroma_path": str(root / CHROMA_DIR_NAME),
+                "sidecar_path": str(vector_sidecar_path(root)),
+                "query_fast_path": "sidecar",
+            },
             ensure_ascii=False,
             indent=2,
         ),
         encoding="utf-8",
     )
-    print(f"Vector-indexed {total} skills with {args.model}: {root / CHROMA_DIR_NAME}")
+    print(f"Vector-indexed {total} skills with {args.model}: {vector_sidecar_path(root)}")
+    print(f"Chroma compatibility index: {root / CHROMA_DIR_NAME}")
     return 0
 
 
