@@ -90,7 +90,8 @@ def test_remote_configure_writes_config_and_redacts_token(tmp_path: Path, monkey
     assert payload["token_present"] is True
     assert config["token_present"] is True
     assert "remote_secret_token" not in output
-    assert "remote_secret_token" not in json.dumps(config)
+    assert config["token_storage"] == "file"
+    assert config["token"] == "remote_secret_token"
 
 
 def test_hub_token_create_stores_hash_and_prints_raw_token_once(tmp_path: Path, monkeypatch, capsys) -> None:

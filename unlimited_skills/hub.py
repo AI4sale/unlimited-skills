@@ -5,6 +5,8 @@ import hmac
 import json
 import secrets
 import time
+import urllib.parse
+from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
@@ -23,7 +25,6 @@ HUB_REGISTRATION_REQUIRED_MESSAGE = (
     "Registration is required for Local Skill Hub. The MIT local core still works offline. "
     "Use `unlimited-skills serve` for the free local daemon, or run `unlimited-skills register`."
 )
-REMOTE_ALPHA_NOT_IMPLEMENTED = "Remote hub runtime is not implemented in this alpha. Configure/status are available now."
 LAN_REFUSAL_MESSAGE = "Refusing to bind Local Skill Hub to a non-localhost address without --allow-lan and an active hub token."
 LOCALHOST_HOSTS = {"", "localhost", "127.0.0.1", "::1", "[::1]"}
 
@@ -185,6 +186,15 @@ def remote_config_path(home: Path | None = None) -> Path:
     return (home or unlimited_skills_home()) / REMOTE_CONFIG_NAME
 
 
+def normalize_remote_url(url: str) -> str:
+    parsed = urllib.parse.urlsplit(url.strip())
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise RuntimeError("Remote hub URL must be an absolute http(s) URL.")
+    if parsed.username or parsed.password:
+        raise RuntimeError("Remote hub URL must not include embedded credentials.")
+    return urllib.parse.urlunsplit((parsed.scheme, parsed.netloc, parsed.path.rstrip("/"), "", ""))
+
+
 def load_remote_config(home: Path | None = None) -> dict[str, Any]:
     path = remote_config_path(home)
     if not path.exists():
@@ -193,30 +203,82 @@ def load_remote_config(home: Path | None = None) -> dict[str, Any]:
             "configured": False,
             "url": "",
             "token_present": False,
+            "token_storage": "file",
+            "token_env": "",
             "fallback_mode": "local_allowed",
+            "timeout_seconds": 10,
+            "created_at": "",
+            "updated_at": "",
         }
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
         data = {}
+    token_storage = str(data.get("token_storage") or ("env" if data.get("token_env") else "file"))
+    token_env = str(data.get("token_env") or "")
+    token_present = bool(data.get("token_present") or data.get("token") or token_env)
     return {
         "schema_version": 1,
         "configured": bool(data.get("url")),
         "url": str(data.get("url") or ""),
-        "token_present": bool(data.get("token_present")),
+        "token_present": token_present,
+        "token_storage": token_storage,
+        "token_env": token_env,
         "fallback_mode": str(data.get("fallback_mode") or "local_allowed"),
+        "timeout_seconds": float(data.get("timeout_seconds") or 10),
+        "created_at": str(data.get("created_at") or ""),
+        "updated_at": str(data.get("updated_at") or ""),
     }
 
 
-def save_remote_config(url: str, *, token: str = "", fallback_mode: str = "local_allowed", home: Path | None = None) -> Path:
+def load_remote_runtime_config(home: Path | None = None) -> dict[str, Any]:
+    path = remote_config_path(home)
+    if not path.exists():
+        return load_remote_config(home)
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        data = {}
+    visible = load_remote_config(home)
+    visible["token"] = str(data.get("token") or "")
+    return visible
+
+
+def save_remote_config(
+    url: str,
+    *,
+    token: str = "",
+    token_env: str = "",
+    fallback_mode: str = "local_allowed",
+    timeout_seconds: float = 10,
+    home: Path | None = None,
+) -> Path:
     if fallback_mode not in {"local_allowed", "hub_required"}:
         raise RuntimeError("fallback_mode must be local_allowed or hub_required.")
+    if token and token_env:
+        raise RuntimeError("Use either --token or --token-env, not both.")
+    path = remote_config_path(home)
+    existing: dict[str, Any] = {}
+    if path.exists():
+        try:
+            existing = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            existing = {}
+    token_storage = "env" if token_env else "file"
     payload = {
         "schema_version": 1,
-        "url": url.rstrip("/"),
-        "token_present": bool(token),
+        "url": normalize_remote_url(url),
+        "token_present": bool(token or token_env),
+        "token_storage": token_storage,
+        "token_env": token_env,
         "fallback_mode": fallback_mode,
+        "timeout_seconds": float(timeout_seconds or 10),
+        "created_at": str(existing.get("created_at") or now_iso()),
+        "updated_at": now_iso(),
     }
+    if token_storage == "file":
+        payload["token"] = token or str(existing.get("token") or "")
+        payload["token_present"] = bool(payload["token"])
     return write_private_json(remote_config_path(home), payload)
 
 
@@ -366,25 +428,238 @@ def cmd_hub_doctor(args: Any) -> int:
 
 
 def cmd_remote_configure(args: Any) -> int:
-    path = save_remote_config(args.url, token=args.token, fallback_mode=args.fallback_mode)
+    path = save_remote_config(
+        args.url,
+        token=getattr(args, "token", "") or "",
+        token_env=getattr(args, "token_env", "") or "",
+        fallback_mode=args.fallback_mode,
+        timeout_seconds=getattr(args, "timeout", 10),
+    )
     payload = load_remote_config()
     payload["config_file"] = str(path)
+    if getattr(args, "token", ""):
+        payload["warning"] = "Hub token stored locally in remote.json with private file permissions. Prefer --token-env for shared machines."
     return emit_json(payload)
 
 
 def cmd_remote_status(args: Any) -> int:
     payload = load_remote_config()
+    if payload["configured"] and payload["token_present"]:
+        from .remote_client import RemoteHubClient, RemoteHubError, RemoteHubUnavailable
+
+        try:
+            status = RemoteHubClient().get_status()
+            payload["reachable"] = True
+            payload["hub_status"] = status
+        except RemoteHubUnavailable as exc:
+            payload["reachable"] = False
+            payload["error"] = redact_sensitive_text(str(exc))
+        except RemoteHubError as exc:
+            payload["reachable"] = False
+            payload["error"] = redact_sensitive_text(str(exc))
     if getattr(args, "json", False):
         return emit_json(payload)
     print("Remote hub: " + ("configured" if payload["configured"] else "not configured"))
     print(f"URL: {payload['url'] or '(none)'}")
     print("Token: " + ("present" if payload["token_present"] else "missing"))
+    print(f"Token storage: {payload.get('token_storage') or 'file'}")
     print(f"Fallback: {payload['fallback_mode']}")
+    if payload.get("configured") and payload.get("token_present"):
+        print("Reachable: " + ("yes" if payload.get("reachable") else "no"))
+        if payload.get("error"):
+            print(f"Error: {payload['error']}")
     return 0
 
 
-def cmd_remote_planned(args: Any) -> int:
-    raise RuntimeError(REMOTE_ALPHA_NOT_IMPLEMENTED)
+def remote_client_or_fallback(args: Any):
+    from .remote_client import RemoteHubClient, RemoteHubError, RemoteHubUnavailable
+
+    try:
+        return RemoteHubClient(), None
+    except RemoteHubUnavailable as exc:
+        if load_remote_config().get("fallback_mode") == "local_allowed":
+            return None, redact_sensitive_text(str(exc))
+        raise RuntimeError("Remote hub is required by policy but unavailable.") from exc
+    except RemoteHubError:
+        raise
+
+
+def local_search_payload(args: Any) -> dict[str, Any]:
+    from .cli import DEFAULT_EMBED_MODEL, emit_hits, hybrid_search, lexical_search, vector_search
+
+    root = Path(args.root).expanduser()
+    mode = getattr(args, "mode", "hybrid") or "hybrid"
+    limit = int(getattr(args, "limit", 8) or 8)
+    collection = getattr(args, "collection", "") or None
+    if mode == "lexical":
+        hits = lexical_search(root, args.query, limit, collection, fresh=True)
+    elif mode == "vector":
+        hits = vector_search(root, args.query, limit, DEFAULT_EMBED_MODEL, collection)
+    else:
+        hits = hybrid_search(root, args.query, limit, DEFAULT_EMBED_MODEL, collection, fresh=True, require_vector=False)
+    return {"schema_version": 1, "query": args.query, "results": [asdict(hit) for hit in hits], "fallback": "local_allowed"}
+
+
+def local_resolve_payload(args: Any) -> dict[str, Any]:
+    from .cli import DEFAULT_EMBED_MODEL, hybrid_search, read_text
+
+    root = Path(args.root).expanduser()
+    max_skills = int(getattr(args, "max_skills", 2) or 2)
+    max_chars = int(getattr(args, "max_chars", 12000) or 12000)
+    hits = hybrid_search(root, args.query, max_skills, DEFAULT_EMBED_MODEL, getattr(args, "collection", "") or None, fresh=True, require_vector=False)
+    selected = []
+    used_chars = 0
+    for hit in hits:
+        remaining = max(max_chars - used_chars, 0)
+        body = read_text(Path(hit.path))[:remaining] if remaining > 0 else ""
+        used_chars += len(body)
+        selected.append(
+            {
+                **asdict(hit),
+                "confidence": hit.score,
+                "skill_kind": "local",
+                "hub_behavior": "local_fallback",
+                "requires_local_install": False,
+                "missing_capabilities": [],
+                "warnings": ["Remote hub unavailable; resolved from local fallback."],
+                "body": body,
+            }
+        )
+    return {"schema_version": 1, "query": args.query, "selected": selected, "context_budget": {"max_skills": max_skills, "max_chars": max_chars, "used_chars": used_chars}, "fallback": "local_allowed"}
+
+
+def local_view_payload(args: Any) -> dict[str, Any]:
+    from .cli import find_by_name, read_text
+
+    root = Path(args.root).expanduser()
+    path = find_by_name(root, args.skill_name)
+    if not path:
+        raise RuntimeError(f"Skill not found locally during remote fallback: {args.skill_name}")
+    return {"schema_version": 1, "skill": {"name": args.skill_name, "body": read_text(path), "path": str(path), "hub_behavior": "local_fallback"}, "fallback": "local_allowed"}
+
+
+def print_remote_search(payload: dict[str, Any], *, as_json: bool) -> int:
+    if as_json:
+        return emit_json(payload)
+    results = payload.get("results", [])
+    print(f"Remote results: {len(results)}")
+    for item in results:
+        print(f"{item.get('name')} [{item.get('collection')}] confidence={item.get('confidence', 0)}")
+        if item.get("skill_kind") or item.get("hub_behavior"):
+            print(f"  kind={item.get('skill_kind', '')} hub_behavior={item.get('hub_behavior', '')}")
+        if item.get("requires_local_install"):
+            print("  requires_local_install=true")
+    return 0
+
+
+def print_remote_resolve(payload: dict[str, Any], *, as_json: bool) -> int:
+    if as_json:
+        return emit_json(payload)
+    selected = payload.get("selected", [])
+    print(f"Remote selected skills: {len(selected)}")
+    for item in selected:
+        print(f"{item.get('name')} [{item.get('collection')}] confidence={item.get('confidence', 0)}")
+        print(f"  kind={item.get('skill_kind', '')} hub_behavior={item.get('hub_behavior', '')} requires_local_install={str(bool(item.get('requires_local_install'))).lower()}")
+        if item.get("missing_capabilities"):
+            print("  missing_capabilities: " + ", ".join(str(value) for value in item.get("missing_capabilities", [])))
+        if item.get("warnings"):
+            print("  warnings: " + "; ".join(str(value) for value in item.get("warnings", [])))
+        body = str(item.get("body") or "")
+        if body:
+            print("")
+            print(body)
+    return 0
+
+
+def print_remote_view(payload: dict[str, Any], *, as_json: bool) -> int:
+    if as_json:
+        return emit_json(payload)
+    skill = payload.get("skill", {})
+    body = str(skill.get("body") or "")
+    if body:
+        print(body)
+        return 0
+    print(f"{skill.get('name', '')} [{skill.get('collection', '')}]")
+    if skill.get("warnings"):
+        print("Warnings: " + "; ".join(str(value) for value in skill.get("warnings", [])))
+    return 0
+
+
+def cmd_remote_search(args: Any) -> int:
+    from .remote_client import RemoteHubError, RemoteHubUnavailable
+
+    client, fallback_reason = remote_client_or_fallback(args)
+    if client is None:
+        if not getattr(args, "json", False):
+            print("Remote hub unavailable; using local fallback.")
+        payload = local_search_payload(args)
+        if fallback_reason:
+            payload["remote_error"] = fallback_reason
+        return print_remote_search(payload, as_json=getattr(args, "json", False))
+    try:
+        payload = client.search(args.query, limit=args.limit, mode=args.mode, collection=getattr(args, "collection", "") or "")
+    except RemoteHubUnavailable as exc:
+        if client.config.fallback_mode != "local_allowed":
+            raise RuntimeError("Remote hub is required by policy but unavailable.") from exc
+        if not getattr(args, "json", False):
+            print("Remote hub unavailable; using local fallback.")
+        payload = local_search_payload(args)
+        payload["remote_error"] = redact_sensitive_text(str(exc))
+    except RemoteHubError as exc:
+        raise RuntimeError(str(exc)) from exc
+    return print_remote_search(payload, as_json=getattr(args, "json", False))
+
+
+def cmd_remote_resolve(args: Any) -> int:
+    from .remote_client import RemoteHubError, RemoteHubUnavailable, collect_client_capabilities
+
+    client, fallback_reason = remote_client_or_fallback(args)
+    if client is None:
+        if not getattr(args, "json", False):
+            print("Remote hub unavailable; using local fallback.")
+        payload = local_resolve_payload(args)
+        if fallback_reason:
+            payload["remote_error"] = fallback_reason
+        return print_remote_resolve(payload, as_json=getattr(args, "json", False))
+    try:
+        capabilities = collect_client_capabilities(getattr(args, "agent", "") or "unknown", getattr(args, "capabilities_json", "") or None)
+        budget = {"max_skills": int(args.max_skills), "max_chars": int(args.max_chars)}
+        payload = client.resolve(args.query, context_budget=budget, client_capabilities=capabilities)
+    except RemoteHubUnavailable as exc:
+        if client.config.fallback_mode != "local_allowed":
+            raise RuntimeError("Remote hub is required by policy but unavailable.") from exc
+        if not getattr(args, "json", False):
+            print("Remote hub unavailable; using local fallback.")
+        payload = local_resolve_payload(args)
+        payload["remote_error"] = redact_sensitive_text(str(exc))
+    except RemoteHubError as exc:
+        raise RuntimeError(str(exc)) from exc
+    return print_remote_resolve(payload, as_json=getattr(args, "json", False))
+
+
+def cmd_remote_view(args: Any) -> int:
+    from .remote_client import RemoteHubError, RemoteHubUnavailable
+
+    client, fallback_reason = remote_client_or_fallback(args)
+    if client is None:
+        if not getattr(args, "json", False):
+            print("Remote hub unavailable; using local fallback.")
+        payload = local_view_payload(args)
+        if fallback_reason:
+            payload["remote_error"] = fallback_reason
+        return print_remote_view(payload, as_json=getattr(args, "json", False))
+    try:
+        payload = client.view(args.skill_name)
+    except RemoteHubUnavailable as exc:
+        if client.config.fallback_mode != "local_allowed":
+            raise RuntimeError("Remote hub is required by policy but unavailable.") from exc
+        if not getattr(args, "json", False):
+            print("Remote hub unavailable; using local fallback.")
+        payload = local_view_payload(args)
+        payload["remote_error"] = redact_sensitive_text(str(exc))
+    except RemoteHubError as exc:
+        raise RuntimeError(str(exc)) from exc
+    return print_remote_view(payload, as_json=getattr(args, "json", False))
 
 
 def redacted_runtime_error(exc: RuntimeError) -> str:

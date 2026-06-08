@@ -72,12 +72,12 @@ Working now:
 - registered Team Free create/join/members/pending/approve/reject/revoke/collections/sync/leave client;
 - native skill sync for Codex, Claude Code, Hermes, and OpenClaw roots;
 - public repo self-update checks and applies latest releases/tags;
-- allowlist-backed Local Skill Hub runtime MVP for local/controlled LAN testing when `server` extras are installed.
+- allowlist-backed Local Skill Hub runtime MVP for local/controlled LAN testing when `server` extras are installed;
+- remote Local Skill Hub client commands: `remote configure`, `remote status`, `remote search`, `remote resolve`, and `remote view`.
 
 In development:
 
 - persistent warm daemon as the default agent retrieval path;
-- real `remote search`, `remote resolve`, and `remote view` calls to a configured Local Skill Hub;
 - richer learning loop for accepted/rejected matches;
 - automatic skill drafting from repeated task patterns;
 - stronger per-agent installers and config adapters;
@@ -120,7 +120,21 @@ See [docs/product-editions.md](docs/product-editions.md) for the full edition ta
 
 Local Skill Hub is separate from the free local daemon: `unlimited-skills serve` remains unregistered, while `unlimited-skills hub serve` is registration-gated and allowlist-only. See [docs/local-skill-hub.md](docs/local-skill-hub.md).
 
-Local Skill Hub is an MVP alpha surface. It defaults to `127.0.0.1`; binding to a LAN address requires explicit `--allow-lan` and at least one active hub client token. For serious LAN deployment, use a reverse proxy or network control with TLS, authentication, access logging, and IP allowlisting. `remote search`, `remote resolve`, and `remote view` are contract skeletons until the next remote-client PR wires real hub calls.
+Local Skill Hub is an MVP alpha surface. It defaults to `127.0.0.1`; binding to a LAN address requires explicit `--allow-lan` and at least one active hub client token. For serious LAN deployment, use a reverse proxy or network control with TLS, authentication, access logging, and IP allowlisting. `remote search`, `remote resolve`, and `remote view` call the configured Local Skill Hub over HTTP with hub-token authentication and explicit fallback policy.
+
+Local Skill Hub client setup:
+
+```bash
+unlimited-skills hub token create --label "codex-laptop"
+export ULS_HUB_TOKEN="<hub_client_token>"
+unlimited-skills remote configure --url http://127.0.0.1:8766 --token-env ULS_HUB_TOKEN --fallback local_allowed
+unlimited-skills remote status
+unlimited-skills remote search "security review"
+unlimited-skills remote resolve "security review" --agent codex
+unlimited-skills remote view security-review
+```
+
+Use `--fallback hub_required` when an agent must fail instead of using local fallback. Use `--token <hub_client_token>` only for quick local tests; it stores the raw token in `~/.unlimited-skills/remote.json` with private file permissions where supported.
 
 ## Support
 

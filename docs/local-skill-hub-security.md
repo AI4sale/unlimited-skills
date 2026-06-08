@@ -20,12 +20,22 @@ X-ULS-Hub-Token: <hub_client_token>
 
 `GET /health` remains unauthenticated for local liveness checks. Other `/v1/...` hub endpoints require a valid, non-revoked hub token.
 
+The remote client sends both headers for compatibility. Configure it with an environment variable when possible:
+
+```bash
+export ULS_HUB_TOKEN="<hub_client_token>"
+unlimited-skills remote configure --url http://127.0.0.1:8766 --token-env ULS_HUB_TOKEN
+```
+
+`unlimited-skills remote configure --token <hub_client_token>` is available for local convenience, but it stores the raw token in `~/.unlimited-skills/remote.json`. The file is written with private permissions on POSIX systems and through the same private JSON writer on Windows, but an environment-backed token is safer for shared machines.
+
 ## Safety Rules
 
 - The hub does not execute skills or scripts.
 - The hub must not store secrets in logs.
 - Tokens and device proof material must be redacted in status output, errors, and audit logs.
 - Hub client tokens are stored as SHA256 hashes in `~/.unlimited-skills/hub.json`; raw token values are shown only once during creation.
+- Remote client file-backed tokens, if explicitly configured with `--token`, are raw client credentials and must never be committed, logged, or shared.
 - Registration tokens and device private keys are local private state under `~/.unlimited-skills/registration.json`.
 - Local search queries are not forwarded to the hosted service by default.
 - Hub logs and learning data should stay under `~/.unlimited-skills/.learning/` or `~/.unlimited-skills/hub/`.

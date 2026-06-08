@@ -13,7 +13,8 @@
 - Team sync is an MVP; server-side enforcement of limits and paid plan behavior may evolve.
 - Local Skill Hub runtime is MVP alpha. The public repo includes docs, schemas, sanitized examples, CLI commands, and an allowlist-backed local FastAPI runtime when `server` extras are installed.
 - Local Skill Hub LAN mode is alpha. It requires explicit `--allow-lan` and at least one active hub client token, but serious LAN deployment still needs reverse proxy/TLS and normal network access controls.
-- `remote search`, `remote resolve`, and `remote view` are contract skeletons until the next remote-client PR wires real hub calls.
+- `remote search`, `remote resolve`, and `remote view` call a configured Local Skill Hub over HTTP with hub-token auth. They are still alpha client runtime commands, not hosted registry search.
+- Remote fallback is explicit: `local_allowed` falls back to the local library when the hub is unavailable, while `hub_required` fails.
 - The current private registry audit verdict is `YES_WITH_ALLOWLIST` after scanning 315 skills.
 - Full catalog distribution is disabled. Local Skill Hub uses allowlist-only distribution.
 - Tool/platform skills require local install plan and client capability support.

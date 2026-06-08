@@ -33,8 +33,10 @@ from .hub import (
     cmd_hub_token_list,
     cmd_hub_token_revoke,
     cmd_remote_configure,
-    cmd_remote_planned,
+    cmd_remote_resolve,
+    cmd_remote_search,
     cmd_remote_status,
+    cmd_remote_view,
     redacted_runtime_error,
 )
 from .registration import (
@@ -1622,21 +1624,35 @@ def build_parser() -> argparse.ArgumentParser:
     remote_sub = remote.add_subparsers(dest="remote_command", required=True)
     remote_configure = remote_sub.add_parser("configure", help="Configure a remote Local Skill Hub endpoint.")
     remote_configure.add_argument("--url", required=True, help="Local/LAN hub URL, for example http://127.0.0.1:8766.")
-    remote_configure.add_argument("--token", default="", help="Client token. Stored only as token_present in this contract alpha.")
+    remote_configure.add_argument("--token", default="", help="Client token. Stored in remote.json with private permissions; prefer --token-env.")
+    remote_configure.add_argument("--token-env", default="", help="Environment variable containing the hub token, for example ULS_HUB_TOKEN.")
+    remote_configure.add_argument("--fallback", dest="fallback_mode", choices=["local_allowed", "hub_required"], default="local_allowed")
     remote_configure.add_argument("--fallback-mode", choices=["local_allowed", "hub_required"], default="local_allowed")
+    remote_configure.add_argument("--timeout", type=float, default=10)
     remote_configure.set_defaults(func=cmd_remote_configure)
     remote_status = remote_sub.add_parser("status", help="Show remote hub configuration.")
     remote_status.add_argument("--json", action="store_true")
     remote_status.set_defaults(func=cmd_remote_status)
     remote_search = remote_sub.add_parser("search", help="Search configured remote hub.")
     remote_search.add_argument("query")
-    remote_search.set_defaults(func=cmd_remote_planned)
+    remote_search.add_argument("--mode", choices=["hybrid", "lexical", "vector"], default="hybrid")
+    remote_search.add_argument("--collection", default="")
+    remote_search.add_argument("--limit", type=int, default=8)
+    remote_search.add_argument("--json", action="store_true")
+    remote_search.set_defaults(func=cmd_remote_search)
     remote_resolve = remote_sub.add_parser("resolve", help="Resolve task-relevant skill bodies from configured remote hub.")
     remote_resolve.add_argument("query")
-    remote_resolve.set_defaults(func=cmd_remote_planned)
+    remote_resolve.add_argument("--collection", default="")
+    remote_resolve.add_argument("--max-skills", type=int, default=2)
+    remote_resolve.add_argument("--max-chars", type=int, default=12000)
+    remote_resolve.add_argument("--agent", choices=["codex", "claude-code", "hermes", "openclaw", "vellum-ai", "unknown"], default="unknown")
+    remote_resolve.add_argument("--capabilities-json", default="")
+    remote_resolve.add_argument("--json", action="store_true")
+    remote_resolve.set_defaults(func=cmd_remote_resolve)
     remote_view = remote_sub.add_parser("view", help="View a skill from configured remote hub.")
     remote_view.add_argument("skill_name")
-    remote_view.set_defaults(func=cmd_remote_planned)
+    remote_view.add_argument("--json", action="store_true")
+    remote_view.set_defaults(func=cmd_remote_view)
 
     doctor = sub.add_parser("doctor", help="Inspect local Unlimited Skills setup without hosted calls or registration.")
     doctor.add_argument("--json", action="store_true", help="Print machine-readable diagnostics.")
