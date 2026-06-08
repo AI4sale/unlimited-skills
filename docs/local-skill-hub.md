@@ -59,6 +59,18 @@ Authentication:
 - Tokens can be listed and revoked with `hub token list` and `hub token revoke <token_id>`.
 - Token values are stored as hashes and are printed only once when created.
 
+Remote client:
+
+```bash
+unlimited-skills remote configure --url http://127.0.0.1:8766 --token-env ULS_HUB_TOKEN --fallback local_allowed
+unlimited-skills remote status
+unlimited-skills remote search "browser QA"
+unlimited-skills remote resolve "browser QA" --agent codex
+unlimited-skills remote view browser-qa
+```
+
+`remote search`, `remote resolve`, and `remote view` call only the configured Local Skill Hub. They do not call the hosted registry and they do not forward local search queries to AI4sale hosted services by default. The client sends the hub token in `Authorization: Bearer <token>` and `X-ULS-Hub-Token` for compatibility.
+
 Launch policy:
 
 - Full catalog: no.

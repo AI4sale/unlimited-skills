@@ -23,6 +23,9 @@
 - Registered Local Skill Hub free-tier limit of up to 100 active client instances.
 - Allowlist-only Local Skill Hub distribution model based on private registry audit verdict `YES_WITH_ALLOWLIST`.
 - Local Skill Hub MVP runtime endpoints for health, hub status, client registration, allowlist-only skill search/resolve, and skill view.
+- Remote Local Skill Hub client runtime: `remote configure`, `remote status`, `remote search`, `remote resolve`, and `remote view`.
+- Remote fallback modes: `local_allowed` uses local search/view/resolve when the hub is unavailable, while `hub_required` fails clearly.
+- Remote client capability collection for resolve requests, including agent type, OS, architecture, Python/Node versions, available tool names, and environment variable names only.
 
 ### Changed
 
@@ -41,6 +44,7 @@
 - Documented the official registered hosted catalog as populated early-access while keeping private skill bodies out of the public MIT repo.
 - Clarified that community list/search/preview/update checks do not upload skill bodies, while `community submit` uploads only the selected skill or pack after confirmation.
 - Clarified Team Free limits, 24-hour auto-approval cap, no local skill-body upload during team sync, and Free-vs-Business-vs-Enterprise boundaries.
+- Replaced remote client skeleton wording with working Local Skill Hub HTTP client behavior and explicit alpha limitations.
 
 ## v0.1.2-alpha
 

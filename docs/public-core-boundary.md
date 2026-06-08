@@ -56,11 +56,8 @@ The public MIT core must remain local-first. Registration gates hosted services 
 - `hub token create`
 - `hub token list`
 - `hub token revoke`
-- `remote search`
-- `remote resolve`
-- `remote view`
 
-`remote search`, `remote resolve`, and `remote view` are registered product commands, but in `v0.2.0-alpha` they are contract skeletons only. Real hub calls are planned for the next remote-client PR.
+`remote search`, `remote resolve`, and `remote view` are Local Skill Hub client commands. They do not require hosted registration on the client machine, but they require a configured hub URL and hub client token when using the hub. With `fallback=local_allowed`, they can fall back to the local MIT library if the hub is unavailable. With `fallback=hub_required`, they fail clearly. They never query the hosted registry by default.
 
 `license status` reads local registration state only. It must work without registration and show unregistered status.
 
