@@ -50,6 +50,15 @@ unlimited-skills remote resolve "<task or skill name>" --agent <agent> --max-ski
 
 If the selected skill is metadata-only or requires a local install plan, the router must surface the missing capability warning instead of treating the skill as ready.
 
+For local dependency planning:
+
+```bash
+unlimited-skills remote capabilities --agent <agent> --json
+unlimited-skills remote install-plan <skill-name> --dry-run
+```
+
+The capability payload lists tool/package/environment variable names only. It never sends environment values. Install plans are dry-run metadata and never execute package managers or skill scripts.
+
 Check the configured hub:
 
 ```bash

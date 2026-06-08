@@ -37,6 +37,7 @@ class HubSkill:
     requires_local_install: bool
     risk_level: str
     body_allowed: bool
+    runtime_manifest: dict[str, Any]
     path: str = ""
     description: str = ""
 
@@ -140,6 +141,7 @@ class HubState:
             "catalog_audit_verdict": str(self.source_audit.get("verdict") or "YES_WITH_ALLOWLIST"),
             "skills_total": len(self.allowlisted),
             "allowlisted_skills": len([item for item in self.allowlisted.values() if item.body_allowed]),
+            "local_install_plan_skills": len([item for item in self.allowlisted.values() if item.requires_local_install]),
             "vector_index_present": False,
             "hosted_query_forwarding": False,
             "allowlist_path": str(self.allowlist_path),
@@ -192,11 +194,90 @@ def model_payload(model: BaseModel) -> dict[str, Any]:
 
 
 def skill_kind_for(item: dict[str, Any]) -> str:
+    explicit = str(item.get("skill_kind") or "").strip()
+    if explicit in {"pure_text", "asset", "tool", "platform", "secret_dependent"}:
+        return explicit
+    reqs = item.get("local_requirements") if isinstance(item.get("local_requirements"), dict) else {}
+    secrets_policy = item.get("secrets_policy") if isinstance(item.get("secrets_policy"), dict) else {}
+    if secrets_policy.get("requires_secrets") or reqs.get("env_vars"):
+        return "secret_dependent"
+    if reqs.get("platforms") or item.get("platforms"):
+        return "platform"
+    if reqs.get("python_packages") or reqs.get("npm_packages") or reqs.get("binaries"):
+        return "tool"
     if item.get("requires_local_install_plan"):
         return "tool"
     if (item.get("asset_policy") or {}).get("distribute_assets"):
         return "asset"
     return "pure_text"
+
+
+def runtime_manifest_from_item(item: dict[str, Any], *, name: str, kind: str, hub_behavior: str) -> dict[str, Any]:
+    distribution = item.get("distribution") if isinstance(item.get("distribution"), dict) else {}
+    requirements = item.get("local_requirements") if isinstance(item.get("local_requirements"), dict) else {}
+    assets = item.get("assets") if isinstance(item.get("assets"), dict) else {}
+    execution = item.get("execution") if isinstance(item.get("execution"), dict) else {}
+    secrets_policy = item.get("secrets_policy") if isinstance(item.get("secrets_policy"), dict) else {}
+    secret_names = list(dict.fromkeys([*(str(value) for value in secrets_policy.get("secret_names", []) if isinstance(value, str)), *(str(value) for value in requirements.get("env_vars", []) if isinstance(value, str))]))
+    return {
+        "schema_version": 1,
+        "name": name,
+        "skill_kind": kind,
+        "distribution": {
+            "central_retrieval": bool(distribution.get("central_retrieval", True)),
+            "central_body_distribution": bool(distribution.get("central_body_distribution", hub_behavior in {"distribute_body", "distribute_body_and_assets"})),
+            "central_asset_distribution": bool(distribution.get("central_asset_distribution", False)),
+            "default_hub_behavior": str(distribution.get("default_hub_behavior") or hub_behavior or "metadata_only"),
+        },
+        "compatible_agents": [str(value) for value in item.get("compatible_agents", []) if isinstance(value, str)],
+        "platforms": [str(value).lower() for value in (item.get("platforms") or requirements.get("platforms") or []) if isinstance(value, str)],
+        "local_requirements": {
+            "python_packages": [str(value) for value in requirements.get("python_packages", []) if isinstance(value, str)],
+            "npm_packages": [str(value) for value in requirements.get("npm_packages", []) if isinstance(value, str)],
+            "binaries": [str(value) for value in requirements.get("binaries", []) if isinstance(value, str)],
+            "env_vars": secret_names,
+            "platforms": [str(value).lower() for value in requirements.get("platforms", []) if isinstance(value, str)],
+        },
+        "assets": {
+            "required": bool(assets.get("required", False)),
+            "distributable": bool(assets.get("distributable", False)),
+            "files": [str(value) for value in assets.get("files", []) if isinstance(value, str)],
+        },
+        "execution": {
+            "hub_executes": False,
+            "client_executes": bool(execution.get("client_executes", False)),
+        },
+        "secrets_policy": {
+            "requires_secrets": bool(secrets_policy.get("requires_secrets", bool(secret_names))),
+            "secret_names": secret_names,
+        },
+    }
+
+
+def load_runtime_manifest(skill_md: Path, meta: dict[str, str]) -> dict[str, Any]:
+    explicit = skill_md.with_name("skill-runtime-manifest.json")
+    if explicit.is_file():
+        try:
+            data = json.loads(explicit.read_text(encoding="utf-8-sig"))
+            if isinstance(data, dict):
+                return data
+        except (OSError, json.JSONDecodeError):
+            return {}
+    kind = meta.get("skill_kind") or ""
+    if kind:
+        reqs = {
+            "python_packages": split_csv(meta.get("python_packages", "")),
+            "npm_packages": split_csv(meta.get("npm_packages", "")),
+            "binaries": split_csv(meta.get("binaries", "")),
+            "env_vars": split_csv(meta.get("env_vars", "")),
+            "platforms": split_csv(meta.get("platforms", "")),
+        }
+        return runtime_manifest_from_item({"skill_kind": kind, "local_requirements": reqs}, name=meta.get("name") or skill_md.parent.name, kind=kind, hub_behavior=meta.get("hub_behavior") or "metadata_only")
+    return {}
+
+
+def split_csv(value: str) -> list[str]:
+    return [item.strip() for item in str(value or "").split(",") if item.strip()]
 
 
 def item_key(collection: str, name: str) -> str:
@@ -221,6 +302,7 @@ def load_hub_skills(manifest: dict[str, Any]) -> dict[str, HubSkill]:
             requires_local_install=False,
             risk_level=str(raw.get("risk_level") or "none"),
             body_allowed=True,
+            runtime_manifest=runtime_manifest_from_item(raw, name=str(raw.get("name") or raw.get("skill_id") or ""), kind=skill_kind_for(raw), hub_behavior=str(raw.get("hub_behavior") or "distribute_body")),
         )
         if item.name and item.collection and item.sha256:
             results[item_key(item.collection, item.name)] = item
@@ -237,6 +319,7 @@ def load_hub_skills(manifest: dict[str, Any]) -> dict[str, HubSkill]:
             requires_local_install=True,
             risk_level="medium",
             body_allowed=False,
+            runtime_manifest=runtime_manifest_from_item(raw, name=str(raw.get("name") or raw.get("skill_id") or ""), kind=skill_kind_for(raw), hub_behavior=str(raw.get("hub_behavior") or "distribute_body_with_local_install_plan")),
         )
         key = item_key(item.collection, item.name)
         if item.name and item.collection and item.sha256 and key not in results:
@@ -259,7 +342,7 @@ def load_local_skill_index(root: Path) -> dict[str, dict[str, str]]:
         meta, body = split_frontmatter(text)
         name = meta.get("name") or skill_md.parent.name
         collection = collection_for(root, skill_md)
-        records[item_key(collection, name)] = {"path": str(skill_md), "body": text, "description": meta.get("description") or first_body_line(body)}
+        records[item_key(collection, name)] = {"path": str(skill_md), "body": text, "description": meta.get("description") or first_body_line(body), "manifest": load_runtime_manifest(skill_md, meta)}
     return records
 
 
@@ -313,6 +396,8 @@ def search_skills(state: HubState, query: str, limit: int, *, include_local_inst
 
 
 def skill_metadata(skill: HubSkill, *, confidence: float = 0.0, local: dict[str, str] | None = None) -> dict[str, Any]:
+    manifest = runtime_manifest_for(skill, local)
+    requirements = manifest.get("local_requirements", {})
     return {
         "name": skill.name,
         "collection": skill.collection,
@@ -321,8 +406,54 @@ def skill_metadata(skill: HubSkill, *, confidence: float = 0.0, local: dict[str,
         "skill_kind": skill.skill_kind,
         "hub_behavior": skill.hub_behavior,
         "requires_local_install": skill.requires_local_install,
+        "install_plan_available": has_local_requirements(requirements),
+        "runtime_manifest": manifest,
         "available_locally": bool(local),
     }
+
+
+def runtime_manifest_for(skill: HubSkill, local: dict[str, Any] | None) -> dict[str, Any]:
+    local_manifest = local.get("manifest") if isinstance(local, dict) and isinstance(local.get("manifest"), dict) else {}
+    if local_manifest:
+        merged = dict(skill.runtime_manifest)
+        merged.update(local_manifest)
+        merged.setdefault("name", skill.name)
+        return merged
+    return dict(skill.runtime_manifest)
+
+
+def has_local_requirements(requirements: dict[str, Any]) -> bool:
+    return any(requirements.get(key) for key in ("python_packages", "npm_packages", "binaries", "env_vars", "platforms"))
+
+
+def compare_capabilities(manifest: dict[str, Any], capabilities: ClientCapabilities | None) -> tuple[list[str], list[str]]:
+    requirements = manifest.get("local_requirements", {}) if isinstance(manifest.get("local_requirements"), dict) else {}
+    caps = model_payload(capabilities) if capabilities else {}
+    available_tools = {str(value).lower() for value in caps.get("available_tools", []) if isinstance(value, str)}
+    env_names = {str(value) for value in caps.get("env_vars_present", []) if isinstance(value, str)}
+    installed = caps.get("installed_packages", {}) if isinstance(caps.get("installed_packages"), dict) else {}
+    python_packages = {str(value).lower() for value in installed.get("python", []) if isinstance(value, str)}
+    npm_packages = {str(value).lower() for value in installed.get("npm", []) if isinstance(value, str)}
+    client_os = str(caps.get("os") or "").lower()
+    missing: list[str] = []
+    matched: list[str] = []
+    for value in requirements.get("python_packages", []):
+        marker = f"python_package:{value}"
+        (matched if str(value).lower() in python_packages else missing).append(marker)
+    for value in requirements.get("npm_packages", []):
+        marker = f"npm_package:{value}"
+        (matched if str(value).lower() in npm_packages else missing).append(marker)
+    for value in requirements.get("binaries", []):
+        marker = f"binary:{value}"
+        (matched if str(value).lower() in available_tools else missing).append(marker)
+    for value in requirements.get("env_vars", []):
+        marker = f"env_var:{value}"
+        (matched if str(value) in env_names else missing).append(marker)
+    platforms = [str(value).lower() for value in requirements.get("platforms", []) or manifest.get("platforms", []) if isinstance(value, str)]
+    if platforms:
+        marker = "platform:" + "|".join(platforms)
+        (matched if client_os in platforms else missing).append(marker)
+    return missing, matched
 
 
 def resolve_skills(state: HubState, request: SkillResolveRequest) -> dict[str, Any]:
@@ -334,16 +465,16 @@ def resolve_skills(state: HubState, request: SkillResolveRequest) -> dict[str, A
         local = state.local_skills.get(item_key(skill.collection, skill.name))
         body = ""
         warnings: list[str] = []
-        missing: list[str] = []
-        if skill.requires_local_install:
-            warnings.append("Local install plan skills are metadata/resolution only until client capability checks are implemented.")
-            missing.append("client_capability_checks")
+        manifest = runtime_manifest_for(skill, local)
+        missing, matched = compare_capabilities(manifest, request.client_capabilities)
+        if skill.requires_local_install or missing:
+            warnings.append("Local install plan is metadata/dry-run only. Install dependencies locally before using this skill.")
         elif skill.body_allowed and local:
             body = local["body"][: max(request.context_budget.max_chars - used_chars, 0)]
             used_chars += len(body)
         elif skill.body_allowed:
             warnings.append("Skill is allowlisted but not present in the local hub library.")
-        selected.append({**hit, "body": body, "missing_capabilities": missing, "warnings": warnings})
+        selected.append({**hit, "body": body, "missing_capabilities": missing, "matched_capabilities": matched, "install_plan_available": has_local_requirements(manifest.get("local_requirements", {})), "warnings": warnings})
     return {"schema_version": 1, "query": request.query, "selected": selected, "context_budget": {"max_skills": request.context_budget.max_skills, "max_chars": request.context_budget.max_chars, "used_chars": used_chars}}
 
 
@@ -356,7 +487,7 @@ def get_skill_by_name(state: HubState, name: str) -> dict[str, Any]:
     payload = skill_metadata(skill, local=local)
     payload["body"] = local["body"] if local and skill.body_allowed and not skill.requires_local_install else ""
     if skill.requires_local_install:
-        payload["warnings"] = ["Local install plan skills are metadata-only until client capability checks are implemented."]
+        payload["warnings"] = ["Local install plan is metadata/dry-run only. Install dependencies locally before using this skill."]
     else:
         payload["warnings"] = [] if local else ["Skill is allowlisted but not present in the local hub library."]
     return {"schema_version": 1, "skill": payload}
@@ -406,7 +537,7 @@ def create_app(root: Path | None = None, allowlist_path: Path | None = None) -> 
     @app.get("/v1/skills/{name}/manifest")
     def skill_manifest(name: str, _token: dict[str, Any] = Depends(require_hub_token)) -> dict[str, Any]:
         payload = get_skill_by_name(state, name)["skill"]
-        return {"schema_version": 1, "manifest": {key: value for key, value in payload.items() if key != "body"}}
+        return {"schema_version": 1, "manifest": payload.get("runtime_manifest", {}), "install_plan": {key: value for key, value in payload.items() if key not in {"body", "runtime_manifest"}}}
 
     @app.post("/v1/skills/use")
     def skill_use(request: SkillEventRequest, _token: dict[str, Any] = Depends(require_hub_token)) -> dict[str, Any]:

@@ -123,6 +123,31 @@ def fake_hub_urlopen(request, timeout=10):
                 },
             }
         )
+    if method == "GET" and url.endswith("/v1/skills/remote-tool-plan/manifest"):
+        return FakeHTTPResponse(
+            {
+                "schema_version": 1,
+                "manifest": {
+                    "schema_version": 1,
+                    "name": "remote-tool-plan",
+                    "skill_kind": "tool",
+                    "local_requirements": {
+                        "python_packages": ["playwright"],
+                        "npm_packages": [],
+                        "binaries": ["docker"],
+                        "env_vars": ["N8N_API_KEY"],
+                        "platforms": ["linux"],
+                    },
+                    "execution": {"hub_executes": False, "client_executes": False},
+                    "secrets_policy": {"requires_secrets": True, "secret_names": ["N8N_API_KEY"]},
+                },
+                "install_plan": {
+                    "name": "remote-tool-plan",
+                    "missing_capabilities": ["python_package:playwright", "binary:docker", "env_var:N8N_API_KEY"],
+                    "warnings": ["Local install plan is metadata/dry-run only."],
+                },
+            }
+        )
     raise AssertionError(f"unexpected request {method} {url}")
 
 
@@ -167,6 +192,29 @@ def test_remote_status_search_resolve_and_view_use_hub_token(tmp_path: Path, mon
     assert main(["remote", "view", "remote-debug"]) == 0
     view_output = capsys.readouterr().out
     assert "REMOTE_VIEW_BODY_PUBLIC_TEST" in view_output
+
+    assert main(["remote", "install-plan", "remote-tool-plan", "--dry-run"]) == 0
+    plan_output = capsys.readouterr().out
+    assert "dry_run: true" in plan_output
+    assert "python packages: playwright" in plan_output
+    assert "binaries: docker" in plan_output
+    assert "env vars: N8N_API_KEY" in plan_output
+    assert "No commands were executed" in plan_output
+
+
+def test_remote_capabilities_outputs_names_without_env_values(tmp_path: Path, monkeypatch, capsys) -> None:
+    monkeypatch.setenv("N8N_API_KEY", "secret-value-that-must-not-leak")
+    monkeypatch.setenv("ULS_HUB_TOKEN", "hub-token-value-that-must-not-leak")
+
+    assert main(["remote", "capabilities", "--agent", "codex", "--json"]) == 0
+
+    output = capsys.readouterr().out
+    payload = json.loads(output)
+    assert payload["agent"] == "codex"
+    assert "env_vars_present" in payload
+    assert "ULS_HUB_TOKEN" in payload["env_vars_present"]
+    assert "secret-value-that-must-not-leak" not in output
+    assert "hub-token-value-that-must-not-leak" not in output
 
 
 def test_remote_auth_failure_is_friendly_and_redacted(tmp_path: Path, monkeypatch, capsys) -> None:

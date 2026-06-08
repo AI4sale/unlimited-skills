@@ -83,3 +83,5 @@ Team status may read local `team.json` without a hosted refresh. Any hosted stat
 Local `search`, `list`, and `view` remain unregistered even when remote hub support exists.
 
 Local Skill Hub client tokens are local credentials stored as hashes in `~/.unlimited-skills/hub/hub.json`. They protect the registered local/LAN hub only and must not be confused with hosted registration tokens.
+
+Capability reports and install plans are local/remote-hub metadata. They may list package names, binary names, platform names, and environment variable names, but they must not include environment values or execute installers.

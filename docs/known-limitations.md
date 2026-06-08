@@ -18,5 +18,5 @@
 - Remote fallback is explicit: `local_allowed` falls back to the local library when the hub is unavailable, while `hub_required` fails.
 - The current private registry audit verdict is `YES_WITH_ALLOWLIST` after scanning 315 skills.
 - Full catalog distribution is disabled. Local Skill Hub uses allowlist-only distribution.
-- Tool/platform skills require local install plan and client capability support.
+- Tool/platform skills use dry-run local install plans and client capability matching. The hub still never executes skills or installs packages.
 - Existing `unlimited-skills serve` remains the separate free local daemon and does not require registration.

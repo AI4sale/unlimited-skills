@@ -1,28 +1,66 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "additionalProperties": true,
+  "$id": "https://ai4.sale/schemas/unlimited-skills/skill-runtime-manifest.schema.json",
+  "title": "Unlimited Skills Runtime Manifest",
+  "type": "object",
+  "required": ["schema_version", "name", "skill_kind", "distribution", "local_requirements", "execution", "secrets_policy"],
   "properties": {
-    "assets": { "type": "object" },
-    "compatible_agents": { "items": { "enum": ["codex", "claude-code", "hermes", "openclaw", "vellum-ai"] }, "type": "array" },
-    "distribution": { "type": "object" },
-    "execution": {
-      "additionalProperties": true,
-      "properties": {
-        "client_executes": { "type": "boolean" },
-        "hub_executes": { "const": false }
-      },
-      "required": ["hub_executes"],
-      "type": "object"
-    },
-    "license": { "type": "object" },
-    "local_requirements": { "type": "object" },
-    "name": { "type": "string" },
-    "platforms": { "items": { "enum": ["linux", "macos", "windows"] }, "type": "array" },
     "schema_version": { "const": 1 },
-    "secrets_policy": { "type": "object" },
-    "skill_kind": { "enum": ["pure_text", "asset", "tool", "platform", "secret_dependent"] }
+    "name": { "type": "string", "minLength": 1 },
+    "skill_kind": { "enum": ["pure_text", "asset", "tool", "platform", "secret_dependent"] },
+    "distribution": {
+      "type": "object",
+      "required": ["central_retrieval", "central_body_distribution", "central_asset_distribution", "default_hub_behavior"],
+      "properties": {
+        "central_retrieval": { "type": "boolean" },
+        "central_body_distribution": { "type": "boolean" },
+        "central_asset_distribution": { "type": "boolean" },
+        "default_hub_behavior": {
+          "enum": ["distribute_body", "distribute_body_and_assets", "distribute_body_with_local_install_plan", "metadata_only"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "compatible_agents": { "type": "array", "items": { "type": "string" } },
+    "platforms": { "type": "array", "items": { "type": "string" } },
+    "local_requirements": {
+      "type": "object",
+      "properties": {
+        "python_packages": { "type": "array", "items": { "type": "string" } },
+        "npm_packages": { "type": "array", "items": { "type": "string" } },
+        "binaries": { "type": "array", "items": { "type": "string" } },
+        "env_vars": { "type": "array", "items": { "type": "string" } },
+        "platforms": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "assets": {
+      "type": "object",
+      "properties": {
+        "required": { "type": "boolean" },
+        "distributable": { "type": "boolean" },
+        "files": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "execution": {
+      "type": "object",
+      "required": ["hub_executes", "client_executes"],
+      "properties": {
+        "hub_executes": { "const": false },
+        "client_executes": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "secrets_policy": {
+      "type": "object",
+      "required": ["requires_secrets", "secret_names"],
+      "properties": {
+        "requires_secrets": { "type": "boolean" },
+        "secret_names": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    }
   },
-  "required": ["schema_version", "name", "distribution", "skill_kind", "execution"],
-  "title": "Skill runtime manifest",
-  "type": "object"
+  "additionalProperties": true
 }

@@ -152,6 +152,15 @@ Remote-first agent install examples:
 
 The installers write remote hub config under the selected install root and render remote-first router instructions. They prefer `--hub-token-env`; if `--hub-token` is used, the raw token is stored only in private `remote.json` and is not written into visible router files.
 
+Capability-aware install plans:
+
+```bash
+unlimited-skills remote capabilities --agent codex --json
+unlimited-skills remote install-plan browser-automation --dry-run
+```
+
+Retrieval can be centralized, but dependencies and capabilities remain local. The hub never executes skills or installs packages. Install plans are dry-run metadata in this release, and secrets stay client-side.
+
 ## Support
 
 Unlimited Skills is open source under the MIT license. Voluntary donations help fund adapters, migration scripts, indexing work, hosted registry maintenance, and the learning-loop roadmap.

@@ -113,11 +113,20 @@ export ULS_HUB_TOKEN="<hub_client_token>"
 
 Remote-first installers render router instructions that prefer `remote resolve` before local search. Raw hub tokens are never written into visible router files; prefer token-env configuration for shared machines.
 
+Capability-aware install plans:
+
+```bash
+unlimited-skills remote capabilities --agent codex --json
+unlimited-skills remote install-plan browser-automation --dry-run
+```
+
+Retrieval can be centralized, but dependencies and capabilities remain local. The hub never executes skills or install commands. Install plans are dry-run metadata in this release, and secrets stay client-side.
+
 Launch policy:
 
 - Full catalog: no.
 - Allowlist-only: yes.
-- Local install plan skills: metadata/resolution only until client capability checks are implemented.
+- Local install plan skills: metadata/resolution with dry-run capability warnings.
 - Blocked, local-only, and needs-review skills: excluded.
 - No skill execution.
 - No hosted query forwarding.

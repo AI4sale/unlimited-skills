@@ -1,53 +1,55 @@
-# Skill Manifest Capabilities
+# Skill Runtime Manifests And Capabilities
 
-Local Skill Hub separates central retrieval from local capability checks.
+Retrieval can be centralized, but dependencies and capabilities remain local. Local Skill Hub may return skill metadata and selected skill bodies, but it never executes skills, installs packages, runs scripts, or receives secret values.
 
-Skill runtime categories:
+## Manifest Sources
 
-- `pure_text`: guidance-only skill.
-- `asset`: skill with distributable local assets.
-- `tool`: skill that requires packages, binaries, or commands.
-- `platform`: OS-specific or platform-specific workflow.
-- `secret_dependent`: skill that needs client-side credentials.
+The hub reads runtime metadata in this order:
 
-## Manifest Shape
+1. `skill-runtime-manifest.json` next to `SKILL.md`.
+2. `SKILL.md` frontmatter fields such as `skill_kind`, `python_packages`, `npm_packages`, `binaries`, `env_vars`, and `platforms`.
+3. Allowlist metadata.
+4. Inferred fallback metadata.
 
-```yaml
-schema_version: 1
-name: example-skill
-distribution:
-  central_retrieval: true
-  central_body_distribution: true
-  central_asset_distribution: false
-  default_hub_behavior: distribute_body
-skill_kind: pure_text
-compatible_agents:
-  - codex
-  - claude-code
-  - hermes
-  - openclaw
-platforms:
-  - linux
-  - macos
-  - windows
-local_requirements:
-  python_packages: []
-  npm_packages: []
-  binaries: []
-  env_vars: []
-assets:
-  required: false
-  distributable: false
-execution:
-  hub_executes: false
-  client_executes: false
-secrets_policy:
-  requires_secrets: false
-  secret_names: []
-license:
-  type: MIT
-  source_repo: ""
-  source_pack: ""
+## Skill Kinds
+
+Allowed `skill_kind` values:
+
+- `pure_text`
+- `asset`
+- `tool`
+- `platform`
+- `secret_dependent`
+
+## Local Requirements
+
+Runtime manifests list names only:
+
+```json
+{
+  "local_requirements": {
+    "python_packages": ["playwright"],
+    "npm_packages": [],
+    "binaries": ["docker"],
+    "env_vars": ["N8N_API_KEY"],
+    "platforms": ["linux"]
+  }
+}
 ```
 
-The hub can retrieve centrally. Local capabilities decide whether a client can use a tool/platform skill. Secrets stay client-side and are represented only by required variable names, never values.
+Environment variable values are never captured, sent, cached, or printed. Only names such as `N8N_API_KEY` may appear.
+
+## Resolve Behavior
+
+`remote resolve` sends local client capability names to the hub. The hub compares manifest requirements to those capabilities and returns:
+
+- `missing_capabilities`
+- `matched_capabilities`
+- `install_plan_available`
+- `warnings`
+
+Pure text skills can still return body content. Tool, platform, and secret-dependent skills return metadata and dry-run install-plan guidance when local requirements are missing.
+
+## Install Plans
+
+`unlimited-skills remote install-plan <skill-name>` is dry-run metadata only. It prints required package names, binary names, environment variable names, platform constraints, warnings, and missing capabilities. It does not execute install commands.

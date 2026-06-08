@@ -59,7 +59,27 @@ def write_allowlist(path: Path) -> None:
                         "name": "tool-skill",
                         "collection": "test-pack",
                         "sha256": "b" * 64,
+                        "local_requirements": {"python_packages": ["playwright"], "binaries": ["docker"]},
                         "hub_behavior": "distribute_body_with_local_install_plan",
+                    },
+                    {
+                        "skill_id": "linux-only",
+                        "name": "linux-only",
+                        "collection": "test-pack",
+                        "sha256": "c" * 64,
+                        "skill_kind": "platform",
+                        "local_requirements": {"platforms": ["linux"]},
+                        "hub_behavior": "metadata_only",
+                    },
+                    {
+                        "skill_id": "secret-skill",
+                        "name": "secret-skill",
+                        "collection": "test-pack",
+                        "sha256": "d" * 64,
+                        "skill_kind": "secret_dependent",
+                        "local_requirements": {"env_vars": ["N8N_API_KEY"]},
+                        "secrets_policy": {"requires_secrets": True, "secret_names": ["N8N_API_KEY"]},
+                        "hub_behavior": "metadata_only",
                     }
                 ],
                 "excluded": {
@@ -116,8 +136,9 @@ def test_hub_mvp_health_and_status_are_allowlist_only(tmp_path: Path, monkeypatc
     assert status["catalog_audit_verdict"] == "YES_WITH_ALLOWLIST"
     assert status["full_catalog_distribution_allowed"] is False
     assert status["active_client_limit"] == 100
-    assert status["skills_total"] == 2
+    assert status["skills_total"] == 4
     assert status["allowlisted_skills"] == 1
+    assert status["local_install_plan_skills"] == 3
 
 
 def test_search_returns_only_allowlisted_and_local_install_candidates(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -141,7 +162,74 @@ def test_resolve_returns_body_for_pure_text_but_metadata_only_for_local_install(
     assert by_name["pure-skill"]["requires_local_install"] is False
     assert by_name["tool-skill"]["body"] == ""
     assert by_name["tool-skill"]["requires_local_install"] is True
-    assert "client_capability_checks" in by_name["tool-skill"]["missing_capabilities"]
+    assert "python_package:playwright" in by_name["tool-skill"]["missing_capabilities"]
+    assert "binary:docker" in by_name["tool-skill"]["missing_capabilities"]
+
+
+def test_resolve_compares_client_capabilities_without_env_values(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    client = make_client(tmp_path, monkeypatch)
+
+    common_capabilities = {
+        "schema_version": 1,
+        "agent": "codex",
+        "os": "windows",
+        "arch": "x86_64",
+        "available_tools": ["git"],
+        "installed_packages": {"python": [], "npm": []},
+        "env_vars_present": ["N8N_API_KEY"],
+    }
+    tool_payload = client.post(
+        "/v1/skills/resolve",
+        json={
+            "schema_version": 1,
+            "query": "playwright docker",
+            "context_budget": {"max_skills": 1, "max_chars": 12000},
+            "client_capabilities": common_capabilities,
+        },
+    ).json()
+    linux_payload = client.post(
+        "/v1/skills/resolve",
+        json={
+            "schema_version": 1,
+            "query": "linux-only",
+            "context_budget": {"max_skills": 1, "max_chars": 12000},
+            "client_capabilities": common_capabilities,
+        },
+    ).json()
+    secret_payload = client.post(
+        "/v1/skills/resolve",
+        json={
+            "schema_version": 1,
+            "query": "secret-skill",
+            "context_budget": {"max_skills": 1, "max_chars": 12000},
+            "client_capabilities": common_capabilities,
+        },
+    ).json()
+    by_name = {item["name"]: item for item in tool_payload["selected"] + linux_payload["selected"] + secret_payload["selected"]}
+
+    assert "python_package:playwright" in by_name["tool-skill"]["missing_capabilities"]
+    assert "binary:docker" in by_name["tool-skill"]["missing_capabilities"]
+    assert "platform:linux" in by_name["linux-only"]["missing_capabilities"]
+    assert "env_var:N8N_API_KEY" in by_name["secret-skill"]["matched_capabilities"]
+    assert "secret-value" not in json.dumps([tool_payload, linux_payload, secret_payload])
+
+
+def test_hub_manifest_endpoint_is_token_protected_and_returns_install_plan_metadata(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home = tmp_path / "home" / ".unlimited-skills"
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home))
+    client = make_client(tmp_path, monkeypatch, with_token=False)
+    raw_token = create_hub_token("manifest", home=home)["raw_token"]
+
+    missing = client.get("/v1/skills/tool-skill/manifest")
+    allowed = client.get("/v1/skills/tool-skill/manifest", headers={"Authorization": f"Bearer {raw_token}"})
+
+    assert missing.status_code == 401
+    assert allowed.status_code == 200
+    payload = allowed.json()
+    assert payload["manifest"]["skill_kind"] == "tool"
+    assert payload["manifest"]["execution"]["hub_executes"] is False
+    assert payload["install_plan"]["install_plan_available"] is True
+    assert "body" not in payload["install_plan"]
 
 
 def test_get_skill_rejects_blocked_or_unallowlisted_skill(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

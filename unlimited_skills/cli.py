@@ -34,6 +34,8 @@ from .hub import (
     cmd_hub_token_list,
     cmd_hub_token_revoke,
     cmd_remote_configure,
+    cmd_remote_capabilities,
+    cmd_remote_install_plan,
     cmd_remote_resolve,
     cmd_remote_search,
     cmd_remote_status,
@@ -1641,6 +1643,11 @@ def build_parser() -> argparse.ArgumentParser:
     remote_status = remote_sub.add_parser("status", help="Show remote hub configuration.")
     remote_status.add_argument("--json", action="store_true")
     remote_status.set_defaults(func=cmd_remote_status)
+    remote_capabilities = remote_sub.add_parser("capabilities", help="Print local client capabilities sent to remote resolve.")
+    remote_capabilities.add_argument("--agent", default="unknown")
+    remote_capabilities.add_argument("--capabilities-json", default="")
+    remote_capabilities.add_argument("--json", action="store_true")
+    remote_capabilities.set_defaults(func=cmd_remote_capabilities)
     remote_search = remote_sub.add_parser("search", help="Search configured remote hub.")
     remote_search.add_argument("query")
     remote_search.add_argument("--mode", choices=["hybrid", "lexical", "vector"], default="hybrid")
@@ -1661,6 +1668,11 @@ def build_parser() -> argparse.ArgumentParser:
     remote_view.add_argument("skill_name")
     remote_view.add_argument("--json", action="store_true")
     remote_view.set_defaults(func=cmd_remote_view)
+    remote_install_plan = remote_sub.add_parser("install-plan", help="Show a dry-run local install plan for a remote hub skill.")
+    remote_install_plan.add_argument("skill_name")
+    remote_install_plan.add_argument("--dry-run", action="store_true", default=True)
+    remote_install_plan.add_argument("--json", action="store_true")
+    remote_install_plan.set_defaults(func=cmd_remote_install_plan)
 
     doctor = sub.add_parser("doctor", help="Inspect local Unlimited Skills setup without hosted calls or registration.")
     doctor.add_argument("--json", action="store_true", help="Print machine-readable diagnostics.")

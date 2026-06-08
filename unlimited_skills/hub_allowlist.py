@@ -17,6 +17,7 @@ HUB_LOG_DIR_NAME = "logs"
 ALLOWED_HUB_READY_CATEGORIES = {"HUB_READY_PURE_TEXT", "HUB_READY_WITH_ASSETS"}
 EXCLUDED_GROUPS = ("blocked", "local_only", "needs_human_review")
 SECRET_KEY_RE = re.compile(r"(?i)(token|secret|password|private[_-]?key|api[_-]?key|credential)")
+SAFE_SECRET_METADATA_KEYS = {"secrets_policy", "requires_secrets", "secret_names", "env_vars"}
 PRIVATE_BODY_RE = re.compile(r"(?i)(^---\s*$|BEGIN [A-Z ]*PRIVATE KEY|PRIVATE_BODY_SENTINEL|LOCAL_USER_PATH_SENTINEL)", re.MULTILINE)
 
 
@@ -252,7 +253,8 @@ def validate_no_embedded_body(value: Any, path: str, errors: list[str]) -> None:
 def validate_no_secret_fields(value: Any, path: str, errors: list[str]) -> None:
     if isinstance(value, dict):
         for key, child in value.items():
-            if SECRET_KEY_RE.search(str(key)) and child not in ("", None, False):
+            key_text = str(key)
+            if SECRET_KEY_RE.search(key_text) and key_text.lower() not in SAFE_SECRET_METADATA_KEYS and child not in ("", None, False):
                 errors.append(f"{path}.{key} must not contain secrets")
             validate_no_secret_fields(child, f"{path}.{key}", errors)
     elif isinstance(value, list):

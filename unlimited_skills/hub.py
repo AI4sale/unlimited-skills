@@ -632,6 +632,21 @@ def cmd_remote_status(args: Any) -> int:
     return 0
 
 
+def cmd_remote_capabilities(args: Any) -> int:
+    from .remote_client import collect_client_capabilities
+
+    payload = collect_client_capabilities(getattr(args, "agent", "") or "unknown", getattr(args, "capabilities_json", "") or None)
+    if getattr(args, "json", False):
+        return emit_json(payload)
+    print("Remote client capabilities")
+    print(f"agent: {payload.get('agent')}")
+    print(f"os: {payload.get('os')} arch={payload.get('arch')}")
+    print("available_tools: " + ", ".join(payload.get("available_tools", [])))
+    print("python_packages: " + str(len((payload.get("installed_packages") or {}).get("python", []))))
+    print("env_vars_present: " + ", ".join(payload.get("env_vars_present", [])))
+    return 0
+
+
 def remote_client_or_fallback(args: Any):
     from .remote_client import RemoteHubClient, RemoteHubError, RemoteHubUnavailable
 
@@ -746,6 +761,26 @@ def print_remote_view(payload: dict[str, Any], *, as_json: bool) -> int:
     return 0
 
 
+def print_install_plan(payload: dict[str, Any], *, as_json: bool) -> int:
+    if as_json:
+        return emit_json(payload)
+    manifest = payload.get("manifest", {})
+    plan = payload.get("install_plan", {})
+    requirements = manifest.get("local_requirements", {}) if isinstance(manifest.get("local_requirements"), dict) else {}
+    print(f"Install plan for {manifest.get('name') or plan.get('name', '')}")
+    print(f"skill_kind: {manifest.get('skill_kind', '')}")
+    print("dry_run: true")
+    for label, key in [("python packages", "python_packages"), ("npm packages", "npm_packages"), ("binaries", "binaries"), ("env vars", "env_vars"), ("platforms", "platforms")]:
+        values = requirements.get(key) or []
+        print(f"{label}: " + (", ".join(str(value) for value in values) if values else "<none>"))
+    if plan.get("missing_capabilities"):
+        print("missing_capabilities: " + ", ".join(str(value) for value in plan.get("missing_capabilities", [])))
+    if plan.get("warnings"):
+        print("warnings: " + "; ".join(str(value) for value in plan.get("warnings", [])))
+    print("No commands were executed. Install dependencies locally only after review.")
+    return 0
+
+
 def cmd_remote_search(args: Any) -> int:
     from .remote_client import RemoteHubError, RemoteHubUnavailable
 
@@ -821,6 +856,22 @@ def cmd_remote_view(args: Any) -> int:
     except RemoteHubError as exc:
         raise RuntimeError(str(exc)) from exc
     return print_remote_view(payload, as_json=getattr(args, "json", False))
+
+
+def cmd_remote_install_plan(args: Any) -> int:
+    from .remote_client import RemoteHubError, RemoteHubUnavailable
+
+    client, _fallback_reason = remote_client_or_fallback(args)
+    if client is None:
+        raise RuntimeError("Remote install-plan requires a configured reachable Local Skill Hub.")
+    try:
+        payload = client.manifest(args.skill_name)
+    except RemoteHubUnavailable as exc:
+        raise RuntimeError("Remote install-plan requires a reachable Local Skill Hub.") from exc
+    except RemoteHubError as exc:
+        raise RuntimeError(str(exc)) from exc
+    payload["dry_run"] = True
+    return print_install_plan(payload, as_json=getattr(args, "json", False))
 
 
 def redacted_runtime_error(exc: RuntimeError) -> str:

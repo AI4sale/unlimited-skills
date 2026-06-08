@@ -9,6 +9,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+import importlib.metadata
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -151,6 +152,10 @@ class RemoteHubClient:
         encoded = urllib.parse.quote(name, safe="")
         return self._request("GET", f"/v1/skills/{encoded}")
 
+    def manifest(self, name: str) -> dict[str, Any]:
+        encoded = urllib.parse.quote(name, safe="")
+        return self._request("GET", f"/v1/skills/{encoded}/manifest")
+
     def record_use(self, skill_name: str, *, query: str = "", task: str = "") -> dict[str, Any]:
         return self._request("POST", "/v1/skills/use", {"schema_version": 1, "skill_name": skill_name, "query": query, "task": task})
 
@@ -206,7 +211,7 @@ def collect_client_capabilities(agent: str = "unknown", extra_path: str | Path |
         "python": platform.python_version(),
         "node": node_version(),
         "available_tools": available_tools(),
-        "installed_packages": {},
+        "installed_packages": {"python": installed_python_packages(), "npm": []},
         "env_vars_present": sorted(name for name in os.environ if name.startswith(("CODEX", "CLAUDE", "HERMES", "OPENCLAW", "ULS_", "UNLIMITED_SKILLS"))),
     }
     if extra_path:
@@ -233,3 +238,11 @@ def node_version() -> str:
     except (OSError, subprocess.SubprocessError):
         return ""
     return result.stdout.strip()[:80]
+
+
+def installed_python_packages() -> list[str]:
+    try:
+        names = [dist.metadata.get("Name", "") for dist in importlib.metadata.distributions()]
+    except Exception:
+        return []
+    return sorted({name for name in names if name})[:400]
