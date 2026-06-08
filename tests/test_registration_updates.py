@@ -263,14 +263,14 @@ class RegistrationUpdatesTest(unittest.TestCase):
                 updates = client.sync_manifest(root, team)
 
             self.assertEqual(team.team_id, "team_123")
-            self.assertEqual(team.role, "owner")
+            self.assertEqual(team.role, "master")
             self.assertEqual(create_response["join_code"], "join_abc")
             self.assertEqual(joined.role, "pending")
             self.assertEqual(joined.status, "pending")
             self.assertEqual(pending["items"][0]["install_id"], "uls_inst_member")
             self.assertEqual(approved["status"], "active")
             self.assertEqual(mode["approval_mode"], "auto")
-            self.assertEqual(updates, [])
+            self.assertEqual(updates.updates, [])
             self.assertEqual(
                 calls,
                 [

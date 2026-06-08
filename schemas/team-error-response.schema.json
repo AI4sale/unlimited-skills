@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills team error response",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "error"],
+  "properties": {
+    "schema_version": { "type": "integer" },
+    "error": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": {
+          "type": "string",
+          "enum": ["registration_required", "invalid_proof", "team_not_found", "not_team_admin", "pending_approval", "member_limit_reached", "auto_approval_window_too_long", "plan_required", "rate_limited", "server_error"]
+        },
+        "message": { "type": "string" },
+        "retry_after_seconds": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "request_id": { "type": "string" }
+  }
+}

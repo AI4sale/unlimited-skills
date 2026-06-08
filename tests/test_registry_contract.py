@@ -14,6 +14,7 @@ from unlimited_skills.updates import UpdateError, parse_enhancement_script, pars
 ROOT = Path(__file__).resolve().parents[1]
 EXAMPLES = ROOT / "examples" / "registry"
 COMMUNITY_EXAMPLES = ROOT / "examples" / "community"
+TEAM_EXAMPLES = ROOT / "examples" / "team"
 SCHEMAS = ROOT / "schemas"
 
 
@@ -22,7 +23,7 @@ def load_example(name: str) -> dict:
 
 
 def test_all_registry_schemas_and_examples_are_valid_json() -> None:
-    for path in [*SCHEMAS.glob("*.json"), *EXAMPLES.glob("*.json"), *COMMUNITY_EXAMPLES.glob("*.json")]:
+    for path in [*SCHEMAS.glob("*.json"), *EXAMPLES.glob("*.json"), *COMMUNITY_EXAMPLES.glob("*.json"), *TEAM_EXAMPLES.glob("*.json")]:
         json.loads(path.read_text(encoding="utf-8"))
 
 
@@ -94,7 +95,7 @@ def test_catalog_response_example_uses_snapshot_count_without_skill_bodies() -> 
 
 
 def test_registry_examples_use_only_redacted_placeholders_for_tokens() -> None:
-    for path in [*EXAMPLES.glob("*.json"), *COMMUNITY_EXAMPLES.glob("*.json")]:
+    for path in [*EXAMPLES.glob("*.json"), *COMMUNITY_EXAMPLES.glob("*.json"), *TEAM_EXAMPLES.glob("*.json")]:
         payload = json.loads(path.read_text(encoding="utf-8"))
         serialized = json.dumps(payload).lower()
         assert "private_key" not in serialized
@@ -113,6 +114,18 @@ def test_community_examples_are_sanitized_metadata_only() -> None:
         assert "/users/" not in serialized
 
 
+def test_team_examples_are_sanitized_metadata_only() -> None:
+    for path in TEAM_EXAMPLES.glob("*.json"):
+        serialized = path.read_text(encoding="utf-8").lower()
+        assert "skill.md" not in serialized
+        assert "```" not in serialized
+        assert "team_token" not in serialized
+        assert "license_token" not in serialized
+        assert "device_private_key" not in serialized
+        assert "c:\\" not in serialized
+        assert "/users/" not in serialized
+
+
 def test_registry_contract_validation_script_passes() -> None:
     completed = subprocess.run(
         [sys.executable, str(ROOT / "scripts" / "validate-registry-contract.py")],
@@ -127,7 +140,7 @@ def test_registry_contract_validation_script_passes() -> None:
 
 
 def test_registry_docs_keep_signature_boundary_precise() -> None:
-    docs = "\n".join(path.read_text(encoding="utf-8", errors="replace") for path in [ROOT / "docs" / "hosted-registry-api.md", ROOT / "docs" / "hosted-catalog-model.md", ROOT / "docs" / "registry-contract-tests.md"])
+    docs = "\n".join(path.read_text(encoding="utf-8", errors="replace") for path in [ROOT / "docs" / "hosted-registry-api.md", ROOT / "docs" / "hosted-catalog-model.md", ROOT / "docs" / "registry-contract-tests.md", ROOT / "docs" / "team-skill-sync.md"])
     lowered = docs.lower()
 
     assert "registered hosted catalog" in lowered
@@ -136,3 +149,5 @@ def test_registry_docs_keep_signature_boundary_precise() -> None:
     assert "no registration, no official hosted skill updates" in lowered
     assert "cryptographic signature verification is planned" in lowered
     assert "currently enforced" not in lowered.replace("not currently enforced", "")
+    assert "private encrypted packs are implemented" not in lowered
+    assert "enterprise skill lock is implemented" not in lowered

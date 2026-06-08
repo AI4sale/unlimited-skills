@@ -36,8 +36,13 @@ The public MIT core must remain local-first. Registration gates hosted services 
 - `team join`
 - `team sync`
 - `team pending`
+- `team members`
 - `team approve`
+- `team reject`
+- `team revoke`
 - `team mode`
+- `team collections`
+- `team leave`
 - `community list`
 - `community search`
 - `community preview`
@@ -58,3 +63,5 @@ Hosted metadata calls must not upload skill bodies, prompts, source code, full l
 Community submission is the explicit exception: `community submit <path>` uploads only the selected skill or pack after local validation, preview generation, and explicit confirmation. List, search, preview, update checks, install-plan checks, and installed listing must not upload local skill bodies.
 
 Public repo self-update remains unregistered because it updates the MIT public core from GitHub. Hosted skill updates require registration.
+
+Team status may read local `team.json` without a hosted refresh. Any hosted status refresh, member listing, approval, rejection, revocation, collection listing, sync, or leave operation requires registration.

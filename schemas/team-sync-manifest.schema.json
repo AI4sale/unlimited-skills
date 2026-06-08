@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills team sync manifest",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "team_id", "plan", "limits", "collections", "removals"],
+  "properties": {
+    "schema_version": { "type": "integer" },
+    "team_id": { "type": "string" },
+    "plan": { "type": "string" },
+    "server_time": { "type": "string" },
+    "limits": { "type": "object" },
+    "collections": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["collection", "version", "archive_url", "sha256", "format", "install_mode"],
+        "properties": {
+          "collection": { "type": "string" },
+          "version": { "type": "string" },
+          "visibility": { "type": "string" },
+          "archive_url": { "type": "string", "format": "uri" },
+          "sha256": { "type": "string", "pattern": "^[a-f0-9]{64}$" },
+          "signature": { "type": "string" },
+          "format": { "type": "string", "const": "skill-collection-zip-v1" },
+          "install_mode": { "type": "string" },
+          "compatible_agents": { "type": "array", "items": { "type": "string" } },
+          "notes": { "type": "string" }
+        }
+      }
+    },
+    "removals": { "type": "array", "items": { "type": "object" } }
+  }
+}

@@ -69,7 +69,7 @@ Working now:
 - hosted update client with SHA256-verified collection archives;
 - registered hosted catalog client;
 - registered community skills client for list/search/preview/install/submit/status/local remove;
-- registered team create/join/approval/sync MVP;
+- registered Team Free create/join/members/pending/approve/reject/revoke/collections/sync/leave client;
 - native skill sync for Codex, Claude Code, Hermes, and OpenClaw roots;
 - public repo self-update checks and applies latest releases/tags.
 
@@ -230,15 +230,23 @@ For the public client-facing hosted registry contract, see [docs/hosted-registry
 
 Using the hosted `community-skills` catalog or pushing skills into it also requires registration. Submitting to `community-skills` is an explicit upload of the selected skill or pack, not background telemetry. See [docs/community-skills.md](docs/community-skills.md) and [docs/community-submission-review.md](docs/community-submission-review.md).
 
-Team sync MVP: registered teams can create a team, join instances, approve pending instances from the master instance, and synchronize assigned catalog collections across team nodes. The first node that runs `team create` becomes the master. Default team mode is manual approval. The master may enable auto-approval for up to 24 hours on community plans; longer windows require business or enterprise access. See [docs/team-skill-sync.md](docs/team-skill-sync.md).
+Team Free: registered teams can create a team, join instances, approve or reject pending instances, revoke old instances, list members and assigned collections, dry-run sync, and synchronize assigned catalog collections across approved team nodes. The first node that runs `team create` becomes the master. A join code alone does not grant sync access. Default team mode is manual approval. The master may enable auto-approval for up to 24 hours on community plans; longer windows require business or enterprise access. Team Free supports up to 10 approved instances when enforced server-side. See [docs/team-free.md](docs/team-free.md), [docs/team-sync.md](docs/team-sync.md), and [docs/team-skill-sync.md](docs/team-skill-sync.md).
 
 ```bash
-unlimited-skills team create "My Team"
-unlimited-skills team join <join-code>
+unlimited-skills team create --name "My Team"
+unlimited-skills team join <join-code> --display-name "Hermes laptop"
+unlimited-skills team status --json
+unlimited-skills team members
 unlimited-skills team pending
 unlimited-skills team approve <install-id>
-unlimited-skills team mode auto --hours 24
-unlimited-skills team sync
+unlimited-skills team reject <install-id> --reason "not recognized"
+unlimited-skills team revoke <install-id> --reason "old machine" --yes
+unlimited-skills team mode manual
+unlimited-skills team mode auto --duration 6h
+unlimited-skills team collections
+unlimited-skills team sync --dry-run
+unlimited-skills team sync --yes
+unlimited-skills team leave --yes
 ```
 
 Planned enterprise feature: Enterprise Skill Lock will let managed instances refuse unmanaged skill delivery and direct operators to a corporate administrator or approved enterprise update channel. See [docs/enterprise-skill-lock.md](docs/enterprise-skill-lock.md).

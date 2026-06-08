@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "error": {
+    "code": "pending_approval",
+    "message": "This instance has joined but is not approved yet. Ask a team admin to approve the install.",
+    "retry_after_seconds": 0
+  },
+  "request_id": "req_example_pending_approval"
+}

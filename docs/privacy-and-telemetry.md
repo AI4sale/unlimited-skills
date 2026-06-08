@@ -36,6 +36,30 @@ Community publishing is different: when a user runs `community submit`, the sele
 
 `community installed` is local-only unless `--refresh` is passed.
 
+Team operations may send:
+
+- install id;
+- team id;
+- display name supplied during `team join`;
+- client version;
+- agent surfaces supplied during `team join`;
+- collection versions and source labels;
+- sync status.
+
+Team operations must not send:
+
+- local skill bodies;
+- prompts or conversation history;
+- source code;
+- full local paths;
+- repository paths;
+- customer names;
+- environment variables;
+- tokens or secrets;
+- device private keys.
+
+Team sync fetches approved hosted/team collection manifests. It does not upload local skills by default. Local team audit logs are redacted and must not include tokens, auth headers, device private keys, or sensitive download URLs.
+
 ## Telemetry
 
 Telemetry is off by default.

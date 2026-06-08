@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "team_id": "team_example_01",
+  "plan": "team-free",
+  "server_time": "2026-06-08T10:30:00Z",
+  "limits": {
+    "max_instances": 10,
+    "auto_approval_max_hours": 24
+  },
+  "collections": [
+    {
+      "collection": "team-web",
+      "version": "2026.06.08",
+      "visibility": "team-free",
+      "archive_url": "https://unlimited.ai4.sale/v1/teams/team_example_01/collections/team-web/download?download=team_download_example_redacted",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "signature": "",
+      "format": "skill-collection-zip-v1",
+      "install_mode": "install_or_update",
+      "compatible_agents": ["codex", "claude-code", "hermes", "openclaw"],
+      "notes": "Team Free assigned collection metadata. Client enforces SHA256 verification and safe extraction."
+    }
+  ],
+  "removals": []
+}

@@ -1,83 +1,56 @@
 # Team Skill Sync
 
-Status: MVP client flow implemented for registered installations. Encrypted private team publishing remains roadmap.
+Status: Team Free client workflow implemented for registered installations. Encrypted private team publishing remains roadmap.
 
-Team Skill Sync is the registered team layer for keeping assigned skill collections synchronized across multiple agent instances.
+Team Skill Sync keeps approved registered team instances aligned with hosted team collection assignments.
 
 The local MIT core remains unchanged. Without registration, every instance keeps using local skills as-is. With registration, a team can attach instances to a shared team identity and synchronize catalog collections through the official registry.
 
-## Current MVP
-
-Implemented client commands:
+## Implemented Client Commands
 
 ```bash
-unlimited-skills team create "My Team"
-unlimited-skills team join <join-code>
-unlimited-skills team status
+unlimited-skills team create --name "My Team"
+unlimited-skills team join <join-code> --display-name "Hermes laptop"
+unlimited-skills team status --json
+unlimited-skills team members
 unlimited-skills team pending
 unlimited-skills team approve <install-id>
+unlimited-skills team reject <install-id> --reason "not recognized"
+unlimited-skills team revoke <install-id> --reason "old machine" --yes
 unlimited-skills team mode manual
-unlimited-skills team mode auto --hours 24
-unlimited-skills team sync
+unlimited-skills team mode auto --duration 24h
+unlimited-skills team collections
+unlimited-skills team sync --dry-run
+unlimited-skills team sync --yes
+unlimited-skills team leave --yes
 ```
 
-Current behavior:
+## Rules
 
 1. The first registered instance that runs `team create` becomes the team master.
 2. `team create` returns a join code.
 3. Other registered instances run `team join <join-code>`.
-4. Default team mode is manual, so joined instances become pending.
-5. The master instance runs `team pending` and `team approve <install-id>`.
-6. Approved instances can run `team sync` to install team-assigned catalog updates.
+4. A join code alone does not grant sync access.
+5. Default team mode is manual.
+6. Pending instances require `team approve <install-id>` from a master/admin.
+7. Approved instances can run `team sync`.
+8. Team Free auto approval is capped at 24 hours.
+9. Team Free supports up to 10 approved instances when enforced server-side.
 
-## Approval Mode
+## Privacy
 
-Default mode is manual. A join code alone does not grant sync access.
+Team sync sends install id, team id, client version, agent surfaces when supplied, collection versions/source labels, and sync status. It must not upload local skill bodies, prompts, source code, full local paths, repository paths, customer names, environment variables, tokens, secrets, or device private keys.
 
-The master can temporarily enable auto-approval:
+## Audit
 
-```bash
-unlimited-skills team mode auto --hours 24
+The client writes local redacted audit events to:
+
+```text
+~/.unlimited-skills/.learning/team-events.jsonl
 ```
 
-Community plans are capped at 24 hours of auto-approval. Longer auto-approval windows require business or enterprise access. The master can return to manual mode:
-
-```bash
-unlimited-skills team mode manual
-```
-
-## Native Skill Sync
-
-Native agent skill roots are mirrored into the local library before common commands run. This keeps newly installed Codex, Claude Code, Hermes, and OpenClaw skills searchable through Unlimited Skills:
-
-```bash
-unlimited-skills sync-native --agent hermes
-unlimited-skills search "security review" --native-agent hermes
-```
+Events include create, join request, approve, reject, revoke, mode change, dry-run sync, applied sync, leave, and errors. Audit events must not contain hosted tokens, auth headers, device private keys, or sensitive download URLs.
 
 ## Roadmap
 
-The next team layer is encrypted private skill-pack publishing:
-
-1. A master instance prepares a team skill pack.
-2. The client encrypts the archive locally.
-3. The encrypted archive is uploaded to temporary registry storage.
-4. The registry stores metadata, checksums, signatures, and the encrypted archive only.
-5. Child instances poll or receive the new team pack version.
-6. Child instances download the encrypted archive.
-7. Child instances decrypt it locally with the team key stored on each team node.
-8. Child instances verify checksum/signature and install the updated skill pack.
-
-## Security Model
-
-- Skill contents are not uploaded by normal sync, catalog, update, or enhancement checks.
-- Join requests are pending by default and require master approval.
-- Auto-approval is temporary and capped at 24 hours on community plans.
-- The registry must not store future private-pack decryption keys.
-- Revoked instances must stop receiving future team updates.
-
-## Free Tier
-
-The planned free team license includes up to 10 registered team instances.
-
-Larger teams, longer auto-approval windows, private registries, encrypted private-pack publishing, longer archive retention, audit logs, SSO, and enterprise key management are planned paid/team features.
+Encrypted private team-pack publishing, private registries, Enterprise Skill Lock, SSO, signed policy enforcement, on-prem/VPC options, and enterprise key management are planned paid/business features. They are not implemented by the public Team Free client.

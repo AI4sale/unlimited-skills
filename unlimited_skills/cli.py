@@ -31,7 +31,19 @@ from .registration import (
 )
 from .native import DEFAULT_AGENT_ORDER, sync_native_sources
 from .self_update import DEFAULT_PUBLIC_REPO, apply_public_repo_update, check_public_repo_update
-from .team import TeamClient, load_team_state, redacted_team_status, save_team_state, team_state_path
+from .team import (
+    TeamClient,
+    TeamError,
+    collection_to_json,
+    load_team_state,
+    member_to_json,
+    parse_duration_hours,
+    redacted_team_status,
+    save_team_state,
+    team_state_path,
+    team_state_with_mode,
+    write_team_audit,
+)
 from .updates import UpdateClient
 
 
@@ -1032,19 +1044,64 @@ def cmd_enhance_run(args: argparse.Namespace) -> int:
     return client.run_enhancement_script(root, apply=args.apply, limit=args.limit, target_dir=target_dir)
 
 
+def _confirm_or_fail(flag: bool, phrase: str, message: str) -> None:
+    if flag:
+        return
+    if not sys.stdin.isatty():
+        raise RuntimeError(f"{message} Pass --yes to confirm in non-interactive mode.")
+    typed = input(f"Type {phrase} to continue: ")
+    if typed.strip() != phrase:
+        raise RuntimeError("Operation cancelled.")
+
+
+def _reason_or_prompt(reason: str) -> str:
+    if reason:
+        return reason
+    if not sys.stdin.isatty():
+        raise RuntimeError("This command requires --reason in non-interactive mode.")
+    typed = input("Reason: ").strip()
+    if not typed:
+        raise RuntimeError("Reason is required.")
+    return typed
+
+
 def cmd_team_status(args: argparse.Namespace) -> int:
-    payload = redacted_team_status(load_team_state())
-    payload["team_file"] = str(team_state_path())
-    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    team = load_team_state()
+    registration = load_registration()
+    payload = redacted_team_status(team, registration)
+    if getattr(args, "refresh", False):
+        client = TeamClient(registration, timeout=args.timeout)
+        refreshed = client.status(team)
+        payload["refresh"] = refreshed
+        payload["member_count"] = int(refreshed.get("member_count") or payload["member_count"])
+        payload["pending_count"] = int(refreshed.get("pending_count") or payload["pending_count"])
+        if isinstance(refreshed.get("limits"), dict):
+            payload["limits"] = refreshed["limits"]
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    print("Registered: " + ("yes" if payload["registered"] else "no"))
+    print(f"Team: {payload['team_name'] or '(none)'} ({payload['team_id'] or 'no team id'})")
+    print(f"Role: {payload['role']} / status: {payload['status'] or 'none'}")
+    print(f"Approval mode: {payload['approval_mode']}")
+    if payload["auto_approval_expires_at"]:
+        print(f"Auto approval expires: {payload['auto_approval_expires_at']}")
+    print(f"Last sync: {payload['last_sync_at'] or '(never)'}")
+    if payload["recommendations"]:
+        print("Recommendations: " + " ".join(payload["recommendations"]))
     return 0
 
 
 def cmd_team_create(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
-    client = TeamClient(load_registration(), timeout=args.timeout)
-    team, response = client.create(root, name=args.name)
+    name = args.name_option or args.name
+    if not name:
+        raise RuntimeError("Team name is required.")
+    registration = load_registration()
+    client = TeamClient(registration, timeout=args.timeout)
+    team, response = client.create(root, name=name)
     path = save_team_state(team)
-    payload = redacted_team_status(team)
+    payload = redacted_team_status(team, registration)
     payload["team_file"] = str(path)
     if "join_code" in response:
         payload["join_code"] = response["join_code"]
@@ -1054,10 +1111,11 @@ def cmd_team_create(args: argparse.Namespace) -> int:
 
 def cmd_team_join(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
-    client = TeamClient(load_registration(), timeout=args.timeout)
-    team, _ = client.join(root, join_code=args.join_code)
+    registration = load_registration()
+    client = TeamClient(registration, timeout=args.timeout)
+    team, _ = client.join(root, join_code=args.join_code, display_name=args.display_name, agent_surfaces=tuple(args.agent_surface or ()))
     path = save_team_state(team)
-    payload = redacted_team_status(team)
+    payload = redacted_team_status(team, registration)
     payload["team_file"] = str(path)
     print(json.dumps(payload, ensure_ascii=False, indent=2))
     return 0
@@ -1068,12 +1126,18 @@ def cmd_team_sync(args: argparse.Namespace) -> int:
     registration = load_registration()
     team = load_team_state()
     team_client = TeamClient(registration, timeout=args.timeout)
-    updates = team_client.sync_manifest(root, team)
+    plan = team_client.sync_manifest(root, team)
+    updates = plan.updates
     if args.collection:
         updates = [item for item in updates if item.collection == args.collection]
     if args.dry_run:
-        print(json.dumps({"root": str(root), "dry_run": True, "count": len(updates), "updates": [item.__dict__ for item in updates]}, ensure_ascii=False, indent=2))
+        payload = plan.dry_run_payload(root)
+        if args.collection:
+            payload["collections"] = [item for item in payload["collections"] if item["collection"] == args.collection]
+        write_team_audit("team_sync_dry_run", team=team, registration=registration, request_id=plan.request_id)
+        print(json.dumps({"root": str(root), "dry_run": True, "plan": payload}, ensure_ascii=False, indent=2, sort_keys=True))
         return 0
+    _confirm_or_fail(args.yes, "SYNC", "Team sync may change local team-owned skill collections.")
     update_client = UpdateClient(registration, timeout=args.timeout)
     applied = [update_client.apply(root, item) for item in updates]
     reindexed = False
@@ -1082,14 +1146,36 @@ def cmd_team_sync(args: argparse.Namespace) -> int:
         reindexed = True
     team = team_client.mark_synced(team)
     save_team_state(team)
-    print(json.dumps({"root": str(root), "applied": applied, "reindexed": reindexed, "team": redacted_team_status(team)}, ensure_ascii=False, indent=2))
+    write_team_audit("team_sync_applied", team=team, registration=registration, result=f"{len(applied)} applied", request_id=plan.request_id)
+    print(json.dumps({"root": str(root), "applied": applied, "reindexed": reindexed, "team": redacted_team_status(team, registration)}, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_team_members(args: argparse.Namespace) -> int:
+    team = load_team_state()
+    client = TeamClient(load_registration(), timeout=args.timeout)
+    members = client.members(team, include_all=args.all, pending_only=args.pending)
+    payload = {"count": len(members), "members": [member_to_json(member, full_id=args.full_id) for member in members]}
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    for member in payload["members"]:
+        print(f"{member['install_id']}: {member['display_name'] or '(unnamed)'} [{member['role']}/{member['status']}]")
     return 0
 
 
 def cmd_team_pending(args: argparse.Namespace) -> int:
     team = load_team_state()
     client = TeamClient(load_registration(), timeout=args.timeout)
-    print(json.dumps(client.pending(team), ensure_ascii=False, indent=2, sort_keys=True))
+    payload = client.pending(team)
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    items = payload.get("items") or payload.get("members") or []
+    for item in items if isinstance(items, list) else []:
+        install_id = str(item.get("install_id") or "")
+        short = install_id if args.full_id or len(install_id) <= 16 else f"{install_id[:12]}..."
+        print(f"{short}: {item.get('display_name') or '(unnamed)'} {item.get('client_version') or ''}")
     return 0
 
 
@@ -1100,10 +1186,52 @@ def cmd_team_approve(args: argparse.Namespace) -> int:
     return 0
 
 
-def cmd_team_mode(args: argparse.Namespace) -> int:
+def cmd_team_reject(args: argparse.Namespace) -> int:
     team = load_team_state()
     client = TeamClient(load_registration(), timeout=args.timeout)
-    print(json.dumps(client.set_mode(team, mode=args.mode, hours=args.hours), ensure_ascii=False, indent=2, sort_keys=True))
+    reason = _reason_or_prompt(args.reason)
+    print(json.dumps(client.reject(team, member_install_id=args.install_id, reason=reason), ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_team_revoke(args: argparse.Namespace) -> int:
+    team = load_team_state()
+    client = TeamClient(load_registration(), timeout=args.timeout)
+    _confirm_or_fail(args.yes, "REVOKE", "Team revoke removes hosted team access for that instance.")
+    print(json.dumps(client.revoke(team, member_install_id=args.install_id, reason=args.reason), ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_team_mode(args: argparse.Namespace) -> int:
+    team = load_team_state()
+    registration = load_registration()
+    client = TeamClient(registration, timeout=args.timeout)
+    duration = f"{args.hours}h" if getattr(args, "hours", 0) else args.duration
+    hours = parse_duration_hours(duration, plan=(registration.plan or "team-free")) if args.mode == "auto" else 0
+    response = client.set_mode(team, mode=args.mode, hours=hours)
+    save_team_state(team_state_with_mode(team, response, mode=args.mode, hours=hours))
+    print(json.dumps(response, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_team_collections(args: argparse.Namespace) -> int:
+    team = load_team_state()
+    client = TeamClient(load_registration(), timeout=args.timeout)
+    collections = client.collections(team)
+    payload = {"count": len(collections), "collections": [collection_to_json(item) for item in collections]}
+    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_team_leave(args: argparse.Namespace) -> int:
+    team = load_team_state()
+    registration = load_registration()
+    client = TeamClient(registration, timeout=args.timeout)
+    _confirm_or_fail(args.yes, "LEAVE", "Leaving the team stops hosted team sync for this installation.")
+    response = client.leave(team)
+    left = client.left_state(team)
+    save_team_state(left)
+    print(json.dumps({"result": response, "team": redacted_team_status(left, registration)}, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 
 
@@ -1412,33 +1540,76 @@ def build_parser() -> argparse.ArgumentParser:
     team = sub.add_parser("team", help="Register and synchronize team skill collections.")
     team_sub = team.add_subparsers(dest="team_command", required=True)
     team_status = team_sub.add_parser("status", help="Show local team registration state.")
+    team_status.add_argument("--refresh", action="store_true", help="Refresh hosted team status; requires registration.")
+    team_status.add_argument("--json", action="store_true")
+    team_status.add_argument("--timeout", type=float, default=30.0)
     team_status.set_defaults(func=cmd_team_status)
     team_create = team_sub.add_parser("create", help="Create a registered team and join this installation as owner.")
-    team_create.add_argument("name", help="Team name.")
+    team_create.add_argument("name", nargs="?", default="", help="Team name.")
+    team_create.add_argument("--name", dest="name_option", default="", help="Team name.")
     team_create.add_argument("--timeout", type=float, default=30.0)
     team_create.set_defaults(func=cmd_team_create)
     team_join = team_sub.add_parser("join", help="Join an existing registered team with a join code.")
     team_join.add_argument("join_code", help="Team join code from the owner/admin.")
+    team_join.add_argument("--display-name", default="", help="Display name for this instance.")
+    team_join.add_argument("--agent-surface", action="append", choices=["codex", "claude-code", "hermes", "openclaw", "vellum-ai"], help="Agent surface on this instance. Repeat for multiple.")
     team_join.add_argument("--timeout", type=float, default=30.0)
     team_join.set_defaults(func=cmd_team_join)
+    team_members = team_sub.add_parser("members", help="List approved team members.")
+    team_members.add_argument("--all", action="store_true", help="Include all member statuses.")
+    team_members.add_argument("--pending", action="store_true", help="Show pending members only.")
+    team_members.add_argument("--full-id", action="store_true", help="Show full install ids.")
+    team_members.add_argument("--json", action="store_true")
+    team_members.add_argument("--timeout", type=float, default=30.0)
+    team_members.set_defaults(func=cmd_team_members)
     team_sync = team_sub.add_parser("sync", help="Download and install skill collections assigned to this team.")
     team_sync.add_argument("--collection", default="", help="Only sync one assigned collection.")
     team_sync.add_argument("--dry-run", action="store_true", help="Show assigned updates without downloading archives.")
+    team_sync.add_argument("--force", action="store_true", help="Reserved for server-side install policy compatibility.")
+    team_sync.add_argument("--yes", action="store_true", help="Confirm local collection changes in non-interactive mode.")
+    team_sync.add_argument("--json", action="store_true")
     team_sync.add_argument("--skip-reindex", action="store_true", help="Do not rebuild the lexical index after syncing.")
     team_sync.add_argument("--timeout", type=float, default=30.0)
     team_sync.set_defaults(func=cmd_team_sync)
     team_pending = team_sub.add_parser("pending", help="List pending join requests for the master instance.")
+    team_pending.add_argument("--full-id", action="store_true", help="Show full install ids.")
+    team_pending.add_argument("--json", action="store_true")
     team_pending.add_argument("--timeout", type=float, default=30.0)
     team_pending.set_defaults(func=cmd_team_pending)
     team_approve = team_sub.add_parser("approve", help="Approve a pending team instance by install_id.")
     team_approve.add_argument("install_id", help="Pending installation id to approve.")
+    team_approve.add_argument("--json", action="store_true")
     team_approve.add_argument("--timeout", type=float, default=30.0)
     team_approve.set_defaults(func=cmd_team_approve)
+    team_reject = team_sub.add_parser("reject", help="Reject a pending team instance by install_id.")
+    team_reject.add_argument("install_id", help="Pending installation id to reject.")
+    team_reject.add_argument("--reason", default="", help="Reason for rejection. Required in non-interactive mode.")
+    team_reject.add_argument("--json", action="store_true")
+    team_reject.add_argument("--timeout", type=float, default=30.0)
+    team_reject.set_defaults(func=cmd_team_reject)
+    team_revoke = team_sub.add_parser("revoke", help="Revoke hosted team access for an approved instance.")
+    team_revoke.add_argument("install_id", help="Approved installation id to revoke.")
+    team_revoke.add_argument("--reason", default="", help="Reason for revocation.")
+    team_revoke.add_argument("--yes", action="store_true", help="Confirm revocation in non-interactive mode.")
+    team_revoke.add_argument("--json", action="store_true")
+    team_revoke.add_argument("--timeout", type=float, default=30.0)
+    team_revoke.set_defaults(func=cmd_team_revoke)
     team_mode = team_sub.add_parser("mode", help="Set team join approval mode. Default mode is manual.")
     team_mode.add_argument("mode", choices=["manual", "auto"])
-    team_mode.add_argument("--hours", type=int, default=24, help="Auto-approval window. Community plans are capped at 24 hours.")
+    team_mode.add_argument("--duration", default="24h", help="Auto-approval duration, for example 1h, 6h, or 24h.")
+    team_mode.add_argument("--hours", type=int, default=0, help="Legacy alias for --duration in hours.")
+    team_mode.add_argument("--json", action="store_true")
     team_mode.add_argument("--timeout", type=float, default=30.0)
     team_mode.set_defaults(func=cmd_team_mode)
+    team_collections = team_sub.add_parser("collections", help="List team-assigned collections.")
+    team_collections.add_argument("--json", action="store_true")
+    team_collections.add_argument("--timeout", type=float, default=30.0)
+    team_collections.set_defaults(func=cmd_team_collections)
+    team_leave = team_sub.add_parser("leave", help="Leave the current team. Does not delete local skills.")
+    team_leave.add_argument("--yes", action="store_true", help="Confirm leave in non-interactive mode.")
+    team_leave.add_argument("--json", action="store_true")
+    team_leave.add_argument("--timeout", type=float, default=30.0)
+    team_leave.set_defaults(func=cmd_team_leave)
 
     self_update = sub.add_parser("self-update", help="Check or apply public repo releases for the local Unlimited Skills core.")
     self_update_sub = self_update.add_subparsers(dest="self_update_command", required=True)

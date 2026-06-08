@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills team members response",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "members"],
+  "properties": {
+    "schema_version": { "type": "integer" },
+    "members": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["install_id", "role", "status"],
+        "properties": {
+          "install_id": { "type": "string" },
+          "display_name": { "type": "string" },
+          "role": { "type": "string" },
+          "status": { "type": "string", "enum": ["pending", "approved", "rejected", "revoked", "left"] },
+          "agent_surfaces": { "type": "array", "items": { "type": "string" } },
+          "client_version": { "type": "string" },
+          "created_at": { "type": "string" },
+          "approved_at": { "type": "string" },
+          "last_seen_at": { "type": "string" },
+          "collections_assigned": { "type": "array", "items": { "type": "string" } },
+          "notes": { "type": "string" }
+        }
+      }
+    }
+  }
+}

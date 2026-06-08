@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "team_id": "team_example_01",
+  "team_name": "Example Team",
+  "role": "master",
+  "status": "approved",
+  "approval_mode": "manual",
+  "auto_approval_expires_at": "",
+  "member_count": 3,
+  "pending_count": 1,
+  "limits": {
+    "max_instances": 10,
+    "max_collections": 5,
+    "auto_approval_max_hours": 24
+  },
+  "request_id": "req_example_team_status"
+}

@@ -11,6 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SCHEMAS = ROOT / "schemas"
 EXAMPLES = ROOT / "examples" / "registry"
 COMMUNITY_EXAMPLES = ROOT / "examples" / "community"
+TEAM_EXAMPLES = ROOT / "examples" / "team"
 SHA256_RE = re.compile(r"^[a-f0-9]{64}$")
 FORBIDDEN_KEYS = {
     "skill_body",
@@ -105,16 +106,31 @@ def validate_community_examples(examples: dict[str, Any]) -> None:
     require_fields(examples["submission-status.example.json"], ["submissions"], COMMUNITY_EXAMPLES / "submission-status.example.json")
 
 
+def validate_team_examples(examples: dict[str, Any]) -> None:
+    require_fields(examples["status-response.example.json"], ["team_id", "team_name", "role", "approval_mode", "limits"], TEAM_EXAMPLES / "status-response.example.json")
+    require_fields(examples["members-response.example.json"], ["members"], TEAM_EXAMPLES / "members-response.example.json")
+    require_fields(examples["pending-response.example.json"], ["items"], TEAM_EXAMPLES / "pending-response.example.json")
+    require_fields(examples["sync-manifest.example.json"], ["team_id", "plan", "limits", "collections", "removals"], TEAM_EXAMPLES / "sync-manifest.example.json")
+    require_fields(examples["sync-dry-run-output.example.json"], ["dry_run", "plan"], TEAM_EXAMPLES / "sync-dry-run-output.example.json")
+    require_fields(examples["member-limit-error.example.json"], ["error"], TEAM_EXAMPLES / "member-limit-error.example.json")
+    require_fields(examples["pending-approval-error.example.json"], ["error"], TEAM_EXAMPLES / "pending-approval-error.example.json")
+    for item in examples["sync-manifest.example.json"]["collections"]:
+        require_fields(item, ["collection", "version", "archive_url", "sha256", "format"], TEAM_EXAMPLES / "sync-manifest.example.json")
+
+
 def main() -> int:
     schema_files = sorted(SCHEMAS.glob("*.json"))
     example_files = sorted(EXAMPLES.glob("*.json"))
     community_example_files = sorted(COMMUNITY_EXAMPLES.glob("*.json"))
+    team_example_files = sorted(TEAM_EXAMPLES.glob("*.json"))
     if not schema_files:
         raise ContractError("No schema files found")
     if not example_files:
         raise ContractError("No registry example files found")
     if not community_example_files:
         raise ContractError("No community example files found")
+    if not team_example_files:
+        raise ContractError("No team example files found")
 
     for path in schema_files:
         load_json(path)
@@ -126,7 +142,11 @@ def main() -> int:
     for name, payload in community_examples.items():
         validate_no_private_fields(COMMUNITY_EXAMPLES / name, payload)
     validate_community_examples(community_examples)
-    print(json.dumps({"schemas": len(schema_files), "registry_examples": len(example_files), "community_examples": len(community_example_files), "status": "ok"}, sort_keys=True))
+    team_examples = {path.name: load_json(path) for path in team_example_files}
+    for name, payload in team_examples.items():
+        validate_no_private_fields(TEAM_EXAMPLES / name, payload)
+    validate_team_examples(team_examples)
+    print(json.dumps({"schemas": len(schema_files), "registry_examples": len(example_files), "community_examples": len(community_example_files), "team_examples": len(team_example_files), "status": "ok"}, sort_keys=True))
     return 0
 
 

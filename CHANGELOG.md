@@ -9,6 +9,7 @@
 - Hosted registry API contract docs, catalog model docs, JSON schemas, sanitized examples, and registry contract tests.
 - Registered `community` CLI namespace for community catalog list/search/preview/install, explicit submit preview/confirmation, submission status, local installed listing, and local remove.
 - Community catalog schemas, sanitized examples, submission review docs, and privacy docs for explicit community submissions.
+- Team Free member listing, pending/reject/revoke flows, collection listing, leave command, sync dry-run JSON output, local redacted team audit events, and Team Free schemas/examples.
 
 ### Changed
 
@@ -18,6 +19,7 @@
 - Clarified that hosted collection archives are SHA256-verified today; cryptographic signature verification is planned, not currently enforced.
 - Documented the official registered hosted catalog as populated early-access while keeping private skill bodies out of the public MIT repo.
 - Clarified that community list/search/preview/update checks do not upload skill bodies, while `community submit` uploads only the selected skill or pack after confirmation.
+- Clarified Team Free limits, 24-hour auto-approval cap, no local skill-body upload during team sync, and Free-vs-Business-vs-Enterprise boundaries.
 
 ## v0.1.2-alpha
 

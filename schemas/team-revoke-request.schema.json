@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills team revoke request",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "install_id", "client", "reason"],
+  "properties": {
+    "schema_version": { "type": "integer" },
+    "install_id": { "type": "string" },
+    "client": { "type": "object" },
+    "team_token": { "type": "string" },
+    "reason": { "type": "string" }
+  }
+}

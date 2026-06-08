@@ -1,0 +1,27 @@
+{
+  "root": "redacted-local-library-root",
+  "dry_run": true,
+  "plan": {
+    "team_id": "team_example_01",
+    "plan": "team-free",
+    "limits": {
+      "max_instances": 10,
+      "auto_approval_max_hours": 24
+    },
+    "collections": [
+      {
+        "collection": "team-web",
+        "version": "2026.06.08",
+        "installed_version": "local",
+        "visibility": "team-free",
+        "install_mode": "install_or_update",
+        "archive_size": 1024,
+        "warnings": [],
+        "target_path": "redacted-local-library-root/team-web",
+        "update_available": true
+      }
+    ],
+    "removals": [],
+    "reindex_needed": true
+  }
+}

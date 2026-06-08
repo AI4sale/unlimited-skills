@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills team approval mode request",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "install_id", "client", "mode"],
+  "properties": {
+    "schema_version": { "type": "integer" },
+    "install_id": { "type": "string" },
+    "client": { "type": "object" },
+    "team_token": { "type": "string" },
+    "mode": { "type": "string", "enum": ["manual", "auto"] },
+    "hours": { "type": "integer", "minimum": 0, "maximum": 24 }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "install_id": "uls_inst_example_pending",
+      "display_name": "Hermes laptop",
+      "role": "pending",
+      "status": "pending",
+      "agent_surfaces": ["hermes"],
+      "client_version": "0.1.2",
+      "requested_at": "2026-06-08T10:20:00Z"
+    }
+  ]
+}

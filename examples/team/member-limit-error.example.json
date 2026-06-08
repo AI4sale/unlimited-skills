@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "error": {
+    "code": "member_limit_reached",
+    "message": "Team Free supports up to 10 approved instances. Upgrade is required for larger teams.",
+    "retry_after_seconds": 0
+  },
+  "request_id": "req_example_member_limit"
+}

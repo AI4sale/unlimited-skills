@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills team status response",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "team_id", "team_name", "role", "approval_mode", "limits"],
+  "properties": {
+    "schema_version": { "type": "integer" },
+    "team_id": { "type": "string" },
+    "team_name": { "type": "string" },
+    "role": { "type": "string", "enum": ["master", "admin", "member", "pending", "none"] },
+    "status": { "type": "string" },
+    "approval_mode": { "type": "string", "enum": ["manual", "auto"] },
+    "auto_approval_expires_at": { "type": "string" },
+    "member_count": { "type": "integer", "minimum": 0 },
+    "pending_count": { "type": "integer", "minimum": 0 },
+    "limits": { "type": "object" }
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "members": [
+    {
+      "install_id": "uls_inst_example_master",
+      "display_name": "Master laptop",
+      "role": "master",
+      "status": "approved",
+      "agent_surfaces": ["codex"],
+      "client_version": "0.1.2",
+      "created_at": "2026-06-08T10:00:00Z",
+      "approved_at": "2026-06-08T10:00:00Z",
+      "last_seen_at": "2026-06-08T10:10:00Z",
+      "collections_assigned": ["team-web"]
+    }
+  ]
+}

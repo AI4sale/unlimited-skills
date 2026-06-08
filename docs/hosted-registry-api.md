@@ -119,9 +119,17 @@ Creates a registered team. The first node becomes the master/owner.
 
 Requests to join a team with a join code. Manual approval is the default mode.
 
+### `POST /v1/teams/{team_id}/status`
+
+Returns redacted team status, approval mode, member counts, pending counts, and server-side limits for the registered installation.
+
+### `POST /v1/teams/{team_id}/members`
+
+Lists approved members by default. The client may request all statuses or pending-only members.
+
 ### `POST /v1/teams/{team_id}/sync`
 
-Returns team-assigned collection updates. Team sync uses the same update item format as `/v1/collections/updates`.
+Returns team-assigned collection manifests. The client supports the richer Team Free sync manifest and remains compatible with the legacy `updates` array shape. The client enforces SHA256 verification and safe extraction only; cryptographic signature verification is planned.
 
 ### `POST /v1/teams/{team_id}/members/pending`
 
@@ -131,9 +139,25 @@ Lists pending join requests for the master instance.
 
 Approves a pending member from the master instance.
 
+### `POST /v1/teams/{team_id}/members/{member_install_id}/reject`
+
+Rejects a pending member from the master/admin instance.
+
+### `POST /v1/teams/{team_id}/members/{member_install_id}/revoke`
+
+Revokes hosted team access for a previously approved member. This does not delete that member's local files.
+
 ### `POST /v1/teams/{team_id}/approval-mode`
 
 Sets team join approval mode. Community plans are capped server-side; business/enterprise enforcement is outside the public MIT client.
+
+### `POST /v1/teams/{team_id}/collections`
+
+Lists team-assigned collections and local installed-version metadata for this team.
+
+### `POST /v1/teams/{team_id}/leave`
+
+Marks the current installation as left. The public client keeps local skills in place and marks local team state as left.
 
 ## Error Format
 
@@ -154,6 +178,12 @@ Known error codes:
 - `registration_required`
 - `invalid_proof`
 - `forbidden`
+- `team_not_found`
+- `not_team_admin`
+- `pending_approval`
+- `member_limit_reached`
+- `auto_approval_window_too_long`
+- `plan_required`
 - `not_found`
 - `rate_limited`
 - `server_error`

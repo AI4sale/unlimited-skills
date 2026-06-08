@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills team approval response",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "team_id", "install_id", "status"],
+  "properties": {
+    "schema_version": { "type": "integer" },
+    "team_id": { "type": "string" },
+    "install_id": { "type": "string" },
+    "status": { "type": "string", "enum": ["approved", "rejected", "revoked"] },
+    "role": { "type": "string" },
+    "request_id": { "type": "string" }
+  }
+}
