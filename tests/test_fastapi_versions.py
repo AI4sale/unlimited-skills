@@ -23,9 +23,12 @@ def write_allowlist(path: Path) -> None:
                     "default_distribution_mode": "allowlist_only",
                     "full_catalog_distribution_allowed": False,
                     "requires_registration": True,
+                    "free_active_client_instance_limit": 100,
                     "hub_executes_skills": False,
+                    "hosted_registry_receives_search_queries_by_default": False,
                 },
                 "allowlist": [],
+                "counts": {"allowlist_total": 0},
             }
         ),
         encoding="utf-8",

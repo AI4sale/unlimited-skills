@@ -105,7 +105,7 @@ def test_hub_token_create_stores_hash_and_prints_raw_token_once(tmp_path: Path, 
     output = capsys.readouterr().out
     payload = json.loads(output)
     raw_token = payload["token"]
-    config_text = (uls_home / "hub.json").read_text(encoding="utf-8")
+    config_text = (uls_home / "hub" / "hub.json").read_text(encoding="utf-8")
     config = json.loads(config_text)
 
     assert raw_token.startswith("uls_hub_")

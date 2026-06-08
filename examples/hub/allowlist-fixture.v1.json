@@ -1,0 +1,54 @@
+{
+  "allowlist": [
+    {
+      "collection": "fixture-pack",
+      "hub_behavior": "distribute_body",
+      "name": "fixture-skill",
+      "primary_category": "HUB_READY_PURE_TEXT",
+      "requires_local_install_plan": false,
+      "risk_level": "none",
+      "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "skill_id": "fixture-skill",
+      "source": "fixture"
+    }
+  ],
+  "counts": {
+    "allowlist_total": 1,
+    "blocked": 1,
+    "requires_local_install_plan": 1
+  },
+  "excluded": {
+    "blocked": [
+      {
+        "collection": "fixture-pack",
+        "name": "blocked-fixture",
+        "skill_id": "blocked-fixture"
+      }
+    ],
+    "local_only": [],
+    "needs_human_review": [],
+    "retrieval_only": []
+  },
+  "local_install_plan_candidates": [
+    {
+      "collection": "fixture-pack",
+      "hub_behavior": "distribute_body_with_local_install_plan",
+      "name": "fixture-tool-plan",
+      "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "skill_id": "fixture-tool-plan"
+    }
+  ],
+  "policy": {
+    "default_distribution_mode": "allowlist_only",
+    "free_active_client_instance_limit": 100,
+    "full_catalog_distribution_allowed": false,
+    "hosted_registry_receives_search_queries_by_default": false,
+    "hub_executes_skills": false,
+    "requires_registration": true
+  },
+  "schema_version": 1,
+  "source_audit": {
+    "total_skills_scanned": 315,
+    "verdict": "YES_WITH_ALLOWLIST"
+  }
+}

@@ -16,10 +16,11 @@ from pydantic import BaseModel, Field
 from . import __version__
 from .cli import DEFAULT_ROOT, read_text, split_frontmatter
 from .hub import HUB_FEATURE_FLAGS, HUB_DEFAULT_PORT, verify_hub_token
+from .hub_allowlist import cached_allowlist_path, validate_allowlist
 from .registration import redact_sensitive_text, unlimited_skills_home
 
 
-DEFAULT_ALLOWLIST_PATH = Path(os.environ.get("UNLIMITED_SKILLS_HUB_ALLOWLIST", Path.home() / ".unlimited-skills" / "hub" / "hub-allowlist.v1.json"))
+DEFAULT_ALLOWLIST_PATH = Path(os.environ.get("UNLIMITED_SKILLS_HUB_ALLOWLIST", cached_allowlist_path()))
 DEFAULT_HUB_ROOT = Path(os.environ.get("UNLIMITED_SKILLS_ROOT", str(DEFAULT_ROOT))).expanduser()
 WORD_RE = re.compile(r"[a-zA-Z0-9][a-zA-Z0-9_.+#/-]*")
 ACTIVE_CLIENT_WINDOW_SECONDS = 30 * 24 * 60 * 60
@@ -151,14 +152,7 @@ def load_allowlist_manifest(path: Path) -> dict[str, Any]:
     data = json.loads(path.read_text(encoding="utf-8-sig"))
     if not isinstance(data, dict):
         raise RuntimeError("Hub allowlist must be a JSON object.")
-    policy = data.get("policy", {})
-    if not isinstance(policy, dict) or policy.get("full_catalog_distribution_allowed") is not False:
-        raise RuntimeError("Local Skill Hub MVP requires full_catalog_distribution_allowed=false.")
-    if policy.get("hub_executes_skills") is not False:
-        raise RuntimeError("Local Skill Hub MVP requires hub_executes_skills=false.")
-    if policy.get("requires_registration") is not True:
-        raise RuntimeError("Local Skill Hub MVP requires registered hub policy.")
-    return data
+    return validate_allowlist(data)
 
 
 def hub_error(code: str, message: str, status_code: int = 401) -> HTTPException:

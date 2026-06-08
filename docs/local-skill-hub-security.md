@@ -34,7 +34,7 @@ unlimited-skills remote configure --url http://127.0.0.1:8766 --token-env ULS_HU
 - The hub does not execute skills or scripts.
 - The hub must not store secrets in logs.
 - Tokens and device proof material must be redacted in status output, errors, and audit logs.
-- Hub client tokens are stored as SHA256 hashes in `~/.unlimited-skills/hub.json`; raw token values are shown only once during creation.
+- Hub client tokens are stored as SHA256 hashes in `~/.unlimited-skills/hub/hub.json`; raw token values are shown only once during creation.
 - Remote client file-backed tokens, if explicitly configured with `--token`, are raw client credentials and must never be committed, logged, or shared.
 - Registration tokens and device private keys are local private state under `~/.unlimited-skills/registration.json`.
 - Local search queries are not forwarded to the hosted service by default.
@@ -46,3 +46,9 @@ unlimited-skills remote configure --url http://127.0.0.1:8766 --token-env ULS_HU
 When the hub syncs hosted collections, archive extraction must be path-safe and SHA256-verified before installation. Cryptographic signature verification is planned and must not be claimed as implemented until the client enforces it.
 
 Skill archives must not contain secrets, private customer context, private repository paths, or blocked assets. Tool/platform skills require local capability checks before use.
+
+## Allowlist Sync
+
+`hub sync` calls the registered hosted allowlist endpoint and caches only validated allowlist/catalog metadata under `~/.unlimited-skills/hub/`. It must not upload local skill bodies, prompts, source code, full local paths, environment values, tokens, secrets, or device private keys.
+
+Cached allowlists are rejected if they enable full catalog distribution, remove registration requirements, allow hub-side skill execution, include blocked/local-only/needs-review skills in the distributable list, embed full `SKILL.md` bodies, or contain obvious secret fields.

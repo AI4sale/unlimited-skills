@@ -6,11 +6,24 @@ import json
 import secrets
 import time
 import urllib.parse
+import urllib.request
 from dataclasses import asdict
 from pathlib import Path
 from typing import Any
 
-from .registration import RegistrationState, load_registration, redact_sensitive_text, unlimited_skills_home, write_private_json
+from . import __version__
+from .hub_allowlist import (
+    HubAllowlistError,
+    allowlist_sha256,
+    cache_allowlist,
+    cached_allowlist_path,
+    cached_allowlist_summary,
+    ensure_hub_layout,
+    hub_dir,
+    validate_allowlist,
+    validate_allowlist_file,
+)
+from .registration import RegistrationState, is_secure_or_local_url, load_registration, post_json, redact_sensitive_text, unlimited_skills_home, write_private_json
 
 
 HUB_FEATURE_FLAGS = {
@@ -21,9 +34,16 @@ HUB_FEATURE_FLAGS = {
 HUB_DEFAULT_PORT = 8766
 REMOTE_CONFIG_NAME = "remote.json"
 HUB_CONFIG_NAME = "hub.json"
+LEGACY_HUB_CONFIG_NAME = "hub.json"
 HUB_REGISTRATION_REQUIRED_MESSAGE = (
     "Registration is required for Local Skill Hub. The MIT local core still works offline. "
     "Use `unlimited-skills serve` for the free local daemon, or run `unlimited-skills register`."
+)
+HUB_ALLOWLIST_SYNC_REQUIRED_MESSAGE = (
+    "Registration is required for Local Skill Hub allowlist sync. The MIT local core still works offline."
+)
+HUB_ALLOWLIST_MISSING_MESSAGE = (
+    "No hub allowlist is configured. Run `unlimited-skills hub init --allowlist <file>` or `unlimited-skills hub sync`."
 )
 LAN_REFUSAL_MESSAGE = "Refusing to bind Local Skill Hub to a non-localhost address without --allow-lan and an active hub token."
 LOCALHOST_HOSTS = {"", "localhost", "127.0.0.1", "::1", "[::1]"}
@@ -34,7 +54,11 @@ def now_iso() -> str:
 
 
 def hub_config_path(home: Path | None = None) -> Path:
-    return (home or unlimited_skills_home()) / HUB_CONFIG_NAME
+    return hub_dir(home) / HUB_CONFIG_NAME
+
+
+def legacy_hub_config_path(home: Path | None = None) -> Path:
+    return (home or unlimited_skills_home()) / LEGACY_HUB_CONFIG_NAME
 
 
 def new_hub_id() -> str:
@@ -67,6 +91,10 @@ def default_hub_config() -> dict[str, Any]:
 def load_hub_config(home: Path | None = None) -> dict[str, Any]:
     path = hub_config_path(home)
     if not path.exists():
+        legacy_path = legacy_hub_config_path(home)
+        if legacy_path.exists():
+            path = legacy_path
+    if not path.exists():
         return default_hub_config()
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -88,6 +116,7 @@ def load_hub_config(home: Path | None = None) -> dict[str, Any]:
 
 
 def save_hub_config(config: dict[str, Any], home: Path | None = None) -> Path:
+    ensure_hub_layout(home)
     return write_private_json(hub_config_path(home), config)
 
 
@@ -316,40 +345,135 @@ def ensure_hub_registered() -> RegistrationState:
     return state
 
 
+def ensure_hub_allowlist_sync_registered() -> RegistrationState:
+    state = load_registration()
+    if not state.registered:
+        raise RuntimeError(HUB_ALLOWLIST_SYNC_REQUIRED_MESSAGE)
+    return state
+
+
+def resolve_hub_allowlist_path(value: str = "") -> Path:
+    if value:
+        path = Path(value).expanduser()
+        if not path.is_file():
+            raise RuntimeError(f"Local Skill Hub allowlist is required: {path}")
+        validate_allowlist_file(path)
+        return path
+    path = cached_allowlist_path()
+    if not path.is_file():
+        raise RuntimeError(HUB_ALLOWLIST_MISSING_MESSAGE)
+    validate_allowlist_file(path)
+    return path
+
+
+def download_allowlist_json(url: str, *, timeout: float = 30.0) -> dict[str, Any]:
+    if not is_secure_or_local_url(url):
+        raise RuntimeError("Hub allowlist URL must use HTTPS. Plain HTTP is allowed only for localhost development.")
+    request = urllib.request.Request(url, headers={"User-Agent": f"unlimited-skills/{__version__}"})
+    try:
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            raw = response.read().decode("utf-8")
+    except OSError as exc:
+        raise RuntimeError(f"Cannot download hub allowlist: {redact_sensitive_text(exc)}") from exc
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("Hub allowlist download returned invalid JSON.") from exc
+    if not isinstance(data, dict):
+        raise RuntimeError("Hub allowlist download returned a non-object JSON payload.")
+    return data
+
+
+def fetch_registered_allowlist(state: RegistrationState, *, current_sha: str = "", timeout: float = 30.0) -> tuple[dict[str, Any], dict[str, Any]]:
+    hub_config = load_hub_config()
+    payload = {
+        "schema_version": 1,
+        "install_id": state.install_id,
+        "client": {"name": "unlimited-skills", "version": __version__},
+        "current_allowlist_sha256": current_sha,
+        "hub_id": str(hub_config.get("hub_id") or ""),
+    }
+    response = post_json(
+        f"{state.server_url.rstrip('/')}/v1/hub/allowlist",
+        payload,
+        token=state.license_token,
+        proof_state=state,
+        timeout=timeout,
+    )
+    if response.get("schema_version") != 1:
+        raise RuntimeError("Hub allowlist service returned unsupported schema_version.")
+    if response.get("distribution_mode") != "allowlist_only":
+        raise RuntimeError("Hub allowlist service must return distribution_mode=allowlist_only.")
+    if response.get("full_catalog_distribution_allowed") is not False:
+        raise RuntimeError("Hub allowlist service must keep full_catalog_distribution_allowed=false.")
+    if response.get("requires_registration") is not True:
+        raise RuntimeError("Hub allowlist service must keep requires_registration=true.")
+    if int(response.get("free_active_client_instance_limit") or 0) != HUB_FEATURE_FLAGS["max_hub_clients"]:
+        raise RuntimeError("Hub allowlist service returned an invalid free active client limit.")
+    if isinstance(response.get("allowlist"), dict):
+        allowlist = validate_allowlist(response["allowlist"])
+    else:
+        allowlist_url = str(response.get("allowlist_url") or "")
+        if not allowlist_url:
+            raise RuntimeError("Hub allowlist service must return allowlist or allowlist_url.")
+        allowlist = validate_allowlist(download_allowlist_json(allowlist_url, timeout=timeout))
+    expected_sha = str(response.get("allowlist_sha256") or "")
+    actual_sha = allowlist_sha256(allowlist)
+    if expected_sha and expected_sha.lower() != actual_sha.lower():
+        raise RuntimeError(f"Hub allowlist SHA256 mismatch: expected {expected_sha}, got {actual_sha}")
+    return allowlist, response
+
+
 def emit_json(payload: dict[str, Any]) -> int:
     print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 
 
 def cmd_hub_init(args: Any) -> int:
+    layout = ensure_hub_layout()
+    config = load_hub_config()
+    config_path = save_hub_config(config)
     state = load_registration()
     payload = hub_status_payload(state)
-    payload["status"] = "initialized" if state.registered else "registration_required"
-    payload["message"] = (
-        "Local Skill Hub contract initialized."
-        if state.registered
-        else "Registration is required before serving Local Skill Hub."
-    )
-    return emit_json(payload)
+    payload["status"] = "initialized"
+    payload["message"] = "Local Skill Hub local state initialized."
+    payload["config_file"] = str(config_path)
+    payload["layout"] = layout
+    allowlist_arg = getattr(args, "allowlist", "") or ""
+    if allowlist_arg:
+        source_path = Path(allowlist_arg).expanduser()
+        cached = cache_allowlist(validate_allowlist_file(source_path), source=str(source_path), notes="Cached from explicit local allowlist fixture.")
+        payload["allowlist"] = cached["meta"]
+        payload["allowlist"]["path"] = cached["allowlist_path"]
+    else:
+        payload["allowlist"] = cached_allowlist_summary()
+    if getattr(args, "json", False):
+        return emit_json(payload)
+    print("Local Skill Hub local state initialized.")
+    print(f"Config: {payload['config_file']}")
+    print(f"Hub dir: {layout['hub_dir']}")
+    if payload["allowlist"].get("present") or payload["allowlist"].get("path"):
+        print(f"Allowlist: {payload['allowlist'].get('path') or payload['allowlist'].get('allowlist_path')}")
+    return 0
 
 
 def cmd_hub_status(args: Any) -> int:
     payload = hub_status_payload()
+    payload["allowlist"] = cached_allowlist_summary()
     if getattr(args, "json", False):
         return emit_json(payload)
     print("Local Skill Hub: " + ("registered" if payload["registered"] else "unregistered"))
     print(f"Plan: {payload['plan']}")
     print(f"Distribution: {payload['distribution_mode']} / audit {payload['catalog_audit_verdict']}")
     print(f"Active clients: {payload['active_client_count']}/{payload['active_client_limit']}")
+    print("Cached allowlist: " + ("present" if payload["allowlist"]["present"] else "missing"))
     print("Hosted query forwarding: off")
     return 0
 
 
 def cmd_hub_serve(args: Any) -> int:
     ensure_hub_registered()
-    allowlist = Path(args.allowlist).expanduser() if getattr(args, "allowlist", "") else unlimited_skills_home() / "hub" / "hub-allowlist.v1.json"
-    if not allowlist.is_file():
-        raise RuntimeError(f"Local Skill Hub allowlist is required: {allowlist}")
+    allowlist = resolve_hub_allowlist_path(getattr(args, "allowlist", "") or "")
     ensure_lan_bind_allowed(str(args.host), allow_lan=bool(getattr(args, "allow_lan", False)))
     try:
         import uvicorn  # type: ignore
@@ -419,12 +543,49 @@ def cmd_hub_token_revoke(args: Any) -> int:
 
 def cmd_hub_doctor(args: Any) -> int:
     payload = hub_status_payload()
+    allowlist = cached_allowlist_summary()
     payload["checks"] = [
         {"name": "registration", "status": "ok" if payload["registered"] else "warn"},
         {"name": "full_catalog_distribution", "status": "ok", "value": False},
         {"name": "hosted_query_forwarding", "status": "ok", "value": False},
+        {"name": "cached_allowlist", "status": "ok" if allowlist["present"] else "warn", "value": allowlist["present"]},
     ]
     return emit_json(payload)
+
+
+def cmd_hub_sync(args: Any) -> int:
+    state = ensure_hub_allowlist_sync_registered()
+    ensure_hub_layout()
+    current = cached_allowlist_summary()
+    current_sha = str(current.get("sha256") or "")
+    allowlist, response = fetch_registered_allowlist(state, current_sha=current_sha, timeout=getattr(args, "timeout", 30.0))
+    actual_sha = allowlist_sha256(allowlist)
+    payload = {
+        "schema_version": 1,
+        "dry_run": bool(getattr(args, "dry_run", False)),
+        "distribution_mode": "allowlist_only",
+        "catalog_audit_verdict": str(response.get("catalog_audit_verdict") or (allowlist.get("source_audit") or {}).get("verdict") or "YES_WITH_ALLOWLIST"),
+        "full_catalog_distribution_allowed": False,
+        "requires_registration": True,
+        "free_active_client_instance_limit": HUB_FEATURE_FLAGS["max_hub_clients"],
+        "previous_allowlist_sha256": current_sha,
+        "allowlist_sha256": actual_sha,
+        "changed": current_sha != actual_sha,
+        "notes": redact_sensitive_text(response.get("notes", "")),
+    }
+    if not getattr(args, "dry_run", False):
+        cached = cache_allowlist(allowlist, source="registered-hub-sync", notes=str(response.get("notes") or ""))
+        payload["allowlist_path"] = cached["allowlist_path"]
+        payload["allowlist_meta"] = cached["meta"]
+    if getattr(args, "json", False):
+        return emit_json(payload)
+    print("Local Skill Hub allowlist sync " + ("dry run" if payload["dry_run"] else "complete") + ".")
+    print(f"Distribution: {payload['distribution_mode']}")
+    print(f"Full catalog distribution allowed: {str(payload['full_catalog_distribution_allowed']).lower()}")
+    print(f"SHA256: {payload['allowlist_sha256']}")
+    if payload.get("allowlist_path"):
+        print(f"Cached allowlist: {payload['allowlist_path']}")
+    return 0
 
 
 def cmd_remote_configure(args: Any) -> int:

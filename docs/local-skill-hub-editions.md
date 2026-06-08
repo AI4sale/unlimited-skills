@@ -10,3 +10,5 @@
 The Registered Local Skill Hub free tier covers up to 100 active client instances. An active client is a registered agent/runtime client that contacted the hub in the last 30 days.
 
 Full catalog distribution is disabled while the private audit verdict is `YES_WITH_ALLOWLIST`.
+
+Registered Local Skill Hub bootstrap uses validated allowlist metadata. Offline/dev fixtures can be loaded with `hub init --allowlist <file>`; official allowlist refresh uses `hub sync` and requires registration. Neither path publishes private skill bodies in the public MIT repo.
