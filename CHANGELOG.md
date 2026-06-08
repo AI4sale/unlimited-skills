@@ -15,6 +15,10 @@
 - Community catalog schemas, sanitized examples, submission review docs, and privacy docs for explicit community submissions.
 - Team Free member listing, pending/reject/revoke flows, collection listing, leave command, sync dry-run JSON output, local redacted team audit events, and Team Free schemas/examples.
 - Local Skill Hub contract docs, public schemas, sanitized examples, and hub/remote CLI skeleton commands.
+- Local Skill Hub token create/list/revoke commands with hash-only local token storage.
+- Local Skill Hub token enforcement for protected `/v1/...` APIs, with `/health` left open for liveness checks.
+- Local Skill Hub LAN bind safety: non-localhost hosts require `--allow-lan` and at least one active hub token.
+- Redaction for Authorization bearer tokens, `X-ULS-Hub-Token`, hosted registration tokens, team/member tokens, and device private keys.
 - Registration-gated `unlimited-skills hub serve` boundary while existing `unlimited-skills serve` remains unregistered.
 - Registered Local Skill Hub free-tier limit of up to 100 active client instances.
 - Allowlist-only Local Skill Hub distribution model based on private registry audit verdict `YES_WITH_ALLOWLIST`.
@@ -29,7 +33,7 @@
 - Community, team, update, and bundled collection installs now target `registry/<collection>/`.
 - `SECURITY.md` now uses the `v0.2.0-alpha` support boundary and documents Local Skill Hub MVP security limitations.
 - FastAPI app metadata now uses the package `__version__` instead of hardcoded app versions.
-- README, known limitations, and release notes now state that Local Skill Hub LAN token enforcement and remote search/resolve/view calls are not implemented yet.
+- README, known limitations, and release notes now state that Local Skill Hub LAN mode requires explicit opt-in and active hub client tokens.
 - Vector search now uses the sidecar fast path before Chroma, and embedding models are cached inside long-lived processes so warm daemon mode actually avoids repeated model startup.
 - Hardened public alpha documentation for the v0.1.2-alpha release boundary.
 - Clarified that hosted catalog/update access is registration-gated early access and already populated without publishing private registered skill bodies in the MIT repo.

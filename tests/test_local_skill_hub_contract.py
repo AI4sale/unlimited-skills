@@ -6,6 +6,7 @@ from pathlib import Path
 from types import SimpleNamespace
 
 from unlimited_skills.cli import main
+from unlimited_skills.hub import load_hub_config
 from unlimited_skills.registration import RegistrationState, save_registration, with_install_identity
 
 
@@ -90,6 +91,67 @@ def test_remote_configure_writes_config_and_redacts_token(tmp_path: Path, monkey
     assert config["token_present"] is True
     assert "remote_secret_token" not in output
     assert "remote_secret_token" not in json.dumps(config)
+
+
+def test_hub_token_create_stores_hash_and_prints_raw_token_once(tmp_path: Path, monkeypatch, capsys) -> None:
+    home = tmp_path / "home"
+    uls_home = home / ".unlimited-skills"
+    save_registration(registered_state(), home=uls_home)
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(uls_home))
+
+    assert main(["hub", "token", "create", "--label", "laptop", "--json"]) == 0
+
+    output = capsys.readouterr().out
+    payload = json.loads(output)
+    raw_token = payload["token"]
+    config_text = (uls_home / "hub.json").read_text(encoding="utf-8")
+    config = json.loads(config_text)
+
+    assert raw_token.startswith("uls_hub_")
+    assert raw_token not in config_text
+    assert config["tokens"][0]["token_hash"].startswith("sha256:")
+    assert config["tokens"][0]["label"] == "laptop"
+
+    assert main(["hub", "token", "list", "--json"]) == 0
+    list_output = capsys.readouterr().out
+    assert raw_token not in list_output
+    listed = json.loads(list_output)
+    assert listed["tokens"][0]["token_id"] == payload["token_id"]
+    assert "token_hash" not in json.dumps(listed)
+
+
+def test_hub_token_revoke_does_not_print_raw_token(tmp_path: Path, monkeypatch, capsys) -> None:
+    home = tmp_path / "home"
+    uls_home = home / ".unlimited-skills"
+    save_registration(registered_state(), home=uls_home)
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(uls_home))
+
+    assert main(["hub", "token", "create", "--label", "old", "--json"]) == 0
+    created = json.loads(capsys.readouterr().out)
+    raw_token = created["token"]
+
+    assert main(["hub", "token", "revoke", created["token_id"], "--json"]) == 0
+
+    output = capsys.readouterr().out
+    config = load_hub_config(uls_home)
+    assert raw_token not in output
+    assert config["tokens"][0]["revoked"] is True
+
+
+def test_runtime_error_output_redacts_hub_and_registration_secrets(monkeypatch, capsys) -> None:
+    def leak(_args) -> int:
+        raise RuntimeError(
+            "Authorization: Bearer auth_secret X-ULS-Hub-Token: hub_secret "
+            "license_token=license_secret device_private_key=device_secret team_token=team_secret member_token=member_secret"
+        )
+
+    monkeypatch.setattr("unlimited_skills.cli.cmd_hub_status", leak)
+    assert main(["hub", "status"]) == 2
+
+    output = capsys.readouterr().err
+    assert "[redacted]" in output
+    for secret in ("auth_secret", "hub_secret", "license_secret", "device_secret", "team_secret", "member_secret"):
+        assert secret not in output
 
 
 def test_hub_schema_examples_are_valid_json() -> None:

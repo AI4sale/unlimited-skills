@@ -43,9 +43,21 @@ MVP endpoints:
 - `GET /health`
 - `GET /v1/hub/status`
 - `POST /v1/clients/register`
+- `POST /v1/clients/heartbeat`
 - `POST /v1/skills/search`
 - `POST /v1/skills/resolve`
 - `GET /v1/skills/{name}`
+- `GET /v1/skills/{name}/manifest`
+- `POST /v1/skills/use`
+- `POST /v1/skills/feedback`
+
+Authentication:
+
+- `GET /health` is open.
+- All `/v1/...` endpoints require a valid hub client token.
+- Tokens are created with `unlimited-skills hub token create --label <label>`.
+- Tokens can be listed and revoked with `hub token list` and `hub token revoke <token_id>`.
+- Token values are stored as hashes and are printed only once when created.
 
 Launch policy:
 
@@ -56,7 +68,9 @@ Launch policy:
 - No skill execution.
 - No hosted query forwarding.
 - Local fallback must be explicit in the client/router policy.
-- LAN client token creation and request enforcement are not implemented yet. Keep the hub on `127.0.0.1` or protect LAN testing with external network controls.
+- Default bind is `127.0.0.1`.
+- LAN bind requires explicit `--allow-lan` and at least one active hub token.
+- For serious LAN deployment, use reverse proxy/TLS and normal network access controls.
 
 Traceability:
 

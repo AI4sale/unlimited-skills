@@ -30,9 +30,12 @@ from .hub import (
     cmd_hub_serve,
     cmd_hub_status,
     cmd_hub_token_create,
+    cmd_hub_token_list,
+    cmd_hub_token_revoke,
     cmd_remote_configure,
     cmd_remote_planned,
     cmd_remote_status,
+    redacted_runtime_error,
 )
 from .registration import (
     DEFAULT_SERVICE_URL,
@@ -1595,13 +1598,23 @@ def build_parser() -> argparse.ArgumentParser:
     hub_serve.add_argument("--port", type=int, default=HUB_DEFAULT_PORT)
     hub_serve.add_argument("--log-level", default="info")
     hub_serve.add_argument("--allowlist", default="", help="Path to hub-allowlist.v1.json. Defaults to ~/.unlimited-skills/hub/hub-allowlist.v1.json.")
+    hub_serve.add_argument("--allow-lan", action="store_true", help="Allow binding Local Skill Hub to a non-localhost address when an active hub token exists.")
     hub_serve.set_defaults(func=cmd_hub_serve)
     hub_clients = hub_sub.add_parser("clients", help="List Local Skill Hub clients.")
     hub_clients.set_defaults(func=cmd_hub_clients)
     hub_token = hub_sub.add_parser("token", help="Manage Local Skill Hub client tokens.")
     hub_token_sub = hub_token.add_subparsers(dest="hub_token_command", required=True)
     hub_token_create = hub_token_sub.add_parser("create", help="Create a Local Skill Hub client token.")
+    hub_token_create.add_argument("--label", default="default")
+    hub_token_create.add_argument("--json", action="store_true")
     hub_token_create.set_defaults(func=cmd_hub_token_create)
+    hub_token_list = hub_token_sub.add_parser("list", help="List Local Skill Hub client tokens without showing raw token values.")
+    hub_token_list.add_argument("--json", action="store_true")
+    hub_token_list.set_defaults(func=cmd_hub_token_list)
+    hub_token_revoke = hub_token_sub.add_parser("revoke", help="Revoke a Local Skill Hub client token by token id.")
+    hub_token_revoke.add_argument("token_id")
+    hub_token_revoke.add_argument("--json", action="store_true")
+    hub_token_revoke.set_defaults(func=cmd_hub_token_revoke)
     hub_doctor = hub_sub.add_parser("doctor", help="Inspect Local Skill Hub contract readiness.")
     hub_doctor.set_defaults(func=cmd_hub_doctor)
 
@@ -1847,7 +1860,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return args.func(args)
     except RuntimeError as exc:
-        print(str(exc), file=sys.stderr)
+        print(redacted_runtime_error(exc), file=sys.stderr)
         return 2
 
 

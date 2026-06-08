@@ -27,6 +27,7 @@ LOCAL_DEVELOPMENT_HOSTS = {"localhost", "127.0.0.1", "::1"}
 SENSITIVE_TEXT_PATTERNS = (
     (re.compile(r"(?i)[\"']?authorization[\"']?\s*[:=]\s*[\"']?bearer\s+[^\s,'\"}]+[\"']?"), "[redacted]"),
     (re.compile(r"(?i)[\"']?x-uls-proof[\"']?\s*[:=]\s*[\"']?[^\s,'\"}]+[\"']?"), "[redacted]"),
+    (re.compile(r"(?i)[\"']?x-uls-hub-token[\"']?\s*[:=]\s*[\"']?[^\s,'\"}]+[\"']?"), "[redacted]"),
     (
         re.compile(
             r"(?i)([\"']?(?:license_token|team_token|member_token|device_private_key|private_key|token)[\"']?\s*[:=]\s*[\"']?)[^\s,'\"}&]+([\"']?)"

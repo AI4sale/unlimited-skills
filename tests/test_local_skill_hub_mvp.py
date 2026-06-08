@@ -14,6 +14,7 @@ except RuntimeError as exc:
     pytest.skip(str(exc), allow_module_level=True)
 
 from unlimited_skills.cli import main
+from unlimited_skills.hub import create_hub_token, load_hub_config, revoke_hub_token
 from unlimited_skills.hub_server import create_app
 from unlimited_skills.registration import RegistrationState, save_registration, with_install_identity
 
@@ -86,18 +87,24 @@ def registered_state() -> RegistrationState:
     )
 
 
-def make_client(tmp_path: Path) -> TestClient:
+def make_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, *, with_token: bool = True) -> TestClient:
     root = tmp_path / "library"
+    home = tmp_path / "home" / ".unlimited-skills"
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home))
     write_skill(root, "test-pack", "pure-skill", "security review")
     write_skill(root, "test-pack", "tool-skill", "playwright diagnostics")
     write_skill(root, "test-pack", "blocked-skill", "blocked content")
     allowlist = tmp_path / "hub-allowlist.v1.json"
     write_allowlist(allowlist)
-    return TestClient(create_app(root=root, allowlist_path=allowlist))
+    client = TestClient(create_app(root=root, allowlist_path=allowlist))
+    if with_token:
+        token = create_hub_token("pytest", home=home)["raw_token"]
+        client.headers.update({"Authorization": f"Bearer {token}"})
+    return client
 
 
-def test_hub_mvp_health_and_status_are_allowlist_only(tmp_path: Path) -> None:
-    client = make_client(tmp_path)
+def test_hub_mvp_health_and_status_are_allowlist_only(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    client = make_client(tmp_path, monkeypatch)
 
     health = client.get("/health").json()
     status = client.get("/v1/hub/status").json()
@@ -113,8 +120,8 @@ def test_hub_mvp_health_and_status_are_allowlist_only(tmp_path: Path) -> None:
     assert status["allowlisted_skills"] == 1
 
 
-def test_search_returns_only_allowlisted_and_local_install_candidates(tmp_path: Path) -> None:
-    client = make_client(tmp_path)
+def test_search_returns_only_allowlisted_and_local_install_candidates(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    client = make_client(tmp_path, monkeypatch)
 
     payload = client.post("/v1/skills/search", json={"schema_version": 1, "query": "security playwright blocked", "limit": 10}).json()
     names = {item["name"] for item in payload["results"]}
@@ -124,8 +131,8 @@ def test_search_returns_only_allowlisted_and_local_install_candidates(tmp_path: 
     assert "blocked-skill" not in names
 
 
-def test_resolve_returns_body_for_pure_text_but_metadata_only_for_local_install(tmp_path: Path) -> None:
-    client = make_client(tmp_path)
+def test_resolve_returns_body_for_pure_text_but_metadata_only_for_local_install(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    client = make_client(tmp_path, monkeypatch)
 
     payload = client.post("/v1/skills/resolve", json={"schema_version": 1, "query": "security playwright", "context_budget": {"max_skills": 2, "max_chars": 12000}}).json()
     by_name = {item["name"]: item for item in payload["selected"]}
@@ -137,8 +144,8 @@ def test_resolve_returns_body_for_pure_text_but_metadata_only_for_local_install(
     assert "client_capability_checks" in by_name["tool-skill"]["missing_capabilities"]
 
 
-def test_get_skill_rejects_blocked_or_unallowlisted_skill(tmp_path: Path) -> None:
-    client = make_client(tmp_path)
+def test_get_skill_rejects_blocked_or_unallowlisted_skill(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    client = make_client(tmp_path, monkeypatch)
 
     allowed = client.get("/v1/skills/pure-skill")
     blocked = client.get("/v1/skills/blocked-skill")
@@ -148,8 +155,8 @@ def test_get_skill_rejects_blocked_or_unallowlisted_skill(tmp_path: Path) -> Non
     assert blocked.status_code == 404
 
 
-def test_client_registration_enforces_100_active_client_limit(tmp_path: Path) -> None:
-    client = make_client(tmp_path)
+def test_client_registration_enforces_100_active_client_limit(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    client = make_client(tmp_path, monkeypatch)
 
     for idx in range(100):
         response = client.post("/v1/clients/register", json={"schema_version": 1, "token": f"tok_{idx}", "capabilities": {"schema_version": 1, "client_id": f"uls_client_{idx}", "agent": "codex", "os": "linux", "arch": "x86_64", "available_tools": [], "installed_packages": {"python": [], "npm": []}, "env_vars_present": []}})
@@ -157,7 +164,64 @@ def test_client_registration_enforces_100_active_client_limit(tmp_path: Path) ->
     overflow = client.post("/v1/clients/register", json={"schema_version": 1, "token": "tok_overflow"})
 
     assert overflow.status_code == 403
-    assert overflow.json()["detail"]["code"] == "client_limit_reached"
+    assert overflow.json()["error"]["code"] == "client_limit_reached"
+
+
+def test_protected_endpoints_reject_missing_wrong_and_revoked_tokens(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home = tmp_path / "home" / ".unlimited-skills"
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home))
+    client = make_client(tmp_path, monkeypatch, with_token=False)
+    raw_token = create_hub_token("auth-test", home=home)["raw_token"]
+    token_id = load_hub_config(home)["tokens"][0]["token_id"]
+
+    missing = client.get("/v1/hub/status")
+    wrong = client.get("/v1/hub/status", headers={"Authorization": "Bearer wrong-token"})
+    valid = client.get("/v1/hub/status", headers={"Authorization": f"Bearer {raw_token}"})
+    revoke_hub_token(token_id, home=home)
+    revoked = client.get("/v1/hub/status", headers={"Authorization": f"Bearer {raw_token}"})
+
+    assert missing.status_code == 401
+    assert missing.json()["error"]["code"] == "hub_token_required"
+    assert wrong.status_code == 401
+    assert wrong.json()["error"]["code"] == "invalid_hub_token"
+    assert valid.status_code == 200
+    assert revoked.status_code == 401
+    assert revoked.json()["error"]["code"] == "hub_token_revoked"
+
+
+def test_protected_endpoints_accept_x_uls_hub_token_header(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home = tmp_path / "home" / ".unlimited-skills"
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home))
+    client = make_client(tmp_path, monkeypatch, with_token=False)
+    raw_token = create_hub_token("compat", home=home)["raw_token"]
+
+    response = client.get("/v1/hub/status", headers={"X-ULS-Hub-Token": raw_token})
+
+    assert response.status_code == 200
+
+
+def test_health_remains_unauthenticated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    client = make_client(tmp_path, monkeypatch, with_token=False)
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json()["ok"] is True
+
+
+def test_local_hub_search_and_resolve_do_not_call_hosted_services(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    client = make_client(tmp_path, monkeypatch)
+
+    def fail_network(*_args, **_kwargs):
+        raise AssertionError("Local Skill Hub search/resolve must not call hosted services.")
+
+    monkeypatch.setattr("urllib.request.urlopen", fail_network)
+
+    search = client.post("/v1/skills/search", json={"schema_version": 1, "query": "security", "limit": 5})
+    resolve = client.post("/v1/skills/resolve", json={"schema_version": 1, "query": "security"})
+
+    assert search.status_code == 200
+    assert resolve.status_code == 200
 
 
 def test_hub_serve_registered_requires_allowlist_file(tmp_path: Path, monkeypatch, capsys) -> None:
@@ -176,6 +240,7 @@ def test_hub_serve_registered_runs_uvicorn_factory_with_allowlist(tmp_path: Path
     allowlist = tmp_path / "hub-allowlist.v1.json"
     write_allowlist(allowlist)
     save_registration(registered_state(), home=home / ".unlimited-skills")
+    create_hub_token("server", home=home / ".unlimited-skills")
     calls: list[dict[str, object]] = []
 
     def fake_run(app: str, **kwargs: object) -> None:
@@ -189,3 +254,38 @@ def test_hub_serve_registered_runs_uvicorn_factory_with_allowlist(tmp_path: Path
     assert calls[0]["app"] == "unlimited_skills.hub_server:create_app"
     assert calls[0]["factory"] is True
     assert calls[0]["host"] == "127.0.0.1"
+
+
+def test_hub_serve_refuses_lan_without_allow_lan_or_active_token(tmp_path: Path, monkeypatch, capsys) -> None:
+    home = tmp_path / "home"
+    root = tmp_path / "library"
+    allowlist = tmp_path / "hub-allowlist.v1.json"
+    write_allowlist(allowlist)
+    save_registration(registered_state(), home=home / ".unlimited-skills")
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home / ".unlimited-skills"))
+
+    assert main(["--root", str(root), "hub", "serve", "--allowlist", str(allowlist), "--host", "0.0.0.0"]) == 2
+    assert "Refusing to bind Local Skill Hub" in capsys.readouterr().err
+
+    assert main(["--root", str(root), "hub", "serve", "--allowlist", str(allowlist), "--host", "0.0.0.0", "--allow-lan"]) == 2
+    assert "Refusing to bind Local Skill Hub" in capsys.readouterr().err
+
+
+def test_hub_serve_allows_lan_with_allow_lan_and_active_token(tmp_path: Path, monkeypatch) -> None:
+    home = tmp_path / "home"
+    root = tmp_path / "library"
+    allowlist = tmp_path / "hub-allowlist.v1.json"
+    write_allowlist(allowlist)
+    save_registration(registered_state(), home=home / ".unlimited-skills")
+    create_hub_token("lan", home=home / ".unlimited-skills")
+    calls: list[dict[str, object]] = []
+
+    def fake_run(app: str, **kwargs: object) -> None:
+        calls.append({"app": app, **kwargs})
+
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home / ".unlimited-skills"))
+    monkeypatch.setitem(sys.modules, "uvicorn", SimpleNamespace(run=fake_run))
+
+    assert main(["--root", str(root), "hub", "serve", "--allowlist", str(allowlist), "--host", "0.0.0.0", "--allow-lan"]) == 0
+
+    assert calls[0]["host"] == "0.0.0.0"
