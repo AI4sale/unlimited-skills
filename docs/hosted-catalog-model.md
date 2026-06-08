@@ -33,7 +33,7 @@ draft -> reviewed -> approved -> published -> deprecated -> retired
 versioned release -> manifest -> archive -> sha256 -> hosted update -> client apply -> local reindex
 ```
 
-The hosted update archive format is `skill-collection-zip-v1`. Hosted update manifests must include a valid signed manifest envelope. The client verifies `manifest_signature`, enforces archive SHA256 verification, and uses safe zip extraction before installation.
+The hosted update archive format is `skill-collection-zip-v1`. Hosted update manifests must include a valid signed manifest envelope. The client verifies `manifest_signature` against a key trusted for the `catalog-updates` scope and the registry origin, enforces archive SHA256 verification, and uses safe zip extraction before installation.
 
 ## Compatibility Fields
 

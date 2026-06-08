@@ -36,6 +36,7 @@ Current `v0.2.1-alpha` behavior:
 
 - hosted remote manifests must include valid signed manifest envelopes;
 - signatures verify hosted manifest authenticity;
+- trusted manifest keys are scoped, can be pinned to registry origins, and can be revoked locally;
 - hosted collection archives are SHA256-verified before extraction;
 - zip extraction rejects path traversal;
 - local enhancement scripts are SHA256-verified before execution;

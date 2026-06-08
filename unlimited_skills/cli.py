@@ -40,7 +40,9 @@ from .hub import (
     cmd_remote_search,
     cmd_remote_status,
     cmd_remote_view,
+    cmd_trust_import,
     cmd_trust_keys,
+    cmd_trust_revoke,
     cmd_trust_status,
     cmd_trust_verify,
     redacted_runtime_error,
@@ -1643,8 +1645,20 @@ def build_parser() -> argparse.ArgumentParser:
     trust_keys.set_defaults(func=cmd_trust_keys)
     trust_verify = trust_sub.add_parser("verify", help="Verify a signed hosted manifest JSON file.")
     trust_verify.add_argument("manifest")
+    trust_verify.add_argument("--scope", default="", help="Expected manifest scope, such as hub-allowlist or catalog-updates.")
+    trust_verify.add_argument("--registry-url", default="", help="Expected registry URL for key origin pinning.")
     trust_verify.add_argument("--json", action="store_true")
     trust_verify.set_defaults(func=cmd_trust_verify)
+    trust_import = trust_sub.add_parser("import", help="Import a public key manifest into the local trust store.")
+    trust_import.add_argument("manifest")
+    trust_import.add_argument("--replace", action="store_true", help="Replace the local trust store instead of merging keys.")
+    trust_import.add_argument("--json", action="store_true")
+    trust_import.set_defaults(func=cmd_trust_import)
+    trust_revoke = trust_sub.add_parser("revoke", help="Mark a manifest signing key id as revoked in the local trust store.")
+    trust_revoke.add_argument("key_id")
+    trust_revoke.add_argument("--reason", default="")
+    trust_revoke.add_argument("--json", action="store_true")
+    trust_revoke.set_defaults(func=cmd_trust_revoke)
 
     remote = sub.add_parser("remote", help="Configure or query a registered Local Skill Hub.")
     remote_sub = remote.add_subparsers(dest="remote_command", required=True)

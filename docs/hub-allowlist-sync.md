@@ -78,17 +78,25 @@ Signed manifests use this envelope shape:
 }
 ```
 
-The signature covers the canonical JSON payload with `manifest_signature` removed. Public keys are configured out of band with `UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS` as comma-separated `key_id:base64url_public_key` entries.
+The signature covers the canonical JSON payload with `manifest_signature` removed. Trust keys are loaded from bundled official keys, the local trust store, optional env-file keys, and `UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS` as comma-separated `key_id:base64url_public_key` entries.
+
+Trusted key records may include:
+
+- `scopes`: allowed manifest scopes such as `hub-allowlist`, `catalog-updates`, `enhancement-manifest`, and `team-sync-manifest`;
+- `registry_origins`: pinned registry origins such as `https://unlimited.ai4.sale`;
+- `status`: `active` or `revoked`.
 
 Trust inspection commands:
 
 ```bash
 unlimited-skills trust status --json
 unlimited-skills trust keys --json
-unlimited-skills trust verify signed-manifest.json --json
+unlimited-skills trust import manifest-public-keys.v1.json --json
+unlimited-skills trust revoke registry-2026-q2 --reason compromised --json
+unlimited-skills trust verify signed-manifest.json --scope hub-allowlist --registry-url https://unlimited.ai4.sale --json
 ```
 
-These commands print public key ids and verification metadata only. Private signing keys are never shipped in the client.
+These commands print public key ids and verification metadata only. Private signing keys are never shipped in the client. Environment key entries are treated as local overrides with wildcard scope and origin. Use the local trust store or bundled official key manifest for production registry pinning.
 
 The public repo may include schemas, docs, sanitized examples, and fake fixture allowlists. It must not include private registered skill bodies, customer data, secrets, private repository paths, or a real private allowlist unless explicitly intended for publication.
 

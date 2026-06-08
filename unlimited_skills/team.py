@@ -539,7 +539,13 @@ class TeamClient:
             self._team_payload(team, {"collections": current_collection_state(root)}),
         )
         try:
-            verify_manifest_signature(response, purpose="Team sync manifest", required=True)
+            verify_manifest_signature(
+                response,
+                purpose="Team sync manifest",
+                required=True,
+                scope="team-sync-manifest",
+                registry_url=self.state.server_url,
+            )
         except ManifestSignatureError as exc:
             raise TeamError(str(exc)) from exc
         return parse_team_sync_plan(response)

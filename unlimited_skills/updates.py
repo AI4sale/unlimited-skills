@@ -210,7 +210,13 @@ class UpdateClient:
             timeout=self.timeout,
         )
         try:
-            verify_manifest_signature(response, purpose="Hosted collection updates", required=True)
+            verify_manifest_signature(
+                response,
+                purpose="Hosted collection updates",
+                required=True,
+                scope="catalog-updates",
+                registry_url=self.state.server_url,
+            )
         except ManifestSignatureError as exc:
             raise UpdateError(str(exc)) from exc
         return parse_updates(response)
@@ -246,7 +252,13 @@ class UpdateClient:
             timeout=self.timeout,
         )
         try:
-            verify_manifest_signature(response, purpose="Enhancement script manifest", required=True)
+            verify_manifest_signature(
+                response,
+                purpose="Enhancement script manifest",
+                required=True,
+                scope="enhancement-manifest",
+                registry_url=self.state.server_url,
+            )
         except ManifestSignatureError as exc:
             raise UpdateError(str(exc)) from exc
         return parse_enhancement_script(response)

@@ -24,7 +24,14 @@ from .hub_allowlist import (
     validate_allowlist_file,
 )
 from .registration import RegistrationState, is_secure_or_local_url, load_registration, post_json, redact_sensitive_text, unlimited_skills_home, write_private_json
-from .signatures import ManifestSignatureError, trusted_manifest_public_keys, verify_manifest_signature
+from .signatures import (
+    ManifestSignatureError,
+    import_local_trust_manifest,
+    revoke_local_trust_key,
+    trusted_manifest_key_records,
+    trusted_manifest_public_keys,
+    verify_manifest_signature,
+)
 
 
 HUB_FEATURE_FLAGS = {
@@ -404,7 +411,13 @@ def fetch_registered_allowlist(state: RegistrationState, *, current_sha: str = "
     if response.get("schema_version") != 1:
         raise RuntimeError("Hub allowlist service returned unsupported schema_version.")
     try:
-        response["signature_verification"] = verify_manifest_signature(response, purpose="Hub allowlist response", required=True)
+        response["signature_verification"] = verify_manifest_signature(
+            response,
+            purpose="Hub allowlist response",
+            required=True,
+            scope="hub-allowlist",
+            registry_url=state.server_url,
+        )
     except ManifestSignatureError as exc:
         raise RuntimeError(str(exc)) from exc
     if response.get("distribution_mode") != "allowlist_only":
@@ -423,7 +436,13 @@ def fetch_registered_allowlist(state: RegistrationState, *, current_sha: str = "
             raise RuntimeError("Hub allowlist service must return allowlist or allowlist_url.")
         downloaded = download_allowlist_json(allowlist_url, timeout=timeout)
         try:
-            response["allowlist_signature_verification"] = verify_manifest_signature(downloaded, purpose="Downloaded hub allowlist")
+            response["allowlist_signature_verification"] = verify_manifest_signature(
+                downloaded,
+                purpose="Downloaded hub allowlist",
+                required=True,
+                scope="hub-allowlist",
+                registry_url=state.server_url,
+            )
         except ManifestSignatureError as exc:
             raise RuntimeError(str(exc)) from exc
         allowlist = validate_allowlist(downloaded)
@@ -600,12 +619,17 @@ def cmd_hub_sync(args: Any) -> int:
 
 
 def trust_status_payload() -> dict[str, Any]:
-    keys = trusted_manifest_public_keys()
+    keys = trusted_manifest_key_records()
+    active = [record for record in keys if record.get("status") != "revoked"]
+    revoked = [record for record in keys if record.get("status") == "revoked"]
     return {
         "schema_version": 1,
-        "trusted_manifest_keys_configured": bool(keys),
-        "trusted_manifest_key_count": len(keys),
-        "trusted_manifest_key_ids": sorted(keys),
+        "trusted_manifest_keys_configured": bool(active),
+        "trusted_manifest_key_count": len(active),
+        "trusted_manifest_key_ids": [str(record["key_id"]) for record in active],
+        "revoked_manifest_key_count": len(revoked),
+        "revoked_manifest_key_ids": [str(record["key_id"]) for record in revoked],
+        "sources": sorted(set(str(record.get("source") or "unknown") for record in keys)),
         "private_keys_present": False,
     }
 
@@ -622,14 +646,27 @@ def cmd_trust_status(args: Any) -> int:
 
 def cmd_trust_keys(args: Any) -> int:
     payload = trust_status_payload()
-    payload["keys"] = [{"key_id": key_id, "algorithm": "ed25519"} for key_id in payload["trusted_manifest_key_ids"]]
+    payload["keys"] = [
+        {
+            "key_id": str(record.get("key_id") or ""),
+            "algorithm": str(record.get("algorithm") or "ed25519"),
+            "status": str(record.get("status") or "active"),
+            "source": str(record.get("source") or "unknown"),
+            "scopes": record.get("scopes", []),
+            "registry_origins": record.get("registry_origins", []),
+        }
+        for record in trusted_manifest_key_records()
+    ]
     if getattr(args, "json", False):
         return emit_json(payload)
     if not payload["keys"]:
         print("No trusted manifest public keys configured.")
         return 0
     for item in payload["keys"]:
-        print(f"{item['key_id']} algorithm={item['algorithm']}")
+        print(
+            f"{item['key_id']} algorithm={item['algorithm']} status={item['status']} source={item['source']} "
+            f"scopes={','.join(item['scopes']) or '(none)'}"
+        )
     return 0
 
 
@@ -642,7 +679,13 @@ def cmd_trust_verify(args: Any) -> int:
     if not isinstance(data, dict):
         raise RuntimeError("Manifest must be a JSON object.")
     try:
-        verification = verify_manifest_signature(data, purpose="Manifest file", required=True)
+        verification = verify_manifest_signature(
+            data,
+            purpose="Manifest file",
+            required=True,
+            scope=getattr(args, "scope", "") or "",
+            registry_url=getattr(args, "registry_url", "") or "",
+        )
     except ManifestSignatureError as exc:
         raise RuntimeError(str(exc)) from exc
     payload = {"schema_version": 1, "manifest": str(path), "signature_verification": verification}
@@ -651,6 +694,30 @@ def cmd_trust_verify(args: Any) -> int:
     print("Manifest signature: verified")
     print(f"Key ID: {verification.get('key_id')}")
     print(f"Payload SHA256: {verification.get('signed_payload_sha256')}")
+    return 0
+
+
+def cmd_trust_import(args: Any) -> int:
+    try:
+        payload = import_local_trust_manifest(Path(args.manifest).expanduser(), replace=bool(getattr(args, "replace", False)))
+    except ManifestSignatureError as exc:
+        raise RuntimeError(str(exc)) from exc
+    if getattr(args, "json", False):
+        return emit_json(payload)
+    print(f"Imported {payload['imported_count']} trusted manifest key(s).")
+    print(f"Local trust store: {payload['path']}")
+    return 0
+
+
+def cmd_trust_revoke(args: Any) -> int:
+    try:
+        payload = revoke_local_trust_key(args.key_id, reason=getattr(args, "reason", "") or "")
+    except ManifestSignatureError as exc:
+        raise RuntimeError(str(exc)) from exc
+    if getattr(args, "json", False):
+        return emit_json(payload)
+    print(f"Revoked manifest key: {payload['key_id']}")
+    print(f"Local trust store: {payload['path']}")
     return 0
 
 

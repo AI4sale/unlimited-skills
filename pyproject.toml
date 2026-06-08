@@ -47,3 +47,6 @@ unlimited-skills = "unlimited_skills.cli:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["unlimited_skills"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

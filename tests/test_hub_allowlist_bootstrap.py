@@ -321,15 +321,59 @@ def test_trust_cli_lists_key_ids_and_verifies_manifest_file(tmp_path: Path, monk
 
     assert main(["trust", "status", "--json"]) == 0
     status = json.loads(capsys.readouterr().out)
-    assert status["trusted_manifest_key_ids"] == ["hub-test-key"]
+    assert "hub-test-key" in status["trusted_manifest_key_ids"]
     assert status["private_keys_present"] is False
 
     assert main(["trust", "keys", "--json"]) == 0
     keys = json.loads(capsys.readouterr().out)
-    assert keys["keys"] == [{"algorithm": "ed25519", "key_id": "hub-test-key"}]
+    key_ids = {item["key_id"] for item in keys["keys"]}
+    assert "hub-test-key" in key_ids
     assert env["UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS"].split(":", 1)[1] not in json.dumps(keys)
 
     assert main(["trust", "verify", str(manifest_path), "--json"]) == 0
     verified = json.loads(capsys.readouterr().out)
     assert verified["signature_verification"]["verified"] is True
     assert verified["signature_verification"]["key_id"] == "hub-test-key"
+
+
+def test_trust_cli_import_scope_origin_and_revoke(tmp_path: Path, monkeypatch, capsys) -> None:
+    uls_home = tmp_path / ".unlimited-skills"
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(uls_home))
+    private_key = Ed25519PrivateKey.generate()
+    public_key = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+    trust_manifest = {
+        "schema_version": 1,
+        "keys": [
+            {
+                "key_id": "local-registry-key",
+                "algorithm": "ed25519",
+                "public_key": base64_urlsafe_encode(public_key),
+                "status": "active",
+                "scopes": ["catalog-updates"],
+                "registry_origins": ["https://updates.example.test"],
+            }
+        ],
+    }
+    trust_path = tmp_path / "manifest-public-keys.v1.json"
+    trust_path.write_text(json.dumps(trust_manifest), encoding="utf-8")
+    signed = sign_manifest_for_tests({"schema_version": 1, "updates": []}, private_key, key_id="local-registry-key")
+    signed_path = tmp_path / "catalog-updates.v1.json"
+    signed_path.write_text(json.dumps(signed), encoding="utf-8")
+
+    assert main(["trust", "import", str(trust_path), "--json"]) == 0
+    imported = json.loads(capsys.readouterr().out)
+    assert imported["imported_count"] == 1
+
+    assert main(["trust", "verify", str(signed_path), "--scope", "catalog-updates", "--registry-url", "https://updates.example.test/v1/catalog", "--json"]) == 0
+    verified = json.loads(capsys.readouterr().out)
+    assert verified["signature_verification"]["key_id"] == "local-registry-key"
+
+    assert main(["trust", "verify", str(signed_path), "--scope", "team-sync-manifest", "--registry-url", "https://updates.example.test", "--json"]) == 2
+    assert "not allowed for this scope or registry" in capsys.readouterr().err
+
+    assert main(["trust", "revoke", "local-registry-key", "--reason", "test", "--json"]) == 0
+    revoked = json.loads(capsys.readouterr().out)
+    assert revoked["status"] == "revoked"
+
+    assert main(["trust", "verify", str(signed_path), "--scope", "catalog-updates", "--registry-url", "https://updates.example.test", "--json"]) == 2
+    assert "revoked" in capsys.readouterr().err

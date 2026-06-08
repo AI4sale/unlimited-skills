@@ -81,7 +81,7 @@ Returns registered hosted catalog metadata for this installation. The official a
 
 ### `POST /v1/collections/updates`
 
-Returns hosted collection updates for local collection versions. Update archives use `skill-collection-zip-v1`. Hosted update responses must include a valid signed manifest envelope. The client verifies `manifest_signature`, then enforces archive SHA256 verification and safe zip extraction before installing.
+Returns hosted collection updates for local collection versions. Update archives use `skill-collection-zip-v1`. Hosted update responses must include a valid signed manifest envelope. The client verifies `manifest_signature` against a key trusted for the `catalog-updates` scope and registry origin, then enforces archive SHA256 verification and safe zip extraction before installing.
 
 ### `POST /v1/enhancement/script`
 
@@ -129,7 +129,7 @@ Lists approved members by default. The client may request all statuses or pendin
 
 ### `POST /v1/teams/{team_id}/sync`
 
-Returns team-assigned collection manifests. The client supports the richer Team Free sync manifest and remains compatible with the legacy `updates` array shape. Hosted team sync responses must include a valid signed manifest envelope. The client verifies `manifest_signature`, then enforces SHA256 verification and safe extraction before installing archives.
+Returns team-assigned collection manifests. The client supports the richer Team Free sync manifest and remains compatible with the legacy `updates` array shape. Hosted team sync responses must include a valid signed manifest envelope. The client verifies `manifest_signature` against a key trusted for the `team-sync-manifest` scope and registry origin, then enforces SHA256 verification and safe extraction before installing archives.
 
 ### `POST /v1/teams/{team_id}/members/pending`
 
