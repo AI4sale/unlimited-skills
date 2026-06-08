@@ -425,12 +425,12 @@ def test_docs_security_claims_are_consistent() -> None:
     docs = "\n".join(path.read_text(encoding="utf-8", errors="replace") for path in [root / "SECURITY.md", root / "README.md", *list((root / "docs").glob("*.md"))]).lower()
     assert "v0.2.1-alpha" in (root / "SECURITY.md").read_text(encoding="utf-8", errors="replace")
     assert "sha256" in docs
-    assert "cryptographic signature verification is planned" in docs
+    assert "hosted remote manifests must include valid signed manifest envelopes" in docs
     assert "serve` is the free local daemon and remains unregistered" in docs
     assert "`hub serve` is a separate registration-required product command" in docs
     assert "allowlist-only" in docs
     assert "full catalog distribution is disabled" in docs
-    forbidden = ["cryptographic signature verification is enforced", "full catalog distribution is enabled"]
+    forbidden = ["signed archives are verified", "full catalog distribution is enabled"]
     for phrase in forbidden:
         assert phrase not in docs
 

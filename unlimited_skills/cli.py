@@ -40,6 +40,9 @@ from .hub import (
     cmd_remote_search,
     cmd_remote_status,
     cmd_remote_view,
+    cmd_trust_keys,
+    cmd_trust_status,
+    cmd_trust_verify,
     redacted_runtime_error,
 )
 from .registration import (
@@ -1629,6 +1632,19 @@ def build_parser() -> argparse.ArgumentParser:
     hub_token_revoke.set_defaults(func=cmd_hub_token_revoke)
     hub_doctor = hub_sub.add_parser("doctor", help="Inspect Local Skill Hub contract readiness.")
     hub_doctor.set_defaults(func=cmd_hub_doctor)
+
+    trust = sub.add_parser("trust", help="Inspect and verify signed hosted manifest trust configuration.")
+    trust_sub = trust.add_subparsers(dest="trust_command", required=True)
+    trust_status = trust_sub.add_parser("status", help="Show signed manifest trust status without printing key material.")
+    trust_status.add_argument("--json", action="store_true")
+    trust_status.set_defaults(func=cmd_trust_status)
+    trust_keys = trust_sub.add_parser("keys", help="List trusted manifest public key ids.")
+    trust_keys.add_argument("--json", action="store_true")
+    trust_keys.set_defaults(func=cmd_trust_keys)
+    trust_verify = trust_sub.add_parser("verify", help="Verify a signed hosted manifest JSON file.")
+    trust_verify.add_argument("manifest")
+    trust_verify.add_argument("--json", action="store_true")
+    trust_verify.set_defaults(func=cmd_trust_verify)
 
     remote = sub.add_parser("remote", help="Configure or query a registered Local Skill Hub.")
     remote_sub = remote.add_subparsers(dest="remote_command", required=True)

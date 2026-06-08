@@ -11,15 +11,20 @@ import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+
 from unlimited_skills.registration import (
     RegistrationError,
     RegistrationState,
+    base64_urlsafe_encode,
     build_registration_payload,
     post_json,
     save_registration,
     with_install_identity,
     with_install_id,
 )
+from unlimited_skills.signatures import sign_manifest_for_tests
 from unlimited_skills.team import TeamClient, TeamState, save_team_state
 from unlimited_skills.updates import (
     RegistrationRequired,
@@ -61,6 +66,14 @@ def registered_state() -> RegistrationState:
     return with_install_identity(
         RegistrationState(install_id="uls_inst_test", server_url="https://updates.example.test", license_token="tok_test")
     )
+
+
+def signed_manifest_env(payload: dict) -> tuple[dict, dict[str, str]]:
+    private_key = Ed25519PrivateKey.generate()
+    public_key = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+    return sign_manifest_for_tests(payload, private_key, key_id="test-key"), {
+        "UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS": f"test-key:{base64_urlsafe_encode(public_key)}"
+    }
 
 
 class RegistrationUpdatesTest(unittest.TestCase):
@@ -163,7 +176,7 @@ class RegistrationUpdatesTest(unittest.TestCase):
             root = tmp_path / "library"
             archive = make_collection_archive(tmp_path, "ecc", "security-review", "v2")
             digest = sha256_file(archive)
-            manifest = {"updates": [{"collection": "ecc", "version": "2026.06.06", "archive_url": "https://updates.example.test/ecc.zip", "sha256": digest}]}
+            manifest, env = signed_manifest_env({"updates": [{"collection": "ecc", "version": "2026.06.06", "archive_url": "https://updates.example.test/ecc.zip", "sha256": digest}]})
 
             def fake_urlopen(request, timeout=30.0):
                 url = request.full_url if hasattr(request, "full_url") else str(request)
@@ -175,7 +188,7 @@ class RegistrationUpdatesTest(unittest.TestCase):
 
             state = registered_state()
             client = UpdateClient(state)
-            with patch("urllib.request.urlopen", fake_urlopen):
+            with patch.dict(os.environ, env, clear=False), patch("urllib.request.urlopen", fake_urlopen):
                 updates = client.check(root)
                 result = client.apply(root, updates[0])
 
@@ -184,6 +197,38 @@ class RegistrationUpdatesTest(unittest.TestCase):
             collection_manifest = json.loads((root / ".unlimited-skills-collections.json").read_text(encoding="utf-8"))
             self.assertEqual(collection_manifest["collections"]["ecc"]["version"], "2026.06.06")
             self.assertEqual(collection_manifest["collections"]["ecc"]["source"], "hosted")
+
+    def test_signed_hosted_update_manifest_is_verified(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "library"
+            manifest, env = signed_manifest_env(
+                {"schema_version": 1, "updates": [{"collection": "ecc", "version": "2026.06.06", "archive_url": "https://updates.example.test/ecc.zip", "sha256": "a" * 64}]}
+            )
+
+            def fake_urlopen(request, timeout=30.0):
+                self.assertTrue(request.full_url.endswith("/v1/collections/updates"))
+                return FakeResponse(json.dumps(manifest).encode("utf-8"))
+
+            with patch.dict(os.environ, env, clear=False), patch("urllib.request.urlopen", fake_urlopen):
+                updates = UpdateClient(registered_state()).check(root)
+
+            self.assertEqual(updates[0].collection, "ecc")
+
+    def test_tampered_signed_hosted_update_manifest_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "library"
+            manifest, env = signed_manifest_env(
+                {"schema_version": 1, "updates": [{"collection": "ecc", "version": "2026.06.06", "archive_url": "https://updates.example.test/ecc.zip", "sha256": "a" * 64}]}
+            )
+            manifest["updates"][0]["version"] = "2026.06.07"
+
+            def fake_urlopen(request, timeout=30.0):
+                self.assertTrue(request.full_url.endswith("/v1/collections/updates"))
+                return FakeResponse(json.dumps(manifest).encode("utf-8"))
+
+            with patch.dict(os.environ, env, clear=False), patch("urllib.request.urlopen", fake_urlopen):
+                with self.assertRaises(UpdateError):
+                    UpdateClient(registered_state()).check(root)
 
     def test_registered_catalog_uses_hosted_service_token(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -221,6 +266,7 @@ class RegistrationUpdatesTest(unittest.TestCase):
                 "sha256": digest,
                 "signature": "ed25519:test",
             }
+            manifest, env = signed_manifest_env(manifest)
 
             def fake_urlopen(request, timeout=30.0):
                 url = request.full_url if hasattr(request, "full_url") else str(request)
@@ -235,7 +281,7 @@ class RegistrationUpdatesTest(unittest.TestCase):
 
             state = registered_state()
             client = UpdateClient(state)
-            with patch("urllib.request.urlopen", fake_urlopen):
+            with patch.dict(os.environ, env, clear=False), patch("urllib.request.urlopen", fake_urlopen):
                 path = client.download_enhancement_script(root, target_dir=target_dir)
 
             self.assertEqual(path.read_bytes(), script_body)
@@ -246,6 +292,7 @@ class RegistrationUpdatesTest(unittest.TestCase):
             root = Path(tmp) / "library"
             state = registered_state()
             calls: list[str] = []
+            sync_manifest, env = signed_manifest_env({"updates": []})
 
             def fake_urlopen(request, timeout=30.0):
                 self.assertEqual(request.headers.get("Authorization"), "Bearer tok_test")
@@ -283,11 +330,11 @@ class RegistrationUpdatesTest(unittest.TestCase):
                     return FakeResponse(json.dumps({"team_id": "team_123", "approval_mode": "auto", "auto_approve_until": "2026-06-07T00:00:00Z"}).encode("utf-8"))
                 if request.full_url.endswith("/v1/teams/team_123/sync"):
                     self.assertEqual(body["team_token"], "team_tok")
-                    return FakeResponse(json.dumps({"updates": []}).encode("utf-8"))
+                    return FakeResponse(json.dumps(sync_manifest).encode("utf-8"))
                 raise AssertionError(f"Unexpected URL: {request.full_url}")
 
             client = TeamClient(state)
-            with patch("urllib.request.urlopen", fake_urlopen):
+            with patch.dict(os.environ, env, clear=False), patch("urllib.request.urlopen", fake_urlopen):
                 team, create_response = client.create(root, name="AI4SALE")
                 joined, _ = client.join(root, join_code="join_abc")
                 pending = client.pending(team)
@@ -326,6 +373,7 @@ class RegistrationUpdatesTest(unittest.TestCase):
                 "sha256": "0" * 64,
                 "signature": "ed25519:test",
             }
+            manifest, env = signed_manifest_env(manifest)
 
             def fake_urlopen(request, timeout=30.0):
                 url = request.full_url if hasattr(request, "full_url") else str(request)
@@ -337,7 +385,7 @@ class RegistrationUpdatesTest(unittest.TestCase):
 
             state = registered_state()
             client = UpdateClient(state)
-            with patch("urllib.request.urlopen", fake_urlopen):
+            with patch.dict(os.environ, env, clear=False), patch("urllib.request.urlopen", fake_urlopen):
                 with self.assertRaises(UpdateError):
                     client.download_enhancement_script(tmp_path / "library", target_dir=tmp_path / "cache")
 
@@ -356,6 +404,18 @@ class RegistrationUpdatesTest(unittest.TestCase):
     def test_update_manifest_rejects_unsafe_collection_names(self) -> None:
         with self.assertRaises(UpdateError):
             parse_updates({"updates": [{"collection": "../ecc", "version": "1", "archive_url": "https://example.test/ecc.zip", "sha256": "abc"}]})
+
+    def test_unsigned_hosted_update_manifest_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "library"
+
+            def fake_urlopen(request, timeout=30.0):
+                self.assertTrue(request.full_url.endswith("/v1/collections/updates"))
+                return FakeResponse(json.dumps({"schema_version": 1, "updates": []}).encode("utf-8"))
+
+            with patch("urllib.request.urlopen", fake_urlopen):
+                with self.assertRaises(UpdateError):
+                    UpdateClient(registered_state()).check(root)
 
 
 if __name__ == "__main__":

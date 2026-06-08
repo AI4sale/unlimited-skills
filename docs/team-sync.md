@@ -39,7 +39,7 @@ Apply flow:
 7. Rebuild the lexical index unless `--skip-reindex` is passed.
 8. Record a redacted local audit event.
 
-The current client enforces SHA256 verification and safe extraction. Cryptographic signature verification is planned and must not be described as implemented until the client enforces it.
+Hosted team sync manifests must include a valid signed manifest envelope. The current client verifies `manifest_signature`, then enforces SHA256 verification and safe extraction before installing archives.
 
 ## Removals
 

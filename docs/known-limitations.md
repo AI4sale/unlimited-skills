@@ -7,7 +7,7 @@
 - Exact registered catalog contents are delivered through registered hosted catalog/update commands, not published in the MIT repo.
 - Community submissions are planned and not fully implemented unless current code explicitly says otherwise.
 - Enterprise Skill Lock is planned.
-- Cryptographic signature verification is planned. SHA256 verification is enforced today for hosted collection archives and enhancement scripts.
+- Hosted remote manifests must include valid signed manifest envelopes. SHA256 verification is still enforced for hosted collection archives and enhancement scripts before local installation.
 - PyPI is not the v0.2.x distribution path because router skills, scripts, docs, and bundled packs are repo assets.
 - Warm daemon mode is experimental and not the default retrieval path.
 - Team sync is an MVP; server-side enforcement of limits and paid plan behavior may evolve.

@@ -17,6 +17,7 @@ from typing import Any
 
 from . import __version__
 from .registration import RegistrationState, is_secure_or_local_url, post_json, unlimited_skills_home
+from .signatures import ManifestSignatureError, verify_manifest_signature
 
 COLLECTIONS_MANIFEST = ".unlimited-skills-collections.json"
 COLLECTION_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
@@ -208,6 +209,10 @@ class UpdateClient:
             proof_state=self.state,
             timeout=self.timeout,
         )
+        try:
+            verify_manifest_signature(response, purpose="Hosted collection updates", required=True)
+        except ManifestSignatureError as exc:
+            raise UpdateError(str(exc)) from exc
         return parse_updates(response)
 
     def catalog(self, root: Path) -> dict[str, Any]:
@@ -240,6 +245,10 @@ class UpdateClient:
             proof_state=self.state,
             timeout=self.timeout,
         )
+        try:
+            verify_manifest_signature(response, purpose="Enhancement script manifest", required=True)
+        except ManifestSignatureError as exc:
+            raise UpdateError(str(exc)) from exc
         return parse_enhancement_script(response)
 
     def download_enhancement_script(self, root: Path, target_dir: Path | None = None) -> Path:

@@ -14,6 +14,6 @@ Unlimited Skills has a local MIT core and registration-gated hosted services. Re
 
 Community Core stays usable offline. No registration means no official hosted skill updates and no official community catalog access, but local skills remain usable.
 
-Hosted archive downloads are SHA256-verified before extraction today. Cryptographic signature verification is planned and must not be claimed as implemented until the client enforces it.
+Hosted manifest responses must include `manifest_signature` and are Ed25519-verified before use against trusted manifest public keys. Hosted archive downloads are SHA256-verified before extraction.
 
 The private registry audit scanned 315 skills and returned `YES_WITH_ALLOWLIST`, so Local Skill Hub distribution is allowlist-only. Full catalog distribution is disabled.

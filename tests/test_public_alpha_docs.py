@@ -21,8 +21,8 @@ def test_security_docs_do_not_claim_signature_verification_is_implemented() -> N
     combined = "\n".join(read(path) for path in checked).lower()
     assert "signed archives" not in combined
     assert "signed archive" not in combined
-    assert "cryptographic signature verification is planned" in combined
-    assert "sha256-verified hosted collection archives" in combined
+    assert "hosted remote manifests must include valid signed manifest envelopes" in combined
+    assert "sha256 verification is still enforced for hosted collection archives" in combined
 
 
 def test_public_core_boundary_documents_registration_free_commands() -> None:

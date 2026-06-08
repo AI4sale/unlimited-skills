@@ -11,13 +11,14 @@
 - Release smoke suite scenarios that exercise hub tokens, remote client behavior, allowlist bootstrap, redaction, and production-hosted-call blocking without mutating real HOME.
 - Remote-first router template rendering and installer flags for Codex, Claude Code, Hermes, and OpenClaw.
 - Skill runtime manifest schema, client capability reporting, capability-aware hub resolve, and dry-run remote install plans.
+- Required Ed25519 signed hosted manifest verification for hub allowlist sync, collection updates, enhancement manifests, and team sync manifests.
 
 ### Changed
 
 - Raised package version to `0.2.1`.
 - Updated alpha security and release documentation to describe the integrated Local Skill Hub runtime stack.
 - Clarified that Local Skill Hub remains allowlist-only, full catalog distribution remains disabled, and hosted registry services do not receive local hub search queries by default.
-- Clarified that SHA256 verification is the current hosted archive boundary; cryptographic signature verification remains planned until signed manifest verification is implemented.
+- Clarified that hosted remote manifests require valid signatures, while archive installation still depends on SHA256 verification and safe extraction.
 - Installer reports and generated router files redact raw hub tokens; token-env configuration is preferred.
 - Tool/platform skill install plans remain metadata-only; the hub does not execute skills or install packages.
 

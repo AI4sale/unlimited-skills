@@ -9,6 +9,7 @@ from typing import Any
 
 from . import __version__
 from .registration import RegistrationError, RegistrationState, post_json, redact_sensitive_text, unlimited_skills_home, write_private_json
+from .signatures import ManifestSignatureError, verify_manifest_signature
 from .updates import CollectionUpdate, current_collection_state, parse_updates, validate_collection_name
 
 
@@ -537,6 +538,10 @@ class TeamClient:
             f"/v1/teams/{team.team_id}/sync",
             self._team_payload(team, {"collections": current_collection_state(root)}),
         )
+        try:
+            verify_manifest_signature(response, purpose="Team sync manifest", required=True)
+        except ManifestSignatureError as exc:
+            raise TeamError(str(exc)) from exc
         return parse_team_sync_plan(response)
 
     def mark_synced(self, team: TeamState) -> TeamState:

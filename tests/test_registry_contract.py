@@ -150,7 +150,7 @@ def test_registry_docs_keep_signature_boundary_precise() -> None:
     assert "community submissions require explicit upload confirmation" in lowered
     assert "hosted catalog/update checks do not upload local skill bodies" in lowered
     assert "no registration, no official hosted skill updates" in lowered
-    assert "cryptographic signature verification is planned" in lowered
+    assert "signed manifest envelope" in lowered
     assert "currently enforced" not in lowered.replace("not currently enforced", "")
     assert "private encrypted packs are implemented" not in lowered
     assert "enterprise skill lock is implemented" not in lowered

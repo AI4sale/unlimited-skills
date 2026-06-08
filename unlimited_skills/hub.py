@@ -24,6 +24,7 @@ from .hub_allowlist import (
     validate_allowlist_file,
 )
 from .registration import RegistrationState, is_secure_or_local_url, load_registration, post_json, redact_sensitive_text, unlimited_skills_home, write_private_json
+from .signatures import ManifestSignatureError, trusted_manifest_public_keys, verify_manifest_signature
 
 
 HUB_FEATURE_FLAGS = {
@@ -402,6 +403,10 @@ def fetch_registered_allowlist(state: RegistrationState, *, current_sha: str = "
     )
     if response.get("schema_version") != 1:
         raise RuntimeError("Hub allowlist service returned unsupported schema_version.")
+    try:
+        response["signature_verification"] = verify_manifest_signature(response, purpose="Hub allowlist response", required=True)
+    except ManifestSignatureError as exc:
+        raise RuntimeError(str(exc)) from exc
     if response.get("distribution_mode") != "allowlist_only":
         raise RuntimeError("Hub allowlist service must return distribution_mode=allowlist_only.")
     if response.get("full_catalog_distribution_allowed") is not False:
@@ -416,7 +421,12 @@ def fetch_registered_allowlist(state: RegistrationState, *, current_sha: str = "
         allowlist_url = str(response.get("allowlist_url") or "")
         if not allowlist_url:
             raise RuntimeError("Hub allowlist service must return allowlist or allowlist_url.")
-        allowlist = validate_allowlist(download_allowlist_json(allowlist_url, timeout=timeout))
+        downloaded = download_allowlist_json(allowlist_url, timeout=timeout)
+        try:
+            response["allowlist_signature_verification"] = verify_manifest_signature(downloaded, purpose="Downloaded hub allowlist")
+        except ManifestSignatureError as exc:
+            raise RuntimeError(str(exc)) from exc
+        allowlist = validate_allowlist(downloaded)
     expected_sha = str(response.get("allowlist_sha256") or "")
     actual_sha = allowlist_sha256(allowlist)
     if expected_sha and expected_sha.lower() != actual_sha.lower():
@@ -571,6 +581,7 @@ def cmd_hub_sync(args: Any) -> int:
         "previous_allowlist_sha256": current_sha,
         "allowlist_sha256": actual_sha,
         "changed": current_sha != actual_sha,
+        "signature_verification": response.get("signature_verification", {"verified": False, "reason": "signature_missing"}),
         "notes": redact_sensitive_text(response.get("notes", "")),
     }
     if not getattr(args, "dry_run", False):
@@ -585,6 +596,61 @@ def cmd_hub_sync(args: Any) -> int:
     print(f"SHA256: {payload['allowlist_sha256']}")
     if payload.get("allowlist_path"):
         print(f"Cached allowlist: {payload['allowlist_path']}")
+    return 0
+
+
+def trust_status_payload() -> dict[str, Any]:
+    keys = trusted_manifest_public_keys()
+    return {
+        "schema_version": 1,
+        "trusted_manifest_keys_configured": bool(keys),
+        "trusted_manifest_key_count": len(keys),
+        "trusted_manifest_key_ids": sorted(keys),
+        "private_keys_present": False,
+    }
+
+
+def cmd_trust_status(args: Any) -> int:
+    payload = trust_status_payload()
+    if getattr(args, "json", False):
+        return emit_json(payload)
+    print("Manifest trust: " + ("configured" if payload["trusted_manifest_keys_configured"] else "not configured"))
+    print("Trusted key ids: " + (", ".join(payload["trusted_manifest_key_ids"]) if payload["trusted_manifest_key_ids"] else "(none)"))
+    print("Private keys present: false")
+    return 0
+
+
+def cmd_trust_keys(args: Any) -> int:
+    payload = trust_status_payload()
+    payload["keys"] = [{"key_id": key_id, "algorithm": "ed25519"} for key_id in payload["trusted_manifest_key_ids"]]
+    if getattr(args, "json", False):
+        return emit_json(payload)
+    if not payload["keys"]:
+        print("No trusted manifest public keys configured.")
+        return 0
+    for item in payload["keys"]:
+        print(f"{item['key_id']} algorithm={item['algorithm']}")
+    return 0
+
+
+def cmd_trust_verify(args: Any) -> int:
+    path = Path(args.manifest).expanduser()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"Cannot read manifest: {path}") from exc
+    if not isinstance(data, dict):
+        raise RuntimeError("Manifest must be a JSON object.")
+    try:
+        verification = verify_manifest_signature(data, purpose="Manifest file", required=True)
+    except ManifestSignatureError as exc:
+        raise RuntimeError(str(exc)) from exc
+    payload = {"schema_version": 1, "manifest": str(path), "signature_verification": verification}
+    if getattr(args, "json", False):
+        return emit_json(payload)
+    print("Manifest signature: verified")
+    print(f"Key ID: {verification.get('key_id')}")
+    print(f"Payload SHA256: {verification.get('signed_payload_sha256')}")
     return 0
 
 

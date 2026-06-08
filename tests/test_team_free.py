@@ -7,8 +7,12 @@ import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+
 from unlimited_skills.cli import main
-from unlimited_skills.registration import RegistrationState, save_registration, with_install_identity
+from unlimited_skills.registration import RegistrationState, base64_urlsafe_encode, save_registration, with_install_identity
+from unlimited_skills.signatures import sign_manifest_for_tests
 from unlimited_skills.team import TeamState, audit_log_path, save_team_state
 from unlimited_skills.updates import sha256_file
 
@@ -31,6 +35,14 @@ def registered_state() -> RegistrationState:
     return with_install_identity(
         RegistrationState(install_id="uls_inst_master", server_url="https://team.example.test", license_token="tok_test")
     )
+
+
+def signed_manifest_env(payload: dict) -> tuple[dict, dict[str, str]]:
+    private_key = Ed25519PrivateKey.generate()
+    public_key = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+    return sign_manifest_for_tests(payload, private_key, key_id="team-test-key"), {
+        "UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS": f"team-test-key:{base64_urlsafe_encode(public_key)}"
+    }
 
 
 def write_registration(home: Path) -> None:
@@ -186,31 +198,31 @@ def test_team_sync_dry_run_json_writes_no_library_files_and_logs_audit(tmp_path:
     write_registration(home)
     write_team(home)
     monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home / ".unlimited-skills"))
+    manifest, env = signed_manifest_env(
+        {
+            "schema_version": 1,
+            "team_id": "team_123",
+            "plan": "team-free",
+            "limits": {"max_instances": 10, "auto_approval_max_hours": 24},
+            "collections": [
+                {
+                    "collection": "team-web",
+                    "version": "2026.06.08",
+                    "visibility": "team-free",
+                    "archive_url": "https://team.example.test/team-web.zip",
+                    "sha256": "a" * 64,
+                    "format": "skill-collection-zip-v1",
+                    "archive_size": 1024,
+                }
+            ],
+            "removals": [],
+        }
+    )
+    monkeypatch.setenv("UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS", env["UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS"])
 
     def fake_urlopen(request, timeout=30.0):
         assert request.full_url.endswith("/v1/teams/team_123/sync")
-        return FakeResponse(
-            json.dumps(
-                {
-                    "schema_version": 1,
-                    "team_id": "team_123",
-                    "plan": "team-free",
-                    "limits": {"max_instances": 10, "auto_approval_max_hours": 24},
-                    "collections": [
-                        {
-                            "collection": "team-web",
-                            "version": "2026.06.08",
-                            "visibility": "team-free",
-                            "archive_url": "https://team.example.test/team-web.zip",
-                            "sha256": "a" * 64,
-                            "format": "skill-collection-zip-v1",
-                            "archive_size": 1024,
-                        }
-                    ],
-                    "removals": [],
-                }
-            ).encode("utf-8")
-        )
+        return FakeResponse(json.dumps(manifest).encode("utf-8"))
 
     with patch("urllib.request.urlopen", fake_urlopen):
         assert main(["--root", str(root), "team", "sync", "--dry-run", "--json"]) == 0
@@ -233,11 +245,13 @@ def test_team_sync_yes_applies_verified_archive_and_reindexes(tmp_path: Path, mo
     write_registration(home)
     write_team(home)
     monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home / ".unlimited-skills"))
+    manifest, env = signed_manifest_env({"collections": [{"collection": "team-web", "version": "2026.06.08", "archive_url": "https://team.example.test/team.zip", "sha256": digest}]})
+    monkeypatch.setenv("UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS", env["UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS"])
 
     def fake_urlopen(request, timeout=30.0):
         url = request.full_url
         if url.endswith("/v1/teams/team_123/sync"):
-            return FakeResponse(json.dumps({"collections": [{"collection": "team-web", "version": "2026.06.08", "archive_url": "https://team.example.test/team.zip", "sha256": digest}]}).encode("utf-8"))
+            return FakeResponse(json.dumps(manifest).encode("utf-8"))
         if url.endswith("/team.zip"):
             return FakeResponse(archive.read_bytes())
         raise AssertionError(url)
@@ -260,11 +274,13 @@ def test_team_sync_rejects_zip_path_traversal(tmp_path: Path, monkeypatch, capsy
     write_registration(home)
     write_team(home)
     monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home / ".unlimited-skills"))
+    manifest, env = signed_manifest_env({"collections": [{"collection": "team-web", "version": "2026.06.08", "archive_url": "https://team.example.test/bad.zip", "sha256": digest}]})
+    monkeypatch.setenv("UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS", env["UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS"])
 
     def fake_urlopen(request, timeout=30.0):
         url = request.full_url
         if url.endswith("/v1/teams/team_123/sync"):
-            return FakeResponse(json.dumps({"collections": [{"collection": "team-web", "version": "2026.06.08", "archive_url": "https://team.example.test/bad.zip", "sha256": digest}]}).encode("utf-8"))
+            return FakeResponse(json.dumps(manifest).encode("utf-8"))
         if url.endswith("/bad.zip"):
             return FakeResponse(archive.read_bytes())
         raise AssertionError(url)

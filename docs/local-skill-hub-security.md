@@ -43,7 +43,7 @@ unlimited-skills remote configure --url http://127.0.0.1:8766 --token-env ULS_HU
 
 ## Hosted Collection Sync
 
-When the hub syncs hosted collections, archive extraction must be path-safe and SHA256-verified before installation. Cryptographic signature verification is planned and must not be claimed as implemented until the client enforces it.
+When the hub syncs hosted allowlists or collections, signed manifest envelopes are required and Ed25519-verified against trusted manifest public keys. The explicit local fixture path remains unsigned. Archive extraction must still be path-safe and SHA256-verified before installation.
 
 Skill archives must not contain secrets, private customer context, private repository paths, or blocked assets. Tool/platform skills require local capability checks before use.
 

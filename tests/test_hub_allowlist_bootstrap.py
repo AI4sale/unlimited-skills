@@ -5,10 +5,14 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
+
 from unlimited_skills.cli import main
 from unlimited_skills.hub import create_hub_token
 from unlimited_skills.hub_allowlist import allowlist_sha256
-from unlimited_skills.registration import RegistrationState, save_registration, with_install_identity
+from unlimited_skills.registration import RegistrationState, base64_urlsafe_encode, save_registration, with_install_identity
+from unlimited_skills.signatures import sign_manifest_for_tests
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -34,6 +38,14 @@ def registered_state() -> RegistrationState:
             license_token="tok_secret_hub_allowlist",
         )
     )
+
+
+def signed_manifest_env(payload: dict) -> tuple[dict, dict[str, str]]:
+    private_key = Ed25519PrivateKey.generate()
+    public_key = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+    return sign_manifest_for_tests(payload, private_key, key_id="hub-test-key"), {
+        "UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS": f"hub-test-key:{base64_urlsafe_encode(public_key)}"
+    }
 
 
 def test_hub_init_creates_layout_and_config_dirs(tmp_path: Path, monkeypatch, capsys) -> None:
@@ -179,11 +191,8 @@ def test_hub_sync_dry_run_writes_nothing(tmp_path: Path, monkeypatch, capsys) ->
     save_registration(registered_state(), home=uls_home)
     monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(uls_home))
     data = valid_allowlist()
-
-    def fake_post_json(url, payload, **kwargs):
-        assert url == "https://updates.example.test/v1/hub/allowlist"
-        assert payload["current_allowlist_sha256"] == ""
-        return {
+    signed_response, env = signed_manifest_env(
+        {
             "schema_version": 1,
             "distribution_mode": "allowlist_only",
             "catalog_audit_verdict": "YES_WITH_ALLOWLIST",
@@ -194,6 +203,13 @@ def test_hub_sync_dry_run_writes_nothing(tmp_path: Path, monkeypatch, capsys) ->
             "allowlist_sha256": allowlist_sha256(data),
             "notes": "fixture dry run",
         }
+    )
+    monkeypatch.setenv("UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS", env["UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS"])
+
+    def fake_post_json(url, payload, **kwargs):
+        assert url == "https://updates.example.test/v1/hub/allowlist"
+        assert payload["current_allowlist_sha256"] == ""
+        return signed_response
 
     monkeypatch.setattr("unlimited_skills.hub.post_json", fake_post_json)
 
@@ -211,9 +227,8 @@ def test_hub_sync_caches_registered_allowlist(tmp_path: Path, monkeypatch, capsy
     save_registration(registered_state(), home=uls_home)
     monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(uls_home))
     data = valid_allowlist()
-
-    def fake_post_json(_url, _payload, **_kwargs):
-        return {
+    signed_response, env = signed_manifest_env(
+        {
             "schema_version": 1,
             "distribution_mode": "allowlist_only",
             "catalog_audit_verdict": "YES_WITH_ALLOWLIST",
@@ -224,6 +239,11 @@ def test_hub_sync_caches_registered_allowlist(tmp_path: Path, monkeypatch, capsy
             "allowlist_sha256": allowlist_sha256(data),
             "notes": "fixture sync",
         }
+    )
+    monkeypatch.setenv("UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS", env["UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS"])
+
+    def fake_post_json(_url, _payload, **_kwargs):
+        return signed_response
 
     monkeypatch.setattr("unlimited_skills.hub.post_json", fake_post_json)
 
@@ -235,3 +255,81 @@ def test_hub_sync_caches_registered_allowlist(tmp_path: Path, monkeypatch, capsy
     assert payload["full_catalog_distribution_allowed"] is False
     assert (uls_home / "hub" / "allowlist.v1.json").is_file()
     assert json.loads((uls_home / "hub" / "allowlist.v1.json").read_text(encoding="utf-8"))["policy"]["requires_registration"] is True
+
+
+def test_hub_sync_rejects_unsigned_remote_allowlist_manifest(tmp_path: Path, monkeypatch, capsys) -> None:
+    uls_home = tmp_path / ".unlimited-skills"
+    save_registration(registered_state(), home=uls_home)
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(uls_home))
+    data = valid_allowlist()
+
+    def fake_post_json(_url, _payload, **_kwargs):
+        return {
+            "schema_version": 1,
+            "distribution_mode": "allowlist_only",
+            "catalog_audit_verdict": "YES_WITH_ALLOWLIST",
+            "full_catalog_distribution_allowed": False,
+            "requires_registration": True,
+            "free_active_client_instance_limit": 100,
+            "allowlist": data,
+            "allowlist_sha256": allowlist_sha256(data),
+        }
+
+    monkeypatch.setattr("unlimited_skills.hub.post_json", fake_post_json)
+
+    assert main(["hub", "sync"]) == 2
+    assert "must include manifest_signature" in capsys.readouterr().err
+
+
+def test_hub_sync_verifies_signed_allowlist_manifest(tmp_path: Path, monkeypatch, capsys) -> None:
+    uls_home = tmp_path / ".unlimited-skills"
+    save_registration(registered_state(), home=uls_home)
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(uls_home))
+    data = valid_allowlist()
+    signed_response, env = signed_manifest_env(
+        {
+            "schema_version": 1,
+            "distribution_mode": "allowlist_only",
+            "catalog_audit_verdict": "YES_WITH_ALLOWLIST",
+            "full_catalog_distribution_allowed": False,
+            "requires_registration": True,
+            "free_active_client_instance_limit": 100,
+            "allowlist": data,
+            "allowlist_sha256": allowlist_sha256(data),
+            "notes": "signed fixture sync",
+        }
+    )
+    monkeypatch.setenv("UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS", env["UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS"])
+
+    def fake_post_json(_url, _payload, **_kwargs):
+        return signed_response
+
+    monkeypatch.setattr("unlimited_skills.hub.post_json", fake_post_json)
+
+    assert main(["hub", "sync", "--dry-run", "--json"]) == 0
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["signature_verification"]["verified"] is True
+    assert payload["signature_verification"]["key_id"] == "hub-test-key"
+
+
+def test_trust_cli_lists_key_ids_and_verifies_manifest_file(tmp_path: Path, monkeypatch, capsys) -> None:
+    signed_response, env = signed_manifest_env({"schema_version": 1, "updates": []})
+    manifest_path = tmp_path / "signed-manifest.json"
+    manifest_path.write_text(json.dumps(signed_response), encoding="utf-8")
+    monkeypatch.setenv("UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS", env["UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS"])
+
+    assert main(["trust", "status", "--json"]) == 0
+    status = json.loads(capsys.readouterr().out)
+    assert status["trusted_manifest_key_ids"] == ["hub-test-key"]
+    assert status["private_keys_present"] is False
+
+    assert main(["trust", "keys", "--json"]) == 0
+    keys = json.loads(capsys.readouterr().out)
+    assert keys["keys"] == [{"algorithm": "ed25519", "key_id": "hub-test-key"}]
+    assert env["UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS"].split(":", 1)[1] not in json.dumps(keys)
+
+    assert main(["trust", "verify", str(manifest_path), "--json"]) == 0
+    verified = json.loads(capsys.readouterr().out)
+    assert verified["signature_verification"]["verified"] is True
+    assert verified["signature_verification"]["key_id"] == "hub-test-key"
