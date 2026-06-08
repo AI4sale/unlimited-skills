@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import secrets
 import sys
 import time
@@ -23,6 +24,16 @@ from . import __version__
 DEFAULT_SERVICE_URL = os.environ.get("UNLIMITED_SKILLS_SERVICE_URL", "https://unlimited.ai4.sale")
 REGISTRATION_NAME = "registration.json"
 LOCAL_DEVELOPMENT_HOSTS = {"localhost", "127.0.0.1", "::1"}
+SENSITIVE_TEXT_PATTERNS = (
+    (re.compile(r"(?i)[\"']?authorization[\"']?\s*[:=]\s*[\"']?bearer\s+[^\s,'\"}]+[\"']?"), "[redacted]"),
+    (re.compile(r"(?i)[\"']?x-uls-proof[\"']?\s*[:=]\s*[\"']?[^\s,'\"}]+[\"']?"), "[redacted]"),
+    (
+        re.compile(
+            r"(?i)([\"']?(?:license_token|team_token|member_token|device_private_key|private_key|token)[\"']?\s*[:=]\s*[\"']?)[^\s,'\"}&]+([\"']?)"
+        ),
+        r"\1[redacted]\2",
+    ),
+)
 
 
 class RegistrationError(RuntimeError):
@@ -48,6 +59,13 @@ def is_secure_or_local_url(url: str) -> bool:
 def require_secure_url(url: str, *, purpose: str = "Hosted service") -> None:
     if not is_secure_or_local_url(url):
         raise RegistrationError(f"{purpose} URL must use HTTPS. Plain HTTP is allowed only for localhost development.")
+
+
+def redact_sensitive_text(value: object) -> str:
+    text = str(value)
+    for pattern, replacement in SENSITIVE_TEXT_PATTERNS:
+        text = pattern.sub(replacement, text)
+    return text
 
 
 def write_private_json(path: Path, data: dict[str, Any]) -> Path:
@@ -299,10 +317,10 @@ def post_json(
         with urllib.request.urlopen(request, timeout=timeout) as response:
             raw = response.read().decode("utf-8")
     except urllib.error.HTTPError as exc:
-        message = exc.read().decode("utf-8", errors="replace") if exc.fp else str(exc)
+        message = redact_sensitive_text(exc.read().decode("utf-8", errors="replace") if exc.fp else str(exc))
         raise RegistrationError(f"Registration service returned HTTP {exc.code}: {message}") from exc
     except urllib.error.URLError as exc:
-        raise RegistrationError(f"Registration service is unreachable: {exc.reason}") from exc
+        raise RegistrationError(f"Registration service is unreachable: {redact_sensitive_text(exc.reason)}") from exc
     try:
         data = json.loads(raw or "{}")
     except json.JSONDecodeError as exc:

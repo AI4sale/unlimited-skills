@@ -6,6 +6,7 @@ import os
 import stat
 import tempfile
 import unittest
+import urllib.error
 import zipfile
 from pathlib import Path
 from unittest.mock import patch
@@ -90,6 +91,38 @@ class RegistrationUpdatesTest(unittest.TestCase):
     def test_hosted_service_rejects_non_local_plain_http(self) -> None:
         with self.assertRaises(RegistrationError):
             post_json("http://updates.example.test/v1/catalog", {}, token="tok_test", proof_state=registered_state())
+
+    def test_hosted_service_errors_redact_secrets(self) -> None:
+        leaked = {
+            "error": "denied",
+            "license_token": "tok_leaked_http",
+            "team_token": "team_leaked_http",
+            "device_private_key": "private_leaked_http",
+            "Authorization": "Bearer bearer_leaked_http",
+            "X-ULS-Proof": "proof_leaked_http",
+            "details": "member_token=member_leaked_http",
+        }
+
+        def fake_urlopen(request, timeout=30.0):
+            raise urllib.error.HTTPError(
+                request.full_url,
+                403,
+                "Forbidden",
+                {},
+                io.BytesIO(json.dumps(leaked).encode("utf-8")),
+            )
+
+        with patch("urllib.request.urlopen", fake_urlopen), self.assertRaises(RegistrationError) as caught:
+            post_json("https://updates.example.test/v1/catalog", {}, token="tok_client", proof_state=registered_state())
+
+        message = str(caught.exception)
+        self.assertIn("[redacted]", message)
+        self.assertNotIn("tok_leaked_http", message)
+        self.assertNotIn("team_leaked_http", message)
+        self.assertNotIn("private_leaked_http", message)
+        self.assertNotIn("bearer_leaked_http", message)
+        self.assertNotIn("proof_leaked_http", message)
+        self.assertNotIn("member_leaked_http", message)
 
     def test_registry_download_rejects_non_local_plain_http(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

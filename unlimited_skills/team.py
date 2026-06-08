@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
-from .registration import RegistrationError, RegistrationState, post_json, unlimited_skills_home, write_private_json
+from .registration import RegistrationError, RegistrationState, post_json, redact_sensitive_text, unlimited_skills_home, write_private_json
 from .updates import CollectionUpdate, current_collection_state, parse_updates, validate_collection_name
 
 
@@ -253,9 +253,9 @@ def write_team_audit(
         "team_id": team.team_id if team else "",
         "actor_install_id": (registration.install_id if registration else "") or (team.install_id if team else ""),
         "target_install_id": target_install_id,
-        "result": result,
-        "reason": reason,
-        "request_id": request_id,
+        "result": redact_sensitive_text(result),
+        "reason": redact_sensitive_text(reason),
+        "request_id": redact_sensitive_text(request_id),
         "redacted": True,
     }
     path = audit_log_path(home)

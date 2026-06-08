@@ -145,6 +145,41 @@ def test_member_limit_error_is_displayed_clearly(tmp_path: Path, monkeypatch, ca
     assert "Team Free supports up to 10 approved instances" in capsys.readouterr().err
 
 
+def test_team_service_error_redacts_secret_body_in_output_and_audit(tmp_path: Path, monkeypatch, capsys) -> None:
+    home = tmp_path / "home"
+    write_registration(home)
+    write_team(home)
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home / ".unlimited-skills"))
+
+    leaked = {
+        "error": "unknown_error",
+        "license_token": "tok_leaked_team",
+        "team_token": "team_leaked_team",
+        "device_private_key": "private_leaked_team",
+        "Authorization": "Bearer bearer_leaked_team",
+        "X-ULS-Proof": "proof_leaked_team",
+        "details": "member_token=member_leaked_team",
+    }
+
+    def fake_urlopen(request, timeout=30.0):
+        body = json.dumps(leaked).encode("utf-8")
+        raise urllib.error.HTTPError(request.full_url, 500, "Server Error", {}, io.BytesIO(body))
+
+    with patch("urllib.request.urlopen", fake_urlopen):
+        assert main(["team", "members"]) == 2
+
+    output = capsys.readouterr().err
+    log = audit_log_path(home / ".unlimited-skills").read_text(encoding="utf-8")
+    combined = output + log
+    assert "[redacted]" in combined
+    assert "tok_leaked_team" not in combined
+    assert "team_leaked_team" not in combined
+    assert "private_leaked_team" not in combined
+    assert "bearer_leaked_team" not in combined
+    assert "proof_leaked_team" not in combined
+    assert "member_leaked_team" not in combined
+
+
 def test_team_sync_dry_run_json_writes_no_library_files_and_logs_audit(tmp_path: Path, monkeypatch, capsys) -> None:
     home = tmp_path / "home"
     root = tmp_path / "library"
@@ -266,10 +301,12 @@ def test_team_approve_and_revoke_write_redacted_audit(tmp_path: Path, monkeypatc
 
     with patch("urllib.request.urlopen", fake_urlopen):
         assert main(["team", "approve", "uls_inst_new", "--json"]) == 0
-        assert main(["team", "revoke", "uls_inst_old", "--reason", "old machine", "--yes", "--json"]) == 0
+        assert main(["team", "revoke", "uls_inst_old", "--reason", "Authorization: Bearer reason_leaked_token", "--yes", "--json"]) == 0
 
     log = audit_log_path(home / ".unlimited-skills").read_text(encoding="utf-8")
     assert "team_member_approved" in log
     assert "team_member_revoked" in log
     assert "tok_test" not in log
     assert "Authorization" not in log
+    assert "reason_leaked_token" not in log
+    assert "[redacted]" in log
