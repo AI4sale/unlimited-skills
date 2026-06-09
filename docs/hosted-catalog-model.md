@@ -19,7 +19,7 @@ The `community-skills` catalog is the planned/early-access community publishing 
 
 ## Team, Private, And Enterprise Catalogs
 
-Team/private catalogs are future Pro, Team, Business, and Enterprise surfaces. Enterprise Skill Lock is present as an opt-in local policy MVP. Managed hosted policy sync, private registry enforcement, signed organization policy controls, and business enforcement remain planned paid hosted services and are not implemented in this alpha.
+Team/private catalogs are future Pro, Team, Business, and Enterprise surfaces. Enterprise Skill Lock is present as an opt-in local policy MVP. Managed hosted policy sync client behavior is implemented and fixture-verified; production private-registry endpoint delivery remains an in-review private registry dependency for the v0.3 alpha stack. Private registry enforcement, signed organization policy controls, and business enforcement remain planned paid hosted services and are not broadly implemented in this alpha.
 
 ## Catalog Item Lifecycle
 

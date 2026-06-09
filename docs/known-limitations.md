@@ -6,7 +6,7 @@
 - The registered hosted catalog exists and is populated, but availability may be limited during alpha.
 - Exact registered catalog contents are delivered through registered hosted catalog/update commands, not published in the MIT repo.
 - Community submissions are planned and not fully implemented unless current code explicitly says otherwise.
-- Enterprise Skill Lock is an opt-in local policy MVP. Managed hosted policy sync, SSO, SCIM, billing, organization administration, and enterprise private-registry enforcement are not implemented in this alpha.
+- Enterprise Skill Lock is an opt-in local policy MVP. Managed hosted policy sync client behavior is implemented and fixture-verified; production private-registry endpoint delivery remains an in-review private registry dependency for the v0.3 alpha stack. SSO, SCIM, billing, organization administration, hosted dashboard controls, and broad enterprise private-registry enforcement are not implemented in this alpha.
 - Hosted remote manifests must include valid signed manifest envelopes. SHA256 verification is still enforced for hosted collection archives and enhancement scripts before local installation.
 - PyPI is not the supported v0.3.0-alpha distribution path because router skills, scripts, docs, and bundled packs are repo assets.
 - Warm daemon mode is experimental and not the default retrieval path.

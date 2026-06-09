@@ -1,0 +1,107 @@
+{
+  "schema_version": 1,
+  "release": "v0.3.0-alpha",
+  "package_name": "unlimited-skills",
+  "package_version": "0.3.0",
+  "git": {
+    "repository": "https://github.com/AI4sale/unlimited-skills",
+    "sha": "a9ec4cdba423ab15e435c432c1a624c8c994c2ed",
+    "sha_kind": "release_candidate_stack_head",
+    "tag": "v0.3.0-alpha",
+    "tag_status": "pending_release_owner_approval",
+    "publication_branch": "release/v0.3.0-alpha-publication",
+    "tag_owner_note": "Run scripts/verify-v0.3.0-alpha-publication.py --expected-sha <tag-target-sha> immediately before pushing the tag. Refresh git.sha if the merge strategy changes the tag target."
+  },
+  "required_prs": {
+    "public": [
+      {"number": 28, "title": "v0.2.2-alpha publication gate"},
+      {"number": 29, "title": "managed Enterprise Skill Lock policy sync client"},
+      {"number": 30, "title": "v0.3.0-alpha packaging and installer hardening"},
+      {"number": 31, "title": "managed policy removal safety guard"},
+      {"number": 32, "title": "managed Enterprise policy sync E2E"}
+    ],
+    "private_registry": [
+      {"number": 7, "repository": "AI4sale/unlimited-skills-registry", "title": "registry admin operations"},
+      {"number": 8, "repository": "AI4sale/unlimited-skills-registry", "title": "managed Enterprise policy sync endpoint"}
+    ]
+  },
+  "distribution": {
+    "official_alpha_path": "GitHub clone",
+    "pypi_supported": false,
+    "pypi_deferral": "PyPI is not the supported v0.3.0-alpha distribution path because router skills, installers, schemas, docs, and repo assets must be present beside the checkout."
+  },
+  "registration_boundary": {
+    "local_mit_core_unregistered": true,
+    "serve_unregistered": true,
+    "hub_serve_registration_gated": true,
+    "managed_policy_sync_registration_gated": true,
+    "enterprise_policy_mandatory_for_community": false
+  },
+  "security_boundary": {
+    "full_catalog_distribution": false,
+    "local_skill_hub_distribution_mode": "allowlist_only",
+    "hub_executes_skills": false,
+    "hosted_query_forwarding": false,
+    "hosted_remote_manifests_require_valid_signatures": true,
+    "manifest_signature_algorithm": "ed25519",
+    "manifest_scopes": [
+      "hub-allowlist",
+      "catalog-updates",
+      "enhancement-manifest",
+      "team-sync-manifest",
+      "release-channels",
+      "enterprise-policy"
+    ],
+    "archive_bytes_verified_by_sha256": true,
+    "archive_bytes_cryptographically_signed": false,
+    "zip_safe_extraction_required": true,
+    "private_registry_skill_bodies_committed": false,
+    "private_signing_keys_committed": false,
+    "raw_tokens_committed": false,
+    "production_hosted_calls_in_tests": false
+  },
+  "feature_scope": [
+    "production registry deployment/admin operations dependency",
+    "managed Enterprise Skill Lock policy sync client",
+    "managed Enterprise Skill Lock private registry endpoint dependency",
+    "managed policy removal guard for unmanaged local policies",
+    "managed policy sync fixture E2E",
+    "v0.3 packaging and installer hardening",
+    "GitHub clone distribution path",
+    "PyPI deferral"
+  ],
+  "known_limitations": [
+    "Developer preview, not a production SLA.",
+    "PyPI is not the supported v0.3.0-alpha distribution path.",
+    "Full catalog distribution remains disabled.",
+    "Local Skill Hub remains allowlist-only.",
+    "Archive bytes are SHA256-verified and safely extracted, not archive-byte signed.",
+    "Enterprise Skill Lock is an opt-in local policy MVP; managed sync is implemented but business dashboard, SSO, SCIM, billing, and broad organization controls are not implemented."
+  ],
+  "required_test_commands": [
+    "python -m pytest tests -q",
+    "python scripts/run-v0.2x-smoke-tests.py",
+    "python scripts/run-production-registry-contract-e2e.py --fixture-mode --temp-home",
+    "python scripts/run-managed-policy-sync-e2e.py --fixture-mode --temp-home",
+    "python scripts/verify-v0.3.0-alpha-package-assets.py",
+    "python scripts/run-v0.3.0-alpha-packaging-smoke.py",
+    "python scripts/run-v0.3.0-alpha-release-smoke.py",
+    "python scripts/verify-v0.3.0-alpha-publication.py",
+    "python -m compileall -q unlimited_skills scripts tests",
+    "git diff --check"
+  ],
+  "private_registry_required_test_commands": [
+    "python -m pytest tests -q",
+    "python scripts/validate-signed-registry-manifests.py",
+    "python scripts/verify-production-registry-api.py --fixture-mode",
+    "python -m compileall unlimited_registry scripts tests",
+    "git diff --check"
+  ],
+  "release_owner_actions": [
+    "Review and merge required public and private registry PRs in dependency order.",
+    "Run scripts/verify-v0.3.0-alpha-publication.py --expected-sha <tag-target-sha>.",
+    "Refresh git.sha if the merge strategy changes the final tag target.",
+    "Create tag v0.3.0-alpha only after human release-owner approval.",
+    "Create a GitHub prerelease with docs/releases/v0.3.0-alpha.md as release notes."
+  ]
+}
