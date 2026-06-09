@@ -131,6 +131,26 @@ Lists approved members by default. The client may request all statuses or pendin
 
 Returns team-assigned collection manifests. The client supports the richer Team Free sync manifest and remains compatible with the legacy `updates` array shape. Hosted team sync responses must include a valid signed manifest envelope. The client verifies `manifest_signature` against a key trusted for the `team-sync-manifest` scope and registry origin, then enforces SHA256 verification and safe extraction before installing archives.
 
+### `POST /v1/private-packs/list`
+
+Returns redacted private team pack metadata authorized for the registered installation. The request must not include local skill bodies. The response must not include private skill bodies, tokens, join codes, device proofs, or private keys.
+
+### `POST /v1/private-packs/preview`
+
+Returns redacted metadata for one private team pack. The response includes pack id, team id, namespace, version, revocation state, archive hash, and archive size. It does not include private skill bodies.
+
+### `POST /v1/private-packs/manifest`
+
+Returns the signed `private-team-pack` manifest for one authorized private pack. The client verifies `manifest_signature` with scope `private-team-pack` and the registry origin before attempting download or install.
+
+### `POST /v1/private-packs/access-check`
+
+Returns the current installation's authorization status for a private pack without exposing raw tokens or device proof material.
+
+### `POST /v1/private-packs/download`
+
+Streams the authorized zip archive only after bearer token, device proof, manifest signature, revocation, agent/channel/install policy, path boundary, and SHA256 checks pass server-side. The client checks SHA256 again before safe extraction and installs only under `registry/private/<pack_id>`.
+
 ### `POST /v1/policy/sync`
 
 Returns a managed Enterprise Skill Lock policy assignment for a registered installation. This endpoint is registration-gated and must require the hosted-service token plus signed device proof.

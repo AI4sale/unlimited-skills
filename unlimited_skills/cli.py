@@ -72,6 +72,7 @@ from .native import DEFAULT_AGENT_ORDER, sync_native_sources
 from .policy import explain_policy, install_policy, load_policy, policy_summary, read_policy_file, remove_policy, verify_policy_payload
 from .policy_enforcement import enforce_local_root
 from .policy_sync import managed_policy_status, sync_managed_policy
+from .private_packs import PrivatePackClient, list_installed_private_packs, remove_private_pack
 from .self_update import DEFAULT_PUBLIC_REPO, apply_public_repo_update, check_public_repo_update
 from .team import (
     TeamClient,
@@ -1370,6 +1371,109 @@ def cmd_community_remove(args: argparse.Namespace) -> int:
     return 0
 
 
+def _emit_private_pack_items(items, *, as_json: bool) -> int:
+    payload = {"count": len(items), "items": [asdict(item) for item in items]}
+    if as_json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    if not items:
+        print("No private team packs found.")
+        return 0
+    for item in items:
+        print(f"{item.pack_id}: {item.name} {item.version} [{item.team_id}]")
+    return 0
+
+
+def cmd_private_packs_list(args: argparse.Namespace) -> int:
+    client = PrivatePackClient(load_registration(), timeout=args.timeout)
+    return _emit_private_pack_items(client.list(), as_json=args.json)
+
+
+def cmd_private_packs_preview(args: argparse.Namespace) -> int:
+    client = PrivatePackClient(load_registration(), timeout=args.timeout)
+    payload = client.preview(args.pack_id)
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    pack = payload["pack"]
+    print(f"{pack['pack_id']}: {pack['name']} {pack['version']} [{pack['team_id']}]")
+    print(f"Archive SHA256: {pack['archive_sha256']}")
+    return 0
+
+
+def cmd_private_packs_install(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    client = PrivatePackClient(load_registration(), timeout=args.timeout)
+    if not args.dry_run:
+        _confirm_or_fail(args.yes, "INSTALL", "Private pack install may change registry/private skill files.")
+    result = client.install(root, args.pack_id, dry_run=args.dry_run)
+    reindexed = False
+    if result.installed and not args.skip_reindex:
+        save_index(root)
+        reindexed = True
+    payload = {"result": asdict(result), "reindexed": reindexed}
+    if args.json or args.dry_run:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(f"Installed private pack {result.pack_id} {result.version}")
+        if reindexed:
+            print("Lexical index rebuilt.")
+    return 0
+
+
+def cmd_private_packs_sync(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    client = PrivatePackClient(load_registration(), timeout=args.timeout)
+    dry_run = args.dry_run or not args.yes
+    if not dry_run:
+        _confirm_or_fail(args.yes, "SYNC", "Private pack sync may install or update registry/private skill packs.")
+    payload = client.sync(root, dry_run=dry_run)
+    reindexed = False
+    if payload["applied"] and not args.skip_reindex:
+        save_index(root)
+        reindexed = True
+    payload["reindexed"] = reindexed
+    if args.json or dry_run:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(f"Private pack sync applied {len(payload['applied'])} change(s).")
+        if reindexed:
+            print("Lexical index rebuilt.")
+    return 0
+
+
+def cmd_private_packs_installed(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    installed = list_installed_private_packs(root)
+    payload = {"root": str(root), "count": len(installed), "items": [asdict(item) for item in installed]}
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    if not installed:
+        print("No installed private team packs found.")
+        return 0
+    for item in installed:
+        print(f"{item.pack_id}: {item.name} {item.version} -> {item.target}")
+    return 0
+
+
+def cmd_private_packs_remove(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    result = remove_private_pack(root, args.pack_id, dry_run=args.dry_run or not args.yes)
+    reindexed = False
+    if result.get("removed") and not args.skip_reindex:
+        save_index(root)
+        reindexed = True
+    payload = {"result": result, "reindexed": reindexed}
+    if args.json or result.get("dry_run"):
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(f"Removed private pack {args.pack_id}")
+        if reindexed:
+            print("Lexical index rebuilt.")
+    return 0
+
+
 def cmd_enhance_download(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     client = UpdateClient(load_registration(), timeout=args.timeout)
@@ -2064,6 +2168,43 @@ def build_parser() -> argparse.ArgumentParser:
     community_remove.add_argument("--skip-reindex", action="store_true", help="Do not rebuild the lexical index after removal.")
     community_remove.add_argument("--json", action="store_true")
     community_remove.set_defaults(func=cmd_community_remove)
+
+    private_packs = sub.add_parser("private-packs", help="Preview, install, sync, and remove registered private team packs.")
+    private_packs_sub = private_packs.add_subparsers(dest="private_packs_command", required=True)
+    private_packs_list = private_packs_sub.add_parser("list", help="List private team packs authorized for this installation.")
+    private_packs_list.add_argument("--json", action="store_true")
+    private_packs_list.add_argument("--timeout", type=float, default=30.0)
+    private_packs_list.set_defaults(func=cmd_private_packs_list)
+    private_packs_preview = private_packs_sub.add_parser("preview", help="Preview redacted private team pack metadata.")
+    private_packs_preview.add_argument("pack_id")
+    private_packs_preview.add_argument("--json", action="store_true")
+    private_packs_preview.add_argument("--timeout", type=float, default=30.0)
+    private_packs_preview.set_defaults(func=cmd_private_packs_preview)
+    private_packs_install = private_packs_sub.add_parser("install", help="Install one authorized private team pack under registry/private.")
+    private_packs_install.add_argument("pack_id")
+    private_packs_install.add_argument("--dry-run", action="store_true", help="Verify manifest and show target without downloading or writing.")
+    private_packs_install.add_argument("--yes", action="store_true", help="Confirm install in non-interactive mode.")
+    private_packs_install.add_argument("--skip-reindex", action="store_true", help="Do not rebuild the lexical index after install.")
+    private_packs_install.add_argument("--json", action="store_true")
+    private_packs_install.add_argument("--timeout", type=float, default=30.0)
+    private_packs_install.set_defaults(func=cmd_private_packs_install)
+    private_packs_sync = private_packs_sub.add_parser("sync", help="Install or update all authorized private team packs.")
+    private_packs_sync.add_argument("--dry-run", action="store_true", help="Show planned changes without downloading or writing. This is the default unless --yes is passed.")
+    private_packs_sync.add_argument("--yes", action="store_true", help="Apply planned private pack installs and updates.")
+    private_packs_sync.add_argument("--skip-reindex", action="store_true", help="Do not rebuild the lexical index after syncing.")
+    private_packs_sync.add_argument("--json", action="store_true")
+    private_packs_sync.add_argument("--timeout", type=float, default=30.0)
+    private_packs_sync.set_defaults(func=cmd_private_packs_sync)
+    private_packs_installed = private_packs_sub.add_parser("installed", help="List locally installed private team packs without hosted calls.")
+    private_packs_installed.add_argument("--json", action="store_true")
+    private_packs_installed.set_defaults(func=cmd_private_packs_installed)
+    private_packs_remove = private_packs_sub.add_parser("remove", help="Remove a locally installed registry-owned private team pack.")
+    private_packs_remove.add_argument("pack_id")
+    private_packs_remove.add_argument("--dry-run", action="store_true", help="Show what would be removed.")
+    private_packs_remove.add_argument("--yes", action="store_true", help="Actually remove without interactive confirmation.")
+    private_packs_remove.add_argument("--skip-reindex", action="store_true", help="Do not rebuild the lexical index after removal.")
+    private_packs_remove.add_argument("--json", action="store_true")
+    private_packs_remove.set_defaults(func=cmd_private_packs_remove)
 
     enhance = sub.add_parser("enhance", help="Download or run the registered local skill enhancement script.")
     enhance_sub = enhance.add_subparsers(dest="enhance_command", required=True)
