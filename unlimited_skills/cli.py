@@ -68,6 +68,7 @@ from .service_diagnostics import (
     test_proof as service_test_proof,
     verify_trust as service_verify_trust,
 )
+from .setup_wizard import build_setup_report, format_setup_text
 from .native import DEFAULT_AGENT_ORDER, sync_native_sources
 from .policy import explain_policy, install_policy, load_policy, policy_summary, read_policy_file, remove_policy, verify_policy_payload
 from .policy_enforcement import enforce_local_root
@@ -981,6 +982,27 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_setup(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    mode = "overview"
+    if getattr(args, "setup_command", "") == "doctor":
+        mode = "overview"
+    elif args.local_only:
+        mode = "local-only"
+    elif args.registered:
+        mode = "registered"
+    elif args.hub:
+        mode = "hub"
+    elif args.enterprise:
+        mode = "enterprise"
+    payload = build_setup_report(root, mode=mode, dry_run=args.dry_run, agent=getattr(args, "agent", "all"))
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(format_setup_text(payload))
+    return 0
+
+
 def cmd_register(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     state = load_registration()
@@ -1890,6 +1912,23 @@ def build_parser() -> argparse.ArgumentParser:
     doctor.add_argument("--json", action="store_true", help="Print machine-readable diagnostics.")
     doctor.add_argument("--agent", choices=["codex", "claude-code", "hermes", "openclaw", "all"], default="all", help="Limit agent diagnostics.")
     doctor.set_defaults(func=cmd_doctor)
+
+    setup = sub.add_parser("setup", help="Guided first-run onboarding wizard.")
+    setup_modes = setup.add_mutually_exclusive_group()
+    setup_modes.add_argument("--local-only", action="store_true", help="Verify local-only Community Core setup without registration.")
+    setup_modes.add_argument("--registered", action="store_true", help="Verify registered hosted-service setup boundaries.")
+    setup_modes.add_argument("--hub", action="store_true", help="Verify registered Local Skill Hub setup readiness.")
+    setup_modes.add_argument("--enterprise", action="store_true", help="Verify Enterprise Skill Lock policy setup status.")
+    setup.add_argument("--dry-run", action="store_true", help="Print the setup plan without writing missing local directories.")
+    setup.add_argument("--json", action="store_true")
+    setup.add_argument("--agent", choices=["codex", "claude-code", "hermes", "openclaw", "all"], default="all", help="Limit embedded doctor diagnostics.")
+    setup_sub = setup.add_subparsers(dest="setup_command", required=False)
+    setup_doctor = setup_sub.add_parser("doctor", help="Run setup diagnostics in overview mode.")
+    setup_doctor.add_argument("--dry-run", action="store_true")
+    setup_doctor.add_argument("--json", action="store_true")
+    setup_doctor.add_argument("--agent", choices=["codex", "claude-code", "hermes", "openclaw", "all"], default="all", help="Limit embedded doctor diagnostics.")
+    setup_doctor.set_defaults(func=cmd_setup, local_only=False, registered=False, hub=False, enterprise=False)
+    setup.set_defaults(func=cmd_setup)
 
     register = sub.add_parser("register", help="Self-register this installation for hosted catalog and adapted collection updates.")
     register.add_argument("--server-url", default=DEFAULT_SERVICE_URL, help="Registration and update service URL.")
