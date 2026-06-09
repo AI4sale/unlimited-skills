@@ -9,6 +9,7 @@
 - Final publication verifier, release smoke wrapper, known-issues note, dependency status, and registry signing status for v0.3.3-alpha.
 - Plan and entitlement status UX: `plan status`, `plan refresh`, `plan explain`, and `plan doctor`, with shared denial vocabulary, redacted support bundle plan summaries, schemas, examples, docs, and tests.
 - Billing lifecycle diagnostics: `billing status`, `billing refresh`, and `billing doctor`, with sandbox-only status refresh, redacted support bundle billing summaries, schema, examples, docs, and tests.
+- Billing lifecycle cross-repo E2E runner for sandbox `subscription_active`, `payment_failed`, and `subscription_canceled` reconciliation against the private registry checkout without production hosted calls.
 - Private pack entitlement diagnostics: `private-packs access-check <pack_id>` and `private-packs doctor` with stable redacted denial codes for no entitlement, team membership, agent/channel mismatch, revocation, policy denial, and service unavailability.
 - Organization governance status: `org status` for local cached status and `org status --refresh` for registered hosted refresh.
 
