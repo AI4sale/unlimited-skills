@@ -1,6 +1,6 @@
 # Support Matrix
 
-`v0.2.2-alpha` is a developer preview. Install from a GitHub clone, not PyPI, because repo assets are required.
+`v0.3.0-alpha` is a developer preview. Install from a GitHub clone, not PyPI, because repo assets are required.
 
 | Agent | Installer | Router | Patch | Native sync | Notes |
 | --- | --- | --- | --- | --- | --- |
@@ -8,7 +8,7 @@
 | Claude Code | Yes | Yes | `CLAUDE.md` patch yes | Yes | Supports personal skills and project `.claude/skills`. |
 | Hermes | Yes | Yes | Router-only context reduction yes | Yes | Use `evacuate-visible-skills` when Hermes loads visible skills into startup context; rollback is supported. |
 | OpenClaw | Yes | Yes | `AGENTS.md` patch yes | Yes | Workspace/plugin/built-in installer supported. |
-| Vellum AI | Migration script | Not full installer yet | Not yet | Migration-only | Full installer is not implemented in v0.2.2-alpha. |
+| Vellum AI | Migration script | Not full installer yet | Not yet | Migration-only | Full installer is not implemented in v0.3.0-alpha. |
 
 ## Operating Systems
 
@@ -26,4 +26,4 @@ cd unlimited-skills
 python -m pip install -e ".[all]"
 ```
 
-PyPI is not the supported v0.2.x distribution path yet.
+PyPI is not the supported v0.3.0-alpha distribution path yet.

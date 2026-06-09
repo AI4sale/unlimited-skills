@@ -13,6 +13,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Iterable
 
+from . import __version__
 from .adapters import SKILL_PACKS, adapt_library, apply_agent_adaptation, adaptation_task, install_pack, next_skill_for_agent
 from .community import (
     CommunityClient,
@@ -1627,6 +1628,7 @@ def refresh_codex_router_skill(install_root: Path) -> str:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Search, load, and learn from large local skill libraries.")
     parser.add_argument("--root", default=str(DEFAULT_ROOT), help="Skill library root.")
+    parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     sub = parser.add_subparsers(dest="command", required=True)
 
     def add_native_sync_options(command: argparse.ArgumentParser) -> None:

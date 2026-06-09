@@ -54,6 +54,13 @@ python scripts/run-v0.2.2-alpha-fresh-install-smoke.py
 python scripts/run-v0.2.2-alpha-upgrade-smoke.py
 ```
 
+For `v0.3.0-alpha`, also run:
+
+```bash
+python scripts/verify-v0.3.0-alpha-package-assets.py
+python scripts/run-v0.3.0-alpha-packaging-smoke.py
+```
+
 Legacy ad hoc checks may still be useful for manual verification:
 
 ```bash

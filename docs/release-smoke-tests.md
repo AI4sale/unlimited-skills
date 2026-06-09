@@ -34,6 +34,13 @@ python scripts/run-v0.2.2-alpha-fresh-install-smoke.py
 python scripts/run-v0.2.2-alpha-upgrade-smoke.py
 ```
 
+Packaging checks for `v0.3.0-alpha`:
+
+```bash
+python scripts/verify-v0.3.0-alpha-package-assets.py
+python scripts/run-v0.3.0-alpha-packaging-smoke.py
+```
+
 The runner creates a temporary HOME and a temporary Unlimited Skills library root. It sets `UNLIMITED_SKILLS_HOME`, `HOME`, `USERPROFILE`, `HERMES_HOME`, and `UNLIMITED_SKILLS_DISABLE_NATIVE_SYNC` for the subprocess. It also checks common real-home install targets after the run so smoke tests do not silently mutate user-level agent configuration.
 
 ## Coverage
