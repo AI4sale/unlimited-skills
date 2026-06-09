@@ -25,6 +25,18 @@ Run the lightweight stdlib-only validator:
 python scripts/validate-registry-contract.py
 ```
 
+Run the staging signed registry E2E fixture:
+
+```bash
+python scripts/run-staging-registry-e2e.py --fixture-mode --temp-home
+```
+
+Run the production-shaped registered registry contract E2E fixture:
+
+```bash
+python scripts/run-production-registry-contract-e2e.py --fixture-mode --temp-home
+```
+
 ## Pytest
 
 The test suite also exercises the examples against current client parsers:

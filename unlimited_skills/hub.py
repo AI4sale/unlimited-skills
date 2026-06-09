@@ -418,6 +418,7 @@ def fetch_registered_allowlist(state: RegistrationState, *, current_sha: str = "
         token=state.license_token,
         proof_state=state,
         timeout=timeout,
+        retry_safe=True,
     )
     if response.get("schema_version") != 1:
         raise RuntimeError("Hub allowlist service returned unsupported schema_version.")

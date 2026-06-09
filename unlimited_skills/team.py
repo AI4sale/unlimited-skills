@@ -431,6 +431,7 @@ class TeamClient:
                 token=self.state.license_token,
                 proof_state=self.state,
                 timeout=self.timeout,
+                retry_safe=True,
             )
         except RegistrationError as exc:
             friendly = friendly_team_error(str(exc))

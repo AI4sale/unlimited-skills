@@ -252,6 +252,51 @@ class RegistrationUpdatesTest(unittest.TestCase):
 
             self.assertEqual(payload, catalog)
 
+    def test_registered_catalog_retries_safe_transient_errors(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "library"
+            calls = 0
+
+            def fake_urlopen(request, timeout=30.0):
+                nonlocal calls
+                calls += 1
+                if calls == 1:
+                    raise urllib.error.HTTPError(request.full_url, 503, "Service Unavailable", {}, io.BytesIO(b'{"error":"try again"}'))
+                return FakeResponse(json.dumps({"collections": []}).encode("utf-8"))
+
+            with patch("urllib.request.urlopen", fake_urlopen):
+                payload = UpdateClient(registered_state()).catalog(root)
+
+            self.assertEqual(payload, {"collections": []})
+            self.assertEqual(calls, 2)
+
+    def test_update_check_uses_signed_offline_cache_when_service_unreachable(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            home = tmp_path / ".unlimited-skills"
+            root = tmp_path / "library"
+            manifest, env = signed_manifest_env(
+                {"schema_version": 1, "updates": [{"collection": "ecc", "version": "2026.06.06", "archive_url": "https://updates.example.test/ecc.zip", "sha256": "a" * 64}]}
+            )
+            calls = 0
+
+            def fake_urlopen(request, timeout=30.0):
+                nonlocal calls
+                calls += 1
+                if calls == 1:
+                    return FakeResponse(json.dumps(manifest).encode("utf-8"))
+                raise urllib.error.URLError("offline")
+
+            with patch.dict(os.environ, {**env, "UNLIMITED_SKILLS_HOME": str(home)}, clear=False), patch("urllib.request.urlopen", fake_urlopen):
+                client = UpdateClient(registered_state())
+                first = client.check(root)
+                second = client.check(root)
+
+            self.assertEqual(first[0].collection, "ecc")
+            self.assertEqual(second[0].collection, "ecc")
+            self.assertGreaterEqual(calls, 2)
+            self.assertTrue((home / "registry-cache" / "collection-updates.json").is_file())
+
     def test_registered_enhancement_script_download_is_verified(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             tmp_path = Path(tmp)

@@ -16,11 +16,12 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
-from .registration import RegistrationState, is_secure_or_local_url, post_json, unlimited_skills_home
+from .registration import RegistrationError, RegistrationState, is_secure_or_local_url, post_json, unlimited_skills_home
 from .signatures import ManifestSignatureError, verify_manifest_signature
 
 COLLECTIONS_MANIFEST = ".unlimited-skills-collections.json"
 COLLECTION_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+REGISTRY_CACHE_DIR = "registry-cache"
 
 
 class RegistrationRequired(RuntimeError):
@@ -76,6 +77,31 @@ def write_collection_manifest(root: Path, data: dict[str, Any]) -> None:
     path = root / COLLECTIONS_MANIFEST
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def registry_response_cache_path(kind: str) -> Path:
+    safe_kind = re.sub(r"[^A-Za-z0-9._-]+", "-", kind).strip("-") or "response"
+    return unlimited_skills_home() / REGISTRY_CACHE_DIR / f"{safe_kind}.json"
+
+
+def save_registry_response_cache(kind: str, response: dict[str, Any]) -> Path:
+    path = registry_response_cache_path(kind)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {"schema_version": 1, "cached_at": now_iso(), "kind": kind, "response": response}
+    path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return path
+
+
+def load_registry_response_cache(kind: str) -> dict[str, Any] | None:
+    path = registry_response_cache_path(kind)
+    if not path.is_file():
+        return None
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    response = payload.get("response") if isinstance(payload, dict) else None
+    return response if isinstance(response, dict) else None
 
 
 def _count_bucket(count: int) -> str:
@@ -228,13 +254,20 @@ class UpdateClient:
             "client": {"name": "unlimited-skills", "version": __version__},
             "collections": current_collection_state(root),
         }
-        response = post_json(
-            f"{self.state.server_url.rstrip('/')}/v1/collections/updates",
-            payload,
-            token=self.state.license_token,
-            proof_state=self.state,
-            timeout=self.timeout,
-        )
+        try:
+            response = post_json(
+                f"{self.state.server_url.rstrip('/')}/v1/collections/updates",
+                payload,
+                token=self.state.license_token,
+                proof_state=self.state,
+                timeout=self.timeout,
+                retry_safe=True,
+            )
+        except RegistrationError:
+            cached = load_registry_response_cache("collection-updates")
+            if cached is None:
+                raise
+            response = cached
         try:
             verify_manifest_signature(
                 response,
@@ -245,6 +278,7 @@ class UpdateClient:
             )
         except ManifestSignatureError as exc:
             raise UpdateError(str(exc)) from exc
+        save_registry_response_cache("collection-updates", response)
         return parse_updates(response)
 
     def catalog(self, root: Path) -> dict[str, Any]:
@@ -254,13 +288,24 @@ class UpdateClient:
             "client": {"name": "unlimited-skills", "version": __version__},
             "collections": current_collection_state(root),
         }
-        response = post_json(
-            f"{self.state.server_url.rstrip('/')}/v1/catalog",
-            payload,
-            token=self.state.license_token,
-            proof_state=self.state,
-            timeout=self.timeout,
-        )
+        try:
+            response = post_json(
+                f"{self.state.server_url.rstrip('/')}/v1/catalog",
+                payload,
+                token=self.state.license_token,
+                proof_state=self.state,
+                timeout=self.timeout,
+                retry_safe=True,
+            )
+        except Exception as exc:
+            cached = load_registry_response_cache("catalog")
+            if cached is None:
+                raise
+            cached = dict(cached)
+            cached["offline_cache"] = True
+            cached["offline_cache_reason"] = str(exc)
+            return cached
+        save_registry_response_cache("catalog", response)
         return response
 
     def enhancement_script(self, root: Path) -> EnhancementScript:
@@ -276,6 +321,7 @@ class UpdateClient:
             token=self.state.license_token,
             proof_state=self.state,
             timeout=self.timeout,
+            retry_safe=True,
         )
         try:
             verify_manifest_signature(

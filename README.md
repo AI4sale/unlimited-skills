@@ -75,6 +75,7 @@ Working now:
 - allowlist-backed Local Skill Hub runtime MVP for local/controlled LAN testing when `server` extras are installed;
 - Local Skill Hub allowlist bootstrap/sync with validated cached allowlist metadata;
 - required signed hosted manifest verification for hub allowlists, collection updates, enhancement manifests, and team sync manifests;
+- production-shaped registry contract E2E coverage for device proof, retries, offline metadata cache, hub heartbeat, entitlements, and team sync;
 - bundled/local/env trusted manifest keys with scope enforcement, registry-origin pinning, and local revocation;
 - remote Local Skill Hub client commands: `remote configure`, `remote status`, `remote search`, `remote resolve`, and `remote view`.
 

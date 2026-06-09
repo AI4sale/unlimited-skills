@@ -304,7 +304,7 @@ def refresh_entitlements(
         raise RuntimeError("endpoint must be heartbeat or entitlements.")
     payload = build_heartbeat_payload(state, active_client_count=active_client_count, home=home)
     path = "/v1/hub/heartbeat" if endpoint == "heartbeat" else "/v1/hub/entitlements"
-    response = post_json(f"{state.server_url.rstrip('/')}{path}", payload, token=state.license_token, proof_state=state, timeout=timeout)
+    response = post_json(f"{state.server_url.rstrip('/')}{path}", payload, token=state.license_token, proof_state=state, timeout=timeout, retry_safe=True)
     cache = validate_entitlement_response(response)
     apply_entitlements(cache, home)
     return {"request": payload, "response": cache, "endpoint": path}

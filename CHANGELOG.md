@@ -4,6 +4,7 @@
 
 ### Added
 
+- Production-shaped registry contract E2E fixture covering registered device proof, signed catalog/update/enhancement/hub/team manifests, hub heartbeat, entitlement refresh, and proof replay rejection without calling production hosts.
 - Integrated Local Skill Hub token enforcement, remote hub client runtime, allowlist bootstrap, and v0.2.x release smoke coverage into one release-candidate branch.
 - Local Skill Hub client token checks for protected `/v1/...` APIs; `/health` remains open for liveness.
 - Remote Local Skill Hub client commands for `remote configure`, `remote status`, `remote search`, `remote resolve`, and `remote view` with explicit fallback policy.
@@ -16,6 +17,7 @@
 
 ### Changed
 
+- Hosted registry JSON clients now use a shared request path with bounded retries for safe/idempotent reads, redacted errors, and signed offline cache fallback for catalog/update metadata when the service is unreachable.
 - Raised package version to `0.2.1`.
 - Updated alpha security and release documentation to describe the integrated Local Skill Hub runtime stack.
 - Clarified that Local Skill Hub remains allowlist-only, full catalog distribution remains disabled, and hosted registry services do not receive local hub search queries by default.

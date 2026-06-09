@@ -11,7 +11,6 @@ import sys
 import time
 import urllib.error
 import urllib.parse
-import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -20,6 +19,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat, PublicFormat
 
 from . import __version__
+from .service_client import ServiceClientError, request_json
 
 DEFAULT_SERVICE_URL = os.environ.get("UNLIMITED_SKILLS_SERVICE_URL", "https://unlimited.ai4.sale")
 REGISTRATION_NAME = "registration.json"
@@ -300,6 +300,8 @@ def post_json(
     token: str = "",
     proof_state: RegistrationState | None = None,
     timeout: float = 30.0,
+    retry_safe: bool = False,
+    max_retries: int | None = None,
 ) -> dict[str, Any]:
     require_secure_url(url)
     body = json.dumps(payload).encode("utf-8")
@@ -308,27 +310,19 @@ def post_json(
         headers["Authorization"] = f"Bearer {token}"
     if token and proof_state:
         headers.update(proof_headers(proof_state, "POST", url, body))
-    request = urllib.request.Request(
-        url,
-        data=body,
-        headers=headers,
-        method="POST",
-    )
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:
-            raw = response.read().decode("utf-8")
-    except urllib.error.HTTPError as exc:
-        message = redact_sensitive_text(exc.read().decode("utf-8", errors="replace") if exc.fp else str(exc))
-        raise RegistrationError(f"Registration service returned HTTP {exc.code}: {message}") from exc
-    except urllib.error.URLError as exc:
-        raise RegistrationError(f"Registration service is unreachable: {redact_sensitive_text(exc.reason)}") from exc
-    try:
-        data = json.loads(raw or "{}")
-    except json.JSONDecodeError as exc:
-        raise RegistrationError("Registration service returned invalid JSON.") from exc
-    if not isinstance(data, dict):
-        raise RegistrationError("Registration service returned a non-object JSON payload.")
-    return data
+        return request_json(
+            url,
+            body=body,
+            headers=headers,
+            method="POST",
+            timeout=timeout,
+            retry_safe=retry_safe,
+            max_retries=max_retries,
+            redactor=redact_sensitive_text,
+        )
+    except ServiceClientError as exc:
+        raise RegistrationError(str(exc)) from exc
 
 
 def register_installation(
