@@ -95,7 +95,7 @@ def assert_docs() -> None:
     )
     lowered = docs.lower()
     require(RELEASE in docs, "docs must identify v0.3.0-alpha")
-    require("pypi is not the supported v0.3.0-alpha distribution path" in lowered, "PyPI alpha decision is not explicit")
+    require("pypi is not the supported" in lowered and "distribution path" in lowered, "PyPI alpha decision is not explicit")
     require("github clone" in lowered, "GitHub clone install path is not documented")
     require("do not delete arbitrary" in lowered or "must not delete pre-existing local library files" in lowered, "local library deletion guardrail is missing")
     unsafe = [
@@ -108,8 +108,10 @@ def assert_docs() -> None:
 
 
 def main() -> int:
-    require(package_version() == VERSION, f"pyproject version must be {VERSION}")
-    require(init_version() == VERSION, f"__version__ must be {VERSION}")
+    current_package_version = package_version()
+    current_init_version = init_version()
+    require(current_package_version == VERSION or current_package_version.startswith("0.3."), f"pyproject version must be {VERSION} or a v0.3.x stabilization version")
+    require(current_init_version == VERSION or current_init_version.startswith("0.3."), f"__version__ must be {VERSION} or a v0.3.x stabilization version")
     assert_required_assets()
     assert_installer_flags()
     assert_docs()
@@ -117,6 +119,7 @@ def main() -> int:
     print("distribution path: GitHub clone")
     print("pypi support: not supported for this alpha")
     print("required repo assets: present")
+    print(f"current package version: {current_package_version}")
     return 0
 
 

@@ -2,7 +2,7 @@
 
 ## Supported Version
 
-`v0.3.0-alpha` is a developer preview. Security fixes should target the current `main` branch first.
+`v0.3.1-alpha` is a developer preview stabilization train after the published `v0.3.0-alpha` baseline. Security fixes should target the current `main` branch first.
 
 ## Responsible Disclosure
 
@@ -32,7 +32,7 @@ The hosted clients must not upload:
 
 ## Hosted Archives And Enhancers
 
-Current `v0.3.0-alpha` behavior:
+Current `v0.3.1-alpha` behavior:
 
 - hosted remote manifests must include valid signed manifest envelopes;
 - signatures verify hosted manifest authenticity;
@@ -49,23 +49,23 @@ Use "signed hosted manifests plus SHA256-verified hosted collection archives" fo
 
 Local Skill Hub is an alpha MVP. The runtime is allowlist-only, does not execute skills, and does not forward local search queries to the hosted registry. It is intended for local or controlled LAN testing.
 
-Current `v0.3.0-alpha` limitations:
+Current `v0.3.1-alpha` limitations:
 
 - Hub client token creation, revocation, and request enforcement are implemented for Local Skill Hub `/v1/...` APIs. `GET /health` remains unauthenticated for liveness checks.
 - Use the default `127.0.0.1` bind address unless you are testing on a trusted LAN.
 - LAN bind requires explicit `--allow-lan` and at least one active hub client token. For serious LAN testing, put the hub behind a reverse proxy or network control that provides TLS, authentication, access logging, and IP allowlisting.
 - Local install plan skills are metadata/resolution only until client capability checks are implemented.
 - Full catalog distribution remains disabled; the hub may serve only allowlisted skills.
-- Release artifacts are checked by the v0.2.2 and v0.3.0 alpha release verifiers for version consistency, unsafe release claims, final publication placeholders, and obvious private key/token material.
+- Release artifacts are checked by the v0.2.2, v0.3.0, and v0.3.1 alpha release verifiers for version consistency, unsafe release claims, final publication placeholders, and obvious private key/token material.
 
-## Known Security Limitations In v0.3.0-alpha
+## Known Security Limitations In v0.3.1-alpha
 
 - Hosted manifest signatures verify manifest authenticity; archive bytes are still verified with SHA256 and safe extraction, not archive-byte signatures.
 - The hosted registry is early-access and availability may be limited.
 - Community submissions are planned and must be explicit uploads when implemented.
 - Enterprise Skill Lock is implemented as an opt-in local policy MVP. Managed hosted policy sync client behavior is implemented and verified against a fixture contract; production private-registry endpoint delivery remains an in-review private registry dependency for the v0.3 alpha stack. SSO, SCIM, billing, organization administration, hosted dashboard controls, and broad enterprise private-registry enforcement are not implemented in this alpha.
 - Warm daemon mode is experimental and binds to `127.0.0.1` by default; do not expose it on public interfaces.
-- The GitHub clone is the v0.3.0-alpha distribution path because repo assets are required. PyPI packaging is not the supported alpha install path yet.
+- The GitHub clone is the v0.3.1-alpha distribution path because repo assets are required. PyPI packaging is not the supported alpha install path yet.
 
 ## Scope
 

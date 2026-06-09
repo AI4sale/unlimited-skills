@@ -61,6 +61,13 @@ python scripts/verify-v0.3.0-alpha-package-assets.py
 python scripts/run-v0.3.0-alpha-packaging-smoke.py
 ```
 
+For `v0.3.1-alpha`, also run the post-release stabilization gate:
+
+```bash
+python scripts/run-v0.3.1-alpha-post-release-smoke.py
+python scripts/verify-v0.3.1-alpha-stabilization.py
+```
+
 Legacy ad hoc checks may still be useful for manual verification:
 
 ```bash
