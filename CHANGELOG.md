@@ -1,16 +1,22 @@
 # Changelog
 
-## v0.3.0-alpha (in development)
+## v0.3.2-alpha (in development)
 
 ### Added
 
 - Private team pack setup, service diagnostics, doctor, and support bundle summaries with strict redaction of private pack names, private skill names, skill bodies, archive URLs, tokens, proofs, private keys, and local paths.
 - Registered private team pack client commands: `private-packs list`, `preview`, `install`, `sync`, `installed`, and `remove`.
 - Private pack install safety: signed `private-team-pack` manifest verification, proofed POST downloads, SHA256 checks, safe zip extraction, `registry/private/<pack_id>` layout, and owned-path removal guard.
+- Private pack alpha release integration gate, release manifest, smoke runner, and verifier for v0.3.2.
 - Managed Enterprise Skill Lock policy sync: `policy sync`, `policy sync --dry-run`, and `policy managed-status`.
 - Signed `enterprise-policy` manifest scope for registered policy assignments from `/v1/policy/sync`.
 - Managed policy removal guard: registry sync can remove only policies previously installed by managed sync with matching `policy_id` and `policy_sha256`; unmanaged local policies are refused and preserved.
 - Managed Enterprise Skill Lock policy sync E2E runner covering signed install/update/remove, unmanaged removal refusal, policy enforcement refusals, tampered/unknown-key rejection, device proof rejection, and redaction.
+
+### Changed
+
+- Raised package version to `0.3.2`.
+- Documented that private team pack hosted access requires registry-side entitlement or a Business/Enterprise plan.
 
 ## v0.2.2-alpha
 
