@@ -1,5 +1,12 @@
 # Changelog
 
+## v0.3.0-alpha (in development)
+
+### Added
+
+- Managed Enterprise Skill Lock policy sync: `policy sync`, `policy sync --dry-run`, and `policy managed-status`.
+- Signed `enterprise-policy` manifest scope for registered policy assignments from `/v1/policy/sync`.
+
 ## v0.2.2-alpha
 
 ### Added

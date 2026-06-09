@@ -74,6 +74,7 @@ Working now:
 - public repo self-update checks and applies latest releases/tags;
 - production service onboarding diagnostics for configured service URL, health, trust, redacted registration dry run, and local proof generation;
 - Enterprise Skill Lock policy MVP for governed registries, channels, signing keys, local roots, community install/submit, hub allowlists, and remote fallback;
+- managed Enterprise Skill Lock policy sync from a registered registry with signed `enterprise-policy` assignment verification and dry-run support;
 - allowlist-backed Local Skill Hub runtime MVP for local/controlled LAN testing when `server` extras are installed;
 - Local Skill Hub allowlist bootstrap/sync with validated cached allowlist metadata;
 - required signed hosted manifest verification for hub allowlists, collection updates, enhancement manifests, and team sync manifests;
@@ -123,7 +124,7 @@ See [docs/product-editions.md](docs/product-editions.md) for the full edition ta
 - **Registered Community**: free registration for hosted adapted catalog access, early-access collection updates, registered local enhancer downloads, future official community catalog/submissions, and the Registered Local Skill Hub contract up to 100 active client instances.
 - **Team Free**: registered team sync MVP with master approval and up to 10 instances when enforced server-side.
 - **Pro / Team**: planned paid hosted collaboration, dashboard, private packs, collection assignment, longer auto-approval windows, and support.
-- **Enterprise**: local Enterprise Skill Lock policy MVP now; managed hosted policy sync, private registry enforcement, SSO/on-prem/VPC options later.
+- **Enterprise**: local Enterprise Skill Lock policy MVP and registered managed policy sync now; private registry enforcement, SSO/on-prem/VPC options later.
 
 Local Skill Hub is separate from the free local daemon: `unlimited-skills serve` remains unregistered, while `unlimited-skills hub serve` is registration-gated and allowlist-only. See [docs/local-skill-hub.md](docs/local-skill-hub.md).
 

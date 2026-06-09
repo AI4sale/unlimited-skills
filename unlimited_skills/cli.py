@@ -70,6 +70,7 @@ from .service_diagnostics import (
 from .native import DEFAULT_AGENT_ORDER, sync_native_sources
 from .policy import explain_policy, install_policy, load_policy, policy_summary, read_policy_file, remove_policy, verify_policy_payload
 from .policy_enforcement import enforce_local_root
+from .policy_sync import managed_policy_status, sync_managed_policy
 from .self_update import DEFAULT_PUBLIC_REPO, apply_public_repo_update, check_public_repo_update
 from .team import (
     TeamClient,
@@ -1093,6 +1094,36 @@ def cmd_policy_explain(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_policy_sync(args: argparse.Namespace) -> int:
+    payload = sync_managed_policy(root=args.root, dry_run=args.dry_run, timeout=args.timeout)
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        state = payload["managed_state"]
+        print("Managed policy sync: " + ("dry-run" if payload["dry_run"] else "applied"))
+        print(f"Action: {state.get('action')}")
+        print(f"Changed: {str(payload.get('changed')).lower()}")
+        if state.get("policy_id"):
+            print(f"Policy: {state.get('policy_id')}")
+        if state.get("path"):
+            print(f"Path: {state.get('path')}")
+    return 0
+
+
+def cmd_policy_managed_status(args: argparse.Namespace) -> int:
+    payload = managed_policy_status()
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        managed = payload["managed_state"]
+        installed = payload["installed_policy"]
+        print("Managed: " + ("yes" if managed.get("managed") else "no"))
+        print("Last sync: " + (managed.get("last_sync_at") or "never"))
+        print("Installed policy: " + (installed.get("policy_id") or "(none)"))
+        print("Mode: " + str(installed.get("mode") or "disabled"))
+    return 0
+
+
 def cmd_updates_check(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     client = UpdateClient(load_registration(), timeout=args.timeout, channel=args.channel)
@@ -1920,6 +1951,14 @@ def build_parser() -> argparse.ArgumentParser:
     policy_remove.set_defaults(func=cmd_policy_remove)
     policy_explain = policy_sub.add_parser("explain", help="Explain effective Enterprise Skill Lock behavior.")
     policy_explain.set_defaults(func=cmd_policy_explain)
+    policy_sync = policy_sub.add_parser("sync", help="Fetch and apply managed Enterprise Skill Lock policy from the registered registry.")
+    policy_sync.add_argument("--dry-run", action="store_true", help="Verify the server assignment without writing local policy state.")
+    policy_sync.add_argument("--json", action="store_true", help="Emit JSON output.")
+    policy_sync.add_argument("--timeout", type=float, default=30.0)
+    policy_sync.set_defaults(func=cmd_policy_sync)
+    policy_managed_status = policy_sub.add_parser("managed-status", help="Show last managed Enterprise Skill Lock sync state.")
+    policy_managed_status.add_argument("--json", action="store_true", help="Emit JSON output.")
+    policy_managed_status.set_defaults(func=cmd_policy_managed_status)
 
     updates = sub.add_parser("updates", help="Check or apply hosted adapted collection updates.")
     updates_sub = updates.add_subparsers(dest="updates_command", required=True)

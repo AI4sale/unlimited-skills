@@ -150,9 +150,14 @@ def read_policy_file(path: Path) -> dict[str, Any]:
 
 def install_policy(source: Path, *, home: Path | None = None) -> dict[str, Any]:
     data = read_policy_file(source)
+    return install_policy_payload(data, home=home, source=str(source))
+
+
+def install_policy_payload(data: dict[str, Any], *, home: Path | None = None, source: str = "payload") -> dict[str, Any]:
     verification = verify_policy_payload(data)
     policy = normalize_policy(data, installed=True)
     policy["installed_at"] = now_iso()
+    policy["source"] = source
     path = write_private_json(policy_path(home), policy)
     return {**verification, "installed": True, "path": str(path)}
 

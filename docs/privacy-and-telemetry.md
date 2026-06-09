@@ -76,6 +76,8 @@ unlimited-skills service test-proof
 
 Service diagnostics must not upload skill bodies, skill names, prompts, search queries, local paths, repository paths, environment variable values, tokens, or private keys. Diagnostic output uses presence markers for hosted credentials and device keys.
 
+Managed Enterprise Skill Lock sync sends install id, client version, and a local policy summary to `/v1/policy/sync`. It must not upload skill bodies, prompts, source code, local paths, repository paths, search queries, environment variable values, tokens, secrets, or device private keys. The response must be a signed `enterprise-policy` assignment manifest before the client applies any local policy change.
+
 ## Telemetry
 
 Telemetry is off by default.

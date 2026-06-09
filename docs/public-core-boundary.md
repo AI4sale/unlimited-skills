@@ -31,6 +31,7 @@ The public MIT core must remain local-first. Registration gates hosted services 
 - `policy install`
 - `policy remove --yes`
 - `policy explain`
+- `policy managed-status`
 - agent installers
 - migration scripts
 - local daemon and local learning logs
@@ -68,6 +69,7 @@ The public MIT core must remain local-first. Registration gates hosted services 
 - `hub token create`
 - `hub token list`
 - `hub token revoke`
+- `policy sync`
 
 `remote search`, `remote resolve`, and `remote view` are Local Skill Hub client commands. They do not require hosted registration on the client machine, but they require a configured hub URL and hub client token when using the hub. With `fallback=local_allowed`, they can fall back to the local MIT library if the hub is unavailable. With `fallback=hub_required`, they fail clearly. They never query the hosted registry by default.
 
@@ -78,6 +80,8 @@ Remote-first installer flags for Codex, Claude Code, Hermes, and OpenClaw write 
 `service configure`, `service status`, `service doctor`, `service verify-trust`, `service test-registration --dry-run`, and `service test-proof` are onboarding/support commands. They do not unlock hosted catalog features and do not gate local MIT commands. `service status` is local-only unless `--refresh` is passed. `service doctor` and `service verify-trust` may contact only health/ready/public-key endpoints and must not upload local skill bodies, skill names, prompts, paths, queries, tokens, or private keys.
 
 Enterprise Skill Lock is opt-in local governance. With no installed policy, Community Core behavior is unchanged. With a policy installed in `audit` mode, disallowed actions are logged and allowed. With a policy installed in `enforce` mode, hosted registry access, release-channel selection, manifest keys/scopes, community install/submit, hub local allowlists, remote fallback, and explicitly restricted local roots can be refused. This policy layer must not require registration and must not upload local skills or prompts.
+
+Managed Enterprise Skill Lock sync is separate from local policy management. `policy sync` requires registration, calls the hosted registry `/v1/policy/sync` endpoint with token plus signed device proof, verifies the signed `enterprise-policy` assignment, and must not upload local skill bodies, prompts, source code, local paths, search queries, tokens, secrets, or device private keys. `policy managed-status` is local-only.
 
 No registration, no official hosted skill updates. Local skills remain usable.
 

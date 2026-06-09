@@ -131,6 +131,46 @@ Lists approved members by default. The client may request all statuses or pendin
 
 Returns team-assigned collection manifests. The client supports the richer Team Free sync manifest and remains compatible with the legacy `updates` array shape. Hosted team sync responses must include a valid signed manifest envelope. The client verifies `manifest_signature` against a key trusted for the `team-sync-manifest` scope and registry origin, then enforces SHA256 verification and safe extraction before installing archives.
 
+### `POST /v1/policy/sync`
+
+Returns a managed Enterprise Skill Lock policy assignment for a registered installation. This endpoint is registration-gated and must require the hosted-service token plus signed device proof.
+
+Request fields:
+
+- `install_id`;
+- `client` with client name and version;
+- `current_policy`, a local policy summary only.
+
+The request must not include skill bodies, prompts, source code, local paths, repository paths, search queries, environment variable values, tokens, secrets, or device private keys.
+
+Response shape:
+
+```json
+{
+  "schema_version": 1,
+  "manifest_type": "enterprise-policy-assignment",
+  "assignment_id": "assign_...",
+  "install_id": "uls_inst_...",
+  "action": "install|update|remove|none",
+  "assigned_at": "2026-06-09T00:00:00Z",
+  "policy": {
+    "schema_version": 1,
+    "policy_id": "enterprise-skill-lock-default",
+    "mode": "audit",
+    "policy_sha256": "..."
+  },
+  "manifest_signature": {
+    "schema_version": 1,
+    "algorithm": "ed25519",
+    "key_id": "registry-alpha-2026-06",
+    "signed_payload_sha256": "...",
+    "signature": "..."
+  }
+}
+```
+
+The client verifies the response with scope `enterprise-policy` and the registry origin, verifies the policy payload itself, and only then installs, updates, or removes local policy state. `action=none` makes no local change.
+
 ### `POST /v1/teams/{team_id}/members/pending`
 
 Lists pending join requests for the master instance.

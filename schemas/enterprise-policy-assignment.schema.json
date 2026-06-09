@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AI4sale/unlimited-skills/schemas/enterprise-policy-assignment.schema.json",
+  "title": "Managed Enterprise Skill Lock policy assignment",
+  "type": "object",
+  "required": ["schema_version", "manifest_type", "assignment_id", "install_id", "action", "manifest_signature"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "manifest_type": { "type": "string", "const": "enterprise-policy-assignment" },
+    "assignment_id": { "type": "string", "minLength": 1 },
+    "install_id": { "type": "string", "minLength": 1 },
+    "action": { "type": "string", "enum": ["none", "install", "update", "remove"] },
+    "assigned_at": { "type": "string" },
+    "policy": {
+      "type": "object",
+      "description": "Required for install/update actions. Must satisfy enterprise-skill-lock-policy.schema.json."
+    },
+    "manifest_signature": {
+      "type": "object",
+      "required": ["schema_version", "algorithm", "key_id", "signed_payload_sha256", "signature"],
+      "properties": {
+        "schema_version": { "type": "integer", "const": 1 },
+        "algorithm": { "type": "string", "const": "ed25519" },
+        "key_id": { "type": "string", "minLength": 1 },
+        "signed_payload_sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" },
+        "signature": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

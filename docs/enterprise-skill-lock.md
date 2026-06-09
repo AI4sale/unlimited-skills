@@ -12,11 +12,16 @@ When a policy is installed, the client can audit or enforce controls for approve
 unlimited-skills policy status
 unlimited-skills policy verify enterprise-policy.json
 unlimited-skills policy install enterprise-policy.json
+unlimited-skills policy sync --dry-run
+unlimited-skills policy sync
+unlimited-skills policy managed-status
 unlimited-skills policy explain
 unlimited-skills policy remove --yes
 ```
 
 Policies must be signed or hash-pinned. The MVP accepts either a valid `manifest_signature` / `signature_envelope` verified by local trust configuration, or a `policy_sha256` that matches the canonical policy payload excluding signature/hash fields.
+
+Managed policy sync is registration-gated. `policy sync` posts local registration metadata and the current policy summary to `/v1/policy/sync`, verifies the signed `enterprise-policy` assignment manifest, verifies the policy payload itself, and only then installs, updates, or removes the local policy. `policy sync --dry-run` performs the same verification without writing local policy state. `policy managed-status` reads only local sync state and does not contact the hosted registry.
 
 ## Modes
 
@@ -81,6 +86,12 @@ Policy refusals are written to:
 
 ```text
 ~/.unlimited-skills/policy/refusals.jsonl
+```
+
+Managed sync state is written to:
+
+```text
+~/.unlimited-skills/policy/managed-policy-state.json
 ```
 
 Audit events are redacted. They must not include hosted tokens, auth headers, device private keys, prompts, or skill bodies.
