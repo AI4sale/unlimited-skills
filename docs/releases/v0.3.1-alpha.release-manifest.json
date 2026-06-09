@@ -20,11 +20,17 @@
     "public": [
       {"number": 34, "repository": "AI4sale/unlimited-skills", "title": "v0.3.1-alpha post-release stabilization gate"},
       {"number": 35, "repository": "AI4sale/unlimited-skills", "title": "guided first-run onboarding wizard"},
-      {"number": 36, "repository": "AI4sale/unlimited-skills", "title": "redacted support diagnostic bundle"}
+      {"number": 36, "repository": "AI4sale/unlimited-skills", "title": "redacted support diagnostic bundle"},
+      {"number": 37, "repository": "AI4sale/unlimited-skills", "title": "v0.3.1-alpha release manifest and publication gate", "status": "superseded_by_final_publication"},
+      {"number": 38, "repository": "AI4sale/unlimited-skills", "title": "service diagnostics v2 setup and support integration"}
     ],
     "private_registry": [
       {"number": 9, "repository": "AI4sale/unlimited-skills-registry", "title": "registry catalog quality and allowlist health reports", "status": "in_review"},
-      {"number": 10, "repository": "AI4sale/unlimited-skills-registry", "title": "hub distribution allowlist reconciliation with canonical 315-skill audit", "status": "in_review"}
+      {"number": 10, "repository": "AI4sale/unlimited-skills-registry", "title": "hub distribution allowlist reconciliation with canonical 315-skill audit", "status": "in_review"},
+      {"number": 11, "repository": "AI4sale/unlimited-skills-registry", "title": "registry operator acceptance suite", "status": "in_review"},
+      {"number": 12, "repository": "AI4sale/unlimited-skills-registry", "title": "registry signing handoff blocker report", "status": "blocked_no_production_signing_key"},
+      {"number": 15, "repository": "AI4sale/unlimited-skills-registry", "title": "production signing execution blocker", "status": "blocked_no_production_signing_key"},
+      {"number": 18, "repository": "AI4sale/unlimited-skills-registry", "title": "protected production signing ceremony workflow", "status": "in_review"}
     ]
   },
   "private_registry_reconciliation": {
@@ -38,6 +44,23 @@
     "needs_human_review_total": 6,
     "source_audit_sha256": "6dcb8f04251fed917ebf3b683fe48966095808c0f868daffeddcf6b5bd7b5311",
     "note": "Publication remains in review until private registry reconciliation PR #10 is accepted."
+  },
+  "production_signed_registry_artifacts": {
+    "status": "blocked_no_production_signing_key",
+    "report_status": "blocked",
+    "canonical_audit_sha256": "6dcb8f04251fed917ebf3b683fe48966095808c0f868daffeddcf6b5bd7b5311",
+    "total": 315,
+    "allowlist": 105,
+    "local_install_plan": 165,
+    "excluded": 45,
+    "blocked": 26,
+    "local_only": 13,
+    "needs_human_review": 6,
+    "production_key_id": "",
+    "required_before_unblocked_publication": true,
+    "release_owner_override_allowed": true,
+    "private_registry_prs": [12, 15, 18],
+    "note": "Final publication verifier must fail by default until production signing reports production_signed/passed, or until a release owner explicitly accepts this blocked registry signing state as a v0.3.1-alpha known issue."
   },
   "distribution": {
     "official_alpha_path": "GitHub clone",
@@ -82,6 +105,8 @@
     "v0.3.1 stabilization docs and smoke evidence",
     "first-run setup wizard",
     "redacted support diagnostic bundle",
+    "service diagnostics v2 setup and support integration",
+    "final publication gate for production-signed registry artifacts",
     "private registry catalog quality report dependency",
     "private registry hub allowlist reconciliation dependency",
     "GitHub clone distribution path",
@@ -94,6 +119,7 @@
     "Local Skill Hub remains allowlist-only.",
     "Archive bytes are SHA256-verified and safely extracted, not archive-byte signed.",
     "Private registry reconciliation remains in review until PR #10 is accepted.",
+    "Production-signed registry artifacts remain blocked until a registry operator completes the protected signing ceremony, or a release owner explicitly accepts the blocked state as a known issue.",
     "Enterprise Skill Lock is an opt-in local policy MVP; managed sync is implemented but business dashboard, SSO, SCIM, billing, and broad organization controls are not implemented."
   ],
   "required_test_commands": [
@@ -104,7 +130,8 @@
     "python scripts/run-v0.3.1-alpha-post-release-smoke.py",
     "python scripts/verify-v0.3.0-alpha-publication.py",
     "python scripts/verify-v0.3.1-alpha-stabilization.py",
-    "python scripts/verify-v0.3.1-alpha-publication.py",
+    "python scripts/verify-v0.3.1-alpha-publication.py --allow-registry-signing-blocked --release-owner-override-reason \"Release owner explicitly accepts blocked production registry signing as a v0.3.1-alpha known issue.\"",
+    "python scripts/run-v0.3.1-alpha-release-smoke.py",
     "python -m compileall -q unlimited_skills scripts tests",
     "git diff --check"
   ],
@@ -117,8 +144,9 @@
     "git diff --check"
   ],
   "release_owner_actions": [
-    "Review and merge public PR #34, #35, and #36 in dependency order.",
-    "Review private registry PR #9 and PR #10 before final release acceptance.",
+    "Review and merge public PR #34, #35, #36, #37, and #38 in dependency order, or supersede PR #37 with this final publication branch.",
+    "Review private registry PR #9, #10, #11, #12, #15, and #18 before final release acceptance.",
+    "Do not run the default publication verifier without production signing unless the release owner explicitly accepts blocked registry signing as a known issue.",
     "Run scripts/verify-v0.3.1-alpha-publication.py --expected-sha <tag-target-sha>.",
     "Refresh git.sha if the merge strategy changes the final tag target.",
     "Create tag v0.3.1-alpha only after human release-owner approval.",

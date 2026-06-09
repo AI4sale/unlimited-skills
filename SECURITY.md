@@ -62,6 +62,7 @@ Current `v0.3.1-alpha` limitations:
 
 - Hosted manifest signatures verify manifest authenticity; archive bytes are still verified with SHA256 and safe extraction, not archive-byte signatures.
 - The hosted registry is early-access and availability may be limited.
+- Production-signed registry artifacts are not verified until the protected private-registry signing ceremony completes. The final v0.3.1-alpha publication verifier blocks by default in this state unless the release owner explicitly accepts blocked registry signing as a known issue.
 - Community submissions are planned and must be explicit uploads when implemented.
 - Enterprise Skill Lock is implemented as an opt-in local policy MVP. Managed hosted policy sync client behavior is implemented and verified against a fixture contract; production private-registry endpoint delivery remains an in-review private registry dependency for the v0.3 alpha stack. SSO, SCIM, billing, organization administration, hosted dashboard controls, and broad enterprise private-registry enforcement are not implemented in this alpha.
 - Warm daemon mode is experimental and binds to `127.0.0.1` by default; do not expose it on public interfaces.

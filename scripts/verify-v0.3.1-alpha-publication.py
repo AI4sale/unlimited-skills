@@ -139,9 +139,9 @@ def assert_manifest(payload: dict[str, Any], expected_sha: str | None) -> str:
     prs = payload.get("required_prs", {}) if isinstance(payload.get("required_prs"), dict) else {}
     public_numbers = [item.get("number") for item in prs.get("public", []) if isinstance(item, dict)]
     private_numbers = [item.get("number") for item in prs.get("private_registry", []) if isinstance(item, dict)]
-    for number in (34, 35, 36):
+    for number in (34, 35, 36, 37, 38):
         require(number in public_numbers, f"manifest missing public PR #{number}")
-    for number in (9, 10):
+    for number in (9, 10, 11, 12, 15, 18):
         require(number in private_numbers, f"manifest missing private registry PR #{number}")
 
     reconciliation = payload.get("private_registry_reconciliation") if isinstance(payload.get("private_registry_reconciliation"), dict) else {}
@@ -193,12 +193,38 @@ def assert_manifest(payload: dict[str, Any], expected_sha: str | None) -> str:
         "python scripts/run-v0.3.1-alpha-post-release-smoke.py",
         "python scripts/verify-v0.3.0-alpha-publication.py",
         "python scripts/verify-v0.3.1-alpha-stabilization.py",
-        "python scripts/verify-v0.3.1-alpha-publication.py",
+        'python scripts/verify-v0.3.1-alpha-publication.py --allow-registry-signing-blocked --release-owner-override-reason "Release owner explicitly accepts blocked production registry signing as a v0.3.1-alpha known issue."',
+        "python scripts/run-v0.3.1-alpha-release-smoke.py",
         "python -m compileall -q unlimited_skills scripts tests",
         "git diff --check",
     ):
         require(command in commands, f"manifest missing test command: {command}")
     return sha
+
+
+def assert_production_registry_signing_gate(payload: dict[str, Any], *, allow_blocked: bool, override_reason: str) -> None:
+    signing = payload.get("production_signed_registry_artifacts")
+    require(isinstance(signing, dict), "manifest missing production_signed_registry_artifacts gate")
+    status = str(signing.get("status") or "")
+    report_status = str(signing.get("report_status") or "")
+    signed = status == "production_signed" and report_status == "passed"
+    if signed:
+        require(signing.get("canonical_audit_sha256") == "6dcb8f04251fed917ebf3b683fe48966095808c0f868daffeddcf6b5bd7b5311", "production signing audit sha mismatch")
+        require(signing.get("total") == 315, "production signing total mismatch")
+        require(signing.get("allowlist") == 105, "production signing allowlist mismatch")
+        require(signing.get("local_install_plan") == 165, "production signing local install plan mismatch")
+        require(signing.get("excluded") == 45, "production signing excluded count mismatch")
+        require(bool(signing.get("production_key_id")), "production signing key id must be recorded")
+        return
+    require(
+        allow_blocked,
+        "production-signed registry artifacts are not verified; pass --allow-registry-signing-blocked with a release-owner override reason only if the release owner explicitly accepts this known issue",
+    )
+    require(
+        len(override_reason.strip()) >= 24,
+        "--release-owner-override-reason must explain why publishing with blocked registry signing is acceptable",
+    )
+    require(status in {"blocked_no_production_signing_key", "blocked", "in_review"}, f"unexpected blocked signing status: {status}")
 
 
 def assert_docs() -> None:
@@ -251,12 +277,20 @@ def assert_no_private_material() -> None:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Verify v0.3.1-alpha publication gate before tagging.")
     parser.add_argument("--expected-sha", help="Final tag target SHA to compare with docs/releases/v0.3.1-alpha.release-manifest.json")
+    parser.add_argument("--allow-registry-signing-blocked", action="store_true", help="Allow publication verification to pass when the release owner explicitly accepts blocked production registry signing as a known issue.")
+    parser.add_argument("--release-owner-override-reason", default="", help="Required explanation when --allow-registry-signing-blocked is used.")
     args = parser.parse_args()
 
     require(package_version() == VERSION, f"pyproject version must be {VERSION}")
     require(init_version() == VERSION, f"__version__ must be {VERSION}")
     baseline = assert_baseline_release_detected()
-    manifest_sha = assert_manifest(load_manifest(), args.expected_sha)
+    manifest = load_manifest()
+    manifest_sha = assert_manifest(manifest, args.expected_sha)
+    assert_production_registry_signing_gate(
+        manifest,
+        allow_blocked=args.allow_registry_signing_blocked,
+        override_reason=args.release_owner_override_reason,
+    )
     assert_docs()
     assert_no_private_material()
     current_head = run_git(["rev-parse", "HEAD"])
@@ -276,6 +310,10 @@ def main() -> int:
     print("hosted features: registration-gated")
     print("full catalog distribution: disabled")
     print("private registry reconciliation: in review, canonical 315-skill audit recorded")
+    if args.allow_registry_signing_blocked:
+        print("production registry signing: blocked override accepted by release-owner gate")
+    else:
+        print("production registry signing: verified")
     print("private key/token/proof scan: passed for public publication docs")
     if args.expected_sha:
         print(f"expected tag target sha: {args.expected_sha}")
