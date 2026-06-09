@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "feature": "private_team_packs",
+  "allowed": false,
+  "denial_reason": "no_entitlement",
+  "message": "The current plan does not include this feature.",
+  "plan": "registered-community",
+  "status": "active",
+  "registered": true
+}

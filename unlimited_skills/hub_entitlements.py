@@ -156,6 +156,7 @@ def load_entitlements(home: Path | None = None) -> dict[str, Any]:
     payload.setdefault("source", "cached")
     payload.setdefault("limits", {"max_hub_clients": 100})
     payload.setdefault("policy", {"hub_distribution_mode": "allowlist_only", "signed_manifests_required": True, "hosted_query_forwarding_allowed": False})
+    payload.setdefault("status", "active")
     return payload
 
 
@@ -184,6 +185,7 @@ def entitlement_summary(state: RegistrationState | None = None, home: Path | Non
     return {
         "source": str(payload.get("source") or "cached"),
         "plan": str(payload.get("plan") or (state.plan if state else "") or "community-core"),
+        "status": str(payload.get("status") or "active"),
         "features_enabled": [str(item) for item in payload.get("features_enabled", []) if isinstance(item, str)],
         "limits": payload.get("limits") if isinstance(payload.get("limits"), dict) else {"max_hub_clients": 100},
         "policy": payload.get("policy") if isinstance(payload.get("policy"), dict) else {},
@@ -244,30 +246,37 @@ def validate_entitlement_response(response: dict[str, Any]) -> dict[str, Any]:
         raise RuntimeError("Entitlement service returned unsupported schema_version.")
     limits = response.get("limits") if isinstance(response.get("limits"), dict) else {}
     policy = response.get("policy") if isinstance(response.get("policy"), dict) else {}
-    max_clients = int(limits.get("max_hub_clients") or 100)
+    max_clients = int(limits.get("max_hub_clients") or response.get("max_hub_clients") or response.get("active_client_limit") or 100)
     if max_clients < 0:
         raise RuntimeError("Entitlement max_hub_clients must be non-negative.")
     distribution_mode = str(policy.get("hub_distribution_mode") or "allowlist_only")
     if distribution_mode != "allowlist_only":
         raise RuntimeError("Entitlement service must keep hub_distribution_mode=allowlist_only.")
-    if policy.get("hosted_query_forwarding_allowed") is not False:
+    if policy.get("hosted_query_forwarding_allowed", False) is not False:
         raise RuntimeError("Entitlement service must keep hosted_query_forwarding_allowed=false.")
     features = response.get("features_enabled") or []
     if not isinstance(features, list):
         features = []
     grace = response.get("grace") if isinstance(response.get("grace"), dict) else {}
     offline_until = str(grace.get("offline_grace_until") or epoch_to_iso(time.time() + DEFAULT_OFFLINE_GRACE_SECONDS))
+    private_limit = int(limits.get("max_private_packs") or response.get("max_private_packs") or 0)
+    release_channels = limits.get("release_channels") or response.get("release_channels") or []
     return {
         "schema_version": 1,
         "source": "refreshed",
         "plan": str(response.get("plan") or "registered-community"),
+        "status": str(response.get("status") or "active"),
         "features_enabled": [str(item) for item in features if isinstance(item, str)],
-        "limits": {"max_hub_clients": max_clients},
+        "limits": {
+            "max_hub_clients": max_clients,
+            "max_private_packs": max(0, private_limit),
+            "release_channels": [str(item) for item in release_channels if isinstance(item, str)] if isinstance(release_channels, list) else [],
+        },
         "policy": {
             "hub_distribution_mode": distribution_mode,
             "signed_manifests_required": bool(policy.get("signed_manifests_required", True)),
             "hosted_query_forwarding_allowed": False,
-            "team_sync_enabled": bool(policy.get("team_sync_enabled", "team_sync_enabled" in features)),
+            "team_sync_enabled": bool(policy.get("team_sync_enabled", "team_sync_enabled" in features or "team_sync" in features)),
         },
         "last_heartbeat_at": now_iso(),
         "offline_grace_until": offline_until,

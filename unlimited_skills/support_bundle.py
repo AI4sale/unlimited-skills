@@ -6,6 +6,7 @@ from typing import Any
 
 from . import __version__
 from .org_status import local_org_status
+from .plan_status import redacted_plan_summary
 from .private_pack_diagnostics import assert_private_pack_diagnostics_safe, private_pack_local_summary, private_pack_setup_summary
 from .registration import load_registration
 from .service_diagnostics import configured_service_url
@@ -28,6 +29,7 @@ def build_support_bundle_manifest(root: Path, *, include_private_pack_refs: bool
             "device_key": "present" if state.device_private_key else "missing",
         },
         "private_packs": private_packs,
+        "plan": redacted_plan_summary(state=state),
         "private_pack_setup": {
             "status": setup["status"],
             "checks": setup["checks"],

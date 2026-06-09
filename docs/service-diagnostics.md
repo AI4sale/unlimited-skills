@@ -48,6 +48,8 @@ Diagnostics must not upload:
 
 Diagnostic output uses presence markers for credentials and device key material. Errors are passed through the shared redactor before printing.
 
+Use `unlimited-skills plan doctor` for cached plan and entitlement diagnostics. It follows the same redaction boundary and excludes private skill names, local paths, private pack bodies, tokens, device proofs, and private keys.
+
 ## Trust checks
 
 Trust verification compares remote `/v1/public-keys` records against bundled, local, and environment trust records. A service is compatible when at least one remote key is locally trusted for the required signed-manifest scopes:

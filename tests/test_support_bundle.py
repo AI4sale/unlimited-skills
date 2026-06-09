@@ -37,6 +37,8 @@ def test_support_bundle_private_pack_summary_is_redacted(tmp_path: Path, monkeyp
     payload = build_support_bundle_manifest(root)
 
     assert payload["private_packs"]["installed_count"] == 1
+    assert payload["plan"]["registered"] is True
+    assert payload["plan"]["privacy"]["tokens_included"] is False
     assert payload["private_packs"]["sha_mismatch_count"] == 1
     assert payload["privacy"]["skill_bodies_included"] is False
     assert payload["privacy"]["local_paths_included"] is False
