@@ -32,8 +32,11 @@ from unlimited_skills.updates import (
     UpdateError,
     current_collection_state,
     download_file,
+    load_release_channel,
     parse_updates,
+    rollback_collection,
     safe_extract_zip,
+    save_release_channel,
     sha256_file,
 )
 
@@ -251,6 +254,92 @@ class RegistrationUpdatesTest(unittest.TestCase):
                 payload = client.catalog(root)
 
             self.assertEqual(payload, catalog)
+
+    def test_release_channel_pin_is_sent_to_catalog_and_updates(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            home = tmp_path / ".unlimited-skills"
+            root = tmp_path / "library"
+            manifest, env = signed_manifest_env(
+                {
+                    "schema_version": 1,
+                    "manifest_type": "catalog-updates",
+                    "release_channel": "beta",
+                    "updates": [{"collection": "ecc", "version": "2026.06.06", "archive_url": "https://updates.example.test/ecc.zip", "sha256": "a" * 64}],
+                }
+            )
+            seen_channels: list[str] = []
+
+            def fake_urlopen(request, timeout=30.0):
+                body = json.loads(request.data.decode("utf-8"))
+                seen_channels.append(body["channel"])
+                return FakeResponse(json.dumps(manifest if request.full_url.endswith("/v1/collections/updates") else {"channel": body["channel"]}).encode("utf-8"))
+
+            with patch.dict(os.environ, {**env, "UNLIMITED_SKILLS_HOME": str(home)}, clear=False), patch("urllib.request.urlopen", fake_urlopen):
+                save_release_channel("beta", home=home)
+                client = UpdateClient(registered_state())
+                self.assertEqual(load_release_channel(home).channel, "beta")
+                self.assertEqual(client.catalog(root)["channel"], "beta")
+                self.assertEqual(client.check(root)[0].collection, "ecc")
+
+            self.assertEqual(seen_channels, ["beta", "beta"])
+
+    def test_release_channels_manifest_is_verified(self) -> None:
+        manifest, env = signed_manifest_env(
+            {
+                "schema_version": 1,
+                "manifest_type": "release-channels",
+                "requires_registration": True,
+                "policy": {"default_channel": "stable", "allowed_channels": ["stable", "beta"]},
+                "channels": [{"name": "stable", "current_release_id": "a" * 64, "status": "active"}],
+            }
+        )
+
+        def fake_urlopen(request, timeout=30.0):
+            self.assertTrue(request.full_url.endswith("/v1/channels/status"))
+            body = json.loads(request.data.decode("utf-8"))
+            self.assertEqual(body["channel"], "stable")
+            return FakeResponse(json.dumps(manifest).encode("utf-8"))
+
+        with patch.dict(os.environ, env, clear=False), patch("urllib.request.urlopen", fake_urlopen):
+            payload = UpdateClient(registered_state()).release_channels()
+
+        self.assertTrue(payload["signature_verification"]["verified"])
+        self.assertEqual(payload["manifest_type"], "release-channels")
+
+    def test_update_apply_keeps_rollback_snapshot_and_restores_it(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_path = Path(tmp)
+            root = tmp_path / "library"
+            current = root / "registry" / "ecc" / "skills" / "security-review" / "SKILL.md"
+            current.parent.mkdir(parents=True)
+            current.write_text("---\nname: security-review\ndescription: v1\n---\n", encoding="utf-8")
+            (root / ".unlimited-skills-collections.json").write_text(
+                json.dumps({"schema_version": 1, "collections": {"ecc": {"version": "v1", "source": "hosted", "sha256": "old"}}}),
+                encoding="utf-8",
+            )
+            archive = make_collection_archive(tmp_path, "ecc", "security-review", "v2")
+            digest = sha256_file(archive)
+            manifest, env = signed_manifest_env({"updates": [{"collection": "ecc", "version": "v2", "archive_url": "https://updates.example.test/ecc.zip", "sha256": digest}]})
+
+            def fake_urlopen(request, timeout=30.0):
+                url = request.full_url if hasattr(request, "full_url") else str(request)
+                if url.endswith("/v1/collections/updates"):
+                    return FakeResponse(json.dumps(manifest).encode("utf-8"))
+                if url.endswith("/ecc.zip"):
+                    return FakeResponse(archive.read_bytes())
+                raise AssertionError(f"Unexpected URL: {url}")
+
+            with patch.dict(os.environ, env, clear=False), patch("urllib.request.urlopen", fake_urlopen):
+                client = UpdateClient(registered_state())
+                client.apply(root, client.check(root)[0])
+
+            self.assertIn("description: v2", current.read_text(encoding="utf-8"))
+            result = rollback_collection(root, "ecc")
+            self.assertEqual(result["collection"], "ecc")
+            self.assertIn("description: v1", current.read_text(encoding="utf-8"))
+            collection_manifest = json.loads((root / ".unlimited-skills-collections.json").read_text(encoding="utf-8"))
+            self.assertEqual(collection_manifest["collections"]["ecc"]["version"], "v1")
 
     def test_registered_catalog_retries_safe_transient_errors(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

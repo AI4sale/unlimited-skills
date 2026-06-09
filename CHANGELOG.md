@@ -4,6 +4,7 @@
 
 ### Added
 
+- Release channel UX for registered clients: `release status`, `release pin`, `updates --channel`, signed `release-channels` verification, and `updates rollback`.
 - Production-shaped registry contract E2E fixture covering registered device proof, signed catalog/update/enhancement/hub/team manifests, hub heartbeat, entitlement refresh, and proof replay rejection without calling production hosts.
 - Integrated Local Skill Hub token enforcement, remote hub client runtime, allowlist bootstrap, and v0.2.x release smoke coverage into one release-candidate branch.
 - Local Skill Hub client token checks for protected `/v1/...` APIs; `/health` remains open for liveness.
@@ -17,6 +18,7 @@
 
 ### Changed
 
+- Hosted update apply now preserves the replaced collection under `registry/.rollbacks/<collection>/` for explicit local rollback instead of discarding the previous version after a successful update.
 - Hosted registry JSON clients now use a shared request path with bounded retries for safe/idempotent reads, redacted errors, and signed offline cache fallback for catalog/update metadata when the service is unreachable.
 - Raised package version to `0.2.1`.
 - Updated alpha security and release documentation to describe the integrated Local Skill Hub runtime stack.

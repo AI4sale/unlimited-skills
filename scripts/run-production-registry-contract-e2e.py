@@ -164,6 +164,41 @@ def make_fixture_state(base_url: str, temp_root: Path) -> dict[str, Any]:
         },
         private_key,
     )
+    release_channels = signed(
+        {
+            "schema_version": 1,
+            "manifest_type": "release-channels",
+            "generated_at": "2026-06-09T00:00:00Z",
+            "requires_registration": True,
+            "policy": {
+                "default_channel": "stable",
+                "allowed_channels": ["stable", "beta", "canary"],
+                "promotion_supported": True,
+                "rollback_supported": True,
+                "deprecation_supported": True,
+            },
+            "channels": [
+                {
+                    "name": "stable",
+                    "status": "active",
+                    "current_release_id": "a" * 64,
+                    "catalog_updates_sha256": archive_sha,
+                    "pack_count": 1,
+                    "rollback_available": False,
+                },
+                {
+                    "name": "beta",
+                    "status": "active",
+                    "current_release_id": "b" * 64,
+                    "catalog_updates_sha256": archive_sha,
+                    "pack_count": 1,
+                    "rollback_available": True,
+                },
+            ],
+            "deprecated_releases": [],
+        },
+        private_key,
+    )
     entitlements = {
         "schema_version": 1,
         "plan": "registered-community",
@@ -185,9 +220,11 @@ def make_fixture_state(base_url: str, temp_root: Path) -> dict[str, Any]:
         "enhancement": enhancement,
         "hub_allowlist": hub_allowlist,
         "team_sync": team_sync,
+        "release_channels": release_channels,
         "entitlements": entitlements,
         "installations": {},
         "nonces": set(),
+        "seen_channels": [],
         "proof_success_count": 0,
         "missing_proof_rejections": 0,
         "invalid_proof_rejections": 0,
@@ -334,7 +371,12 @@ class FixtureHandler(BaseHTTPRequestHandler):
         if not self.verify_proof(raw_body):
             return
         if parsed.path in {"/v1/catalog", "/v1/collections/updates"}:
+            self.state["seen_channels"].append(str(body.get("channel") or ""))
             self.send_json(self.state["catalog"])
+            return
+        if parsed.path == "/v1/channels/status":
+            self.state["seen_channels"].append(str(body.get("channel") or ""))
+            self.send_json(self.state["release_channels"])
             return
         if parsed.path == "/v1/enhancement/script":
             self.send_json(self.state["enhancement"])
@@ -474,8 +516,12 @@ def run_flow(registry_url: str, *, fixture_public_key: str, fixture_key_id: str 
 
         catalog = run([sys.executable, "-m", "unlimited_skills.cli", "--root", str(library), "catalog", "list"], env=env).stdout
         assert "manifest_signature" in catalog
+        release_status = json.loads(run([sys.executable, "-m", "unlimited_skills.cli", "release", "status", "--json", "--timeout", "10"], env=env).stdout)
+        assert release_status["manifest_type"] == "release-channels"
+        run([sys.executable, "-m", "unlimited_skills.cli", "release", "pin", "beta"], env=env)
         updates = json.loads(run([sys.executable, "-m", "unlimited_skills.cli", "--root", str(library), "updates", "check", "--json"], env=env).stdout)
         assert updates["count"] >= 1
+        assert updates["channel"] == "beta"
         run([sys.executable, "-m", "unlimited_skills.cli", "--root", str(library), "updates", "apply", "--skip-reindex"], env=env)
         run([sys.executable, "-m", "unlimited_skills.cli", "--root", str(library), "reindex", "--no-native-sync"], env=env)
 
@@ -503,11 +549,13 @@ def run_flow(registry_url: str, *, fixture_public_key: str, fixture_key_id: str 
         assert fixture_state["missing_proof_rejections"] >= 1
         assert fixture_state["invalid_proof_rejections"] >= 1
         assert fixture_state["replay_rejections"] >= 1
+        assert "beta" in fixture_state["seen_channels"]
 
     print("production registry contract E2E passed")
     print(f"registry_url: {registry_url}")
     print("registration with device proof: ok")
     print("catalog/update/enhancement/hub/team signed manifests: ok")
+    print("release channel status and pinning: ok")
     print("device proof missing/invalid/replay rejection: ok")
     print("production hosted calls: none")
     print("raw token/private key output: redacted/not printed")

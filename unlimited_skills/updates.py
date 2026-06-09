@@ -22,6 +22,8 @@ from .signatures import ManifestSignatureError, verify_manifest_signature
 COLLECTIONS_MANIFEST = ".unlimited-skills-collections.json"
 COLLECTION_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 REGISTRY_CACHE_DIR = "registry-cache"
+RELEASE_STATE_NAME = "release-channel.json"
+ROLLBACKS_DIR = ".rollbacks"
 
 
 class RegistrationRequired(RuntimeError):
@@ -54,8 +56,48 @@ class EnhancementScript:
     notes: str = ""
 
 
+@dataclass(frozen=True)
+class ReleaseChannelState:
+    channel: str = "stable"
+    pinned: bool = False
+    updated_at: str = ""
+
+    def to_json(self) -> dict[str, Any]:
+        return {"schema_version": 1, "channel": self.channel, "pinned": self.pinned, "updated_at": self.updated_at}
+
+
 def now_iso() -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+
+
+def safe_timestamp() -> str:
+    return time.strftime("%Y%m%dT%H%M%SZ", time.gmtime())
+
+
+def release_state_path(home: Path | None = None) -> Path:
+    return (home or unlimited_skills_home()) / RELEASE_STATE_NAME
+
+
+def load_release_channel(home: Path | None = None) -> ReleaseChannelState:
+    path = release_state_path(home)
+    if not path.is_file():
+        return ReleaseChannelState()
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return ReleaseChannelState()
+    channel = str(payload.get("channel") or "stable") if isinstance(payload, dict) else "stable"
+    validate_collection_name(channel)
+    return ReleaseChannelState(channel=channel, pinned=bool(payload.get("pinned", False)), updated_at=str(payload.get("updated_at") or ""))
+
+
+def save_release_channel(channel: str, *, pinned: bool = True, home: Path | None = None) -> Path:
+    validate_collection_name(channel)
+    state = ReleaseChannelState(channel=channel, pinned=pinned, updated_at=now_iso())
+    path = release_state_path(home)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(state.to_json(), ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    return path
 
 
 def read_collection_manifest(root: Path) -> dict[str, Any]:
@@ -238,7 +280,7 @@ def validate_collection_name(collection: str) -> None:
 
 
 class UpdateClient:
-    def __init__(self, state: RegistrationState, *, timeout: float = 30.0) -> None:
+    def __init__(self, state: RegistrationState, *, timeout: float = 30.0, channel: str = "") -> None:
         if not state.registered:
             raise RegistrationRequired(
                 "Official registry features require registration. The MIT core remains fully usable offline: local search, "
@@ -246,12 +288,17 @@ class UpdateClient:
             )
         self.state = state
         self.timeout = timeout
+        pinned = load_release_channel()
+        resolved_channel = channel or pinned.channel or "stable"
+        validate_collection_name(resolved_channel)
+        self.channel = resolved_channel
 
     def check(self, root: Path) -> list[CollectionUpdate]:
         payload = {
             "schema_version": 1,
             "install_id": self.state.install_id,
             "client": {"name": "unlimited-skills", "version": __version__},
+            "channel": self.channel,
             "collections": current_collection_state(root),
         }
         try:
@@ -286,6 +333,7 @@ class UpdateClient:
             "schema_version": 1,
             "install_id": self.state.install_id,
             "client": {"name": "unlimited-skills", "version": __version__},
+            "channel": self.channel,
             "collections": current_collection_state(root),
         }
         try:
@@ -313,6 +361,7 @@ class UpdateClient:
             "schema_version": 1,
             "install_id": self.state.install_id,
             "client": {"name": "unlimited-skills", "version": __version__},
+            "channel": self.channel,
             "collections": current_collection_state(root),
         }
         response = post_json(
@@ -356,6 +405,32 @@ class UpdateClient:
             command.extend(["--limit", str(limit)])
         completed = subprocess.run(command, check=False)
         return int(completed.returncode)
+
+    def release_channels(self) -> dict[str, Any]:
+        response = post_json(
+            f"{self.state.server_url.rstrip('/')}/v1/channels/status",
+            {
+                "schema_version": 1,
+                "install_id": self.state.install_id,
+                "client": {"name": "unlimited-skills", "version": __version__},
+                "channel": self.channel,
+            },
+            token=self.state.license_token,
+            proof_state=self.state,
+            timeout=self.timeout,
+            retry_safe=True,
+        )
+        try:
+            response["signature_verification"] = verify_manifest_signature(
+                response,
+                purpose="Release channels manifest",
+                required=True,
+                scope="release-channels",
+                registry_url=self.state.server_url,
+            )
+        except ManifestSignatureError as exc:
+            raise UpdateError(str(exc)) from exc
+        return response
 
     def apply(self, root: Path, update: CollectionUpdate) -> dict[str, str]:
         validate_collection_name(update.collection)
@@ -431,13 +506,22 @@ def install_collection(root: Path, update: CollectionUpdate, source: Path, *, so
     backup = root / "registry" / f".{update.collection}.update-backup"
     target.parent.mkdir(parents=True, exist_ok=True)
     if backup.exists():
-        shutil.rmtree(backup)
+        stale = root / "registry" / ROLLBACKS_DIR / update.collection / f"{safe_timestamp()}-stale-update-backup"
+        stale.parent.mkdir(parents=True, exist_ok=True)
+        shutil.move(str(backup), str(stale))
+    previous_manifest = read_collection_manifest(root).get("collections", {}).get(update.collection, {})
     try:
         if target.exists():
             shutil.move(str(target), str(backup))
         shutil.copytree(source, target)
         if backup.exists():
-            shutil.rmtree(backup)
+            rollback_target = root / "registry" / ROLLBACKS_DIR / update.collection / f"{safe_timestamp()}-{previous_manifest.get('version', 'previous')}"
+            rollback_target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(backup), str(rollback_target))
+            (rollback_target / ".unlimited-skills-rollback.json").write_text(
+                json.dumps({"schema_version": 1, "collection": update.collection, "previous_manifest": previous_manifest, "saved_at": now_iso()}, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
     except Exception:
         if target.exists():
             shutil.rmtree(target)
@@ -457,3 +541,38 @@ def install_collection(root: Path, update: CollectionUpdate, source: Path, *, so
         "updated_at": now_iso(),
     }
     write_collection_manifest(root, manifest)
+
+
+def rollback_collection(root: Path, collection: str) -> dict[str, Any]:
+    validate_collection_name(collection)
+    target = root / "registry" / collection
+    rollback_root = root / "registry" / ROLLBACKS_DIR / collection
+    if not rollback_root.is_dir():
+        raise UpdateError(f"No rollback snapshot found for {collection}.")
+    candidates = sorted((item for item in rollback_root.iterdir() if item.is_dir()), key=lambda item: item.name, reverse=True)
+    if not candidates:
+        raise UpdateError(f"No rollback snapshot found for {collection}.")
+    snapshot = candidates[0]
+    metadata_path = snapshot / ".unlimited-skills-rollback.json"
+    previous_manifest: dict[str, Any] = {}
+    if metadata_path.is_file():
+        try:
+            metadata = json.loads(metadata_path.read_text(encoding="utf-8-sig"))
+            previous_manifest = metadata.get("previous_manifest", {}) if isinstance(metadata, dict) and isinstance(metadata.get("previous_manifest"), dict) else {}
+        except json.JSONDecodeError:
+            previous_manifest = {}
+    current_snapshot = rollback_root / f"{safe_timestamp()}-rolled-forward"
+    if target.exists():
+        shutil.move(str(target), str(current_snapshot))
+    shutil.move(str(snapshot), str(target))
+    manifest = read_collection_manifest(root)
+    collections = manifest.setdefault("collections", {})
+    if isinstance(collections, dict):
+        collections[collection] = previous_manifest or {
+            "version": "rolled-back",
+            "source": "rollback",
+            "sha256": "",
+            "updated_at": now_iso(),
+        }
+    write_collection_manifest(root, manifest)
+    return {"collection": collection, "restored_from": str(snapshot), "current_saved_to": str(current_snapshot) if current_snapshot.exists() else ""}

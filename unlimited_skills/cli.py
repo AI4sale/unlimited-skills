@@ -74,7 +74,7 @@ from .team import (
     team_state_with_mode,
     write_team_audit,
 )
-from .updates import UpdateClient
+from .updates import UpdateClient, load_release_channel, rollback_collection, save_release_channel
 
 
 if hasattr(sys.stdout, "reconfigure"):
@@ -1011,11 +1011,11 @@ def cmd_telemetry(args: argparse.Namespace) -> int:
 
 def cmd_updates_check(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
-    client = UpdateClient(load_registration(), timeout=args.timeout)
+    client = UpdateClient(load_registration(), timeout=args.timeout, channel=args.channel)
     updates = client.check(root)
     if args.collection:
         updates = [item for item in updates if item.collection == args.collection]
-    payload = {"root": str(root), "count": len(updates), "updates": [item.__dict__ for item in updates]}
+    payload = {"root": str(root), "channel": client.channel, "count": len(updates), "updates": [item.__dict__ for item in updates]}
     if args.json:
         print(json.dumps(payload, ensure_ascii=False, indent=2))
     elif updates:
@@ -1028,24 +1028,64 @@ def cmd_updates_check(args: argparse.Namespace) -> int:
 
 def cmd_updates_apply(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
-    client = UpdateClient(load_registration(), timeout=args.timeout)
+    client = UpdateClient(load_registration(), timeout=args.timeout, channel=args.channel)
     updates = client.check(root)
     if args.collection:
         updates = [item for item in updates if item.collection == args.collection]
     if args.dry_run:
-        print(json.dumps({"root": str(root), "dry_run": True, "count": len(updates), "updates": [item.__dict__ for item in updates]}, ensure_ascii=False, indent=2))
+        print(json.dumps({"root": str(root), "channel": client.channel, "dry_run": True, "count": len(updates), "updates": [item.__dict__ for item in updates]}, ensure_ascii=False, indent=2))
         return 0
     applied = [client.apply(root, item) for item in updates]
     if applied and not args.skip_reindex:
         save_index(root)
-    print(json.dumps({"root": str(root), "applied": applied, "reindexed": bool(applied and not args.skip_reindex)}, ensure_ascii=False, indent=2))
+    print(json.dumps({"root": str(root), "channel": client.channel, "applied": applied, "reindexed": bool(applied and not args.skip_reindex)}, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_updates_rollback(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    if not args.yes and not args.dry_run:
+        _confirm_or_fail(False, "ROLLBACK", "Update rollback will replace the active collection with the latest rollback snapshot.")
+    if args.dry_run:
+        payload = {"root": str(root), "collection": args.collection, "dry_run": True}
+    else:
+        payload = {"root": str(root), "dry_run": False, "result": rollback_collection(root, args.collection)}
+        if not args.skip_reindex:
+            save_index(root)
+            payload["reindexed"] = True
+        else:
+            payload["reindexed"] = False
+    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 
 
 def cmd_catalog_list(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
-    client = UpdateClient(load_registration(), timeout=args.timeout)
+    client = UpdateClient(load_registration(), timeout=args.timeout, channel=args.channel)
     payload = client.catalog(root)
+    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_release_status(args: argparse.Namespace) -> int:
+    state = load_release_channel()
+    client = UpdateClient(load_registration(), timeout=args.timeout, channel=args.channel)
+    payload = client.release_channels()
+    payload["local_release_channel"] = state.to_json()
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    print(f"Current local channel: {state.channel} ({'pinned' if state.pinned else 'default'})")
+    for item in payload.get("channels", []):
+        if isinstance(item, dict):
+            marker = "*" if item.get("name") == client.channel else " "
+            print(f"{marker} {item.get('name')}: {str(item.get('current_release_id') or '')[:12]} ({item.get('status') or 'active'})")
+    return 0
+
+
+def cmd_release_pin(args: argparse.Namespace) -> int:
+    path = save_release_channel(args.channel, pinned=True)
+    payload = {"channel": args.channel, "pinned": True, "path": str(path)}
     print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 
@@ -1757,21 +1797,42 @@ def build_parser() -> argparse.ArgumentParser:
     updates_sub = updates.add_subparsers(dest="updates_command", required=True)
     updates_check = updates_sub.add_parser("check", help="Check registered hosted collection updates.")
     updates_check.add_argument("--collection", default="", help="Only check one collection.")
+    updates_check.add_argument("--channel", default="", help="Override the pinned release channel for this check.")
     updates_check.add_argument("--json", action="store_true")
     updates_check.add_argument("--timeout", type=float, default=30.0)
     updates_check.set_defaults(func=cmd_updates_check)
     updates_apply = updates_sub.add_parser("apply", help="Download, verify, and install registered hosted collection updates.")
     updates_apply.add_argument("--collection", default="", help="Only apply one collection.")
+    updates_apply.add_argument("--channel", default="", help="Override the pinned release channel for this apply.")
     updates_apply.add_argument("--dry-run", action="store_true", help="Show available updates without downloading archives.")
+    updates_apply.add_argument("--yes", action="store_true", help="Reserved for non-interactive compatibility.")
     updates_apply.add_argument("--skip-reindex", action="store_true", help="Do not rebuild the lexical index after applying updates.")
     updates_apply.add_argument("--timeout", type=float, default=30.0)
     updates_apply.set_defaults(func=cmd_updates_apply)
+    updates_rollback = updates_sub.add_parser("rollback", help="Rollback a collection to the latest saved pre-update snapshot.")
+    updates_rollback.add_argument("collection", help="Collection name to rollback.")
+    updates_rollback.add_argument("--dry-run", action="store_true")
+    updates_rollback.add_argument("--yes", action="store_true", help="Confirm rollback in non-interactive mode.")
+    updates_rollback.add_argument("--skip-reindex", action="store_true")
+    updates_rollback.set_defaults(func=cmd_updates_rollback)
 
     catalog = sub.add_parser("catalog", help="Query the registered hosted adapted-skill catalog.")
     catalog_sub = catalog.add_subparsers(dest="catalog_command", required=True)
     catalog_list = catalog_sub.add_parser("list", help="List the hosted adapted-skill catalog for this registered installation.")
+    catalog_list.add_argument("--channel", default="", help="Override the pinned release channel for this catalog request.")
     catalog_list.add_argument("--timeout", type=float, default=30.0)
     catalog_list.set_defaults(func=cmd_catalog_list)
+
+    release = sub.add_parser("release", help="Inspect and pin hosted registry release channels.")
+    release_sub = release.add_subparsers(dest="release_command", required=True)
+    release_status = release_sub.add_parser("status", help="Fetch signed release channel status.")
+    release_status.add_argument("--channel", default="", help="Temporarily inspect one channel.")
+    release_status.add_argument("--json", action="store_true")
+    release_status.add_argument("--timeout", type=float, default=30.0)
+    release_status.set_defaults(func=cmd_release_status)
+    release_pin = release_sub.add_parser("pin", help="Pin this installation to a release channel.")
+    release_pin.add_argument("channel", choices=["stable", "beta", "canary"])
+    release_pin.set_defaults(func=cmd_release_pin)
 
     community = sub.add_parser("community", help="Browse, install, submit, and manage registered community skills.")
     community_sub = community.add_subparsers(dest="community_command", required=True)

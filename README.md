@@ -76,6 +76,7 @@ Working now:
 - Local Skill Hub allowlist bootstrap/sync with validated cached allowlist metadata;
 - required signed hosted manifest verification for hub allowlists, collection updates, enhancement manifests, and team sync manifests;
 - production-shaped registry contract E2E coverage for device proof, retries, offline metadata cache, hub heartbeat, entitlements, and team sync;
+- release channel UX for registered catalog/update checks: signed channel status, local stable/beta/canary pinning, one-off channel overrides, and local collection rollback snapshots;
 - bundled/local/env trusted manifest keys with scope enforcement, registry-origin pinning, and local revocation;
 - remote Local Skill Hub client commands: `remote configure`, `remote status`, `remote search`, `remote resolve`, and `remote view`.
 

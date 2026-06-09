@@ -27,6 +27,7 @@ The external mode fetches trusted manifest keys from `/v1/public-keys`. Fixture 
 - bearer token plus `X-ULS-Proof` on protected registry calls;
 - missing, invalid, and replayed device proof rejection;
 - signed catalog and collection update manifest verification;
+- signed release channel status and local channel pinning;
 - update apply with SHA256 archive verification and safe extraction;
 - signed enhancement manifest download;
 - signed hub allowlist sync;
