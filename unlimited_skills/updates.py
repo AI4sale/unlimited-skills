@@ -14,6 +14,7 @@ import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from . import __version__
 from .registration import RegistrationError, RegistrationState, is_secure_or_local_url, post_json, unlimited_skills_home
@@ -202,7 +203,20 @@ def current_collection_state(root: Path) -> dict[str, dict[str, str]]:
     return state
 
 
-def parse_updates(data: dict[str, Any]) -> list[CollectionUpdate]:
+def _archive_url_from_pack(pack: dict[str, Any], *, registry_url: str = "") -> str:
+    archive = pack.get("archive", {}) if isinstance(pack.get("archive"), dict) else {}
+    archive_url = str(pack.get("archive_url") or pack.get("download_url") or archive.get("archive_url") or archive.get("download_url") or archive.get("url") or "")
+    if archive_url or not registry_url:
+        return archive_url
+    collection = str(pack.get("collection") or "")
+    version = str(pack.get("version") or "")
+    filename = str(archive.get("filename") or "")
+    if not collection or not version or not filename:
+        return ""
+    return f"{registry_url.rstrip('/')}/v1/catalog/packs/{quote(collection, safe='')}/{quote(version, safe='')}/{quote(filename, safe='')}"
+
+
+def parse_updates(data: dict[str, Any], *, registry_url: str = "") -> list[CollectionUpdate]:
     raw_updates = data.get("updates") or []
     if not raw_updates and isinstance(data.get("packs"), list):
         raw_updates = []
@@ -210,7 +224,7 @@ def parse_updates(data: dict[str, Any]) -> list[CollectionUpdate]:
             if not isinstance(pack, dict):
                 continue
             archive = pack.get("archive", {}) if isinstance(pack.get("archive"), dict) else {}
-            archive_url = str(pack.get("archive_url") or pack.get("download_url") or archive.get("archive_url") or archive.get("download_url") or archive.get("url") or "")
+            archive_url = _archive_url_from_pack(pack, registry_url=registry_url)
             if not archive_url:
                 continue
             raw_updates.append(
@@ -332,7 +346,7 @@ class UpdateClient:
         except ManifestSignatureError as exc:
             raise UpdateError(str(exc)) from exc
         save_registry_response_cache("collection-updates", response)
-        return parse_updates(response)
+        return parse_updates(response, registry_url=self.state.server_url)
 
     def catalog(self, root: Path) -> dict[str, Any]:
         payload = {
