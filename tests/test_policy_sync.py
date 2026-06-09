@@ -8,7 +8,7 @@ import pytest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
-from unlimited_skills.policy import canonical_policy_sha256, load_policy
+from unlimited_skills.policy import audit_log_path, canonical_policy_sha256, install_policy_payload, load_policy
 from unlimited_skills.policy_sync import PolicySyncError, managed_policy_status, sync_managed_policy
 from unlimited_skills.registration import RegistrationState, base64_urlsafe_encode, with_install_identity
 from unlimited_skills.signatures import sign_manifest_for_tests
@@ -114,8 +114,52 @@ def test_managed_policy_sync_remove_uninstalls_policy(tmp_path: Path, monkeypatc
     removed = sync_managed_policy(home=home, state=registered_state())
 
     assert removed["managed_state"]["managed"] is False
+    assert removed["managed_state"]["remove_allowed"] is True
+    assert removed["managed_state"]["removal_refused"] is False
     assert load_policy(home)["installed"] is False
     assert managed_policy_status(home=home)["managed_state"]["action"] == "remove"
+
+
+def test_managed_policy_sync_remove_refuses_unmanaged_policy(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home = tmp_path / "home"
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home))
+    private_key = Ed25519PrivateKey.generate()
+    trust_test_key(monkeypatch, private_key)
+    install_policy_payload(policy_payload(policy_id="local_unmanaged_policy"), home=home, source="local-admin")
+    monkeypatch.setattr("unlimited_skills.policy_sync.post_json", lambda *args, **kwargs: signed_assignment("remove", private_key))
+
+    removed = sync_managed_policy(home=home, state=registered_state())
+
+    assert removed["changed"] is False
+    assert removed["managed_state"]["managed"] is False
+    assert removed["managed_state"]["remove_allowed"] is False
+    assert removed["managed_state"]["removal_refused"] is True
+    assert removed["managed_state"]["refusal_reason"] == "installed_policy_not_managed"
+    assert "not managed by registry sync" in removed["managed_state"]["message"]
+    assert load_policy(home)["policy_id"] == "local_unmanaged_policy"
+    audit_text = audit_log_path(home).read_text(encoding="utf-8")
+    assert "managed_policy_remove_refused" in audit_text
+    assert "installed_policy_not_managed" in audit_text
+    assert "tok_policy_sync" not in audit_text
+
+
+def test_managed_policy_sync_remove_dry_run_refuses_unmanaged_without_writing(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home = tmp_path / "home"
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home))
+    private_key = Ed25519PrivateKey.generate()
+    trust_test_key(monkeypatch, private_key)
+    install_policy_payload(policy_payload(policy_id="local_unmanaged_policy"), home=home, source="local-admin")
+    monkeypatch.setattr("unlimited_skills.policy_sync.post_json", lambda *args, **kwargs: signed_assignment("remove", private_key))
+
+    removed = sync_managed_policy(home=home, state=registered_state(), dry_run=True)
+
+    assert removed["dry_run"] is True
+    assert removed["changed"] is False
+    assert removed["managed_state"]["remove_allowed"] is False
+    assert removed["managed_state"]["removal_refused"] is True
+    assert load_policy(home)["policy_id"] == "local_unmanaged_policy"
+    assert not audit_log_path(home).exists()
+    assert not (home / "policy" / "managed-policy-state.json").exists()
 
 
 def test_managed_policy_sync_requires_registration(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
