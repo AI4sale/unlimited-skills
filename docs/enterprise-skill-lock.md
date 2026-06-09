@@ -21,7 +21,7 @@ unlimited-skills policy remove --yes
 
 Policies must be signed or hash-pinned. The MVP accepts either a valid `manifest_signature` / `signature_envelope` verified by local trust configuration, or a `policy_sha256` that matches the canonical policy payload excluding signature/hash fields.
 
-Managed policy sync is registration-gated. `policy sync` posts local registration metadata and the current policy summary to `/v1/policy/sync`, verifies the signed `enterprise-policy` assignment manifest, verifies the policy payload itself, and only then installs, updates, or removes the local policy. `policy sync --dry-run` performs the same verification without writing local policy state. `policy managed-status` reads only local sync state and does not contact the hosted registry.
+Managed policy sync is registration-gated. `policy sync` posts local registration metadata and the current policy summary to `/v1/policy/sync`, verifies the signed `enterprise-policy` assignment manifest, verifies the policy payload itself, and only then installs or updates the local policy. `action=remove` is guarded: the client removes only a policy that was previously installed by managed sync and whose `policy_id` plus `policy_sha256` still match local managed state. If a registry asks to remove an unmanaged local policy, the client refuses removal, leaves the policy installed, and writes a redacted audit event. `policy sync --dry-run` performs the same verification without writing local policy state. `policy managed-status` reads only local sync state and does not contact the hosted registry. See [Managed Enterprise Skill Lock Sync](managed-enterprise-policy-sync.md).
 
 ## Modes
 
@@ -95,6 +95,8 @@ Managed sync state is written to:
 ```
 
 Audit events are redacted. They must not include hosted tokens, auth headers, device private keys, prompts, or skill bodies.
+
+Managed sync removal refusals are written as `managed_policy_remove_refused` events when the installed policy is not owned by registry sync. These events intentionally omit hosted tokens, private keys, and local filesystem paths.
 
 ## Why This Exists
 

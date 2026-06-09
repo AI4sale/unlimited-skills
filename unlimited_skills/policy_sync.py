@@ -6,7 +6,16 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
-from .policy import PolicyError, install_policy_payload, load_policy, policy_dir, policy_summary, remove_policy, verify_policy_payload
+from .policy import (
+    PolicyError,
+    install_policy_payload,
+    load_policy,
+    policy_dir,
+    policy_summary,
+    remove_policy,
+    verify_policy_payload,
+    write_policy_audit,
+)
 from .registration import RegistrationError, RegistrationState, load_registration, post_json, unlimited_skills_home, write_private_json
 from .signatures import ManifestSignatureError, verify_manifest_signature
 
@@ -52,6 +61,54 @@ def managed_policy_status(*, home: Path | None = None) -> dict[str, Any]:
     state = load_managed_policy_state(home)
     installed = policy_summary(load_policy(home))
     return {"schema_version": 1, "managed_state": state, "installed_policy": installed}
+
+
+def managed_policy_remove_check(*, home: Path | None = None) -> dict[str, Any]:
+    state = load_managed_policy_state(home)
+    installed = policy_summary(load_policy(home))
+    installed_policy_id = str(installed.get("policy_id") or "")
+    installed_policy_sha256 = str(installed.get("policy_sha256") or "")
+    state_policy_id = str(state.get("policy_id") or "")
+    state_policy_sha256 = str(state.get("policy_sha256") or "")
+
+    if not installed.get("installed"):
+        return {
+            "schema_version": 1,
+            "allowed": True,
+            "reason": "no_installed_policy",
+            "installed_policy": installed,
+            "managed_state": state,
+        }
+    allowed = (
+        bool(state.get("managed"))
+        and state_policy_id
+        and state_policy_sha256
+        and state_policy_id == installed_policy_id
+        and state_policy_sha256 == installed_policy_sha256
+    )
+    return {
+        "schema_version": 1,
+        "allowed": allowed,
+        "reason": "managed_policy_match" if allowed else "installed_policy_not_managed",
+        "installed_policy": installed,
+        "managed_state": state,
+    }
+
+
+def _write_remove_refusal_audit(check: dict[str, Any], *, home: Path | None = None) -> None:
+    installed = check.get("installed_policy") if isinstance(check.get("installed_policy"), dict) else {}
+    state = check.get("managed_state") if isinstance(check.get("managed_state"), dict) else {}
+    write_policy_audit(
+        {
+            "event_type": "managed_policy_remove_refused",
+            "reason": check.get("reason") or "installed_policy_not_managed",
+            "redacted": True,
+            "installed_policy_id": installed.get("policy_id") or "",
+            "managed_policy_id": state.get("policy_id") or "",
+            "assignment_id": state.get("assignment_id") or "",
+        },
+        home=home,
+    )
 
 
 def ensure_registered(state: RegistrationState | None = None, *, home: Path | None = None) -> RegistrationState:
@@ -136,21 +193,48 @@ def sync_managed_policy(
         policy = assignment["policy"]
         if not isinstance(policy, dict):
             raise PolicySyncError("Policy assignment did not include policy payload.")
+        installed: dict[str, Any] = {}
         if not dry_run:
             installed = install_policy_payload(policy, home=home, source=f"managed-sync:{assignment['assignment_id']}")
             path = str(installed.get("path") or "")
             changed = True
+            installed_summary = policy_summary(load_policy(home))
+            policy_id = str(installed_summary.get("policy_id") or "")
+            policy_sha256 = str(installed_summary.get("policy_sha256") or "")
+        else:
+            policy_id = str((policy or {}).get("policy_id") or "")
+            policy_sha256 = str(assignment.get("policy_verification", {}).get("policy_sha256") or installed.get("policy_sha256") or "")
+        remove_check: dict[str, Any] | None = None
     elif action == "remove":
-        if not dry_run:
-            removed = remove_policy(yes=True, home=home)
-            path = str(removed.get("path") or "")
-            changed = bool(removed.get("removed"))
+        remove_check = managed_policy_remove_check(home=home)
+        policy_id = str(remove_check.get("installed_policy", {}).get("policy_id") or "")
+        policy_sha256 = str(remove_check.get("installed_policy", {}).get("policy_sha256") or "")
+        if remove_check["allowed"]:
+            if not dry_run:
+                removed = remove_policy(yes=True, home=home)
+                path = str(removed.get("path") or "")
+                changed = bool(removed.get("removed"))
+        else:
+            if not dry_run:
+                _write_remove_refusal_audit(remove_check, home=home)
+            changed = False
+            path = ""
     else:
         path = str(policy_dir(home) / "enterprise-skill-lock-policy.json")
+        policy_id = ""
+        policy_sha256 = ""
+        remove_check = None
+
+    if action in {"install", "update"}:
+        managed = True
+    elif action == "remove":
+        managed = False
+    else:
+        managed = bool(load_managed_policy_state(home).get("managed"))
 
     state_payload = {
         "schema_version": 1,
-        "managed": action in {"install", "update"},
+        "managed": managed,
         "last_sync_at": now_iso(),
         "server_url": resolved.server_url,
         "install_id": resolved.install_id,
@@ -159,10 +243,18 @@ def sync_managed_policy(
         "assigned_at": assignment["assigned_at"],
         "dry_run": dry_run,
         "changed": changed,
-        "policy_id": str((assignment.get("policy") or {}).get("policy_id") or ""),
+        "policy_id": policy_id,
+        "policy_sha256": policy_sha256,
+        "installed_by": "managed-sync" if managed else "",
         "signature_verification": assignment["signature_verification"],
         "path": path,
     }
+    if action == "remove":
+        state_payload["remove_allowed"] = bool(remove_check and remove_check.get("allowed"))
+        state_payload["removal_refused"] = not state_payload["remove_allowed"]
+        state_payload["refusal_reason"] = "" if state_payload["remove_allowed"] else str(remove_check.get("reason") or "installed_policy_not_managed")
+        if state_payload["removal_refused"]:
+            state_payload["message"] = "Registry requested managed policy removal, but the installed policy is not managed by registry sync."
     if not dry_run:
         save_managed_policy_state(state_payload, home=home)
     return {"schema_version": 1, "dry_run": dry_run, "changed": changed, "assignment": assignment, "managed_state": state_payload}
