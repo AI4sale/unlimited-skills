@@ -1,6 +1,16 @@
 # Changelog
 
-## v0.3.4-alpha (in development)
+## v0.3.5-alpha (in development)
+
+### Added
+
+- Community catalog integration gate for registry submission review, signed canary publication, public review-status client UX, and fixture-only cross-repo E2E.
+
+### Changed
+
+- Raised package version to `0.3.5`.
+
+## v0.3.4-alpha
 
 ### Added
 
