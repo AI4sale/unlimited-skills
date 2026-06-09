@@ -11,9 +11,11 @@ import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote
 
 from . import __version__
-from .registration import RegistrationState, post_json, unlimited_skills_home, write_private_json
+from .registration import RegistrationError, RegistrationState, post_json, unlimited_skills_home, write_private_json
+from .signatures import ManifestSignatureError, verify_manifest_signature
 from .updates import (
     CollectionUpdate,
     RegistrationRequired,
@@ -228,6 +230,97 @@ def parse_catalog_items(data: dict[str, Any]) -> list[CommunityCatalogItem]:
     if not isinstance(raw, list):
         raise CommunityError("Community service returned an invalid catalog item list.")
     return [_item_from_json(item) for item in raw if isinstance(item, dict)]
+
+
+def _is_missing_endpoint_error(exc: Exception) -> bool:
+    text = str(exc)
+    return "HTTP 404" in text or "Not Found" in text
+
+
+def _pack_archive_url(pack: dict[str, Any], server_url: str) -> str:
+    archive = pack.get("archive") if isinstance(pack.get("archive"), dict) else {}
+    existing = str(pack.get("archive_url") or pack.get("download_url") or archive.get("url") or archive.get("download_url") or "")
+    if existing:
+        return existing
+    collection = str(pack.get("collection") or "")
+    version = str(pack.get("version") or "")
+    filename = str(archive.get("filename") or "")
+    if not collection or not version or not filename:
+        return ""
+    return f"{server_url.rstrip('/')}/v1/catalog/packs/{quote(collection, safe='')}/{quote(version, safe='')}/{quote(filename, safe='')}"
+
+
+def _pack_item(pack: dict[str, Any]) -> CommunityCatalogItem:
+    collection = str(pack.get("collection") or "")
+    pack_id = str(pack.get("pack_id") or collection)
+    return _item_from_json(
+        {
+            "item_id": pack_id,
+            "kind": "skill-pack",
+            "name": collection or pack_id,
+            "display_name": collection or pack_id,
+            "description": str(pack.get("notes") or ""),
+            "version": str(pack.get("version") or ""),
+            "publisher": str(pack.get("source") or pack.get("source_repo") or "Unlimited Skills Registry"),
+            "visibility": "registered-community",
+            "compatible_agents": ["codex", "claude-code", "hermes", "openclaw", "vellum-ai"],
+            "tags": ["registered-catalog", str(pack.get("channel") or "community")],
+            "skill_count": int(pack.get("skill_count") or 0),
+            "updated_at": str(pack.get("generated_at") or ""),
+            "min_client_version": str(pack.get("min_core_version") or ""),
+            "license_label": str(pack.get("license") or "registered-community-terms"),
+            "install_target": collection or pack_id,
+            "trust": {"requires_registration": bool(pack.get("requires_registration", True)), "signed_catalog": True},
+            "stats": {},
+        }
+    )
+
+
+def _catalog_packs(data: dict[str, Any]) -> list[dict[str, Any]]:
+    packs = data.get("packs") or []
+    return [item for item in packs if isinstance(item, dict)] if isinstance(packs, list) else []
+
+
+def _catalog_items_from_packs(data: dict[str, Any], *, query: str = "", tags: tuple[str, ...] = (), limit: int = 50) -> list[CommunityCatalogItem]:
+    query_lower = query.strip().lower()
+    wanted_tags = {tag.lower() for tag in tags}
+    items: list[CommunityCatalogItem] = []
+    for pack in _catalog_packs(data):
+        item = _pack_item(pack)
+        haystack = " ".join([item.item_id, item.name, item.display_name, item.description, item.publisher]).lower()
+        item_tags = {tag.lower() for tag in item.tags}
+        if query_lower and query_lower not in haystack:
+            continue
+        if wanted_tags and not wanted_tags.issubset(item_tags):
+            continue
+        items.append(item)
+        if len(items) >= max(1, min(limit, 500)):
+            break
+    return items
+
+
+def _find_catalog_pack(data: dict[str, Any], item_id: str) -> dict[str, Any]:
+    wanted = str(item_id or "")
+    for pack in _catalog_packs(data):
+        if wanted in {str(pack.get("pack_id") or ""), str(pack.get("collection") or ""), str(pack.get("name") or "")}:
+            return pack
+    raise CommunityError(f"Community pack not found in signed catalog: {item_id}")
+
+
+def _install_plan_from_catalog_pack(item_id: str, pack: dict[str, Any], server_url: str, *, collection_override: str = "", dry_run: bool = False) -> CommunityInstallPlan:
+    archive = pack.get("archive") if isinstance(pack.get("archive"), dict) else {}
+    collection = collection_override or str(pack.get("collection") or pack.get("pack_id") or "community")
+    validate_collection_name(collection)
+    return CommunityInstallPlan(
+        item_id=item_id,
+        collection=collection,
+        version=str(pack.get("version") or ""),
+        archive_url=_pack_archive_url(pack, server_url),
+        sha256=str(archive.get("sha256") or pack.get("sha256") or ""),
+        skill_count=int(pack.get("skill_count") or 0),
+        warnings=(),
+        dry_run=dry_run,
+    )
 
 
 def parse_preview(data: dict[str, Any]) -> CommunitySkillPreview:
@@ -468,20 +561,46 @@ class CommunityClient:
             timeout=self.timeout,
         )
 
-    def list_community_items(self, root: Path, *, limit: int = 50, compatible_agent: str = "", tags: tuple[str, ...] = ()) -> list[CommunityCatalogItem]:
+    def _signed_catalog(self, root: Path | None = None) -> dict[str, Any]:
         response = self._post(
-            "/v1/community/list",
+            "/v1/catalog",
             {
                 "schema_version": 1,
                 "install_id": self.state.install_id,
                 "client": self._client_payload(),
-                "compatible_agent": compatible_agent,
-                "tags": list(tags),
-                "limit": limit,
-                "collections": current_collection_state(root),
+                "collections": current_collection_state(root) if root is not None else {},
             },
         )
-        return parse_catalog_items(response)
+        try:
+            verify_manifest_signature(
+                response,
+                purpose="Community catalog fallback",
+                required=True,
+                scope="catalog-updates",
+                registry_url=self.state.server_url,
+            )
+        except ManifestSignatureError as exc:
+            raise CommunityError(str(exc)) from exc
+        return response
+
+    def list_community_items(self, root: Path, *, limit: int = 50, compatible_agent: str = "", tags: tuple[str, ...] = ()) -> list[CommunityCatalogItem]:
+        payload = {
+            "schema_version": 1,
+            "install_id": self.state.install_id,
+            "client": self._client_payload(),
+            "compatible_agent": compatible_agent,
+            "tags": list(tags),
+            "limit": limit,
+            "collections": current_collection_state(root),
+        }
+        try:
+            response = self._post("/v1/community/list", payload)
+            return parse_catalog_items(response)
+        except RegistrationError as exc:
+            if not _is_missing_endpoint_error(exc):
+                raise
+            catalog = self._signed_catalog(root)
+            return _catalog_items_from_packs(catalog, tags=tags, limit=limit)
 
     def search_community_items(
         self,
@@ -492,27 +611,55 @@ class CommunityClient:
         compatible_agent: str = "",
         limit: int = 20,
     ) -> list[CommunityCatalogItem]:
-        response = self._post(
-            "/v1/community/search",
-            {
-                "schema_version": 1,
-                "install_id": self.state.install_id,
-                "client": self._client_payload(),
-                "query": query,
-                "tags": list(tags),
-                "compatible_agent": compatible_agent,
-                "limit": limit,
-                "collections": current_collection_state(root),
-            },
-        )
-        return parse_catalog_items(response)
+        payload = {
+            "schema_version": 1,
+            "install_id": self.state.install_id,
+            "client": self._client_payload(),
+            "query": query,
+            "tags": list(tags),
+            "compatible_agent": compatible_agent,
+            "limit": limit,
+            "collections": current_collection_state(root),
+        }
+        try:
+            response = self._post("/v1/community/search", payload)
+            return parse_catalog_items(response)
+        except RegistrationError as exc:
+            if not _is_missing_endpoint_error(exc):
+                raise
+            catalog = self._signed_catalog(root)
+            return _catalog_items_from_packs(catalog, query=query, tags=tags, limit=limit)
 
     def preview_community_item(self, item_id: str) -> CommunitySkillPreview:
-        response = self._post(
-            "/v1/community/preview",
-            {"schema_version": 1, "install_id": self.state.install_id, "client": self._client_payload(), "item_id": item_id},
-        )
-        return parse_preview(response)
+        payload = {"schema_version": 1, "install_id": self.state.install_id, "client": self._client_payload(), "item_id": item_id}
+        try:
+            response = self._post("/v1/community/preview", payload)
+            return parse_preview(response)
+        except RegistrationError as exc:
+            if not _is_missing_endpoint_error(exc):
+                raise
+            catalog = self._signed_catalog()
+            pack = _find_catalog_pack(catalog, item_id)
+            plan = _install_plan_from_catalog_pack(item_id, pack, self.state.server_url, dry_run=True)
+            archive = pack.get("archive") if isinstance(pack.get("archive"), dict) else {}
+            return CommunitySkillPreview(
+                item=_pack_item(pack),
+                manifest_summary={
+                    "pack_id": pack.get("pack_id"),
+                    "collection": pack.get("collection"),
+                    "version": pack.get("version"),
+                    "format": pack.get("format"),
+                    "archive_filename": archive.get("filename"),
+                    "archive_bytes": archive.get("bytes"),
+                    "signed_catalog": True,
+                },
+                included_skill_names=(),
+                description=str(pack.get("notes") or ""),
+                release_notes=str(pack.get("notes") or ""),
+                required_capabilities=(),
+                install_plan=asdict(plan),
+                warnings=(),
+            )
 
     def install_community_item(
         self,
@@ -526,20 +673,26 @@ class CommunityClient:
         from .policy_enforcement import enforce_community_install
 
         enforce_community_install()
-        response = self._post(
-            "/v1/community/install",
-            {
-                "schema_version": 1,
-                "install_id": self.state.install_id,
-                "client": self._client_payload(),
-                "item_id": item_id,
-                "target_collection": target_collection,
-                "dry_run": dry_run,
-                "force": force,
-                "collections": current_collection_state(root),
-            },
-        )
-        plan = _install_plan_from_response(item_id, response, target_collection)
+        payload = {
+            "schema_version": 1,
+            "install_id": self.state.install_id,
+            "client": self._client_payload(),
+            "item_id": item_id,
+            "target_collection": target_collection,
+            "dry_run": dry_run,
+            "force": force,
+            "collections": current_collection_state(root),
+        }
+        try:
+            response = self._post("/v1/community/install", payload)
+            plan = _install_plan_from_response(item_id, response, target_collection)
+        except RegistrationError as exc:
+            if not _is_missing_endpoint_error(exc):
+                raise
+            catalog = self._signed_catalog(root)
+            pack = _find_catalog_pack(catalog, item_id)
+            plan = _install_plan_from_catalog_pack(item_id, pack, self.state.server_url, collection_override=target_collection, dry_run=dry_run)
+            response = {"name": str(pack.get("collection") or pack.get("pack_id") or item_id)}
         if dry_run:
             return CommunityInstallPlan(**{**asdict(plan), "dry_run": True})
         if not plan.archive_url or not plan.sha256:

@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import io
 import json
+import urllib.error
 import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
 from unlimited_skills.cli import main
 from unlimited_skills.community import (
@@ -15,7 +18,8 @@ from unlimited_skills.community import (
     build_submission_draft,
     list_installed_community_items,
 )
-from unlimited_skills.registration import RegistrationState, save_registration, with_install_identity
+from unlimited_skills.registration import RegistrationState, base64_urlsafe_encode, save_registration, with_install_identity
+from unlimited_skills.signatures import sign_manifest_for_tests
 from unlimited_skills.updates import UpdateError, sha256_file
 
 
@@ -253,3 +257,51 @@ def test_community_install_checksum_mismatch_fails_before_extract(tmp_path: Path
 
     assert not (root / "registry" / "community" / "skills" / "browser-qa" / "SKILL.md").exists()
     assert not (root / ".unlimited-skills-community.json").exists()
+
+
+def test_community_install_falls_back_to_signed_catalog_when_endpoint_missing(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "library"
+    archive = make_archive(tmp_path, collection="community")
+    digest = sha256_file(archive)
+    private_key = Ed25519PrivateKey.generate()
+    public_key = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+    monkeypatch.setenv("UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS", f"community-test-key:{base64_urlsafe_encode(public_key)}")
+    catalog = sign_manifest_for_tests(
+        {
+            "schema_version": 1,
+            "manifest_type": "catalog-updates",
+            "packs": [
+                {
+                    "pack_id": "comm_browser_qa",
+                    "collection": "community",
+                    "version": "2026.06.08",
+                    "channel": "community",
+                    "license": "registered-community-terms",
+                    "min_core_version": "0.1.0",
+                    "format": "skill-collection-zip-v1",
+                    "requires_registration": True,
+                    "archive": {"filename": "community.zip", "sha256": digest, "bytes": archive.stat().st_size},
+                    "notes": "Browser QA pack",
+                    "skill_count": 1,
+                }
+            ],
+        },
+        private_key,
+        key_id="community-test-key",
+    )
+
+    def fake_urlopen(request, timeout=30.0):
+        url = request.full_url if hasattr(request, "full_url") else str(request)
+        if url.endswith("/v1/community/install"):
+            raise urllib.error.HTTPError(url, 404, "Not Found", hdrs=None, fp=io.BytesIO(b'{"detail":"Not Found"}'))
+        if url.endswith("/v1/catalog"):
+            return FakeResponse(json.dumps(catalog).encode("utf-8"))
+        if url.endswith("/v1/catalog/packs/community/2026.06.08/community.zip"):
+            return FakeResponse(archive.read_bytes())
+        raise AssertionError(f"Unexpected URL: {url}")
+
+    with patch("urllib.request.urlopen", fake_urlopen):
+        result = CommunityClient(registered_state()).install_community_item(root, item_id="comm_browser_qa")
+
+    assert result.installed is True
+    assert (root / "registry" / "community" / "skills" / "browser-qa" / "SKILL.md").is_file()

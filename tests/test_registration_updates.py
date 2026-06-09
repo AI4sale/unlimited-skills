@@ -217,6 +217,34 @@ class RegistrationUpdatesTest(unittest.TestCase):
 
             self.assertEqual(updates[0].collection, "ecc")
 
+    def test_signed_catalog_pack_without_archive_url_uses_canonical_download_url(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp) / "library"
+            manifest, env = signed_manifest_env(
+                {
+                    "schema_version": 1,
+                    "manifest_type": "catalog-updates",
+                    "packs": [
+                        {
+                            "pack_id": "ecc-skill-pack",
+                            "collection": "ecc",
+                            "version": "2026.06.06",
+                            "archive": {"filename": "ecc-skill-pack.zip", "sha256": "a" * 64},
+                            "format": "skill-collection-zip-v1",
+                        }
+                    ],
+                }
+            )
+
+            def fake_urlopen(request, timeout=30.0):
+                self.assertTrue(request.full_url.endswith("/v1/collections/updates"))
+                return FakeResponse(json.dumps(manifest).encode("utf-8"))
+
+            with patch.dict(os.environ, env, clear=False), patch("urllib.request.urlopen", fake_urlopen):
+                updates = UpdateClient(registered_state()).check(root)
+
+            self.assertEqual(updates[0].archive_url, "https://updates.example.test/v1/catalog/packs/ecc/2026.06.06/ecc-skill-pack.zip")
+
     def test_tampered_signed_hosted_update_manifest_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp) / "library"
