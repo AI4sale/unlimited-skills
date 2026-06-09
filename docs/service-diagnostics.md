@@ -1,0 +1,61 @@
+# Service Diagnostics
+
+Service diagnostics are an onboarding and support surface for registered hosted services. They are intentionally narrower than catalog/update commands.
+
+## Commands
+
+```bash
+unlimited-skills service configure --url <url>
+unlimited-skills service status
+unlimited-skills service status --refresh
+unlimited-skills service doctor
+unlimited-skills service verify-trust
+unlimited-skills service test-registration --dry-run
+unlimited-skills service test-proof
+```
+
+## Network behavior
+
+`service status` is local-only unless `--refresh` is passed.
+
+`service doctor` may contact only:
+
+- `GET <service-url>/health`
+- `GET <service-url>/ready`
+- `GET <service-url>/v1/public-keys`
+
+`service verify-trust` may contact only:
+
+- `GET <service-url>/v1/public-keys`
+
+`service test-registration --dry-run` and `service test-proof` do not contact the service.
+
+Tests must use fixture/local mode by default and must not call production hosted services.
+
+## Privacy boundary
+
+Diagnostics must not upload:
+
+- skill bodies;
+- skill names;
+- prompts;
+- search queries;
+- local paths;
+- repository paths;
+- environment variable values;
+- tokens;
+- private keys.
+
+Diagnostic output uses presence markers for credentials and device key material. Errors are passed through the shared redactor before printing.
+
+## Trust checks
+
+Trust verification compares remote `/v1/public-keys` records against bundled, local, and environment trust records. A service is compatible when at least one remote key is locally trusted for the required signed-manifest scopes:
+
+- `hub-allowlist`
+- `catalog-updates`
+- `enhancement-manifest`
+- `team-sync-manifest`
+- `release-channels`
+
+The command does not import or mutate trust. Operators must use explicit `trust import`/`trust revoke` commands for local trust-store changes.

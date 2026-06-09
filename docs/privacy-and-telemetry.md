@@ -60,6 +60,22 @@ Team operations must not send:
 
 Team sync fetches approved hosted/team collection manifests. It does not upload local skills by default. Local team audit logs are redacted and must not include tokens, auth headers, device private keys, or sensitive download URLs.
 
+## Service diagnostics
+
+Service onboarding diagnostics are privacy-safe support commands:
+
+```bash
+unlimited-skills service status
+unlimited-skills service doctor
+unlimited-skills service verify-trust
+unlimited-skills service test-registration --dry-run
+unlimited-skills service test-proof
+```
+
+`service status` is local-only unless `--refresh` is passed. `service doctor` contacts only `GET /health`, optional `GET /ready`, and `GET /v1/public-keys`, and prints the exact endpoint list. `service verify-trust` contacts only `GET /v1/public-keys`. `service test-registration --dry-run` and `service test-proof` send nothing.
+
+Service diagnostics must not upload skill bodies, skill names, prompts, search queries, local paths, repository paths, environment variable values, tokens, or private keys. Diagnostic output uses presence markers for hosted credentials and device keys.
+
 ## Telemetry
 
 Telemetry is off by default.

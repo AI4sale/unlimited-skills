@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AI4sale/unlimited-skills/schemas/service-status.schema.json",
+  "title": "Unlimited Skills service status",
+  "type": "object",
+  "required": ["schema_version", "client", "service_url", "registration", "trust", "network"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "client": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string", "const": "unlimited-skills" },
+        "version": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "service_url": { "type": "string" },
+    "service_config": { "type": "string", "enum": ["present", "missing"] },
+    "registration": {
+      "type": "object",
+      "required": ["registered", "install_id", "hosted_credential", "device_key", "device_public_identity", "proof_required"],
+      "properties": {
+        "registered": { "type": "boolean" },
+        "install_id": { "type": "string" },
+        "plan": { "type": "string" },
+        "telemetry": { "type": "string", "enum": ["on", "off", ""] },
+        "hosted_credential": { "type": "string", "enum": ["present", "missing"] },
+        "device_key": { "type": "string", "enum": ["present", "missing"] },
+        "device_public_identity": { "type": "string", "enum": ["present", "missing"] },
+        "key_thumbprint": { "type": "string" },
+        "proof_required": { "type": "boolean" },
+        "features_enabled": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "trust": {
+      "type": "object",
+      "required": ["trusted_key_count", "compatible_key_count", "compatible_key_ids", "required_scopes", "registry_origin"],
+      "properties": {
+        "trusted_key_count": { "type": "integer", "minimum": 0 },
+        "compatible_key_count": { "type": "integer", "minimum": 0 },
+        "compatible_key_ids": { "type": "array", "items": { "type": "string" } },
+        "required_scopes": { "type": "array", "items": { "type": "string" } },
+        "registry_origin": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "network": {
+      "type": "object",
+      "required": ["performed", "endpoints_contacted"],
+      "properties": {
+        "performed": { "type": "boolean" },
+        "endpoints_contacted": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

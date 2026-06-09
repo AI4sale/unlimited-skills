@@ -72,6 +72,7 @@ Working now:
 - registered Team Free create/join/members/pending/approve/reject/revoke/collections/sync/leave client;
 - native skill sync for Codex, Claude Code, Hermes, and OpenClaw roots;
 - public repo self-update checks and applies latest releases/tags;
+- production service onboarding diagnostics for configured service URL, health, trust, redacted registration dry run, and local proof generation;
 - allowlist-backed Local Skill Hub runtime MVP for local/controlled LAN testing when `server` extras are installed;
 - Local Skill Hub allowlist bootstrap/sync with validated cached allowlist metadata;
 - required signed hosted manifest verification for hub allowlists, collection updates, enhancement manifests, and team sync manifests;
@@ -204,6 +205,19 @@ Check hosted access:
 ```bash
 unlimited-skills license status
 ```
+
+Configure and diagnose the registered service endpoint:
+
+```bash
+unlimited-skills service configure --url https://unlimited.ai4.sale
+unlimited-skills service status
+unlimited-skills service doctor
+unlimited-skills service verify-trust
+unlimited-skills service test-registration --dry-run --agent codex
+unlimited-skills service test-proof
+```
+
+`service status` is local-only unless `--refresh` is passed. `service doctor` contacts only `/health`, optional `/ready`, and `/v1/public-keys`, and prints the exact endpoint list. Service diagnostics do not upload skill bodies, skill names, prompts, search queries, local paths, repository paths, environment values, tokens, or private keys. See [docs/production-registry-onboarding.md](docs/production-registry-onboarding.md) and [docs/service-diagnostics.md](docs/service-diagnostics.md).
 
 Check and apply hosted adapted collection updates:
 

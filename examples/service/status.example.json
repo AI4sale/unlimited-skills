@@ -1,0 +1,43 @@
+{
+  "schema_version": 1,
+  "client": {
+    "name": "unlimited-skills",
+    "version": "0.2.2"
+  },
+  "service_url": "https://unlimited.ai4.sale",
+  "service_config": "present",
+  "registration": {
+    "registered": true,
+    "install_id": "uls_inst_example",
+    "plan": "registered-community",
+    "telemetry": "off",
+    "hosted_credential": "present",
+    "device_key": "present",
+    "device_public_identity": "present",
+    "key_thumbprint": "0123456789abcdef",
+    "proof_required": true,
+    "features_enabled": [
+      "hosted_catalog",
+      "collection_updates"
+    ]
+  },
+  "trust": {
+    "trusted_key_count": 1,
+    "compatible_key_count": 1,
+    "compatible_key_ids": [
+      "registry-alpha-2026-06"
+    ],
+    "required_scopes": [
+      "hub-allowlist",
+      "catalog-updates",
+      "enhancement-manifest",
+      "team-sync-manifest",
+      "release-channels"
+    ],
+    "registry_origin": "https://unlimited.ai4.sale"
+  },
+  "network": {
+    "performed": false,
+    "endpoints_contacted": []
+  }
+}

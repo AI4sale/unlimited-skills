@@ -20,6 +20,12 @@ The public MIT core must remain local-first. Registration gates hosted services 
 - `sync-native`
 - `self-update check`
 - `self-update apply`
+- `service configure`
+- `service status`
+- `service doctor`
+- `service verify-trust`
+- `service test-registration --dry-run`
+- `service test-proof`
 - agent installers
 - migration scripts
 - local daemon and local learning logs
@@ -63,6 +69,8 @@ The public MIT core must remain local-first. Registration gates hosted services 
 Remote-first installer flags for Codex, Claude Code, Hermes, and OpenClaw write local remote hub config and router instructions only. They do not register the client, do not gate local MIT commands, and do not store raw hub tokens in visible router files. Prefer `--hub-token-env ULS_HUB_TOKEN`; `--hub-token` stores the raw token only in private `remote.json`.
 
 `license status` reads local registration state only. It must work without registration and show unregistered status.
+
+`service configure`, `service status`, `service doctor`, `service verify-trust`, `service test-registration --dry-run`, and `service test-proof` are onboarding/support commands. They do not unlock hosted catalog features and do not gate local MIT commands. `service status` is local-only unless `--refresh` is passed. `service doctor` and `service verify-trust` may contact only health/ready/public-key endpoints and must not upload local skill bodies, skill names, prompts, paths, queries, tokens, or private keys.
 
 No registration, no official hosted skill updates. Local skills remain usable.
 

@@ -59,6 +59,14 @@ from .registration import (
     save_registration,
     set_telemetry,
 )
+from .service_diagnostics import (
+    configure_service,
+    doctor as service_doctor,
+    local_status as service_status,
+    registration_dry_run,
+    test_proof as service_test_proof,
+    verify_trust as service_verify_trust,
+)
 from .native import DEFAULT_AGENT_ORDER, sync_native_sources
 from .self_update import DEFAULT_PUBLIC_REPO, apply_public_repo_update, check_public_repo_update
 from .team import (
@@ -1009,6 +1017,44 @@ def cmd_telemetry(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_service_configure(args: argparse.Namespace) -> int:
+    payload = configure_service(args.url, allow_insecure_localhost=args.allow_insecure_localhost)
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_service_status(args: argparse.Namespace) -> int:
+    payload = service_status(refresh=args.refresh, timeout=args.timeout)
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_service_doctor(args: argparse.Namespace) -> int:
+    payload = service_doctor(service_url=args.url or None, timeout=args.timeout)
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_service_verify_trust(args: argparse.Namespace) -> int:
+    payload = service_verify_trust(service_url=args.url or None, timeout=args.timeout)
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_service_test_registration(args: argparse.Namespace) -> int:
+    if not args.dry_run:
+        raise RuntimeError("service test-registration currently supports only --dry-run.")
+    payload = registration_dry_run(service_url=args.url or None, agent=args.agent, telemetry="on" if args.telemetry else "off")
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_service_test_proof(args: argparse.Namespace) -> int:
+    payload = service_test_proof(service_url=args.url or None)
+    print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
 def cmd_updates_check(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     client = UpdateClient(load_registration(), timeout=args.timeout, channel=args.channel)
@@ -1792,6 +1838,34 @@ def build_parser() -> argparse.ArgumentParser:
     for name in ("status", "on", "off"):
         telemetry_item = telemetry_sub.add_parser(name)
         telemetry_item.set_defaults(func=cmd_telemetry)
+
+    service = sub.add_parser("service", help="Configure and diagnose the registered Unlimited Skills service.")
+    service_sub = service.add_subparsers(dest="service_command", required=True)
+    service_configure = service_sub.add_parser("configure", help="Store the hosted service URL for onboarding diagnostics.")
+    service_configure.add_argument("--url", required=True, help="Service base URL, for example https://unlimited.ai4.sale.")
+    service_configure.add_argument("--allow-insecure-localhost", action="store_true", help="Allow http://localhost URLs for local fixture diagnostics only.")
+    service_configure.set_defaults(func=cmd_service_configure)
+    service_status_parser = service_sub.add_parser("status", help="Show local service configuration and registration state.")
+    service_status_parser.add_argument("--refresh", action="store_true", help="Contact health/public-key endpoints; local-only without this flag.")
+    service_status_parser.add_argument("--timeout", type=float, default=10.0)
+    service_status_parser.set_defaults(func=cmd_service_status)
+    service_doctor_parser = service_sub.add_parser("doctor", help="Run privacy-safe service health and trust diagnostics.")
+    service_doctor_parser.add_argument("--url", default="", help="Temporarily diagnose this service URL without changing config.")
+    service_doctor_parser.add_argument("--timeout", type=float, default=10.0)
+    service_doctor_parser.set_defaults(func=cmd_service_doctor)
+    service_verify = service_sub.add_parser("verify-trust", help="Fetch public keys and compare them with local trust records.")
+    service_verify.add_argument("--url", default="", help="Temporarily verify this service URL without changing config.")
+    service_verify.add_argument("--timeout", type=float, default=10.0)
+    service_verify.set_defaults(func=cmd_service_verify_trust)
+    service_registration = service_sub.add_parser("test-registration", help="Build a redacted registration request without sending it.")
+    service_registration.add_argument("--dry-run", action="store_true", required=True, help="Required: print the redacted payload and send nothing.")
+    service_registration.add_argument("--url", default="", help="Temporarily use this service URL without changing config.")
+    service_registration.add_argument("--agent", default="", help="Optional agent surface label.")
+    service_registration.add_argument("--telemetry", action="store_true", help="Preview telemetry opt-in flag in the dry-run payload.")
+    service_registration.set_defaults(func=cmd_service_test_registration)
+    service_proof = service_sub.add_parser("test-proof", help="Generate a local redacted device-proof header using registration state.")
+    service_proof.add_argument("--url", default="", help="Temporarily use this service URL without changing config.")
+    service_proof.set_defaults(func=cmd_service_test_proof)
 
     updates = sub.add_parser("updates", help="Check or apply hosted adapted collection updates.")
     updates_sub = updates.add_subparsers(dest="updates_command", required=True)
