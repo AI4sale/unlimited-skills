@@ -1,0 +1,127 @@
+{
+  "schema_version": 1,
+  "release": "v0.3.1-alpha",
+  "package_name": "unlimited-skills",
+  "package_version": "0.3.1",
+  "published_baseline": {
+    "release": "v0.3.0-alpha",
+    "url": "https://github.com/AI4sale/unlimited-skills/releases/tag/v0.3.0-alpha"
+  },
+  "git": {
+    "repository": "https://github.com/AI4sale/unlimited-skills",
+    "sha": "92d21edce548e3f2f97ddf71ac3b4dea0ad9f815",
+    "sha_kind": "release_candidate_stack_head",
+    "tag": "v0.3.1-alpha",
+    "tag_status": "pending_release_owner_approval",
+    "publication_branch": "release/v0.3.1-alpha-publication",
+    "tag_owner_note": "Run scripts/verify-v0.3.1-alpha-publication.py --expected-sha <tag-target-sha> immediately before pushing the tag. Refresh git.sha if the merge strategy changes the tag target."
+  },
+  "required_prs": {
+    "public": [
+      {"number": 34, "repository": "AI4sale/unlimited-skills", "title": "v0.3.1-alpha post-release stabilization gate"},
+      {"number": 35, "repository": "AI4sale/unlimited-skills", "title": "guided first-run onboarding wizard"},
+      {"number": 36, "repository": "AI4sale/unlimited-skills", "title": "redacted support diagnostic bundle"}
+    ],
+    "private_registry": [
+      {"number": 9, "repository": "AI4sale/unlimited-skills-registry", "title": "registry catalog quality and allowlist health reports", "status": "in_review"},
+      {"number": 10, "repository": "AI4sale/unlimited-skills-registry", "title": "hub distribution allowlist reconciliation with canonical 315-skill audit", "status": "in_review"}
+    ]
+  },
+  "private_registry_reconciliation": {
+    "status": "in_review",
+    "canonical_audit_total": 315,
+    "allowlist_total": 105,
+    "requires_local_install_plan_total": 165,
+    "excluded_total": 45,
+    "blocked_total": 26,
+    "local_only_total": 13,
+    "needs_human_review_total": 6,
+    "source_audit_sha256": "6dcb8f04251fed917ebf3b683fe48966095808c0f868daffeddcf6b5bd7b5311",
+    "note": "Publication remains in review until private registry reconciliation PR #10 is accepted."
+  },
+  "distribution": {
+    "official_alpha_path": "GitHub clone",
+    "pypi_supported": false,
+    "pypi_deferral": "PyPI is not the supported v0.3.1-alpha distribution path because router skills, installers, schemas, docs, bundled packs, and support diagnostics must be present beside the checkout."
+  },
+  "registration_boundary": {
+    "local_mit_core_unregistered": true,
+    "serve_unregistered": true,
+    "setup_wizard_local_only_unregistered": true,
+    "support_bundle_unregistered": true,
+    "hub_serve_registration_gated": true,
+    "hosted_catalog_registration_gated": true,
+    "managed_policy_sync_registration_gated": true,
+    "enterprise_policy_mandatory_for_community": false
+  },
+  "security_boundary": {
+    "full_catalog_distribution": false,
+    "local_skill_hub_distribution_mode": "allowlist_only",
+    "hub_executes_skills": false,
+    "hosted_query_forwarding": false,
+    "hosted_remote_manifests_require_valid_signatures": true,
+    "manifest_signature_algorithm": "ed25519",
+    "manifest_scopes": [
+      "hub-allowlist",
+      "catalog-updates",
+      "enhancement-manifest",
+      "team-sync-manifest",
+      "release-channels",
+      "enterprise-policy"
+    ],
+    "archive_bytes_verified_by_sha256": true,
+    "archive_bytes_cryptographically_signed": false,
+    "zip_safe_extraction_required": true,
+    "support_bundle_redacts_private_material": true,
+    "private_registry_skill_bodies_committed": false,
+    "private_signing_keys_committed": false,
+    "raw_tokens_committed": false,
+    "production_hosted_calls_in_tests": false
+  },
+  "feature_scope": [
+    "v0.3.1 stabilization docs and smoke evidence",
+    "first-run setup wizard",
+    "redacted support diagnostic bundle",
+    "private registry catalog quality report dependency",
+    "private registry hub allowlist reconciliation dependency",
+    "GitHub clone distribution path",
+    "PyPI deferral"
+  ],
+  "known_limitations": [
+    "Developer preview, not a production SLA.",
+    "PyPI is not the supported v0.3.1-alpha distribution path.",
+    "Full catalog distribution remains disabled.",
+    "Local Skill Hub remains allowlist-only.",
+    "Archive bytes are SHA256-verified and safely extracted, not archive-byte signed.",
+    "Private registry reconciliation remains in review until PR #10 is accepted.",
+    "Enterprise Skill Lock is an opt-in local policy MVP; managed sync is implemented but business dashboard, SSO, SCIM, billing, and broad organization controls are not implemented."
+  ],
+  "required_test_commands": [
+    "python -m pytest tests -q",
+    "python scripts/run-v0.2x-smoke-tests.py",
+    "python scripts/run-v0.3.0-alpha-release-smoke.py",
+    "python scripts/run-v0.3.0-alpha-packaging-smoke.py",
+    "python scripts/run-v0.3.1-alpha-post-release-smoke.py",
+    "python scripts/verify-v0.3.0-alpha-publication.py",
+    "python scripts/verify-v0.3.1-alpha-stabilization.py",
+    "python scripts/verify-v0.3.1-alpha-publication.py",
+    "python -m compileall -q unlimited_skills scripts tests",
+    "git diff --check"
+  ],
+  "private_registry_required_test_commands": [
+    "python -m pytest tests -q",
+    "python scripts/validate-hub-distribution-allowlist.py registry/hub-distribution/hub-allowlist.v1.json --audit-summary audit-reports/public/central-hub-skill-distribution-readiness.summary.json",
+    "python scripts/validate-signed-registry-manifests.py",
+    "python scripts/validate-registry-channels.py",
+    "python -m compileall -q unlimited_registry scripts tests",
+    "git diff --check"
+  ],
+  "release_owner_actions": [
+    "Review and merge public PR #34, #35, and #36 in dependency order.",
+    "Review private registry PR #9 and PR #10 before final release acceptance.",
+    "Run scripts/verify-v0.3.1-alpha-publication.py --expected-sha <tag-target-sha>.",
+    "Refresh git.sha if the merge strategy changes the final tag target.",
+    "Create tag v0.3.1-alpha only after human release-owner approval.",
+    "Create a GitHub prerelease with docs/releases/v0.3.1-alpha.md as release notes."
+  ]
+}
