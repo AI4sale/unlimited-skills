@@ -4,7 +4,6 @@ import argparse
 import json
 import re
 import subprocess
-import sys
 import tomllib
 from pathlib import Path
 from typing import Any
@@ -18,6 +17,7 @@ RELEASE_DOCS = [
     ROOT / "docs" / "releases" / "v0.3.3-alpha.md",
     ROOT / "docs" / "releases" / "v0.3.3-alpha-checklist.md",
     ROOT / "docs" / "releases" / "v0.3.3-alpha-upgrade-notes.md",
+    ROOT / "docs" / "releases" / "v0.3.3-alpha-known-issues.md",
     MANIFEST,
 ]
 PUBLIC_DOCS = RELEASE_DOCS + [
@@ -45,7 +45,7 @@ def read(path: Path) -> str:
 
 
 def fail(message: str) -> None:
-    raise SystemExit(f"{RELEASE} verification failed: {message}")
+    raise SystemExit(f"{RELEASE} publication verification failed: {message}")
 
 
 def require(condition: bool, message: str) -> None:
@@ -54,13 +54,11 @@ def require(condition: bool, message: str) -> None:
 
 
 def package_version() -> str:
-    data = tomllib.loads(read(ROOT / "pyproject.toml"))
-    return str(data["project"]["version"])
+    return str(tomllib.loads(read(ROOT / "pyproject.toml"))["project"]["version"])
 
 
 def init_version() -> str:
-    text = read(ROOT / "unlimited_skills" / "__init__.py")
-    match = re.search(r'__version__\s*=\s*"([^"]+)"', text)
+    match = re.search(r'__version__\s*=\s*"([^"]+)"', read(ROOT / "unlimited_skills" / "__init__.py"))
     require(match is not None, "__version__ is missing")
     return str(match.group(1))
 
@@ -77,10 +75,7 @@ def git_ok(args: list[str]) -> bool:
 
 def load_manifest() -> dict[str, Any]:
     require(MANIFEST.is_file(), f"missing release manifest: {MANIFEST.relative_to(ROOT)}")
-    try:
-        payload = json.loads(read(MANIFEST))
-    except json.JSONDecodeError as exc:
-        fail(f"release manifest is invalid JSON: {exc}")
+    payload = json.loads(read(MANIFEST))
     require(isinstance(payload, dict), "release manifest must be a JSON object")
     return payload
 
@@ -93,11 +88,7 @@ def assert_manifest(payload: dict[str, Any], expected_sha: str | None) -> str:
     require(re.fullmatch(r"[0-9a-f]{40}", sha) is not None, "manifest git.sha must be 40 lowercase hex")
     require(git_info.get("tag") == RELEASE, "manifest tag mismatch")
     require(git_info.get("tag_status") == "pending_release_owner_approval", "manifest must require human tag approval")
-    require(
-        git_info.get("publication_branch")
-        in {"release/v0.3.3-alpha-org-team-governance-integration", "release/v0.3.3-alpha-final-publication"},
-        "manifest publication branch mismatch",
-    )
+    require(git_info.get("publication_branch") == "release/v0.3.3-alpha-final-publication", "manifest publication branch mismatch")
     if expected_sha is not None:
         require(re.fullmatch(r"[0-9a-f]{40}", expected_sha) is not None, "--expected-sha must be 40 lowercase hex")
         require(git_ok(["merge-base", "--is-ancestor", sha, expected_sha]), f"manifest release candidate {sha} is not contained in expected tag target {expected_sha}")
@@ -105,37 +96,39 @@ def assert_manifest(payload: dict[str, Any], expected_sha: str | None) -> str:
     prs = payload.get("required_prs", {}) if isinstance(payload.get("required_prs"), dict) else {}
     public_numbers = [item.get("number") for item in prs.get("public", []) if isinstance(item, dict)]
     private_numbers = [item.get("number") for item in prs.get("private_registry", []) if isinstance(item, dict)]
-    for number in (46,):
+    for number in (46, 47):
         require(number in public_numbers, f"manifest missing public PR #{number}")
     for number in (28, 29):
         require(number in private_numbers, f"manifest missing private registry PR #{number}")
 
+    signing = payload.get("registry_signing_status", {})
+    require(signing.get("status") in {"production_signed", "blocked_no_production_signing_key", "release_owner_override"}, "registry signing status must be explicit")
+    require(signing.get("status") == "blocked_no_production_signing_key", "this alpha gate must not claim production signing without release-owner update")
+
     boundary = payload.get("registration_boundary", {}) if isinstance(payload.get("registration_boundary"), dict) else {}
     require(boundary.get("local_mit_core_unregistered") is True, "local MIT core must remain unregistered")
-    require(boundary.get("org_status_local_cache_unregistered") is True, "org status cache must remain local without registration")
     require(boundary.get("org_status_hosted_refresh_registration_gated") is True, "org status refresh must require registration")
     require(boundary.get("private_pack_access_check_registration_gated") is True, "private pack access check must require registration")
 
     security = payload.get("security_boundary", {}) if isinstance(payload.get("security_boundary"), dict) else {}
+    require(security.get("full_catalog_distribution") is False, "full catalog distribution must remain disabled")
     require(security.get("support_bundle_redacted") is True, "support bundle must remain redacted")
-    require(security.get("private_pack_names_default_redacted") is True, "private pack names must stay redacted by default")
     require(security.get("private_skill_bodies_committed") is False, "private skill bodies must not be committed")
+    require(security.get("private_registry_skill_bodies_committed") is False, "private registry skill bodies must not be committed")
     require(security.get("raw_tokens_committed") is False, "raw tokens must not be committed")
 
     commands = payload.get("required_test_commands", [])
     for command in (
         "python -m pytest tests -q",
-        "python scripts/run-private-team-pack-cross-repo-e2e.py --fixture-mode --temp-home --json",
+        "python scripts/run-v0.2x-smoke-tests.py",
+        "python scripts/run-v0.3.3-alpha-release-smoke.py",
         "python scripts/run-v0.3.3-alpha-org-team-governance-smoke.py",
+        "python scripts/verify-v0.3.3-alpha-org-team-governance.py --expected-sha <tag-target-sha>",
+        "python scripts/verify-v0.3.3-alpha-publication.py --expected-sha <tag-target-sha>",
         "python -m compileall -q unlimited_skills scripts tests",
         "git diff --check",
     ):
         require(command in commands, f"manifest missing test command: {command}")
-    require(
-        "python scripts/verify-v0.3.3-alpha-org-team-governance.py" in commands
-        or "python scripts/verify-v0.3.3-alpha-org-team-governance.py --expected-sha <tag-target-sha>" in commands,
-        "manifest missing org/team governance verifier command",
-    )
     return sha
 
 
@@ -145,13 +138,13 @@ def assert_docs() -> None:
     text = "\n".join(read(path) for path in PUBLIC_DOCS if path.exists()).lower()
     for required in (
         "v0.3.3-alpha",
+        "github clone",
+        "pypi remains deferred",
         "org status",
         "private-packs access-check",
-        "wrong_agent",
-        "not_team_member",
-        "support bundle",
+        "blocked_no_production_signing_key",
         "no production hosted calls",
-        "github clone",
+        "release owner",
     ):
         require(required in text, f"docs missing required wording: {required}")
 
@@ -169,7 +162,7 @@ def assert_no_private_material() -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Verify v0.3.3-alpha org/team governance integration before tagging.")
+    parser = argparse.ArgumentParser(description="Verify v0.3.3-alpha final publication gate before tagging.")
     parser.add_argument("--expected-sha", help="Final tag target SHA to compare with docs/releases/v0.3.3-alpha.release-manifest.json")
     args = parser.parse_args()
 
@@ -181,11 +174,13 @@ def main() -> int:
     current_head = run_git(["rev-parse", "HEAD"])
     if args.expected_sha:
         require(current_head == args.expected_sha, f"current checkout {current_head} does not match expected tag target {args.expected_sha}")
-    print(f"{RELEASE} org/team governance verification passed")
+    print(f"{RELEASE} final publication verification passed")
     print(f"manifest: {MANIFEST.relative_to(ROOT)}")
     print(f"manifest release candidate sha: {manifest_sha}")
     print(f"current checkout sha: {current_head}")
     print("distribution path: GitHub clone")
+    print("pypi support: deferred")
+    print("registry signing status: blocked_no_production_signing_key")
     print("production hosted calls: blocked by fixture-mode release commands")
     print("private key/token scan: passed for public release docs")
     if args.expected_sha:

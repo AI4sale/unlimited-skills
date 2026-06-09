@@ -5,30 +5,38 @@
   "package_version": "0.3.3",
   "git": {
     "repository": "https://github.com/AI4sale/unlimited-skills",
-    "sha": "dcf996081590211510518ee712b32daf322a14db",
+    "sha": "dfddfcdd29a4c0de6c5a6e1a59363be5767c31e5",
     "sha_kind": "release_candidate_stack_ancestor",
     "tag": "v0.3.3-alpha",
     "tag_status": "pending_release_owner_approval",
-    "publication_branch": "release/v0.3.3-alpha-org-team-governance-integration",
-    "tag_owner_note": "Run scripts/verify-v0.3.3-alpha-org-team-governance.py --expected-sha <tag-target-sha> immediately before pushing the tag. Refresh git.sha if the merge strategy changes the tag target."
+    "publication_branch": "release/v0.3.3-alpha-final-publication",
+    "tag_owner_note": "Run scripts/verify-v0.3.3-alpha-publication.py --expected-sha <tag-target-sha> immediately before pushing the tag. Refresh git.sha if the merge strategy changes the tag target."
   },
   "required_prs": {
     "public": [
       {
         "number": 46,
-        "title": "org/team status and private-pack access diagnostics"
+        "title": "org/team status and private-pack access diagnostics",
+        "status": "open_mergeable_in_review"
+      },
+      {
+        "number": 47,
+        "title": "v0.3.3-alpha org/team governance integration gate",
+        "status": "open_mergeable_in_review"
       }
     ],
     "private_registry": [
       {
         "number": 28,
         "repository": "AI4sale/unlimited-skills-registry",
-        "title": "organization, team, namespace, membership, and governance model"
+        "title": "organization, team, namespace, membership, and governance model",
+        "status": "open_mergeable_in_review"
       },
       {
         "number": 29,
         "repository": "AI4sale/unlimited-skills-registry",
-        "title": "admin console organization and team governance MVP"
+        "title": "admin console organization and team governance MVP",
+        "status": "open_mergeable_in_review"
       }
     ]
   },
@@ -53,8 +61,18 @@
     "private_pack_names_default_redacted": true,
     "production_hosted_calls_in_tests": false,
     "private_skill_bodies_committed": false,
+    "private_registry_skill_bodies_committed": false,
     "private_signing_keys_committed": false,
     "raw_tokens_committed": false
+  },
+  "registry_signing_status": {
+    "status": "blocked_no_production_signing_key",
+    "allowed_statuses": [
+      "production_signed",
+      "blocked_no_production_signing_key",
+      "release_owner_override"
+    ],
+    "note": "Fixture manifests use local test keys only. Release owner must update this status before broad production release."
   },
   "feature_scope": [
     "org status local cache and registered refresh boundary",
@@ -77,8 +95,10 @@
     "python -m pytest tests -q",
     "python scripts/run-v0.2x-smoke-tests.py",
     "python scripts/run-private-team-pack-cross-repo-e2e.py --fixture-mode --temp-home --json",
+    "python scripts/run-v0.3.3-alpha-release-smoke.py",
     "python scripts/run-v0.3.3-alpha-org-team-governance-smoke.py",
-    "python scripts/verify-v0.3.3-alpha-org-team-governance.py",
+    "python scripts/verify-v0.3.3-alpha-org-team-governance.py --expected-sha <tag-target-sha>",
+    "python scripts/verify-v0.3.3-alpha-publication.py --expected-sha <tag-target-sha>",
     "python -m compileall -q unlimited_skills scripts tests",
     "git diff --check"
   ],
@@ -91,7 +111,7 @@
   ],
   "release_owner_actions": [
     "Review and merge required public and private registry PRs in dependency order.",
-    "Run scripts/verify-v0.3.3-alpha-org-team-governance.py --expected-sha <tag-target-sha>.",
+    "Run scripts/verify-v0.3.3-alpha-publication.py --expected-sha <tag-target-sha>.",
     "Refresh git.sha if the merge strategy changes the final tag target.",
     "Create tag v0.3.3-alpha only after human release-owner approval.",
     "Create a GitHub prerelease with docs/releases/v0.3.3-alpha.md as release notes."
