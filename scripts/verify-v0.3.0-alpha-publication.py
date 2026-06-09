@@ -73,6 +73,11 @@ def run_git(args: list[str]) -> str:
     return completed.stdout.strip()
 
 
+def git_ok(args: list[str]) -> bool:
+    completed = subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True)
+    return completed.returncode == 0
+
+
 def load_manifest() -> dict[str, Any]:
     require(MANIFEST.is_file(), f"missing release manifest: {MANIFEST.relative_to(ROOT)}")
     try:
@@ -89,12 +94,19 @@ def assert_manifest(payload: dict[str, Any], expected_sha: str | None) -> str:
     git_info = payload.get("git") if isinstance(payload.get("git"), dict) else {}
     sha = str(git_info.get("sha") or "")
     require(re.fullmatch(r"[0-9a-f]{40}", sha) is not None, "manifest git.sha must be 40 lowercase hex")
+    sha_kind = str(git_info.get("sha_kind") or "final_tag_target")
     require(git_info.get("tag") == RELEASE, "manifest tag mismatch")
     require(git_info.get("tag_status") == "pending_release_owner_approval", "manifest must require human tag approval")
     require(git_info.get("publication_branch") == "release/v0.3.0-alpha-publication", "manifest publication branch mismatch")
     if expected_sha is not None:
         require(re.fullmatch(r"[0-9a-f]{40}", expected_sha) is not None, "--expected-sha must be 40 lowercase hex")
-        require(sha == expected_sha, f"manifest git.sha {sha} does not match expected tag target {expected_sha}")
+        if sha_kind == "release_candidate_stack_head":
+            require(
+                git_ok(["merge-base", "--is-ancestor", sha, expected_sha]),
+                f"manifest release candidate {sha} is not contained in expected tag target {expected_sha}",
+            )
+        else:
+            require(sha == expected_sha, f"manifest git.sha {sha} does not match expected tag target {expected_sha}")
 
     prs = payload.get("required_prs", {}) if isinstance(payload.get("required_prs"), dict) else {}
     public_numbers = [item.get("number") for item in prs.get("public", []) if isinstance(item, dict)]
@@ -191,6 +203,11 @@ def main() -> int:
     assert_docs()
     assert_no_private_material()
     current_head = run_git(["rev-parse", "HEAD"])
+    if args.expected_sha:
+        require(
+            current_head == args.expected_sha,
+            f"current checkout {current_head} does not match expected tag target {args.expected_sha}",
+        )
     print("v0.3.0-alpha publication verification passed")
     print(f"manifest: {MANIFEST.relative_to(ROOT)}")
     print(f"manifest release candidate sha: {manifest_sha}")
