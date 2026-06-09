@@ -20,6 +20,7 @@ from .registration import (
     with_install_identity,
 )
 from .signatures import key_record_allows, normalize_registry_origin, trusted_manifest_key_records
+from .private_pack_diagnostics import private_pack_local_summary, private_pack_setup_summary
 
 SERVICE_CONFIG_NAME = "service.json"
 REQUIRED_KEY_SCOPES = (
@@ -28,6 +29,7 @@ REQUIRED_KEY_SCOPES = (
     "enhancement-manifest",
     "team-sync-manifest",
     "release-channels",
+    "private-team-pack",
 )
 FORBIDDEN_DIAGNOSTIC_FIELDS = (
     "skill_bodies",
@@ -48,6 +50,10 @@ class ServiceDiagnosticError(RuntimeError):
 
 def service_config_path(home: Path | None = None) -> Path:
     return (home or unlimited_skills_home()) / SERVICE_CONFIG_NAME
+
+
+def _diagnostic_library_root(home: Path | None = None) -> Path:
+    return (home or unlimited_skills_home()) / "library"
 
 
 def _now_service_payload() -> dict[str, Any]:
@@ -150,6 +156,7 @@ def local_status(*, refresh: bool = False, timeout: float = 10.0, home: Path | N
         "service_config": "present" if service_config_path(home).is_file() else "missing",
         "registration": _public_registration_status(state),
         "trust": local_trust_status(service_url),
+        "private_packs": private_pack_local_summary(_diagnostic_library_root(home)),
         "network": {"performed": False, "endpoints_contacted": []},
     }
     if refresh:
@@ -282,6 +289,7 @@ def doctor(*, service_url: str | None = None, timeout: float = 10.0, home: Path 
         "local_trust_store": local_trust_status(resolved_url),
         "registration_state": _public_registration_status(state),
         "device_proof_generation": test_proof(home=home, service_url=resolved_url),
+        "private_packs": private_pack_setup_summary(_diagnostic_library_root(home), state=state, service_url=resolved_url),
     }
     trust = (
         _trust_report(resolved_url, public_keys_raw.get("payload", {}) if isinstance(public_keys_raw.get("payload"), dict) else {}, [endpoints[2]])

@@ -281,6 +281,7 @@ def run_e2e(registry_repo: Path, *, temp_home: bool = False) -> dict[str, Any]:
 def main() -> int:
     parser = argparse.ArgumentParser(description="Run cross-repo private team pack E2E against the private registry checkout.")
     parser.add_argument("--registry-repo", default=os.environ.get("UNLIMITED_SKILLS_REGISTRY_REPO", r"D:\git\unlimited-skills-registry"))
+    parser.add_argument("--fixture-mode", action="store_true", help="Compatibility flag: this runner is fixture-only and never calls production hosted services.")
     parser.add_argument("--temp-home", action="store_true", help="Use an isolated temporary Unlimited Skills home.")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()

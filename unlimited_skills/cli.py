@@ -68,6 +68,8 @@ from .service_diagnostics import (
     test_proof as service_test_proof,
     verify_trust as service_verify_trust,
 )
+from .setup_wizard import build_setup_report
+from .support_bundle import build_support_bundle_manifest
 from .native import DEFAULT_AGENT_ORDER, sync_native_sources
 from .policy import explain_policy, install_policy, load_policy, policy_summary, read_policy_file, remove_policy, verify_policy_payload
 from .policy_enforcement import enforce_local_root
@@ -979,6 +981,21 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     report = build_doctor_report(root, agent=args.agent)
     print(doctor_json(report) if args.json else format_doctor_text(report))
+    return 0
+
+
+def cmd_setup(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    registered = bool(args.registered or args.private_packs)
+    payload = build_setup_report(root, registered=registered, hub=args.hub, private_packs=args.private_packs)
+    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_support_bundle(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    payload = build_support_bundle_manifest(root, include_private_pack_refs=args.include_private_pack_refs)
+    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 
 
@@ -1994,6 +2011,20 @@ def build_parser() -> argparse.ArgumentParser:
     doctor.add_argument("--json", action="store_true", help="Print machine-readable diagnostics.")
     doctor.add_argument("--agent", choices=["codex", "claude-code", "hermes", "openclaw", "all"], default="all", help="Limit agent diagnostics.")
     doctor.set_defaults(func=cmd_doctor)
+
+    setup = sub.add_parser("setup", help="Run privacy-safe first-run setup checks.")
+    setup.add_argument("--registered", action="store_true", help="Include registered service checks.")
+    setup.add_argument("--hub", action="store_true", help="Include Local Skill Hub setup checks.")
+    setup.add_argument("--private-packs", action="store_true", help="Include private team pack setup checks.")
+    setup.add_argument("--json", action="store_true", help="Accepted for consistency; setup output is JSON.")
+    setup.set_defaults(func=cmd_setup)
+
+    support = sub.add_parser("support", help="Build redacted local support diagnostics.")
+    support_sub = support.add_subparsers(dest="support_command", required=True)
+    support_bundle = support_sub.add_parser("bundle", help="Print a redacted support bundle manifest.")
+    support_bundle.add_argument("--include-private-pack-refs", action="store_true", help="Include hashed private pack references. Skill names and bodies are still excluded.")
+    support_bundle.add_argument("--json", action="store_true", help="Accepted for consistency; support bundle output is JSON.")
+    support_bundle.set_defaults(func=cmd_support_bundle)
 
     register = sub.add_parser("register", help="Self-register this installation for hosted catalog and adapted collection updates.")
     register.add_argument("--server-url", default=DEFAULT_SERVICE_URL, help="Registration and update service URL.")

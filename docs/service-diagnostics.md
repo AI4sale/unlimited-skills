@@ -57,5 +57,12 @@ Trust verification compares remote `/v1/public-keys` records against bundled, lo
 - `enhancement-manifest`
 - `team-sync-manifest`
 - `release-channels`
+- `private-team-pack`
 
 The command does not import or mutate trust. Operators must use explicit `trust import`/`trust revoke` commands for local trust-store changes.
+
+## Private Team Packs
+
+`service status` and `service doctor` include local private-pack diagnostic counters. These counters are local metadata only and do not call private-pack list, preview, manifest, download, or access-check endpoints.
+
+The private-pack diagnostic block includes installed count, revoked count, stale count, failed-signature count, SHA mismatch count, access-denied count, and last error codes. It excludes private pack names by default, private skill names, private skill bodies, raw archive URLs, local paths, tokens, proofs, and private keys.

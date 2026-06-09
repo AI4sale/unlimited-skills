@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
+from .private_pack_diagnostics import private_pack_local_summary
 from .registration import DEFAULT_SERVICE_URL, RegistrationError, load_registration, unlimited_skills_home
 
 
@@ -205,6 +206,7 @@ def build_doctor_report(root: Path, *, agent: str = "all", project_root: Path | 
         "root": str(root),
         "registration": _registration_summary(),
         "library": library,
+        "private_packs": private_pack_local_summary(root),
         "agents": agents,
         "recommendations": recommendations,
     }
@@ -223,6 +225,7 @@ def format_doctor_text(report: dict[str, Any]) -> str:
         f"Telemetry: {registration['telemetry']}",
         f"Hosted token: {registration['hosted_token']}",
         f"Local skills: {library['total_skills']}",
+        f"Private packs: {report.get('private_packs', {}).get('installed_count', 0)}",
         "Lexical index: " + ("present" if library["index_present"] else "missing"),
         "Vector index: " + ("present" if library["vector_index_present"] else "missing"),
     ]
