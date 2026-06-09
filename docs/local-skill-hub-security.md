@@ -56,3 +56,14 @@ Skill archives must not contain secrets, private customer context, private repos
 `hub sync` calls the registered hosted allowlist endpoint and caches only validated allowlist/catalog metadata under `~/.unlimited-skills/hub/`. It must not upload local skill bodies, prompts, source code, full local paths, environment values, tokens, secrets, or device private keys.
 
 Cached allowlists are rejected if they enable full catalog distribution, remove registration requirements, allow hub-side skill execution, include blocked/local-only/needs-review skills in the distributable list, embed full `SKILL.md` bodies, or contain obvious secret fields.
+
+## Enterprise Skill Lock
+
+When Enterprise Skill Lock is installed, Local Skill Hub behavior can be constrained by policy:
+
+- local fallback can be denied when `hub.remote_required=true` and `hub.local_fallback_allowed=false`;
+- explicit local allowlists can be rejected when they are unsigned and `hub.unsigned_local_allowlist_allowed=false`;
+- future client-limit overrides are allowed only when `hub.max_client_instances_override_allowed=true`;
+- policy refusals are written to the redacted local policy audit log.
+
+No policy means existing Local Skill Hub behavior is unchanged.

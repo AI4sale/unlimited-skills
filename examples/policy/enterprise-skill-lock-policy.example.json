@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "policy_id": "policy_example_enterprise",
+  "mode": "enforce",
+  "allowed_registries": [
+    "https://registry.example.com"
+  ],
+  "allowed_release_channels": [
+    "stable"
+  ],
+  "required_manifest_signatures": true,
+  "allowed_key_ids": [
+    "ai4sale-registry-prod-2026-01"
+  ],
+  "allowed_key_scopes": [
+    "hub-allowlist",
+    "catalog-updates",
+    "enhancement-manifest",
+    "team-sync-manifest",
+    "release-channels"
+  ],
+  "allowed_local_roots": [],
+  "community": {
+    "install_allowed": false,
+    "submit_allowed": false
+  },
+  "hub": {
+    "remote_required": true,
+    "local_fallback_allowed": false,
+    "unsigned_local_allowlist_allowed": false,
+    "max_client_instances_override_allowed": false
+  },
+  "audit": {
+    "log_refusals": true
+  },
+  "policy_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+}

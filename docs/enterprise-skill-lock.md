@@ -1,29 +1,89 @@
 # Enterprise Skill Lock
 
-Status: planned, not implemented yet.
+Status: MVP alpha.
 
-Enterprise Skill Lock is a planned governance feature for businesses that need centralized control over which skills can be delivered to agent instances.
+Enterprise Skill Lock is a local policy layer for governed Unlimited Skills installations. It does not turn Community Core into a paid feature. When no policy is installed, local MIT behavior is unchanged.
 
-The goal is simple: when an unmanaged source tries to deliver new skills to a locked enterprise instance, the agent should refuse the delivery and direct the operator to the corporate administrator or approved enterprise update channel.
+When a policy is installed, the client can audit or enforce controls for approved registries, release channels, signing keys, local roots, community flows, Local Skill Hub allowlists, and remote fallback behavior.
 
-## Intended Behavior
+## Commands
 
-A locked enterprise instance should:
+```bash
+unlimited-skills policy status
+unlimited-skills policy verify enterprise-policy.json
+unlimited-skills policy install enterprise-policy.json
+unlimited-skills policy explain
+unlimited-skills policy remove --yes
+```
 
-- accept skills only from approved enterprise registries, signed packs, or policy-approved local sources;
-- reject direct skill delivery from unmanaged users, scripts, repositories, or ad hoc archives;
-- explain that the instance is under enterprise skill governance;
-- tell the operator to request the skill through the corporate administrator;
-- continue using already approved local skills;
-- keep normal MIT-core local search/view/index behavior for approved local libraries.
+Policies must be signed or hash-pinned. The MVP accepts either a valid `manifest_signature` / `signature_envelope` verified by local trust configuration, or a `policy_sha256` that matches the canonical policy payload excluding signature/hash fields.
 
-Example refusal:
+## Modes
+
+- `audit`: warn by writing a redacted policy refusal event, then allow the action.
+- `enforce`: write the redacted refusal event and reject the action.
+
+Example refusal in enforce mode:
 
 ```text
 This instance is managed by Enterprise Skill Lock.
-I cannot install or load unmanaged skills directly.
-Ask your corporate Unlimited Skills administrator to publish this skill through the approved enterprise registry or update channel.
+Action blocked: community install.
+Reason: community installs are denied by policy.
+Remediation: Ask your corporate Unlimited Skills administrator to publish the skill through an approved registry.
 ```
+
+## Policy Shape
+
+See [schemas/enterprise-skill-lock-policy.schema.json](../schemas/enterprise-skill-lock-policy.schema.json) and [examples/policy/enterprise-skill-lock-policy.example.json](../examples/policy/enterprise-skill-lock-policy.example.json).
+
+```json
+{
+  "schema_version": 1,
+  "policy_id": "policy_example",
+  "mode": "audit|enforce",
+  "allowed_registries": ["https://registry.example.com"],
+  "allowed_release_channels": ["stable"],
+  "required_manifest_signatures": true,
+  "allowed_key_ids": ["ai4sale-registry-prod-2026-01"],
+  "allowed_local_roots": [],
+  "community": {
+    "install_allowed": false,
+    "submit_allowed": false
+  },
+  "hub": {
+    "remote_required": true,
+    "local_fallback_allowed": false,
+    "unsigned_local_allowlist_allowed": false
+  },
+  "audit": {
+    "log_refusals": true
+  },
+  "policy_sha256": "<canonical hash or use manifest_signature>"
+}
+```
+
+## Enforcement Points
+
+MVP enforcement covers:
+
+- `service configure` and hosted registry requests;
+- registration, catalog, updates, community, team, hub sync, and release-channel clients through the shared hosted request path;
+- signed manifest verification for unknown key IDs and disallowed scopes;
+- release channel pinning and registered update channel selection;
+- explicit local Hub allowlists when unsigned local allowlists are denied;
+- remote hub local fallback when remote hub is required;
+- community install and submit;
+- local search/list/view/reindex roots when `allowed_local_roots` is configured.
+
+## Audit Logs
+
+Policy refusals are written to:
+
+```text
+~/.unlimited-skills/policy/refusals.jsonl
+```
+
+Audit events are redacted. They must not include hosted tokens, auth headers, device private keys, prompts, or skill bodies.
 
 ## Why This Exists
 
@@ -46,13 +106,11 @@ Enterprise Skill Lock is intended to help with:
 - denied community submissions;
 - denied local ad hoc installs;
 - approved local library roots;
-- admin override flow;
-- audit event generation for rejected skill-delivery attempts.
+- admin override flow.
 
-## Open Implementation Questions
+## Limitations
 
-- How each supported agent surface can enforce the lock.
-- Whether enforcement lives in the router skill, installer patch, local CLI, agent config, or all of them.
-- How to prevent bypass when an agent can still read arbitrary files.
-- How corporate administrators publish emergency exceptions.
-- How to represent policy in a portable signed file.
+- This is local client enforcement, not a hosted enterprise dashboard.
+- SSO, SCIM, billing, and organization management are not implemented here.
+- A local policy cannot prevent a user with filesystem access from editing source code. Enterprise deployments should pair policy with managed installation, OS controls, and private registry governance.
+- Full catalog distribution remains disabled for the alpha registered stack.

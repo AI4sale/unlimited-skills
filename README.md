@@ -73,6 +73,7 @@ Working now:
 - native skill sync for Codex, Claude Code, Hermes, and OpenClaw roots;
 - public repo self-update checks and applies latest releases/tags;
 - production service onboarding diagnostics for configured service URL, health, trust, redacted registration dry run, and local proof generation;
+- Enterprise Skill Lock policy MVP for governed registries, channels, signing keys, local roots, community install/submit, hub allowlists, and remote fallback;
 - allowlist-backed Local Skill Hub runtime MVP for local/controlled LAN testing when `server` extras are installed;
 - Local Skill Hub allowlist bootstrap/sync with validated cached allowlist metadata;
 - required signed hosted manifest verification for hub allowlists, collection updates, enhancement manifests, and team sync manifests;
@@ -313,7 +314,17 @@ unlimited-skills team sync --yes
 unlimited-skills team leave --yes
 ```
 
-Planned enterprise feature: Enterprise Skill Lock will let managed instances refuse unmanaged skill delivery and direct operators to a corporate administrator or approved enterprise update channel. See [docs/enterprise-skill-lock.md](docs/enterprise-skill-lock.md).
+Enterprise Skill Lock MVP lets managed instances audit or refuse unmanaged skill delivery and direct operators to a corporate administrator or approved enterprise update channel. No policy means Community Core behavior is unchanged.
+
+```bash
+unlimited-skills policy status
+unlimited-skills policy verify enterprise-policy.json
+unlimited-skills policy install enterprise-policy.json
+unlimited-skills policy explain
+unlimited-skills policy remove --yes
+```
+
+See [docs/enterprise-skill-lock.md](docs/enterprise-skill-lock.md).
 
 Business and enterprise access starts with a company registration request at [https://unlimited.ai4.sale/enterprise](https://unlimited.ai4.sale/enterprise). That page collects basic company, rollout, pricing, and deployment-model context; it is separate from the community CLI self-registration flow.
 

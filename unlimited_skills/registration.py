@@ -304,6 +304,9 @@ def post_json(
     max_retries: int | None = None,
 ) -> dict[str, Any]:
     require_secure_url(url)
+    from .policy_enforcement import enforce_registry_url
+
+    enforce_registry_url(url, action="hosted registry request")
     body = json.dumps(payload).encode("utf-8")
     headers = {"Content-Type": "application/json", "User-Agent": f"unlimited-skills/{__version__}"}
     if token:

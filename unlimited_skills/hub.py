@@ -297,6 +297,10 @@ def save_remote_config(
         raise RuntimeError("fallback_mode must be local_allowed or hub_required.")
     if token and token_env:
         raise RuntimeError("Use either --token or --token-env, not both.")
+    if fallback_mode == "local_allowed":
+        from .policy_enforcement import enforce_remote_fallback_allowed
+
+        enforce_remote_fallback_allowed(home=home)
     path = remote_config_path(home)
     existing: dict[str, Any] = {}
     if path.exists():
@@ -483,7 +487,11 @@ def cmd_hub_init(args: Any) -> int:
     allowlist_arg = getattr(args, "allowlist", "") or ""
     if allowlist_arg:
         source_path = Path(allowlist_arg).expanduser()
-        cached = cache_allowlist(validate_allowlist_file(source_path), source=str(source_path), notes="Cached from explicit local allowlist fixture.")
+        allowlist = validate_allowlist_file(source_path)
+        from .policy_enforcement import enforce_local_allowlist_signed
+
+        enforce_local_allowlist_signed(allowlist)
+        cached = cache_allowlist(allowlist, source=str(source_path), notes="Cached from explicit local allowlist fixture.")
         payload["allowlist"] = cached["meta"]
         payload["allowlist"]["path"] = cached["allowlist_path"]
     else:
@@ -876,6 +884,9 @@ def remote_client_or_fallback(args: Any):
         return RemoteHubClient(), None
     except RemoteHubUnavailable as exc:
         if load_remote_config().get("fallback_mode") == "local_allowed":
+            from .policy_enforcement import enforce_remote_fallback_allowed
+
+            enforce_remote_fallback_allowed()
             return None, redact_sensitive_text(str(exc))
         raise RuntimeError("Remote hub is required by policy but unavailable.") from exc
     except RemoteHubError:

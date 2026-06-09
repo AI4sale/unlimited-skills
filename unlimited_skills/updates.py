@@ -93,6 +93,9 @@ def load_release_channel(home: Path | None = None) -> ReleaseChannelState:
 
 def save_release_channel(channel: str, *, pinned: bool = True, home: Path | None = None) -> Path:
     validate_collection_name(channel)
+    from .policy_enforcement import enforce_release_channel
+
+    enforce_release_channel(channel, action="release channel pin", home=home)
     state = ReleaseChannelState(channel=channel, pinned=pinned, updated_at=now_iso())
     path = release_state_path(home)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -291,6 +294,9 @@ class UpdateClient:
         pinned = load_release_channel()
         resolved_channel = channel or pinned.channel or "stable"
         validate_collection_name(resolved_channel)
+        from .policy_enforcement import enforce_release_channel
+
+        enforce_release_channel(resolved_channel, action="registered update channel")
         self.channel = resolved_channel
 
     def check(self, root: Path) -> list[CollectionUpdate]:

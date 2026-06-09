@@ -68,6 +68,8 @@ from .service_diagnostics import (
     verify_trust as service_verify_trust,
 )
 from .native import DEFAULT_AGENT_ORDER, sync_native_sources
+from .policy import explain_policy, install_policy, load_policy, policy_summary, read_policy_file, remove_policy, verify_policy_payload
+from .policy_enforcement import enforce_local_root
 from .self_update import DEFAULT_PUBLIC_REPO, apply_public_repo_update, check_public_repo_update
 from .team import (
     TeamClient,
@@ -606,6 +608,7 @@ def maybe_sync_native(args: argparse.Namespace, root: Path) -> list[dict]:
 
 def cmd_reindex(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
+    enforce_local_root(root, action="reindex library root")
     native_sync = maybe_sync_native(args, root)
     path = save_index(root)
     count = len(json.loads(read_text(path)))
@@ -618,6 +621,7 @@ def cmd_reindex(args: argparse.Namespace) -> int:
 
 def cmd_search(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
+    enforce_local_root(root, action="search library root")
     maybe_sync_native(args, root)
     if args.mode == "lexical":
         hits = lexical_search(root, args.query, args.limit, args.collection, args.fresh)
@@ -631,6 +635,7 @@ def cmd_search(args: argparse.Namespace) -> int:
 
 def cmd_list(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
+    enforce_local_root(root, action="list library root")
     maybe_sync_native(args, root)
     hits = list_skills(root, collection=args.collection, filter_text=args.filter, fresh=args.fresh)
     shown = hits[: args.limit] if args.limit > 0 else hits
@@ -664,6 +669,7 @@ def cmd_list(args: argparse.Namespace) -> int:
 
 def cmd_vector_reindex(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
+    enforce_local_root(root, action="vector reindex library root")
     maybe_sync_native(args, root)
     records = load_records(root, fresh=args.fresh)
     client = chroma_client(root)
@@ -728,6 +734,7 @@ def cmd_vector_reindex(args: argparse.Namespace) -> int:
 
 def cmd_view(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
+    enforce_local_root(root, action="view library root")
     maybe_sync_native(args, root)
     path = find_by_name(root, args.name)
     if not path:
@@ -740,6 +747,7 @@ def cmd_view(args: argparse.Namespace) -> int:
 
 def cmd_where(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
+    enforce_local_root(root, action="where library root")
     maybe_sync_native(args, root)
     path = find_by_name(root, args.name)
     if not path:
@@ -751,6 +759,7 @@ def cmd_where(args: argparse.Namespace) -> int:
 
 def cmd_use(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
+    enforce_local_root(root, action="use library root")
     maybe_sync_native(args, root)
     path = find_by_name(root, args.name)
     payload = {"name": args.name, "query": args.query, "task": args.task, "path": str(path) if path else ""}
@@ -1052,6 +1061,35 @@ def cmd_service_test_registration(args: argparse.Namespace) -> int:
 def cmd_service_test_proof(args: argparse.Namespace) -> int:
     payload = service_test_proof(service_url=args.url or None)
     print(json.dumps(payload, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_policy_status(args: argparse.Namespace) -> int:
+    payload = policy_summary(load_policy())
+    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_policy_verify(args: argparse.Namespace) -> int:
+    payload = verify_policy_payload(read_policy_file(Path(args.policy_json).expanduser()))
+    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_policy_install(args: argparse.Namespace) -> int:
+    payload = install_policy(Path(args.policy_json).expanduser())
+    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_policy_remove(args: argparse.Namespace) -> int:
+    payload = remove_policy(yes=args.yes)
+    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_policy_explain(args: argparse.Namespace) -> int:
+    print(explain_policy(load_policy()))
     return 0
 
 
@@ -1866,6 +1904,22 @@ def build_parser() -> argparse.ArgumentParser:
     service_proof = service_sub.add_parser("test-proof", help="Generate a local redacted device-proof header using registration state.")
     service_proof.add_argument("--url", default="", help="Temporarily use this service URL without changing config.")
     service_proof.set_defaults(func=cmd_service_test_proof)
+
+    policy = sub.add_parser("policy", help="Inspect and manage Enterprise Skill Lock local policy.")
+    policy_sub = policy.add_subparsers(dest="policy_command", required=True)
+    policy_status = policy_sub.add_parser("status", help="Show installed Enterprise Skill Lock policy status.")
+    policy_status.set_defaults(func=cmd_policy_status)
+    policy_verify = policy_sub.add_parser("verify", help="Verify a signed or hash-pinned Enterprise Skill Lock policy file.")
+    policy_verify.add_argument("policy_json")
+    policy_verify.set_defaults(func=cmd_policy_verify)
+    policy_install = policy_sub.add_parser("install", help="Install a signed or hash-pinned Enterprise Skill Lock policy file.")
+    policy_install.add_argument("policy_json")
+    policy_install.set_defaults(func=cmd_policy_install)
+    policy_remove = policy_sub.add_parser("remove", help="Remove the installed Enterprise Skill Lock policy.")
+    policy_remove.add_argument("--yes", action="store_true", help="Confirm policy removal.")
+    policy_remove.set_defaults(func=cmd_policy_remove)
+    policy_explain = policy_sub.add_parser("explain", help="Explain effective Enterprise Skill Lock behavior.")
+    policy_explain.set_defaults(func=cmd_policy_explain)
 
     updates = sub.add_parser("updates", help="Check or apply hosted adapted collection updates.")
     updates_sub = updates.add_subparsers(dest="updates_command", required=True)

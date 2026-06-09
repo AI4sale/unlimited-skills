@@ -229,6 +229,9 @@ def verify_manifest_signature(
 ) -> dict[str, Any]:
     envelope = signature_envelope(payload)
     if not envelope:
+        from .policy_enforcement import enforce_manifest_signature_present
+
+        enforce_manifest_signature_present(False, purpose=purpose)
         if signature_required(required):
             raise ManifestSignatureError(f"{purpose} must include manifest_signature.")
         return {"verified": False, "required": False, "reason": "signature_missing"}
@@ -241,6 +244,9 @@ def verify_manifest_signature(
         raise ManifestSignatureError(f"{purpose} manifest_signature must use algorithm=ed25519.")
     if not key_id or not signature:
         raise ManifestSignatureError(f"{purpose} manifest_signature must include key_id and signature.")
+    from .policy_enforcement import enforce_manifest_key
+
+    enforce_manifest_key(key_id, scope=scope, registry_url=registry_url, purpose=purpose)
 
     actual_sha = manifest_sha256(payload)
     if expected_sha and expected_sha.lower() != actual_sha.lower():

@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AI4sale/unlimited-skills/schemas/enterprise-skill-lock-policy.schema.json",
+  "title": "Enterprise Skill Lock policy",
+  "type": "object",
+  "required": ["schema_version", "policy_id", "mode", "policy_sha256"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "policy_id": { "type": "string", "minLength": 1 },
+    "mode": { "type": "string", "enum": ["audit", "enforce"] },
+    "allowed_registries": { "type": "array", "items": { "type": "string" } },
+    "allowed_release_channels": { "type": "array", "items": { "type": "string" } },
+    "required_manifest_signatures": { "type": "boolean" },
+    "allowed_key_ids": { "type": "array", "items": { "type": "string" } },
+    "allowed_key_scopes": { "type": "array", "items": { "type": "string" } },
+    "allowed_local_roots": { "type": "array", "items": { "type": "string" } },
+    "community": {
+      "type": "object",
+      "properties": {
+        "install_allowed": { "type": "boolean" },
+        "submit_allowed": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "hub": {
+      "type": "object",
+      "properties": {
+        "remote_required": { "type": "boolean" },
+        "local_fallback_allowed": { "type": "boolean" },
+        "unsigned_local_allowlist_allowed": { "type": "boolean" },
+        "max_client_instances_override_allowed": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "audit": {
+      "type": "object",
+      "properties": {
+        "log_refusals": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "policy_sha256": { "type": "string", "pattern": "^[a-fA-F0-9]{64}$" },
+    "manifest_signature": { "type": "object" },
+    "signature_envelope": { "type": "object" }
+  },
+  "additionalProperties": true,
+  "anyOf": [
+    { "required": ["policy_sha256"] },
+    { "required": ["manifest_signature"] },
+    { "required": ["signature_envelope"] }
+  ]
+}

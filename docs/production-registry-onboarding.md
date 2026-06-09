@@ -67,3 +67,14 @@ This uses existing local registration state to generate a proof header against a
 ## Local commands stay local
 
 Local MIT commands remain unregistered: `search`, `list`, `view`, `where`, `use`, `feedback`, `reindex`, `vector-reindex`, `serve`, local adapters, installers, migration scripts, native sync, and public self-update.
+
+## Enterprise policy interaction
+
+Enterprise Skill Lock can restrict production registry onboarding when a policy is installed:
+
+- `service configure` refuses unapproved registry origins in enforce mode;
+- hosted registration/catalog/update/team/hub requests use the same approved-registry check;
+- release channels and manifest signing keys must match the installed policy when configured;
+- audit mode records policy mismatches without blocking.
+
+No policy means the onboarding flow behaves as normal Community Core plus registered hosted-service setup.

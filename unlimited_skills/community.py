@@ -523,6 +523,9 @@ class CommunityClient:
         dry_run: bool = False,
         force: bool = False,
     ) -> CommunityInstallPlan | CommunityInstallResult:
+        from .policy_enforcement import enforce_community_install
+
+        enforce_community_install()
         response = self._post(
             "/v1/community/install",
             {
@@ -572,6 +575,9 @@ class CommunityClient:
         return CommunityInstallResult(item_id=item_id, collection=plan.collection, version=plan.version, sha256=plan.sha256, installed=True, reindex_recommended=True)
 
     def submit_community_skill(self, draft: CommunitySubmissionDraft, *, dry_run: bool = False, confirm: bool = False) -> CommunitySubmissionResult:
+        from .policy_enforcement import enforce_community_submit
+
+        enforce_community_submit()
         if dry_run:
             return CommunitySubmissionResult(submission_id="", status="draft", preview_path=draft.preview_path, uploaded=False, message="Dry run: no content uploaded.")
         if not confirm:

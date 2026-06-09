@@ -103,6 +103,9 @@ def configured_service_url(state: RegistrationState | None = None, *, home: Path
 
 def configure_service(url: str, *, allow_insecure_localhost: bool = False, home: Path | None = None) -> dict[str, Any]:
     normalized = validate_service_url(url, allow_insecure_localhost=allow_insecure_localhost)
+    from .policy_enforcement import enforce_registry_url
+
+    enforce_registry_url(normalized, action="service configure", home=home)
     path = service_config_path(home)
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {
