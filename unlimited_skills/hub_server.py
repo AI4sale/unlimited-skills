@@ -492,7 +492,15 @@ def first_body_line(body: str) -> str:
 
 
 def tokens(value: str) -> set[str]:
-    return {item.group(0).lower().strip("-_/") for item in WORD_RE.finditer(value or "") if len(item.group(0)) > 1}
+    result: set[str] = set()
+    for item in WORD_RE.finditer(value or ""):
+        raw = item.group(0).lower().strip("-_/")
+        if len(raw) > 1:
+            result.add(raw)
+        for part in re.split(r"[-_/]+", raw):
+            if len(part) > 1:
+                result.add(part)
+    return result
 
 
 def skill_score(query: str, skill: HubSkill, local: dict[str, str] | None) -> float:

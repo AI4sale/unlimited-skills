@@ -173,7 +173,15 @@ def first_body_line(body: str) -> str:
 
 
 def tokens(text: str) -> set[str]:
-    return {m.group(0).lower().strip("-_/") for m in WORD_RE.finditer(text or "") if len(m.group(0)) > 1}
+    result: set[str] = set()
+    for match in WORD_RE.finditer(text or ""):
+        raw = match.group(0).lower().strip("-_/")
+        if len(raw) > 1:
+            result.add(raw)
+        for part in re.split(r"[-_/]+", raw):
+            if len(part) > 1:
+                result.add(part)
+    return result
 
 
 def expanded_query(query: str) -> str:

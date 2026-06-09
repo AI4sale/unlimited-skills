@@ -133,6 +133,27 @@ def current_collection_state(root: Path) -> dict[str, dict[str, str]]:
 
 def parse_updates(data: dict[str, Any]) -> list[CollectionUpdate]:
     raw_updates = data.get("updates") or []
+    if not raw_updates and isinstance(data.get("packs"), list):
+        raw_updates = []
+        for pack in data.get("packs", []):
+            if not isinstance(pack, dict):
+                continue
+            archive = pack.get("archive", {}) if isinstance(pack.get("archive"), dict) else {}
+            archive_url = str(pack.get("archive_url") or pack.get("download_url") or archive.get("archive_url") or archive.get("download_url") or archive.get("url") or "")
+            if not archive_url:
+                continue
+            raw_updates.append(
+                {
+                    "collection": pack.get("collection"),
+                    "version": pack.get("version"),
+                    "archive_url": archive_url,
+                    "sha256": archive.get("sha256") or pack.get("sha256"),
+                    "signature": pack.get("signature") or "",
+                    "pack_id": pack.get("pack_id") or "",
+                    "notes": pack.get("notes") or "",
+                    "format": pack.get("format") or "skill-collection-zip-v1",
+                }
+            )
     if not isinstance(raw_updates, list):
         raise UpdateError("Update service returned invalid updates payload.")
     updates: list[CollectionUpdate] = []
@@ -162,11 +183,16 @@ def parse_updates(data: dict[str, Any]) -> list[CollectionUpdate]:
 
 
 def parse_enhancement_script(data: dict[str, Any]) -> EnhancementScript:
-    script_id = str(data.get("script_id") or "")
-    version = str(data.get("version") or "")
-    download_url = str(data.get("download_url") or "")
-    sha256 = str(data.get("sha256") or "")
-    signature = str(data.get("signature") or "")
+    source = data
+    if not data.get("script_id") and isinstance(data.get("scripts"), list) and data["scripts"]:
+        first = data["scripts"][0]
+        if isinstance(first, dict):
+            source = first
+    script_id = str(source.get("script_id") or "")
+    version = str(source.get("version") or "")
+    download_url = str(source.get("download_url") or "")
+    sha256 = str(source.get("sha256") or "")
+    signature = str(source.get("signature") or "")
     if not script_id or not version or not download_url or not sha256:
         raise UpdateError("Enhancement service must return script_id, version, download_url, and sha256.")
     validate_collection_name(script_id)
@@ -176,7 +202,7 @@ def parse_enhancement_script(data: dict[str, Any]) -> EnhancementScript:
         download_url=download_url,
         sha256=sha256,
         signature=signature,
-        notes=str(data.get("notes") or ""),
+        notes=str(source.get("notes") or data.get("notes") or ""),
     )
 
 

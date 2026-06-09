@@ -151,6 +151,9 @@ def test_search_returns_only_allowlisted_and_local_install_candidates(tmp_path: 
     assert "tool-skill" in names
     assert "blocked-skill" not in names
 
+    hyphen_payload = client.post("/v1/skills/search", json={"schema_version": 1, "query": "pure skill", "limit": 10}).json()
+    assert "pure-skill" in {item["name"] for item in hyphen_payload["results"]}
+
 
 def test_resolve_returns_body_for_pure_text_but_metadata_only_for_local_install(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     client = make_client(tmp_path, monkeypatch)
