@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
+from .billing_status import redacted_billing_summary
 from .org_status import local_org_status
 from .plan_status import redacted_plan_summary
 from .private_pack_diagnostics import assert_private_pack_diagnostics_safe, private_pack_local_summary, private_pack_setup_summary
@@ -30,6 +31,7 @@ def build_support_bundle_manifest(root: Path, *, include_private_pack_refs: bool
         },
         "private_packs": private_packs,
         "plan": redacted_plan_summary(state=state),
+        "billing": redacted_billing_summary(state=state),
         "private_pack_setup": {
             "status": setup["status"],
             "checks": setup["checks"],
@@ -58,6 +60,9 @@ def build_support_bundle_manifest(root: Path, *, include_private_pack_refs: bool
             "skill_names_included": False,
             "private_pack_names_included": include_private_pack_refs,
             "archive_urls_included": False,
+            "checkout_urls_included": False,
+            "payment_card_data_included": False,
+            "bank_data_included": False,
             "local_paths_included": False,
             "tokens_included": False,
             "proofs_included": False,
@@ -71,7 +76,23 @@ def build_support_bundle_manifest(root: Path, *, include_private_pack_refs: bool
 def assert_support_bundle_safe(payload: dict[str, Any]) -> None:
     assert_private_pack_diagnostics_safe(payload)
     serialized = json.dumps(payload, ensure_ascii=False).lower()
-    forbidden = ["skill.md", "when to use", "authorization", "bearer ", "license_token", "device_private_key", "x-uls-proof", '"archive_url":', "c:\\", "/users/"]
+    forbidden = [
+        "skill.md",
+        "when to use",
+        "authorization",
+        "bearer ",
+        "license_token",
+        "device_private_key",
+        "x-uls-proof",
+        '"archive_url":',
+        '"checkout_url":',
+        '"payment_link":',
+        '"invoice_url":',
+        '"card_number":',
+        '"bank_account":',
+        "c:\\",
+        "/users/",
+    ]
     for marker in forbidden:
         if marker in serialized:
             raise RuntimeError(f"Support bundle contains forbidden marker: {marker}")

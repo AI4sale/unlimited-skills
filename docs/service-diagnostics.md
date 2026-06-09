@@ -48,7 +48,7 @@ Diagnostics must not upload:
 
 Diagnostic output uses presence markers for credentials and device key material. Errors are passed through the shared redactor before printing.
 
-Use `unlimited-skills plan doctor` for cached plan and entitlement diagnostics. It follows the same redaction boundary and excludes private skill names, local paths, private pack bodies, tokens, device proofs, and private keys.
+Use `unlimited-skills plan doctor` for cached plan and entitlement diagnostics. Use `unlimited-skills billing doctor` for cached billing lifecycle diagnostics. Both follow the same redaction boundary and exclude private skill names, local paths, private pack bodies, tokens, device proofs, private keys, checkout URLs, payment links, invoice URLs, card data, and bank data.
 
 ## Trust checks
 

@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from unlimited_skills.private_packs import write_private_pack_metadata
+from unlimited_skills.billing_status import save_billing_status
 from unlimited_skills.registration import RegistrationState, save_registration, with_install_identity
 from unlimited_skills.support_bundle import assert_support_bundle_safe, build_support_bundle_manifest
 
@@ -16,6 +17,19 @@ def test_support_bundle_private_pack_summary_is_redacted(tmp_path: Path, monkeyp
     monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home))
     state = with_install_identity(RegistrationState(install_id="uls_inst_support", server_url="http://127.0.0.1:8765", license_token="uls_support_token"))
     save_registration(state, home=home)
+    save_billing_status(
+        {
+            "schema_version": 1,
+            "source": "cached",
+            "plan": "business",
+            "entitlement_source": "organization",
+            "subscription_status": "past_due",
+            "billing_mode": "sandbox_only",
+            "denied_features": [{"feature": "private_team_packs", "denial_reason": "payment_failed"}],
+            "denial_reason": "billing_past_due",
+        },
+        home=home,
+    )
     write_private_pack_metadata(
         root,
         {
@@ -39,6 +53,10 @@ def test_support_bundle_private_pack_summary_is_redacted(tmp_path: Path, monkeyp
     assert payload["private_packs"]["installed_count"] == 1
     assert payload["plan"]["registered"] is True
     assert payload["plan"]["privacy"]["tokens_included"] is False
+    assert payload["billing"]["subscription_status"] == "past_due"
+    assert payload["billing"]["denial_reason"] == "past_due"
+    assert payload["billing"]["privacy"]["checkout_urls_included"] is False
+    assert payload["billing"]["privacy"]["payment_card_data_included"] is False
     assert payload["private_packs"]["sha_mismatch_count"] == 1
     assert payload["privacy"]["skill_bodies_included"] is False
     assert payload["privacy"]["local_paths_included"] is False
@@ -46,6 +64,8 @@ def test_support_bundle_private_pack_summary_is_redacted(tmp_path: Path, monkeyp
     assert "secret private skills" not in serialized
     assert "team_pack_secret" not in serialized
     assert "uls_support_token" not in serialized
+    assert '"checkout_url":' not in serialized
+    assert '"payment_link":' not in serialized
     assert "SKILL.md" not in serialized
     assert_support_bundle_safe(payload)
 

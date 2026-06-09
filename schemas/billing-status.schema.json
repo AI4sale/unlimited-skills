@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unlimited.ai4.sale/schemas/billing-status.schema.json",
+  "title": "Unlimited Skills Billing Status",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "registered",
+    "source",
+    "plan",
+    "entitlement_source",
+    "subscription_status",
+    "billing_mode",
+    "features_allowed",
+    "features_denied",
+    "privacy"
+  ],
+  "properties": {
+    "schema_version": {"const": 1},
+    "registered": {"type": "boolean"},
+    "source": {"type": "string"},
+    "plan": {"type": "string"},
+    "entitlement_source": {"type": "string"},
+    "subscription_status": {
+      "enum": ["unknown", "none", "trialing", "active", "past_due", "canceled", "suspended", "expired"]
+    },
+    "billing_mode": {
+      "enum": ["none", "sandbox_only", "external", "manual"]
+    },
+    "features_allowed": {
+      "type": "array",
+      "items": {"type": "string"},
+      "uniqueItems": true
+    },
+    "features_denied": {
+      "type": "array",
+      "items": {"$ref": "feature-denial.schema.json"}
+    },
+    "denial_reason": {
+      "enum": ["", "unregistered", "no_entitlement", "plan_limit_exceeded", "past_due", "suspended", "expired", "policy_denied", "service_unavailable"]
+    },
+    "last_refreshed_at": {"type": "string"},
+    "next_action": {"type": "string"},
+    "privacy": {
+      "type": "object",
+      "required": [
+        "tokens_included",
+        "proofs_included",
+        "private_keys_included",
+        "payment_card_data_included",
+        "checkout_urls_included",
+        "local_paths_included",
+        "private_pack_bodies_included",
+        "private_skill_names_included"
+      ],
+      "properties": {
+        "tokens_included": {"const": false},
+        "proofs_included": {"const": false},
+        "private_keys_included": {"const": false},
+        "payment_card_data_included": {"const": false},
+        "checkout_urls_included": {"const": false},
+        "local_paths_included": {"const": false},
+        "private_pack_bodies_included": {"const": false},
+        "private_skill_names_included": {"const": false}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

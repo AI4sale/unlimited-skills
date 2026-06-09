@@ -10,7 +10,7 @@
     "allowed": {"type": "boolean"},
     "denial_reason": {
       "type": "string",
-      "enum": ["", "unregistered", "no_entitlement", "plan_limit_exceeded", "suspended", "service_unavailable", "policy_denied", "unknown_feature"]
+      "enum": ["", "unregistered", "no_entitlement", "plan_limit_exceeded", "past_due", "suspended", "expired", "service_unavailable", "policy_denied", "unknown_feature"]
     },
     "message": {"type": "string"},
     "plan": {"type": "string"},

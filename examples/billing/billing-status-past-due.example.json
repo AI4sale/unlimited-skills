@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "registered": true,
+  "source": "cached",
+  "plan": "business",
+  "entitlement_source": "organization",
+  "subscription_status": "past_due",
+  "billing_mode": "sandbox_only",
+  "features_allowed": ["local_skill_hub"],
+  "features_denied": [
+    {
+      "feature": "private_team_packs",
+      "denial_reason": "past_due"
+    }
+  ],
+  "denial_reason": "past_due",
+  "last_refreshed_at": "2026-06-09T00:00:00Z",
+  "next_action": "Contact your team admin or Unlimited Skills support.",
+  "privacy": {
+    "tokens_included": false,
+    "proofs_included": false,
+    "private_keys_included": false,
+    "payment_card_data_included": false,
+    "checkout_urls_included": false,
+    "local_paths_included": false,
+    "private_pack_bodies_included": false,
+    "private_skill_names_included": false
+  }
+}

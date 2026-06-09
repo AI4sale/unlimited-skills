@@ -14,14 +14,27 @@ unlimited-skills plan doctor
 
 `plan status` is cache-only and performs no network call. `plan refresh` requires registration and contacts `/v1/hub/entitlements` with the existing device proof flow.
 
+Billing lifecycle visibility is exposed through a separate read-only command group:
+
+```bash
+unlimited-skills billing status
+unlimited-skills billing status --json
+unlimited-skills billing refresh
+unlimited-skills billing doctor
+```
+
+`billing status` is cache-only. `billing refresh` requires registration and contacts `/v1/hub/billing-status`. The public client does not create checkout sessions, collect payment data, or enable live payment providers.
+
 Denial vocabulary:
 
 - `unregistered`
 - `no_entitlement`
 - `plan_limit_exceeded`
+- `past_due`
 - `suspended`
+- `expired`
 - `service_unavailable`
 - `policy_denied`
 - `unknown_feature`
 
-Plan diagnostics must not print registration tokens, device proofs, private keys, local paths, private pack bodies, private skill names, or search queries.
+Plan and billing diagnostics must not print registration tokens, device proofs, private keys, local paths, private pack bodies, private skill names, search queries, checkout URLs, payment links, invoice URLs, card data, or bank data.
