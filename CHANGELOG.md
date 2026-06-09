@@ -6,6 +6,8 @@
 
 - Private team pack setup, service diagnostics, doctor, and support bundle summaries with strict redaction of private pack names, private skill names, skill bodies, archive URLs, tokens, proofs, private keys, and local paths.
 - Registered private team pack client commands: `private-packs list`, `preview`, `install`, `sync`, `installed`, and `remove`.
+- Private pack entitlement diagnostics: `private-packs access-check <pack_id>` and `private-packs doctor` with stable redacted denial codes for no entitlement, team membership, agent/channel mismatch, revocation, policy denial, and service unavailability.
+- Organization governance status: `org status` for local cached status and `org status --refresh` for registered hosted refresh.
 - Private pack install safety: signed `private-team-pack` manifest verification, proofed POST downloads, SHA256 checks, safe zip extraction, `registry/private/<pack_id>` layout, and owned-path removal guard.
 - Private pack alpha release integration gate, release manifest, smoke runner, and verifier for v0.3.2.
 - Managed Enterprise Skill Lock policy sync: `policy sync`, `policy sync --dry-run`, and `policy managed-status`.
@@ -17,6 +19,7 @@
 
 - Raised package version to `0.3.2`.
 - Documented that private team pack hosted access requires registry-side entitlement or a Business/Enterprise plan.
+- Documented org/team status boundaries and private-pack access diagnostics in public core, service diagnostics, private-team-pack, and support bundle docs.
 
 ## v0.2.2-alpha
 

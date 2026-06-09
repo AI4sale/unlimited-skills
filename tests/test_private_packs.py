@@ -145,6 +145,15 @@ def fake_service(manifest: dict, archive: Path):
     return _urlopen
 
 
+def fake_access_check(payload: dict):
+    def _urlopen(request, timeout=30.0):
+        if request.full_url.endswith("/v1/private-packs/access-check"):
+            return FakeResponse(json.dumps(payload).encode("utf-8"))
+        raise AssertionError(f"Unexpected URL: {request.full_url}")
+
+    return _urlopen
+
+
 def test_private_packs_require_registration(tmp_path: Path, monkeypatch, capsys) -> None:
     monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(tmp_path / "home" / ".unlimited-skills"))
 
@@ -179,6 +188,73 @@ def test_private_pack_list_preview_and_install_are_signed_and_redacted(tmp_path:
     assert installed[0].pack_id == PACK_ID
     assert installed[0].target == f"registry\\private\\{PACK_ID}" or installed[0].target == f"registry/private/{PACK_ID}"
     assert (root / ".unlimited-skills-index.json").is_file()
+
+
+@pytest.mark.parametrize(
+    ("service_payload", "expected_reason", "expected_status"),
+    [
+        ({"authorized": False, "denial_reasons": ["no_entitlement"], "plan": "registered-community"}, "no_entitlement", "denied"),
+        ({"authorized": False, "denial_reasons": ["not_team_member"]}, "not_team_member", "denied"),
+        ({"authorized": False, "denial_reasons": ["wrong_agent"]}, "wrong_agent", "denied"),
+        ({"authorized": False, "denial_reasons": ["wrong_channel"]}, "wrong_channel", "denied"),
+        ({"authorized": False, "revoked": True}, "revoked", "denied"),
+        ({"authorized": False, "policy_denied": True}, "policy_denied", "denied"),
+        ({"authorized": True, "access_policy": {"current_install_authorized": True}}, None, "authorized"),
+    ],
+)
+def test_private_pack_access_check_reports_policy_reasons(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+    service_payload: dict,
+    expected_reason: str | None,
+    expected_status: str,
+) -> None:
+    home = tmp_path / "home"
+    write_registration(home)
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home / ".unlimited-skills"))
+
+    with patch("urllib.request.urlopen", fake_access_check(service_payload)):
+        assert main(["private-packs", "access-check", PACK_ID, "--json"]) == 0
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == expected_status
+    assert payload["privacy"]["pack_id_included"] is False
+    assert payload["pack_ref"].startswith("pack:")
+    if expected_reason:
+        assert expected_reason in payload["denial_reasons"]
+    serialized = json.dumps(payload)
+    assert PACK_ID not in serialized
+    assert '"archive_url":' not in serialized
+    assert "tok_test" not in serialized
+
+
+def test_private_pack_access_check_reports_service_unavailable(tmp_path: Path, monkeypatch, capsys) -> None:
+    home = tmp_path / "home"
+    write_registration(home)
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home / ".unlimited-skills"))
+
+    with patch("urllib.request.urlopen", side_effect=urllib.error.URLError("offline")):
+        assert main(["private-packs", "access-check", PACK_ID, "--json"]) == 0
+
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["status"] == "unavailable"
+    assert payload["denial_reasons"] == ["service_unavailable"]
+
+
+def test_private_pack_doctor_is_local_and_redacted(tmp_path: Path, monkeypatch, capsys) -> None:
+    home = tmp_path / "home"
+    root = tmp_path / "library"
+    write_registration(home)
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home / ".unlimited-skills"))
+
+    with patch("urllib.request.urlopen") as urlopen:
+        assert main(["--root", str(root), "private-packs", "doctor", "--json"]) == 0
+
+    urlopen.assert_not_called()
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["network_calls"] is False
+    assert payload["privacy"]["tokens_included"] is False
 
 
 def test_private_pack_sync_dry_run_and_apply(tmp_path: Path, monkeypatch, capsys) -> None:

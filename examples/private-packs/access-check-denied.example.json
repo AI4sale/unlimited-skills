@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "pack_ref": "pack:7f60f0ad3c0f",
+  "authorized": false,
+  "status": "denied",
+  "denial_reasons": [
+    "not_team_member"
+  ],
+  "plan": "registered-community",
+  "scope": "team",
+  "organization": {
+    "org_id": "org_example",
+    "role": "member",
+    "status": "active"
+  },
+  "team": {
+    "team_id": "team_example",
+    "role": "none",
+    "status": "not_member"
+  },
+  "request_id": "req_example",
+  "privacy": {
+    "pack_id_included": false,
+    "pack_name_included": false,
+    "skill_names_included": false,
+    "skill_bodies_included": false,
+    "archive_urls_included": false,
+    "tokens_included": false,
+    "proofs_included": false,
+    "private_keys_included": false,
+    "local_paths_included": false
+  }
+}

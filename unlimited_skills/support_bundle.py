@@ -5,9 +5,11 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
+from .org_status import local_org_status
 from .private_pack_diagnostics import assert_private_pack_diagnostics_safe, private_pack_local_summary, private_pack_setup_summary
 from .registration import load_registration
 from .service_diagnostics import configured_service_url
+from .team import load_team_state
 
 
 def build_support_bundle_manifest(root: Path, *, include_private_pack_refs: bool = False) -> dict[str, Any]:
@@ -15,6 +17,7 @@ def build_support_bundle_manifest(root: Path, *, include_private_pack_refs: bool
     service_url = configured_service_url(state)
     private_packs = private_pack_local_summary(root, include_pack_ids=include_private_pack_refs)
     setup = private_pack_setup_summary(root, state=state, service_url=service_url)
+    org_team = local_org_status(state, load_team_state())
     payload = {
         "schema_version": 1,
         "client": {"name": "unlimited-skills", "version": __version__},
@@ -29,6 +32,23 @@ def build_support_bundle_manifest(root: Path, *, include_private_pack_refs: bool
             "status": setup["status"],
             "checks": setup["checks"],
             "recommendation_count": len(setup["recommendations"]),
+        },
+        "org_team": {
+            "registered": org_team["registered"],
+            "source": org_team["source"],
+            "last_refreshed_at": org_team["last_refreshed_at"],
+            "plan": org_team["plan"],
+            "organization": {
+                "status": org_team["organization"].get("status", "unknown"),
+                "role": org_team["organization"].get("role", "none"),
+            },
+            "team": {
+                "joined": org_team["team"].get("joined", False),
+                "role": org_team["team"].get("role", "none"),
+                "status": org_team["team"].get("status", ""),
+                "approval_mode": org_team["team"].get("approval_mode", "manual"),
+            },
+            "entitlements": org_team["entitlements"],
         },
         "privacy": {
             "uploaded": False,

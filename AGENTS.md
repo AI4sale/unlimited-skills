@@ -35,3 +35,15 @@ Review rules:
 - Keep hosted registry backend code out of this public MIT repo.
 - Public repo self-update remains unregistered because it updates the MIT public core from GitHub.
 - Hosted skill updates, hosted catalog, local enhancer downloads, and team sync require registration.
+
+Release PR hygiene:
+
+- When a release train reaches release readiness, for example `v0.3.1-alpha`, finish the PR cleanup before starting or requesting the next task batch.
+- Confirm explicit user or release-owner approval for the cleanup turn before merging or closing PRs.
+- List open PRs across every repo involved in the release train, including public core, private registry, backend, docs, and installer repos.
+- Merge approved release PRs into the repository default branch, `main` or `master`, in dependency order after CI, review notes, security checks, and release evidence are verified.
+- Close obsolete, duplicate, or superseded PRs with a comment that points to the merged replacement.
+- Delete merged topic branches only when repository policy allows it.
+- Refresh the local default branch before creating follow-up branches.
+- Report merged PR numbers, closed PR numbers, remaining blockers, and the exact default branch commit used for follow-up work.
+- Do not ask ChatGPT Pro or another agent for the next task batch while finished release PRs are still open unless they are explicitly blocked.

@@ -1,0 +1,60 @@
+{
+  "$id": "https://unlimited.ai4.sale/schemas/private-pack-access-check.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills private pack access check",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "pack_ref", "authorized", "status", "denial_reasons", "privacy"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "pack_ref": { "type": "string", "pattern": "^pack:[a-f0-9]{12}$" },
+    "authorized": { "type": "boolean" },
+    "status": { "type": "string", "enum": ["authorized", "denied", "unavailable"] },
+    "denial_reasons": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "enum": [
+          "no_entitlement",
+          "not_team_member",
+          "wrong_agent",
+          "wrong_channel",
+          "revoked",
+          "policy_denied",
+          "service_unavailable"
+        ]
+      }
+    },
+    "plan": { "type": "string" },
+    "scope": { "type": "string" },
+    "organization": { "type": "object" },
+    "team": { "type": "object" },
+    "request_id": { "type": "string" },
+    "privacy": {
+      "type": "object",
+      "required": [
+        "pack_id_included",
+        "pack_name_included",
+        "skill_names_included",
+        "skill_bodies_included",
+        "archive_urls_included",
+        "tokens_included",
+        "proofs_included",
+        "private_keys_included",
+        "local_paths_included"
+      ],
+      "properties": {
+        "pack_id_included": { "const": false },
+        "pack_name_included": { "const": false },
+        "skill_names_included": { "const": false },
+        "skill_bodies_included": { "const": false },
+        "archive_urls_included": { "const": false },
+        "tokens_included": { "const": false },
+        "proofs_included": { "const": false },
+        "private_keys_included": { "const": false },
+        "local_paths_included": { "const": false }
+      }
+    }
+  }
+}

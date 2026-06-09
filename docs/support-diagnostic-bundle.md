@@ -19,6 +19,13 @@ For private team packs, the support manifest includes only:
 - last private-pack error codes;
 - optional hashed private-pack references when `--include-private-pack-refs` is explicitly passed.
 
+For organization and team governance, the support manifest includes only:
+
+- registered/local status;
+- organization role/status, without private pack names;
+- team joined/role/status/approval mode;
+- entitlement state summaries for private packs, community catalog, and team sync.
+
 The support manifest excludes:
 
 - private pack names by default;
