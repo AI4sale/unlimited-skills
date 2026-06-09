@@ -1,6 +1,6 @@
 # Known Limitations
 
-`v0.2.1-alpha` is a developer preview, not a stable production SLA.
+`v0.2.2-alpha` is a developer preview, not a stable production SLA.
 
 - Hosted registry access is early-access.
 - The registered hosted catalog exists and is populated, but availability may be limited during alpha.

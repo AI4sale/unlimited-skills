@@ -40,7 +40,7 @@ class FakeCompleted:
 
 
 class SelfUpdateTest(unittest.TestCase):
-    def latest_release(self, version: str = "v0.2.2") -> bytes:
+    def latest_release(self, version: str = "v0.2.3") -> bytes:
         return json.dumps(
             {
                 "tag_name": version,
@@ -74,8 +74,8 @@ class SelfUpdateTest(unittest.TestCase):
             with patch("urllib.request.urlopen", fake_urlopen), patch("subprocess.run", fake_run):
                 status = check_public_repo_update(install_root=root)
 
-            self.assertEqual(status.latest_tag, "v0.2.2")
-            self.assertEqual(status.latest_version, "0.2.2")
+            self.assertEqual(status.latest_tag, "v0.2.3")
+            self.assertEqual(status.latest_version, "0.2.3")
             self.assertTrue(status.update_available)
             self.assertTrue(status.is_git_checkout)
             self.assertFalse(status.dirty)

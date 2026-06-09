@@ -2,7 +2,7 @@
 
 ## Supported Version
 
-`v0.2.1-alpha` is a developer preview. Security fixes should target the current `main` branch first.
+`v0.2.2-alpha` is a developer preview. Security fixes should target the current `main` branch first.
 
 ## Responsible Disclosure
 
@@ -32,7 +32,7 @@ The hosted clients must not upload:
 
 ## Hosted Archives And Enhancers
 
-Current `v0.2.1-alpha` behavior:
+Current `v0.2.2-alpha` behavior:
 
 - hosted remote manifests must include valid signed manifest envelopes;
 - signatures verify hosted manifest authenticity;
@@ -49,16 +49,16 @@ Use "signed hosted manifests plus SHA256-verified hosted collection archives" fo
 
 Local Skill Hub is an alpha MVP. The runtime is allowlist-only, does not execute skills, and does not forward local search queries to the hosted registry. It is intended for local or controlled LAN testing.
 
-Current `v0.2.1-alpha` limitations:
+Current `v0.2.2-alpha` limitations:
 
 - Hub client token creation, revocation, and request enforcement are implemented for Local Skill Hub `/v1/...` APIs. `GET /health` remains unauthenticated for liveness checks.
 - Use the default `127.0.0.1` bind address unless you are testing on a trusted LAN.
 - LAN bind requires explicit `--allow-lan` and at least one active hub client token. For serious LAN testing, put the hub behind a reverse proxy or network control that provides TLS, authentication, access logging, and IP allowlisting.
 - Local install plan skills are metadata/resolution only until client capability checks are implemented.
 - Full catalog distribution remains disabled; the hub may serve only allowlisted skills.
-- Release artifacts are checked by `scripts/verify-v0.2.1-alpha-release.py` for version consistency, unsafe release claims, and obvious private key/token material.
+- Release artifacts are checked by `scripts/verify-v0.2.2-alpha-release.py` for version consistency, unsafe release claims, and obvious private key/token material.
 
-## Known Security Limitations In v0.2.1-alpha
+## Known Security Limitations In v0.2.2-alpha
 
 - Hosted manifest signatures verify manifest authenticity; archive bytes are still verified with SHA256 and safe extraction, not archive-byte signatures.
 - The hosted registry is early-access and availability may be limited.

@@ -82,7 +82,7 @@ The signature covers the canonical JSON payload with `manifest_signature` remove
 
 Trusted key records may include:
 
-- `scopes`: allowed manifest scopes such as `hub-allowlist`, `catalog-updates`, `enhancement-manifest`, and `team-sync-manifest`;
+- `scopes`: allowed manifest scopes such as `hub-allowlist`, `catalog-updates`, `enhancement-manifest`, `team-sync-manifest`, and `release-channels`;
 - `registry_origins`: pinned registry origins such as `https://unlimited.ai4.sale`;
 - `status`: `active` or `revoked`.
 

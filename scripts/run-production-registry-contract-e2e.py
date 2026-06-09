@@ -328,7 +328,7 @@ class FixtureHandler(BaseHTTPRequestHandler):
                             "algorithm": "ed25519",
                             "public_key": self.state["public_key"],
                             "status": "active",
-                            "scopes": ["hub-allowlist", "catalog-updates", "enhancement-manifest", "team-sync-manifest"],
+                            "scopes": ["hub-allowlist", "catalog-updates", "enhancement-manifest", "team-sync-manifest", "release-channels"],
                             "registry_origins": ["*"],
                         }
                     ],
@@ -489,6 +489,33 @@ def first_allowlisted_skill(allowlist_path: str) -> str:
     raise RuntimeError(f"No allowlisted skills found in {allowlist_path}")
 
 
+def seed_previous_collection(root: Path) -> Path:
+    skill = root / "registry" / "production-fixture-pack" / "skills" / "production-fixture-skill" / "SKILL.md"
+    skill.parent.mkdir(parents=True, exist_ok=True)
+    skill.write_text(
+        "---\nname: production-fixture-skill\ndescription: Previous production fixture.\n---\n\n# production-fixture-skill\n",
+        encoding="utf-8",
+    )
+    (root / ".unlimited-skills-collections.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "collections": {
+                    "production-fixture-pack": {
+                        "version": "0.2.0-previous",
+                        "source": "hosted",
+                        "sha256": "previous",
+                    }
+                },
+            },
+            indent=2,
+            sort_keys=True,
+        ),
+        encoding="utf-8",
+    )
+    return skill
+
+
 def run_flow(registry_url: str, *, fixture_public_key: str, fixture_key_id: str = KEY_ID, fixture_state: dict[str, Any] | None = None) -> None:
     assert_no_production_url(registry_url)
     with tempfile.TemporaryDirectory(prefix="uls-production-contract-e2e-") as temp:
@@ -509,6 +536,7 @@ def run_flow(registry_url: str, *, fixture_public_key: str, fixture_key_id: str 
             }
         )
 
+        seeded_skill = seed_previous_collection(library)
         run([sys.executable, "-m", "unlimited_skills.cli", "--root", str(library), "register", "--server-url", registry_url, "--agent", "codex", "--timeout", "10"], env=env)
         status = json.loads(run([sys.executable, "-m", "unlimited_skills.cli", "license", "status", "--json"], env=env).stdout)
         assert status["registered"] is True
@@ -523,6 +551,26 @@ def run_flow(registry_url: str, *, fixture_public_key: str, fixture_key_id: str 
         assert updates["count"] >= 1
         assert updates["channel"] == "beta"
         run([sys.executable, "-m", "unlimited_skills.cli", "--root", str(library), "updates", "apply", "--skip-reindex"], env=env)
+        assert "Production registry contract fixture." in seeded_skill.read_text(encoding="utf-8")
+        rollback = json.loads(
+            run(
+                [
+                    sys.executable,
+                    "-m",
+                    "unlimited_skills.cli",
+                    "--root",
+                    str(library),
+                    "updates",
+                    "rollback",
+                    "production-fixture-pack",
+                    "--yes",
+                    "--skip-reindex",
+                ],
+                env=env,
+            ).stdout
+        )
+        assert rollback["result"]["collection"] == "production-fixture-pack"
+        assert "Previous production fixture." in seeded_skill.read_text(encoding="utf-8")
         run([sys.executable, "-m", "unlimited_skills.cli", "--root", str(library), "reindex", "--no-native-sync"], env=env)
 
         enhancement = run([sys.executable, "-m", "unlimited_skills.cli", "--root", str(library), "enhance", "download"], env=env).stdout
@@ -556,6 +604,7 @@ def run_flow(registry_url: str, *, fixture_public_key: str, fixture_key_id: str 
     print("registration with device proof: ok")
     print("catalog/update/enhancement/hub/team signed manifests: ok")
     print("release channel status and pinning: ok")
+    print("rollback apply/restore: ok")
     print("device proof missing/invalid/replay rejection: ok")
     print("production hosted calls: none")
     print("raw token/private key output: redacted/not printed")

@@ -1,11 +1,25 @@
 # Changelog
 
+## v0.2.2-alpha
+
+### Added
+
+- Production-shaped registry contract E2E fixture covering registered device proof, signed catalog/update/enhancement/hub/team/release-channel manifests, hub heartbeat, entitlement refresh, safe retries, signed offline metadata cache, and proof replay rejection without calling production hosts.
+- Release channel UX for registered clients: `release status`, `release pin`, `updates --channel`, signed `release-channels` verification, and `updates rollback`.
+- Machine-readable `v0.2.2-alpha` release manifest, release verifier, fresh install smoke, and synthetic v0.2.0 upgrade smoke.
+
+### Changed
+
+- Raised package version to `0.2.2`.
+- Hosted registry JSON clients now use a shared request path with bounded retries for safe/idempotent reads, redacted errors, and signed offline cache fallback for catalog/update metadata when the service is unreachable.
+- Hosted update apply now preserves the replaced collection under `registry/.rollbacks/<collection>/` for explicit local rollback instead of discarding the previous version after a successful update.
+- Official bundled trusted manifest key scope now includes `release-channels` so the registered client can verify signed release-channel status manifests from the production registry.
+- Release documentation now traces the v0.2.2 stack through public PR #20 through PR #24 and private registry PR #3 through PR #5 before tag approval.
+
 ## v0.2.1-alpha
 
 ### Added
 
-- Release channel UX for registered clients: `release status`, `release pin`, `updates --channel`, signed `release-channels` verification, and `updates rollback`.
-- Production-shaped registry contract E2E fixture covering registered device proof, signed catalog/update/enhancement/hub/team manifests, hub heartbeat, entitlement refresh, and proof replay rejection without calling production hosts.
 - Integrated Local Skill Hub token enforcement, remote hub client runtime, allowlist bootstrap, and v0.2.x release smoke coverage into one release-candidate branch.
 - Local Skill Hub client token checks for protected `/v1/...` APIs; `/health` remains open for liveness.
 - Remote Local Skill Hub client commands for `remote configure`, `remote status`, `remote search`, `remote resolve`, and `remote view` with explicit fallback policy.
@@ -18,8 +32,6 @@
 
 ### Changed
 
-- Hosted update apply now preserves the replaced collection under `registry/.rollbacks/<collection>/` for explicit local rollback instead of discarding the previous version after a successful update.
-- Hosted registry JSON clients now use a shared request path with bounded retries for safe/idempotent reads, redacted errors, and signed offline cache fallback for catalog/update metadata when the service is unreachable.
 - Raised package version to `0.2.1`.
 - Updated alpha security and release documentation to describe the integrated Local Skill Hub runtime stack.
 - Clarified that Local Skill Hub remains allowlist-only, full catalog distribution remains disabled, and hosted registry services do not receive local hub search queries by default.

@@ -42,12 +42,15 @@ python scripts/run-v0.2x-smoke-tests.py
 
 See [release-smoke-tests.md](release-smoke-tests.md) for coverage, feature-detection behavior, and extension rules.
 
-For `v0.2.1-alpha`, also run:
+For `v0.2.2-alpha`, also run:
 
 ```bash
-python scripts/verify-v0.2.1-alpha-release.py
-python scripts/run-v0.2.1-alpha-fresh-install-smoke.py
-python scripts/run-v0.2.1-alpha-upgrade-smoke.py
+python scripts/run-staging-registry-e2e.py --fixture-mode --temp-home
+python scripts/run-production-registry-contract-e2e.py --fixture-mode --temp-home
+python scripts/run-v0.2.2-alpha-cross-repo-smoke.py --fixture-mode --temp-home
+python scripts/verify-v0.2.2-alpha-release.py
+python scripts/run-v0.2.2-alpha-fresh-install-smoke.py
+python scripts/run-v0.2.2-alpha-upgrade-smoke.py
 ```
 
 Legacy ad hoc checks may still be useful for manual verification:
@@ -71,23 +74,24 @@ Additional alpha checks:
 
 ## Tag And Release Checklist
 
-Required merge order for `v0.2.1-alpha`:
+Required merge order for `v0.2.2-alpha`:
 
 1. Private registry PR #2: signed registry manifest publisher.
-2. Public PR #13: `release/v0.2.1-alpha-hub-runtime-integration`
-3. Public PR #14: `feat/remote-hub-router-installers-v1`
-4. Public PR #15: `feat/capability-aware-local-install-plans-v1`
-5. Public PR #16: `feat/signed-hub-manifests-v1`
-6. Public PR #17: `release/v0.2.1-alpha-ci-and-merge-gate`
-7. Public PR #18: `feat/trust-key-bootstrap-rotation-v1`
-8. Public PR #19: `feat/hub-client-lifecycle-quota-observability-v1`
-9. Finalization PR: `release/v0.2.1-alpha-finalization`
+2. Public PR #13 through PR #20: v0.2.1-alpha runtime, trust, lifecycle, and finalization baseline.
+3. Private registry PR #3: `feat/staging-signed-registry-api-v1`
+4. Public PR #21: `test/staging-signed-registry-e2e-v1`
+5. Public PR #22: `feat/hub-plan-heartbeat-entitlement-sync-v1`
+6. Private registry PR #4: `feat/registry-production-api-mvp-v1`
+7. Public PR #23: `test/production-registry-contract-e2e-v1`
+8. Private registry PR #5: `feat/registry-release-channels-rollback-v1`
+9. Public PR #24: `feat/client-channel-pinning-update-rollback-v1`
+10. Final gate PR: `release/v0.2.2-alpha-final-gate`
 
-Complete [releases/v0.2.1-alpha-checklist.md](releases/v0.2.1-alpha-checklist.md) before tagging.
+Complete [releases/v0.2.2-alpha-checklist.md](releases/v0.2.2-alpha-checklist.md) before tagging.
 
 ```bash
-git tag v0.2.1-alpha
-git push origin v0.2.1-alpha
+git tag v0.2.2-alpha
+git push origin v0.2.2-alpha
 ```
 
 Then create GitHub release notes that include:
