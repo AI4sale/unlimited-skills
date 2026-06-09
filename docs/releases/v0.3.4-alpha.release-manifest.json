@@ -5,12 +5,12 @@
   "package_version": "0.3.4",
   "git": {
     "repository": "https://github.com/AI4sale/unlimited-skills",
-    "sha": "edecdd18313852011501be8ddf997e9f713077d5",
+    "sha": "3b372a080e26cd0c1590091fae2b3b7624692705",
     "sha_kind": "release_candidate_stack_ancestor",
     "tag": "v0.3.4-alpha",
     "tag_status": "pending_release_owner_approval",
-    "publication_branch": "release/v0.3.4-alpha-plans-billing-integration",
-    "tag_owner_note": "Run scripts/verify-v0.3.4-alpha-plans-billing.py --expected-sha <tag-target-sha> immediately before pushing the tag. Refresh git.sha if the merge strategy changes the tag target."
+    "publication_branch": "release/v0.3.4-alpha-final-publication",
+    "tag_owner_note": "Run scripts/verify-v0.3.4-alpha-publication.py --expected-sha <tag-target-sha> immediately before pushing the tag. Refresh git.sha if the merge strategy changes the tag target."
   },
   "required_prs": {
     "public": [
@@ -25,12 +25,29 @@
         "status": "open_mergeable_in_review"
       },
       {
-        "number": 0,
+        "number": 52,
         "title": "v0.3.4-alpha plans and sandbox billing integration gate",
+        "status": "open_mergeable_in_review"
+      },
+      {
+        "number": 0,
+        "title": "v0.3.4-alpha final publication gate",
         "status": "this_release_gate_pr"
       }
     ],
     "private_registry": [
+      {
+        "number": 30,
+        "repository": "AI4sale/unlimited-skills-registry",
+        "title": "plan catalog and entitlement lifecycle",
+        "status": "open_mergeable_in_review"
+      },
+      {
+        "number": 31,
+        "repository": "AI4sale/unlimited-skills-registry",
+        "title": "billing adapter interface and sandbox ledger",
+        "status": "open_mergeable_in_review"
+      },
       {
         "number": 32,
         "repository": "AI4sale/unlimited-skills-registry",
@@ -88,7 +105,8 @@
     "support bundle billing summary",
     "shared plan billing private-pack denial vocabulary",
     "cross-repo billing lifecycle fixture E2E",
-    "v0.3.4-alpha plans/billing release smoke and verifier"
+    "v0.3.4-alpha plans/billing release smoke and verifier",
+    "draft GitHub release notes"
   ],
   "known_limitations": [
     "Developer preview, not a production SLA.",
@@ -105,10 +123,12 @@
   "required_test_commands": [
     "python -m pytest tests -q",
     "python scripts/run-v0.2x-smoke-tests.py",
+    "python scripts/run-private-team-pack-cross-repo-e2e.py --fixture-mode --temp-home --json",
     "python scripts/run-billing-lifecycle-cross-repo-e2e.py --fixture-mode --temp-home --json",
     "python scripts/run-v0.3.4-alpha-plans-billing-smoke.py",
     "python scripts/run-v0.3.4-alpha-release-smoke.py",
     "python scripts/verify-v0.3.4-alpha-plans-billing.py --expected-sha <tag-target-sha>",
+    "python scripts/verify-v0.3.4-alpha-publication.py --expected-sha <tag-target-sha>",
     "python -m compileall -q unlimited_skills scripts tests",
     "git diff --check"
   ],
@@ -121,7 +141,7 @@
   ],
   "release_owner_actions": [
     "Review and merge required public and private registry PRs in dependency order.",
-    "Run scripts/verify-v0.3.4-alpha-plans-billing.py --expected-sha <tag-target-sha>.",
+    "Run scripts/verify-v0.3.4-alpha-publication.py --expected-sha <tag-target-sha>.",
     "Refresh git.sha if the merge strategy changes the final tag target.",
     "Create tag v0.3.4-alpha only after human release-owner approval.",
     "Create a GitHub prerelease with docs/releases/v0.3.4-alpha.md as release notes."

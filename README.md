@@ -12,7 +12,7 @@
 
 Keep thousands of `SKILL.md` files out of the always-loaded context. Ask one tiny router skill what the task needs. Load only the selected skill.
 
-**v0.3.3 alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, Local Skill Hub is allowlist-only alpha, Enterprise Skill Lock is a local policy MVP with registered managed sync, and private team packs plus org/team governance diagnostics are registered/entitled alpha paths.
+**v0.3.4 alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, Local Skill Hub is allowlist-only alpha, Enterprise Skill Lock is a local policy MVP with registered managed sync, private team packs plus org/team governance diagnostics are registered/entitled alpha paths, and plan/billing diagnostics are sandbox-only with no live payment provider.
 
 [Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
 
@@ -73,6 +73,10 @@ Working now:
 - registered private team pack client for list/preview/install/sync/installed/remove under `registry/private/<pack_id>`;
 - registered private pack access diagnostics with redacted `private-packs access-check <pack_id>` output;
 - local/cache org and team governance diagnostics with `org status`;
+- local/cache plan diagnostics with `plan status`, `plan explain`, and `plan doctor`;
+- registered plan refresh through `/v1/hub/entitlements`;
+- local/cache billing lifecycle diagnostics with `billing status` and `billing doctor`;
+- registered sandbox billing refresh through `/v1/hub/billing-status`;
 - private team pack setup, service diagnostics, doctor, and redacted support bundle summaries;
 - native skill sync for Codex, Claude Code, Hermes, and OpenClaw roots;
 - public repo self-update checks and applies latest releases/tags;
@@ -116,9 +120,9 @@ For minimal lexical-only usage:
 python -m pip install -e .
 ```
 
-PyPI packaging is not the supported v0.3.3-alpha distribution path. Install from a GitHub clone for now, because the router skills, scripts, docs, and bundled packs are repo assets. A PyPI package should wait until wheel/sdist asset inclusion and installer behavior are tested in CI.
+PyPI packaging is not the supported v0.3.4-alpha distribution path. Install from a GitHub clone for now, because the router skills, scripts, docs, and bundled packs are repo assets. A PyPI package should wait until wheel/sdist asset inclusion and installer behavior are tested in CI.
 
-For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md), [docs/packaging.md](docs/packaging.md), [docs/install-upgrade-uninstall.md](docs/install-upgrade-uninstall.md), and [SECURITY.md](SECURITY.md). For the v0.3.3 alpha publication gate, see [docs/releases/v0.3.3-alpha.md](docs/releases/v0.3.3-alpha.md) and [docs/releases/v0.3.3-alpha-known-issues.md](docs/releases/v0.3.3-alpha-known-issues.md).
+For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md), [docs/packaging.md](docs/packaging.md), [docs/install-upgrade-uninstall.md](docs/install-upgrade-uninstall.md), and [SECURITY.md](SECURITY.md). For the v0.3.4 alpha publication gate, see [docs/releases/v0.3.4-alpha.md](docs/releases/v0.3.4-alpha.md) and [docs/releases/v0.3.4-alpha-known-issues.md](docs/releases/v0.3.4-alpha-known-issues.md).
 
 ## Product Editions
 
