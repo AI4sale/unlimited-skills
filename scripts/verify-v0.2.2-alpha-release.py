@@ -22,6 +22,7 @@ DOC_PATHS = [
     ROOT / "docs" / "release-channels.md",
     ROOT / "docs" / "releases" / "v0.2.2-alpha.md",
     ROOT / "docs" / "releases" / "v0.2.2-alpha-checklist.md",
+    ROOT / "docs" / "releases" / "v0.2.2-alpha-upgrade-notes.md",
 ]
 
 
@@ -92,6 +93,8 @@ def assert_docs() -> None:
     require("archive bytes are sha256-verified" in lowered or "archive bytes still require sha256 verification" in lowered or "archive bytes are accepted only after sha256 verification" in lowered, "docs do not state archive-byte SHA256 boundary")
     require("unlimited-skills serve` remains" in text or "`serve` is the free local daemon and remains unregistered" in text, "docs do not preserve unregistered serve boundary")
     require("`unlimited-skills hub serve` remains registration-gated" in text or "`hub serve` is a separate registration-required product command" in text, "docs do not preserve registration-gated hub serve boundary")
+    require("enterprise skill lock local policy mvp" in lowered or "enterprise skill lock is an opt-in local policy mvp" in lowered, "docs do not document Enterprise Skill Lock as local policy MVP")
+    require("managed hosted policy sync" in lowered, "docs do not document Enterprise Skill Lock managed hosted sync limitation")
 
     forbidden = [
         "full catalog distribution is enabled",
@@ -101,6 +104,7 @@ def assert_docs() -> None:
         "archive bytes are cryptographically signed",
         "signed archives are verified",
         "archive-byte signatures are implemented in v0.2.2-alpha",
+        "enterprise skill lock is planned, not implemented",
     ]
     found = [phrase for phrase in forbidden if phrase in lowered]
     require(not found, "docs contain unsafe release claims: " + ", ".join(found))
@@ -116,11 +120,16 @@ def assert_manifest(package_version: str) -> dict:
     require(payload.get("release") == RELEASE, "release manifest release mismatch")
     require(payload.get("package_version") == package_version, "release manifest package_version mismatch")
     require(payload.get("git", {}).get("tag") == RELEASE, "release manifest tag mismatch")
+    sha = payload.get("git", {}).get("sha")
+    require(isinstance(sha, str) and re.fullmatch(r"[0-9a-f]{40}", sha), "release manifest git.sha must be a 40-hex release candidate SHA")
+    placeholder = "pending" + "_final_gate_merge_commit"
+    require(sha != placeholder, "release manifest still contains placeholder git.sha")
     private_prs = payload.get("required_prs", {}).get("private_registry", [])
     public_prs = payload.get("required_prs", {}).get("public", [])
-    require([item.get("number") for item in private_prs] == [2, 3, 4, 5], "release manifest private PR list mismatch")
-    require([item.get("number") for item in public_prs] == list(range(13, 25)), "release manifest public PR list mismatch")
+    require([item.get("number") for item in private_prs] == [2, 3, 4, 5, 6], "release manifest private PR list mismatch")
+    require([item.get("number") for item in public_prs] == list(range(13, 28)), "release manifest public PR list mismatch")
     require(payload.get("required_prs", {}).get("finalization_branch") == "release/v0.2.2-alpha-final-gate", "release manifest finalization branch mismatch")
+    require(payload.get("required_prs", {}).get("publication_branch") == "release/v0.2.2-alpha-publication", "release manifest publication branch mismatch")
     require(payload.get("distribution_policy", {}).get("full_catalog_distribution") is False, "manifest must keep full catalog disabled")
     require(payload.get("distribution_policy", {}).get("hub_distribution_mode") == "allowlist_only", "manifest must keep hub allowlist-only")
     security = payload.get("security_boundary", {})
@@ -135,8 +144,12 @@ def assert_manifest(package_version: str) -> dict:
         "python scripts/run-v0.2.2-alpha-cross-repo-smoke.py --fixture-mode --temp-home" in commands,
         "manifest missing v0.2.2 cross-repo smoke command",
     )
+    require("python scripts/verify-v0.2.2-alpha-publication.py" in commands, "manifest missing publication verifier command")
     scope = payload.get("feature_scope", [])
     require("release channel naming fixed to stable, beta, and canary" in scope, "manifest missing channel naming decision")
+    require("production service onboarding diagnostics" in scope, "manifest missing production service diagnostics scope")
+    require("Enterprise Skill Lock local policy MVP" in scope, "manifest missing Enterprise Skill Lock scope")
+    require("private registry deployment and operations package" in scope, "manifest missing private registry deployment ops scope")
     key_records = payload.get("public_trusted_manifest_keys", [])
     key_ids = [item.get("key_id") for item in key_records]
     require("registry-alpha-2026-06" in key_ids, "manifest missing bundled trusted key id")

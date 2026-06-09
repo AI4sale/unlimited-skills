@@ -56,14 +56,14 @@ Current `v0.2.2-alpha` limitations:
 - LAN bind requires explicit `--allow-lan` and at least one active hub client token. For serious LAN testing, put the hub behind a reverse proxy or network control that provides TLS, authentication, access logging, and IP allowlisting.
 - Local install plan skills are metadata/resolution only until client capability checks are implemented.
 - Full catalog distribution remains disabled; the hub may serve only allowlisted skills.
-- Release artifacts are checked by `scripts/verify-v0.2.2-alpha-release.py` for version consistency, unsafe release claims, and obvious private key/token material.
+- Release artifacts are checked by `scripts/verify-v0.2.2-alpha-release.py` and `scripts/verify-v0.2.2-alpha-publication.py` for version consistency, unsafe release claims, final publication placeholders, and obvious private key/token material.
 
 ## Known Security Limitations In v0.2.2-alpha
 
 - Hosted manifest signatures verify manifest authenticity; archive bytes are still verified with SHA256 and safe extraction, not archive-byte signatures.
 - The hosted registry is early-access and availability may be limited.
 - Community submissions are planned and must be explicit uploads when implemented.
-- Enterprise Skill Lock is planned, not implemented in the public alpha.
+- Enterprise Skill Lock is implemented as an opt-in local policy MVP. Managed hosted policy sync, SSO, SCIM, billing, organization administration, and enterprise private-registry enforcement are not implemented in this alpha.
 - Warm daemon mode is experimental and binds to `127.0.0.1` by default; do not expose it on public interfaces.
 - The GitHub clone is the v0.2.x distribution path because repo assets are required. PyPI packaging is not the supported alpha install path yet.
 

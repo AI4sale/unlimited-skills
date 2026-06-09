@@ -49,6 +49,7 @@ python scripts/run-staging-registry-e2e.py --fixture-mode --temp-home
 python scripts/run-production-registry-contract-e2e.py --fixture-mode --temp-home
 python scripts/run-v0.2.2-alpha-cross-repo-smoke.py --fixture-mode --temp-home
 python scripts/verify-v0.2.2-alpha-release.py
+python scripts/verify-v0.2.2-alpha-publication.py
 python scripts/run-v0.2.2-alpha-fresh-install-smoke.py
 python scripts/run-v0.2.2-alpha-upgrade-smoke.py
 ```
@@ -85,12 +86,24 @@ Required merge order for `v0.2.2-alpha`:
 7. Public PR #23: `test/production-registry-contract-e2e-v1`
 8. Private registry PR #5: `feat/registry-release-channels-rollback-v1`
 9. Public PR #24: `feat/client-channel-pinning-update-rollback-v1`
-10. Final gate PR: `release/v0.2.2-alpha-final-gate`
+10. Public PR #25: `release/v0.2.2-alpha-final-gate`
+11. Private registry PR #6: `feat/production-registry-deployment-ops-v1`
+12. Public PR #26: `feat/production-registry-onboarding-diagnostics-v1`
+13. Public PR #27: `feat/enterprise-skill-lock-policy-mvp-v1`
+14. Publication gate PR: `release/v0.2.2-alpha-publication`
 
 Complete [releases/v0.2.2-alpha-checklist.md](releases/v0.2.2-alpha-checklist.md) before tagging.
 
+The machine-readable release manifest must not contain placeholder SHAs. Immediately before pushing a tag, verify the tag target against the manifest:
+
 ```bash
-git tag v0.2.2-alpha
+python scripts/verify-v0.2.2-alpha-publication.py --expected-sha <tag-target-sha>
+```
+
+If the release merge strategy changes the tag target, refresh `docs/releases/v0.2.2-alpha.release-manifest.json` and rerun the verifier before tagging.
+
+```bash
+git tag v0.2.2-alpha <tag-target-sha>
 git push origin v0.2.2-alpha
 ```
 

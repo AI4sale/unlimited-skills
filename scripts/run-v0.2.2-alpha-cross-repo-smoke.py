@@ -106,6 +106,7 @@ def main() -> int:
     else:
         run([sys.executable, "scripts/run-production-registry-contract-e2e.py", "--fixture-mode", "--temp-home"])
     run([sys.executable, "scripts/verify-v0.2.2-alpha-release.py"])
+    run([sys.executable, "scripts/verify-v0.2.2-alpha-publication.py"])
 
     print("cross-repo smoke passed")
     print("signed release channel verification: covered by production registry contract E2E")

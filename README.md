@@ -12,7 +12,7 @@
 
 Keep thousands of `SKILL.md` files out of the always-loaded context. Ask one tiny router skill what the task needs. Load only the selected skill.
 
-**v0.2.2 alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, Local Skill Hub is allowlist-only alpha, and enterprise governance features are roadmap items.
+**v0.2.2 alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, Local Skill Hub is allowlist-only alpha, and Enterprise Skill Lock is a local policy MVP.
 
 [Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
 
@@ -123,7 +123,7 @@ See [docs/product-editions.md](docs/product-editions.md) for the full edition ta
 - **Registered Community**: free registration for hosted adapted catalog access, early-access collection updates, registered local enhancer downloads, future official community catalog/submissions, and the Registered Local Skill Hub contract up to 100 active client instances.
 - **Team Free**: registered team sync MVP with master approval and up to 10 instances when enforced server-side.
 - **Pro / Team**: planned paid hosted collaboration, dashboard, private packs, collection assignment, longer auto-approval windows, and support.
-- **Enterprise**: planned private registry, Enterprise Skill Lock, policy controls, SSO/on-prem/VPC options later.
+- **Enterprise**: local Enterprise Skill Lock policy MVP now; managed hosted policy sync, private registry enforcement, SSO/on-prem/VPC options later.
 
 Local Skill Hub is separate from the free local daemon: `unlimited-skills serve` remains unregistered, while `unlimited-skills hub serve` is registration-gated and allowlist-only. See [docs/local-skill-hub.md](docs/local-skill-hub.md).
 

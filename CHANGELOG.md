@@ -18,7 +18,7 @@
 - Hosted registry JSON clients now use a shared request path with bounded retries for safe/idempotent reads, redacted errors, and signed offline cache fallback for catalog/update metadata when the service is unreachable.
 - Hosted update apply now preserves the replaced collection under `registry/.rollbacks/<collection>/` for explicit local rollback instead of discarding the previous version after a successful update.
 - Official bundled trusted manifest key scope now includes `release-channels` so the registered client can verify signed release-channel status manifests from the production registry.
-- Release documentation now traces the v0.2.2 stack through public PR #20 through PR #24 and private registry PR #3 through PR #5 before tag approval.
+- Release documentation now traces the v0.2.2 stack through public PR #20 through PR #27 and private registry PR #3 through PR #6 before tag approval.
 
 ## v0.2.1-alpha
 
@@ -127,7 +127,7 @@ Developer preview for a local-first skill router and context reducer.
 ### Known Limitations
 
 - Hosted registry access is early-access and requires registration.
-- Enterprise Skill Lock is planned, not implemented in v0.1.0-alpha.
+- Enterprise Skill Lock was roadmap-only in v0.1.0-alpha.
 - Hosted archive signature metadata exists, but the current client enforces SHA256 verification only. Cryptographic signature verification is planned.
 - Install from a GitHub clone for now. PyPI packaging should wait until repo assets such as scripts, router skills, docs, and packs are included and tested in wheels.
 - OpenClaw installer modifies the selected workspace and patches `AGENTS.md` unless `--no-agents-patch` is passed.

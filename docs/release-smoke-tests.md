@@ -29,6 +29,7 @@ python scripts/run-staging-registry-e2e.py --fixture-mode --temp-home
 python scripts/run-production-registry-contract-e2e.py --fixture-mode --temp-home
 python scripts/run-v0.2.2-alpha-cross-repo-smoke.py --fixture-mode --temp-home
 python scripts/verify-v0.2.2-alpha-release.py
+python scripts/verify-v0.2.2-alpha-publication.py
 python scripts/run-v0.2.2-alpha-fresh-install-smoke.py
 python scripts/run-v0.2.2-alpha-upgrade-smoke.py
 ```
