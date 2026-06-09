@@ -17,6 +17,7 @@ from unlimited_skills.service_diagnostics import (
     doctor,
     local_status,
     registration_dry_run,
+    service_health_snapshot,
     test_proof as build_test_proof,
     verify_trust,
 )
@@ -104,6 +105,30 @@ def test_service_status_is_local_only_without_refresh(tmp_path: Path, monkeypatc
 
     assert payload["network"]["performed"] is False
     assert payload["registration"]["registered"] is True
+    assert_service_diagnostics_do_not_contain_forbidden_fields(payload)
+
+
+def test_service_health_snapshot_v2_is_local_only_and_redacted(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    home = tmp_path / "home"
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home))
+    save_registration(registered_state(), home=home)
+
+    def fake_urlopen(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("service health snapshot must be local-only unless refresh=True")
+
+    with patch("urllib.request.urlopen", fake_urlopen):
+        payload = service_health_snapshot(home=home)
+
+    serialized = json.dumps(payload)
+    assert payload["snapshot_version"] == 2
+    assert payload["network"]["performed"] is False
+    assert payload["registration"]["registered"] is True
+    assert payload["registration"]["hosted_credential"] == "present"
+    assert payload["registration"]["device_identity"] == "present"
+    assert "uls_secret_token" not in serialized
+    assert "device_private_key" not in serialized
+    assert "X-ULS-Proof" not in serialized
+    assert "unlimited-skills service doctor" in payload["next_commands"]
     assert_service_diagnostics_do_not_contain_forbidden_fields(payload)
 
 

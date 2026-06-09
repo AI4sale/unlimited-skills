@@ -10,7 +10,7 @@ from .hub import active_hub_token_count, cached_allowlist_summary, load_hub_conf
 from .policy import load_policy, policy_summary
 from .policy_sync import managed_policy_status
 from .registration import DEFAULT_SERVICE_URL, RegistrationError, load_registration, redacted_status, redact_sensitive_text, unlimited_skills_home
-from .service_diagnostics import load_service_config, local_status as service_local_status, local_trust_status
+from .service_diagnostics import load_service_config, service_health_snapshot
 
 
 SETUP_MODES = {"overview", "local-only", "registered", "hub", "enterprise"}
@@ -87,11 +87,10 @@ def _registration_status(home: Path | None = None) -> tuple[dict[str, Any], list
 
 def _service_status(home: Path | None = None) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     try:
-        status = service_local_status(refresh=False, home=home)
+        status = service_health_snapshot(refresh=False, home=home)
     except Exception as exc:  # noqa: BLE001 - setup should report a next action, not crash on local config issues.
         status = {"ok": False, "error": redact_sensitive_text(str(exc)), "service_url": DEFAULT_SERVICE_URL}
-    registration = status.get("registration") if isinstance(status.get("registration"), dict) else {}
-    trust = status.get("trust") if isinstance(status.get("trust"), dict) else {}
+    checks = status.get("checks") if isinstance(status.get("checks"), dict) else {}
     service_config = load_service_config(home)
     steps = [
         _step(
@@ -102,14 +101,14 @@ def _service_status(home: Path | None = None) -> tuple[dict[str, Any], list[dict
         ),
         _step(
             "trust",
-            "ok" if int(trust.get("compatible_key_count") or 0) > 0 else "needs_action",
-            "Compatible trusted manifest keys are available." if int(trust.get("compatible_key_count") or 0) > 0 else "Trusted manifest keys are missing or not compatible with the configured service.",
+            "ok" if checks.get("trusted_manifest_keys_compatible") else "needs_action",
+            "Compatible trusted manifest keys are available." if checks.get("trusted_manifest_keys_compatible") else "Trusted manifest keys are missing or not compatible with the configured service.",
             next_commands=["unlimited-skills trust status", "unlimited-skills service verify-trust"],
         ),
         _step(
             "device_proof",
-            "ok" if registration.get("device_key") == "present" or registration.get("device_key") else "needs_action",
-            "Device proof key is present." if registration.get("device_key") == "present" or registration.get("device_key") else "Device proof key is missing until registration creates local device identity.",
+            "ok" if checks.get("device_identity_present") else "needs_action",
+            "Device proof key is present." if checks.get("device_identity_present") else "Device proof key is missing until registration creates local device identity.",
             next_commands=["unlimited-skills service test-proof"],
         ),
     ]

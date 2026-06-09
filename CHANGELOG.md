@@ -10,6 +10,7 @@
 - Public setup report schema, sanitized setup examples, and first-run onboarding documentation.
 - Redacted support diagnostic bundle with zip output, dry-run, JSON manifest, optional path inclusion, public schema, sanitized example, and privacy documentation.
 - v0.3.1-alpha publication manifest and verifier covering public PR #34-#36, private registry PR #9/#10, the canonical 315-skill reconciliation counts, and release-owner tag approval.
+- Shared service diagnostics v2 snapshot across setup reports and support bundles, preserving local-only defaults and redacted support output.
 
 ### Changed
 
