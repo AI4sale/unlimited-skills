@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "plan": "registered-community",
+  "features_enabled": [
+    "local_skill_hub",
+    "signed_manifests"
+  ],
+  "limits": {
+    "max_hub_clients": 100
+  },
+  "policy": {
+    "hub_distribution_mode": "allowlist_only",
+    "signed_manifests_required": true,
+    "hosted_query_forwarding_allowed": false,
+    "team_sync_enabled": false
+  },
+  "grace": {
+    "offline_grace_until": "2026-06-16T00:00:00Z"
+  }
+}

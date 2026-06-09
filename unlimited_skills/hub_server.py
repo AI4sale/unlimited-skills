@@ -15,7 +15,8 @@ from pydantic import BaseModel, Field
 
 from . import __version__
 from .cli import DEFAULT_ROOT, read_text, split_frontmatter
-from .hub import HUB_FEATURE_FLAGS, HUB_DEFAULT_PORT, verify_hub_token
+from .hub import HUB_FEATURE_FLAGS, HUB_DEFAULT_PORT, load_hub_config, verify_hub_token
+from .hub_entitlements import entitlement_summary
 from .hub_allowlist import cached_allowlist_path, hub_clients_path, hub_logs_dir, validate_allowlist
 from .registration import redact_sensitive_text, unlimited_skills_home, write_private_json
 
@@ -116,6 +117,13 @@ class HubState:
         cutoff = time.time() - ACTIVE_CLIENT_WINDOW_SECONDS
         return sum(1 for item in self.clients.values() if not bool(item.get("deactivated")) and float(item.get("last_seen_at", 0)) >= cutoff)
 
+    @property
+    def active_client_limit(self) -> int:
+        summary = entitlement_summary(home=self.home)
+        limits = summary.get("limits") if isinstance(summary.get("limits"), dict) else {}
+        config = load_hub_config(self.home)
+        return int(limits.get("max_hub_clients") or config.get("active_client_limit") or HUB_FEATURE_FLAGS["max_hub_clients"])
+
     def load_clients(self) -> dict[str, dict[str, Any]]:
         if not self.clients_path.is_file():
             write_private_json(self.clients_path, {"schema_version": 1, "clients": []})
@@ -142,7 +150,7 @@ class HubState:
                 "schema_version": 1,
                 "updated_at": now_iso(),
                 "active_client_window_seconds": ACTIVE_CLIENT_WINDOW_SECONDS,
-                "active_client_limit": HUB_FEATURE_FLAGS["max_hub_clients"],
+                "active_client_limit": self.active_client_limit,
                 "clients": sorted(self.clients.values(), key=lambda item: str(item.get("client_id") or "")),
             },
         )
@@ -182,12 +190,12 @@ class HubState:
     def register_client(self, request: ClientRegisterRequest) -> dict[str, Any]:
         client_id, record = self._client_from_request(request)
         already_active = client_id in self.clients and not bool(self.clients[client_id].get("deactivated"))
-        if not already_active and self.active_client_count >= HUB_FEATURE_FLAGS["max_hub_clients"]:
-            raise HTTPException(status_code=403, detail={"code": "client_limit_reached", "message": "Registered Local Skill Hub supports up to 100 active client instances."})
+        if not already_active and self.active_client_count >= self.active_client_limit:
+            raise HTTPException(status_code=403, detail={"code": "client_limit_reached", "message": f"Registered Local Skill Hub supports up to {self.active_client_limit} active client instances for the current plan."})
         self.clients[client_id] = record
         self.save_clients()
         self.audit("client_registered", client_id=client_id, agent=record["agent"], display_name=record["display_name"])
-        return {"schema_version": 1, "client_id": client_id, "active_client_count": self.active_client_count, "active_client_limit": HUB_FEATURE_FLAGS["max_hub_clients"]}
+        return {"schema_version": 1, "client_id": client_id, "active_client_count": self.active_client_count, "active_client_limit": self.active_client_limit}
 
     def heartbeat(self, request: ClientRegisterRequest) -> dict[str, Any]:
         client_id = request.capabilities.client_id if request.capabilities and request.capabilities.client_id else ""
@@ -213,7 +221,7 @@ class HubState:
         return {
             "schema_version": 1,
             "active_client_count": self.active_client_count,
-            "active_client_limit": HUB_FEATURE_FLAGS["max_hub_clients"],
+            "active_client_limit": self.active_client_limit,
             "clients": [
                 {
                     "client_id": str(item.get("client_id") or ""),
@@ -237,7 +245,8 @@ class HubState:
             "registered": True,
             "plan": "registered-community",
             "active_client_count": self.active_client_count,
-            "active_client_limit": HUB_FEATURE_FLAGS["max_hub_clients"],
+            "active_client_limit": self.active_client_limit,
+            "entitlement": entitlement_summary(home=self.home),
             "full_catalog_distribution_allowed": False,
             "distribution_mode": "allowlist_only",
             "catalog_audit_verdict": str(self.source_audit.get("verdict") or "YES_WITH_ALLOWLIST"),
@@ -261,7 +270,7 @@ class HubState:
                 "registered_total": len(self.clients),
                 "active": self.active_client_count,
                 "deactivated": sum(1 for item in self.clients.values() if bool(item.get("deactivated"))),
-                "limit": HUB_FEATURE_FLAGS["max_hub_clients"],
+                "limit": self.active_client_limit,
                 "active_window_seconds": ACTIVE_CLIENT_WINDOW_SECONDS,
             },
             "skills": {

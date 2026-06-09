@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": true,
+  "properties": {
+    "features_enabled": {
+      "items": { "type": "string" },
+      "type": "array"
+    },
+    "grace": {
+      "additionalProperties": false,
+      "properties": {
+        "offline_grace_until": { "type": "string" }
+      },
+      "type": "object"
+    },
+    "limits": {
+      "additionalProperties": false,
+      "properties": {
+        "max_hub_clients": { "minimum": 0, "type": "integer" }
+      },
+      "required": ["max_hub_clients"],
+      "type": "object"
+    },
+    "plan": { "type": "string" },
+    "policy": {
+      "additionalProperties": false,
+      "properties": {
+        "hosted_query_forwarding_allowed": { "const": false },
+        "hub_distribution_mode": { "const": "allowlist_only" },
+        "signed_manifests_required": { "type": "boolean" },
+        "team_sync_enabled": { "type": "boolean" }
+      },
+      "required": ["hub_distribution_mode", "signed_manifests_required", "hosted_query_forwarding_allowed"],
+      "type": "object"
+    },
+    "schema_version": { "const": 1 }
+  },
+  "required": ["schema_version", "plan", "features_enabled", "limits", "policy"],
+  "type": "object"
+}

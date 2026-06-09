@@ -101,6 +101,17 @@ Client lifecycle and observability:
 - Hub audit events are written to `~/.unlimited-skills/hub/logs/audit.jsonl`.
 - Audit events record event names, client/token ids, skill names, and query SHA256 values; raw hub tokens and raw search text are not logged.
 
+Plan heartbeat and entitlements:
+
+```bash
+unlimited-skills hub license status
+unlimited-skills hub license refresh
+unlimited-skills hub heartbeat --dry-run
+unlimited-skills hub heartbeat --json
+```
+
+Heartbeat and entitlement refresh require registration and contact only the configured registration service. `hub heartbeat --dry-run` prints the exact privacy-safe payload without sending it. The payload excludes search queries, prompts, skill bodies, skill names, full local paths, repository paths, customer names, environment values, tokens, secrets, and private keys. See [hub-plan-heartbeat.md](hub-plan-heartbeat.md).
+
 Remote client:
 
 ```bash

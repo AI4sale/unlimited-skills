@@ -26,7 +26,10 @@ from .hub import (
     HUB_DEFAULT_PORT,
     cmd_hub_clients,
     cmd_hub_doctor,
+    cmd_hub_heartbeat,
     cmd_hub_init,
+    cmd_hub_license_refresh,
+    cmd_hub_license_status,
     cmd_hub_serve,
     cmd_hub_status,
     cmd_hub_sync,
@@ -1627,6 +1630,20 @@ def build_parser() -> argparse.ArgumentParser:
     hub_sync.add_argument("--json", action="store_true")
     hub_sync.add_argument("--timeout", type=float, default=30.0)
     hub_sync.set_defaults(func=cmd_hub_sync)
+    hub_heartbeat = hub_sub.add_parser("heartbeat", help="Send or preview a privacy-safe Local Skill Hub heartbeat.")
+    hub_heartbeat.add_argument("--dry-run", action="store_true", help="Print the exact heartbeat payload without contacting the hosted service.")
+    hub_heartbeat.add_argument("--json", action="store_true")
+    hub_heartbeat.add_argument("--timeout", type=float, default=30.0)
+    hub_heartbeat.set_defaults(func=cmd_hub_heartbeat)
+    hub_license = hub_sub.add_parser("license", help="Inspect or refresh Local Skill Hub plan entitlements.")
+    hub_license_sub = hub_license.add_subparsers(dest="hub_license_command", required=True)
+    hub_license_status = hub_license_sub.add_parser("status", help="Show cached Local Skill Hub entitlement status.")
+    hub_license_status.add_argument("--json", action="store_true")
+    hub_license_status.set_defaults(func=cmd_hub_license_status)
+    hub_license_refresh = hub_license_sub.add_parser("refresh", help="Refresh Local Skill Hub plan entitlements from the registration service.")
+    hub_license_refresh.add_argument("--json", action="store_true")
+    hub_license_refresh.add_argument("--timeout", type=float, default=30.0)
+    hub_license_refresh.set_defaults(func=cmd_hub_license_refresh)
     hub_token = hub_sub.add_parser("token", help="Manage Local Skill Hub client tokens.")
     hub_token_sub = hub_token.add_subparsers(dest="hub_token_command", required=True)
     hub_token_create = hub_token_sub.add_parser("create", help="Create a Local Skill Hub client token.")

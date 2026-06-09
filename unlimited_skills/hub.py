@@ -23,6 +23,7 @@ from .hub_allowlist import (
     validate_allowlist,
     validate_allowlist_file,
 )
+from .hub_entitlements import build_heartbeat_payload, entitlement_summary, refresh_entitlements
 from .registration import RegistrationState, is_secure_or_local_url, load_registration, post_json, redact_sensitive_text, unlimited_skills_home, write_private_json
 from .signatures import (
     ManifestSignatureError,
@@ -120,6 +121,8 @@ def load_hub_config(home: Path | None = None) -> dict[str, Any]:
         "tokens": [token for token in tokens if isinstance(token, dict)],
         "active_client_limit": int(data.get("active_client_limit") or HUB_FEATURE_FLAGS["max_hub_clients"]),
         "distribution_mode": str(data.get("distribution_mode") or HUB_FEATURE_FLAGS["hub_distribution_mode"]),
+        "entitlement_source": str(data.get("entitlement_source") or ""),
+        "last_heartbeat_at": str(data.get("last_heartbeat_at") or ""),
     }
 
 
@@ -322,22 +325,30 @@ def save_remote_config(
 def hub_status_payload(state: RegistrationState | None = None) -> dict[str, Any]:
     state = state or load_registration()
     hub_config = load_hub_config()
+    entitlement = entitlement_summary(state)
+    active_client_limit = int((entitlement.get("limits") or {}).get("max_hub_clients") or hub_config.get("active_client_limit") or HUB_FEATURE_FLAGS["max_hub_clients"])
     return {
         "schema_version": 1,
         "hub_id": hub_config.get("hub_id") or (state.install_id.replace("uls_inst_", "uls_hub_", 1) if state.install_id else ""),
         "registered": state.registered,
         "plan": state.plan or "community-core",
         "active_client_count": 0,
-        "active_client_limit": HUB_FEATURE_FLAGS["max_hub_clients"],
+        "active_client_limit": active_client_limit,
         "active_hub_tokens": active_hub_token_count(),
         "full_catalog_distribution_allowed": False,
-        "distribution_mode": HUB_FEATURE_FLAGS["hub_distribution_mode"],
+        "distribution_mode": str((entitlement.get("policy") or {}).get("hub_distribution_mode") or hub_config.get("distribution_mode") or HUB_FEATURE_FLAGS["hub_distribution_mode"]),
         "catalog_audit_verdict": "YES_WITH_ALLOWLIST",
         "skills_total": 0,
         "allowlisted_skills": 0,
         "vector_index_present": False,
         "hosted_query_forwarding": False,
-        "feature_flags": dict(HUB_FEATURE_FLAGS),
+        "feature_flags": {
+            **dict(HUB_FEATURE_FLAGS),
+            "max_hub_clients": active_client_limit,
+            "signed_manifests_required": bool((entitlement.get("policy") or {}).get("signed_manifests_required", True)),
+            "team_sync_enabled": bool((entitlement.get("policy") or {}).get("team_sync_enabled", False)),
+        },
+        "entitlement": entitlement,
         "registration": {
             "token_present": bool(state.license_token),
             "proof_key_present": bool(state.device_private_key),
@@ -493,10 +504,87 @@ def cmd_hub_status(args: Any) -> int:
         return emit_json(payload)
     print("Local Skill Hub: " + ("registered" if payload["registered"] else "unregistered"))
     print(f"Plan: {payload['plan']}")
+    print(f"Entitlement: {payload['entitlement']['source']} / grace {payload['entitlement']['offline_grace_status']}")
     print(f"Distribution: {payload['distribution_mode']} / audit {payload['catalog_audit_verdict']}")
     print(f"Active clients: {payload['active_client_count']}/{payload['active_client_limit']}")
     print("Cached allowlist: " + ("present" if payload["allowlist"]["present"] else "missing"))
     print("Hosted query forwarding: off")
+    return 0
+
+
+def active_client_count_from_cache(home: Path | None = None) -> int:
+    from .hub_allowlist import hub_clients_path
+
+    path = hub_clients_path(home)
+    if not path.is_file():
+        return 0
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8-sig"))
+    except (OSError, json.JSONDecodeError):
+        return 0
+    cutoff = time.time() - (30 * 24 * 60 * 60)
+    count = 0
+    for item in payload.get("clients", []) if isinstance(payload.get("clients"), list) else []:
+        if not isinstance(item, dict) or bool(item.get("deactivated")):
+            continue
+        try:
+            last_seen = float(item.get("last_seen_at") or 0)
+        except (TypeError, ValueError):
+            last_seen = 0
+        if last_seen >= cutoff:
+            count += 1
+    return count
+
+
+def cmd_hub_heartbeat(args: Any) -> int:
+    state = ensure_hub_registered()
+    active_count = active_client_count_from_cache()
+    payload = build_heartbeat_payload(state, active_client_count=active_count)
+    result = {
+        "schema_version": 1,
+        "dry_run": bool(getattr(args, "dry_run", False)),
+        "endpoint": "/v1/hub/heartbeat",
+        "request": payload,
+    }
+    if not getattr(args, "dry_run", False):
+        refreshed = refresh_entitlements(state, endpoint="heartbeat", active_client_count=active_count, timeout=getattr(args, "timeout", 30.0))
+        result["response"] = refreshed["response"]
+    if getattr(args, "json", False) or getattr(args, "dry_run", False):
+        return emit_json(result)
+    print("Local Skill Hub heartbeat complete.")
+    print(f"Plan: {result.get('response', {}).get('plan', state.plan or 'registered-community')}")
+    print(f"Max clients: {(result.get('response', {}).get('limits') or {}).get('max_hub_clients', payload['hub']['active_client_limit'])}")
+    return 0
+
+
+def cmd_hub_license_status(args: Any) -> int:
+    state = load_registration()
+    payload = {
+        "schema_version": 1,
+        "registered": state.registered,
+        "install_id": state.install_id,
+        "server_url": state.server_url,
+        "entitlement": entitlement_summary(state),
+    }
+    if getattr(args, "json", False):
+        return emit_json(payload)
+    print("Local Skill Hub license: " + ("registered" if state.registered else "unregistered"))
+    print(f"Plan: {payload['entitlement']['plan']}")
+    print(f"Entitlement source: {payload['entitlement']['source']}")
+    print(f"Offline grace: {payload['entitlement']['offline_grace_status']}")
+    return 0
+
+
+def cmd_hub_license_refresh(args: Any) -> int:
+    state = ensure_hub_registered()
+    active_count = active_client_count_from_cache()
+    refreshed = refresh_entitlements(state, endpoint="entitlements", active_client_count=active_count, timeout=getattr(args, "timeout", 30.0))
+    payload = {"schema_version": 1, "endpoint": refreshed["endpoint"], "entitlement": refreshed["response"]}
+    if getattr(args, "json", False):
+        return emit_json(payload)
+    print("Local Skill Hub license refreshed.")
+    print(f"Plan: {payload['entitlement']['plan']}")
+    print(f"Max clients: {payload['entitlement']['limits']['max_hub_clients']}")
     return 0
 
 

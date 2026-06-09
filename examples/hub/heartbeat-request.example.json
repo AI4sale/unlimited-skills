@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "install_id": "uls_inst_example",
+  "hub_id": "uls_hub_example",
+  "client": {
+    "name": "unlimited-skills",
+    "version": "0.2.1"
+  },
+  "plan": "registered-community",
+  "hub": {
+    "active_client_count": 42,
+    "active_client_count_bucket": "11-50",
+    "active_client_limit": 100,
+    "distribution_mode": "allowlist_only",
+    "allowlist_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "allowlist_present": true,
+    "hosted_query_forwarding": false
+  },
+  "feature_flags": {
+    "local_skill_hub": true,
+    "max_hub_clients": 100,
+    "hub_distribution_mode": "allowlist_only",
+    "signed_manifests_required": true,
+    "team_sync_enabled": false
+  },
+  "platform": {
+    "os_bucket": "linux"
+  },
+  "status_summary": {
+    "errors_bucket": "0",
+    "warnings_bucket": "0"
+  }
+}

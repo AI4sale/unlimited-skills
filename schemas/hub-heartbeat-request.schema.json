@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "client": {
+      "additionalProperties": false,
+      "properties": {
+        "name": { "const": "unlimited-skills" },
+        "version": { "type": "string" }
+      },
+      "required": ["name", "version"],
+      "type": "object"
+    },
+    "feature_flags": {
+      "additionalProperties": false,
+      "properties": {
+        "hub_distribution_mode": { "const": "allowlist_only" },
+        "local_skill_hub": { "type": "boolean" },
+        "max_hub_clients": { "minimum": 0, "type": "integer" },
+        "signed_manifests_required": { "type": "boolean" },
+        "team_sync_enabled": { "type": "boolean" }
+      },
+      "required": ["local_skill_hub", "max_hub_clients", "hub_distribution_mode", "signed_manifests_required", "team_sync_enabled"],
+      "type": "object"
+    },
+    "hub": {
+      "additionalProperties": false,
+      "properties": {
+        "active_client_count": { "minimum": 0, "type": "integer" },
+        "active_client_count_bucket": { "type": "string" },
+        "active_client_limit": { "minimum": 0, "type": "integer" },
+        "allowlist_present": { "type": "boolean" },
+        "allowlist_sha256": { "type": "string" },
+        "distribution_mode": { "const": "allowlist_only" },
+        "hosted_query_forwarding": { "const": false }
+      },
+      "required": ["active_client_count", "active_client_count_bucket", "active_client_limit", "distribution_mode", "hosted_query_forwarding"],
+      "type": "object"
+    },
+    "hub_id": { "type": "string" },
+    "install_id": { "type": "string" },
+    "plan": { "type": "string" },
+    "platform": {
+      "additionalProperties": false,
+      "properties": {
+        "os_bucket": { "enum": ["windows", "macos", "linux", "other"] }
+      },
+      "required": ["os_bucket"],
+      "type": "object"
+    },
+    "schema_version": { "const": 1 },
+    "status_summary": {
+      "additionalProperties": false,
+      "properties": {
+        "errors_bucket": { "type": "string" },
+        "warnings_bucket": { "type": "string" }
+      },
+      "required": ["errors_bucket", "warnings_bucket"],
+      "type": "object"
+    }
+  },
+  "required": ["schema_version", "install_id", "hub_id", "client", "plan", "hub", "feature_flags", "platform", "status_summary"],
+  "type": "object"
+}
