@@ -11,9 +11,10 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from unlimited_skills.adapters import adapt_library
-from unlimited_skills.cli import save_index
+from unlimited_skills.cli import index_path, save_index, vector_meta_path, vector_sidecar_path
+from unlimited_skills.hub import remote_config_path
 
-from .common import copy_skill_tree, iter_skill_dirs
+from .common import InstallTransaction, MigrationResult, migrate_source, rollback_install
 from .remote import RemoteHubInstallOptions, configure_remote_if_enabled, remote_messages, remote_report_lines, render_remote_router_block
 
 INSTALL_MODES = {"default", "bundled", "adapt-installed"}
@@ -38,15 +39,6 @@ class ClaudeCodeInstallOptions:
 
 
 @dataclass
-class MigrationResult:
-    collection: str
-    source_root: str
-    migrated_count: int
-    skipped: bool = False
-    reason: str = ""
-
-
-@dataclass
 class ClaudeCodeInstallReport:
     claude_home: str
     project_root: str
@@ -67,6 +59,7 @@ class ClaudeCodeInstallReport:
     remote_hub_url: str = ""
     remote_fallback: str = "local_allowed"
     remote_token_source: str = ""
+    rollback_manifest: str = ""
     migrations: list[MigrationResult] = field(default_factory=list)
     messages: list[str] = field(default_factory=list)
 
@@ -107,6 +100,9 @@ class ClaudeCodeInstallReport:
                 "Index:",
                 f"  lexical index: {self.lexical_index}",
                 f"  vector index: {self.vector_index}",
+                "",
+                "Rollback:",
+                f"  manifest: {self.rollback_manifest or '<none>'}",
             ]
         )
         lines.extend(["", *remote_report_lines(
@@ -235,53 +231,6 @@ def _patch_claude_file(claude_file: Path, sh_launcher: Path, ps_launcher: Path) 
     claude_file.write_text(text, encoding="utf-8")
 
 
-def _existing_skill_names(library_root: Path, exclude_target: Path | None = None) -> set[str]:
-    if not library_root.is_dir():
-        return set()
-    names = set()
-    exclude_target_resolved = exclude_target.resolve() if exclude_target else None
-    for path in library_root.rglob("SKILL.md"):
-        if exclude_target_resolved:
-            try:
-                resolved = path.resolve()
-            except OSError:
-                resolved = path
-            if resolved == exclude_target_resolved or exclude_target_resolved in resolved.parents:
-                continue
-        if "duplicates" in path.relative_to(library_root).parts:
-            continue
-        names.add(path.parent.name)
-    return names
-
-
-def _migrate_source(
-    source_root: Path,
-    library_root: Path,
-    collection: str,
-    *,
-    exclude_names: set[str] | None = None,
-    skip_existing_names: bool = True,
-    registry_collection: bool = False,
-) -> MigrationResult:
-    source_root = Path(source_root).expanduser()
-    if not source_root.is_dir():
-        return MigrationResult(collection=collection, source_root=str(source_root), migrated_count=0, skipped=True, reason="source root not found")
-
-    target_skills = library_root / ("registry" if registry_collection else "local") / collection / "skills"
-    existing = _existing_skill_names(library_root, exclude_target=target_skills) if skip_existing_names else set()
-    excluded = exclude_names or set()
-    migrated = 0
-    for skill_dir in iter_skill_dirs(source_root, exclude_names=excluded):
-        if skip_existing_names and skill_dir.name in existing:
-            continue
-        relative = skill_dir.relative_to(source_root)
-        destination = target_skills / relative
-        copy_skill_tree(skill_dir, destination)
-        existing.add(skill_dir.name)
-        migrated += 1
-    return MigrationResult(collection=collection, source_root=str(source_root), migrated_count=migrated)
-
-
 def install_claude_code(options: ClaudeCodeInstallOptions) -> ClaudeCodeInstallReport:
     if options.mode not in INSTALL_MODES:
         raise ValueError(f"Invalid Claude Code install mode: {options.mode}")
@@ -301,83 +250,98 @@ def install_claude_code(options: ClaudeCodeInstallOptions) -> ClaudeCodeInstallR
     if not router_source.is_dir():
         raise FileNotFoundError(f"Router skill not found: {router_source}")
 
-    if router_target.exists():
-        shutil.rmtree(router_target)
-    router_target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(router_source, router_target)
-    _write_launchers(sh_launcher, ps_launcher, repo_root, library_root, project_root, options.python_executable)
-    remote_config = configure_remote_if_enabled(options.remote, install_root)
-    messages.extend(remote_messages(options.remote))
-
-    _render_router_skill(router_target / "SKILL.md", sh_launcher, ps_launcher, library_root, options.remote)
-
-    claude_patched = False
-    if options.patch_claude:
-        _patch_claude_file(claude_file, sh_launcher, ps_launcher)
-        claude_patched = True
-
-    # The project CLAUDE.md is only loaded when Claude Code runs inside that
-    # project, so the router contract must also live in the global memory file
-    # that is loaded for every session.
+    transaction = InstallTransaction("claude-code", install_root)
     global_claude_file = claude_home / "CLAUDE.md"
+    claude_patched = False
     global_claude_patched = False
-    if options.patch_global_claude:
-        same_file = False
-        if options.patch_claude:
-            try:
-                same_file = global_claude_file.resolve() == claude_file.resolve()
-            except OSError:
-                same_file = global_claude_file == claude_file
-        if same_file:
-            global_claude_patched = claude_patched
-        else:
-            _patch_claude_file(global_claude_file, sh_launcher, ps_launcher)
-            global_claude_patched = True
-
     migrations: list[MigrationResult] = []
-    if options.mode == "bundled":
-        for pack in ("ecc", "superpowers"):
+    lexical_index = "skipped"
+    vector_index = "skipped"
+
+    try:
+        transaction.stage_dir_replace(router_target)
+        router_target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(router_source, router_target)
+        _write_launchers(sh_launcher, ps_launcher, repo_root, library_root, project_root, options.python_executable)
+        transaction.snapshot_file(remote_config_path(install_root))
+        remote_config = configure_remote_if_enabled(options.remote, install_root)
+        messages.extend(remote_messages(options.remote))
+
+        _render_router_skill(router_target / "SKILL.md", sh_launcher, ps_launcher, library_root, options.remote)
+
+        if options.patch_claude:
+            transaction.snapshot_file(claude_file)
+            _patch_claude_file(claude_file, sh_launcher, ps_launcher)
+            claude_patched = True
+
+        # The project CLAUDE.md is only loaded when Claude Code runs inside that
+        # project, so the router contract must also live in the global memory file
+        # that is loaded for every session.
+        if options.patch_global_claude:
+            same_file = False
+            if options.patch_claude:
+                try:
+                    same_file = global_claude_file.resolve() == claude_file.resolve()
+                except OSError:
+                    same_file = global_claude_file == claude_file
+            if same_file:
+                global_claude_patched = claude_patched
+            else:
+                transaction.snapshot_file(global_claude_file)
+                _patch_claude_file(global_claude_file, sh_launcher, ps_launcher)
+                global_claude_patched = True
+
+        if options.mode == "bundled":
+            for pack in ("ecc", "superpowers"):
+                migrations.append(
+                    migrate_source(
+                        repo_root / "packs" / pack / "skills",
+                        library_root,
+                        pack,
+                        skip_existing_names=False,
+                        registry_collection=True,
+                        transaction=transaction,
+                    )
+                )
+
+        migrations.append(
+            migrate_source(
+                claude_home / "skills",
+                library_root,
+                "claude-code",
+                exclude_names={ROUTER_NAME},
+                skip_existing_names=True,
+                transaction=transaction,
+            )
+        )
+
+        if options.include_project_skills:
             migrations.append(
-                _migrate_source(
-                    repo_root / "packs" / pack / "skills",
+                migrate_source(
+                    project_root / ".claude" / "skills",
                     library_root,
-                    pack,
-                    skip_existing_names=False,
-                    registry_collection=True,
+                    "claude-code-project",
+                    exclude_names={ROUTER_NAME},
+                    skip_existing_names=True,
+                    transaction=transaction,
                 )
             )
 
-    migrations.append(
-        _migrate_source(
-            claude_home / "skills",
-            library_root,
-            "claude-code",
-            exclude_names={ROUTER_NAME},
-            skip_existing_names=True,
-        )
-    )
+        if options.mode == "adapt-installed":
+            adapt_library(library_root, collection="local", source_pack="local")
+            messages.append("adapt-installed rewrites skills in place; those rewrites are not covered by the rollback manifest.")
 
-    if options.include_project_skills:
-        migrations.append(
-            _migrate_source(
-                project_root / ".claude" / "skills",
-                library_root,
-                "claude-code-project",
-                exclude_names={ROUTER_NAME},
-                skip_existing_names=True,
-            )
-        )
+        if not options.skip_reindex:
+            transaction.snapshot_file(index_path(library_root))
+            save_index(library_root)
+            lexical_index = "rebuilt"
+    except BaseException:
+        transaction.rollback_now()
+        raise
 
-    if options.mode == "adapt-installed":
-        adapt_library(library_root, collection="local", source_pack="local")
-
-    lexical_index = "skipped"
-    if not options.skip_reindex:
-        save_index(library_root)
-        lexical_index = "rebuilt"
-
-    vector_index = "skipped"
     if options.vector_reindex:
+        transaction.snapshot_file(vector_sidecar_path(library_root))
+        transaction.snapshot_file(vector_meta_path(library_root))
         try:
             subprocess.run(
                 [options.python_executable, "-m", "unlimited_skills.cli", "--root", str(library_root), "vector-reindex", "--verbose"],
@@ -387,6 +351,16 @@ def install_claude_code(options: ClaudeCodeInstallOptions) -> ClaudeCodeInstallR
         except Exception as exc:  # pragma: no cover - depends on optional deps
             vector_index = "failed"
             messages.append(f"Vector reindex failed: {exc}")
+
+    rollback_manifest = transaction.write_manifest(
+        extra={
+            "claude_home": str(claude_home),
+            "project_root": str(project_root),
+            "library_root": str(library_root),
+            "mode": options.mode,
+            "router_target": str(router_target),
+        }
+    )
 
     if not any(not item.skipped and item.migrated_count for item in migrations):
         messages.append("No Claude Code source skills were migrated. Router was still installed.")
@@ -412,6 +386,7 @@ def install_claude_code(options: ClaudeCodeInstallOptions) -> ClaudeCodeInstallR
         remote_hub_url=options.remote.remote_hub_url if options.remote.enabled else "",
         remote_fallback=options.remote.remote_fallback,
         remote_token_source=(f"env:{options.remote.hub_token_env}" if options.remote.hub_token_env else ("private remote.json" if options.remote.hub_token else "")),
+        rollback_manifest=str(rollback_manifest),
         migrations=migrations,
         messages=messages,
     )
@@ -449,6 +424,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--hub-token-env", default="")
     parser.add_argument("--hub-token", default="")
     parser.add_argument("--remote-fallback", choices=sorted({"local_allowed", "hub_required"}), default="local_allowed")
+    parser.add_argument("--rollback", type=Path, metavar="MANIFEST", help="Roll back a previous install from its manifest instead of installing.")
+    parser.add_argument("--rollback-apply", action="store_true", help="Actually restore files during --rollback. Omit for dry-run.")
     parser.add_argument("--json", action="store_true")
     return parser
 
@@ -456,6 +433,10 @@ def build_parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
+    if args.rollback:
+        rollback_report = rollback_install(args.rollback, apply=args.rollback_apply)
+        print(json.dumps(asdict(rollback_report), ensure_ascii=False, indent=2) if args.json else rollback_report.format_text())
+        return 0
     report = install_claude_code(
         ClaudeCodeInstallOptions(
             claude_home=args.claude_home,
