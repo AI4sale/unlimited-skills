@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.3.6-alpha (in development)
+
+### Added
+
+- Catalog browser release integration for registered signed metadata discovery.
+- Cross-repo catalog browser E2E runner with public fixture mode and local private-registry mode.
+- v0.3.6-alpha catalog browser release smoke, verifier, checklist, release notes, and manifest.
+
+### Changed
+
+- Raised package version to `0.3.6`.
+- Extended trusted manifest key scopes to include catalog browser response, item, preview, and filters manifests.
+- Documented catalog browser registration, metadata-only preview, approved/published visibility, dry-run install, and support-bundle redaction boundaries.
+
 ## v0.3.5-alpha (in development)
 
 ### Added
