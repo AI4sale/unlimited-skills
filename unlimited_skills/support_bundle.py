@@ -16,7 +16,7 @@ from .hub import active_hub_token_count, cached_allowlist_summary, load_hub_conf
 from .policy import load_policy, policy_summary
 from .policy_sync import managed_policy_status
 from .registration import RegistrationError, load_registration, redacted_status, redact_sensitive_text, unlimited_skills_home
-from .service_diagnostics import load_service_config, local_status as service_local_status
+from .service_diagnostics import load_service_config, service_health_snapshot
 
 
 SUPPORT_SCHEMA_VERSION = 1
@@ -114,7 +114,7 @@ def _registration_status(home: Path) -> dict[str, Any]:
 
 def _service_status(home: Path) -> dict[str, Any]:
     try:
-        status = service_local_status(refresh=False, home=home)
+        status = service_health_snapshot(refresh=False, home=home)
     except Exception as exc:  # noqa: BLE001 - support diagnostics must stay non-fatal.
         return {"ok": False, "error": redact_sensitive_text(str(exc))}
     return status

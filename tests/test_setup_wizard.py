@@ -83,6 +83,9 @@ def test_registered_setup_is_local_only_and_redacted(tmp_path: Path, monkeypatch
     serialized = json.dumps(payload, ensure_ascii=False)
     assert payload["components"]["registration"]["registered"] is True
     assert payload["components"]["registration"]["license_token"] == "present"
+    assert payload["components"]["service"]["snapshot_version"] == 2
+    assert payload["components"]["service"]["network"]["performed"] is False
+    assert payload["components"]["service"]["registration"]["hosted_credential"] == "present"
     assert payload["hosted_calls_performed"] is False
     assert payload["writes_performed"] is False
     assert not root.exists()

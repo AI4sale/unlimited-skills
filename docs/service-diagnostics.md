@@ -18,6 +18,8 @@ unlimited-skills service test-proof
 
 `service status` is local-only unless `--refresh` is passed.
 
+Setup reports and support bundles use the same service diagnostics v2 snapshot as `service status` without refresh. The shared snapshot reports local registration, hosted credential presence, local device identity presence, compatible trust keys, next diagnostic commands, and whether any network refresh was performed.
+
 `service doctor` may contact only:
 
 - `GET <service-url>/health`
@@ -31,6 +33,8 @@ unlimited-skills service test-proof
 `service test-registration --dry-run` and `service test-proof` do not contact the service.
 
 Tests must use fixture/local mode by default and must not call production hosted services.
+
+`service_health_snapshot` is the shared internal contract for setup and support flows. By default it does not contact the service. Network checks require explicit refresh through `service status --refresh` or `service doctor`.
 
 ## Privacy boundary
 

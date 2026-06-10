@@ -60,7 +60,7 @@ When not using `--dry-run`, the command may create the missing `local/skills` di
 
 `--registered` explains the registration boundary for hosted catalog, hosted updates, community catalog, Team Free sync, registered local enhancement scripts, Local Skill Hub allowlist sync, and managed Enterprise policy sync.
 
-It reports local registration state and service/trust/device-proof readiness without calling the hosted registry. If blocked, it prints the next safe commands:
+It reports local registration state and the shared service diagnostics v2 snapshot for service/trust/device-proof readiness without calling the hosted registry. If blocked, it prints the next safe commands:
 
 ```bash
 unlimited-skills service test-registration --dry-run --agent codex
@@ -73,6 +73,7 @@ unlimited-skills register --agent codex
 
 - registration status;
 - local service and trust state;
+- service diagnostics v2 snapshot with registration, hosted credential, device identity, trust compatibility, and network-refresh status;
 - cached allowlist metadata;
 - hub client token count;
 - remote client configuration.

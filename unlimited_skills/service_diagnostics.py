@@ -157,6 +157,91 @@ def local_status(*, refresh: bool = False, timeout: float = 10.0, home: Path | N
     return payload
 
 
+def service_health_snapshot(*, refresh: bool = False, timeout: float = 10.0, home: Path | None = None) -> dict[str, Any]:
+    """Build the shared setup/support service diagnostic snapshot.
+
+    The default is local-only. Callers must pass refresh=True to contact the
+    configured service health and public-key endpoints.
+    """
+    status = local_status(refresh=refresh, timeout=timeout, home=home)
+    registration = status.get("registration") if isinstance(status.get("registration"), dict) else {}
+    trust = status.get("trust") if isinstance(status.get("trust"), dict) else {}
+    network = status.get("network") if isinstance(status.get("network"), dict) else {"performed": False, "endpoints_contacted": []}
+    registered = bool(registration.get("registered"))
+    credential_present = registration.get("hosted_credential") == "present"
+    device_identity_present = registration.get("device_key") == "present" and registration.get("device_public_identity") == "present"
+    compatible_key_count = int(trust.get("compatible_key_count") or 0)
+    service_configured = status.get("service_config") == "present"
+    checks = {
+        "service_configured": service_configured,
+        "registered": registered,
+        "hosted_credential_present": credential_present,
+        "device_identity_present": device_identity_present,
+        "trusted_manifest_keys_compatible": compatible_key_count > 0,
+        "network_refresh_performed": bool(network.get("performed")),
+    }
+    next_commands: list[str] = []
+    if not service_configured:
+        next_commands.append("unlimited-skills service configure https://unlimited.ai4.sale")
+    if not registered:
+        next_commands.extend(
+            [
+                "unlimited-skills service test-registration --dry-run --agent codex",
+                "unlimited-skills register --agent codex",
+            ]
+        )
+    if compatible_key_count <= 0:
+        next_commands.extend(["unlimited-skills trust status", "unlimited-skills service verify-trust"])
+    if not device_identity_present:
+        next_commands.append("unlimited-skills service test-proof")
+    if not refresh:
+        next_commands.append("unlimited-skills service doctor")
+    ready = all(
+        checks[key]
+        for key in (
+            "service_configured",
+            "registered",
+            "hosted_credential_present",
+            "device_identity_present",
+            "trusted_manifest_keys_compatible",
+        )
+    )
+    return {
+        **_now_service_payload(),
+        "snapshot_version": 2,
+        "status": "ok" if ready else "needs_action",
+        "service_url": status.get("service_url", ""),
+        "registration": {
+            "registered": registered,
+            "plan": registration.get("plan", "community-core"),
+            "hosted_credential": registration.get("hosted_credential", "missing"),
+            "device_identity": "present" if device_identity_present else "missing",
+            "features_enabled": list(registration.get("features_enabled", [])),
+        },
+        "trust": {
+            "compatible_key_count": compatible_key_count,
+            "compatible_key_ids": list(trust.get("compatible_key_ids", [])),
+            "required_scopes": list(trust.get("required_scopes", REQUIRED_KEY_SCOPES)),
+            "registry_origin": trust.get("registry_origin", ""),
+        },
+        "network": {
+            "performed": bool(network.get("performed")),
+            "endpoints_contacted": list(network.get("endpoints_contacted", [])),
+        },
+        "checks": checks,
+        "next_commands": list(dict.fromkeys(next_commands)),
+        "privacy": {
+            "uploads_local_data": False,
+            "uploads_skill_bodies": False,
+            "uploads_skill_names": False,
+            "uploads_prompts": False,
+            "uploads_local_paths": False,
+            "tokens_redacted": True,
+            "private_keys_redacted": True,
+        },
+    }
+
+
 def local_trust_status(service_url: str) -> dict[str, Any]:
     records = trusted_manifest_key_records()
     compatible = [

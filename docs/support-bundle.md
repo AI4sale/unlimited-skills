@@ -36,6 +36,7 @@ The zip contains:
 - index/vector presence;
 - registration status with credentials reduced to presence markers;
 - local service/trust status without hosted calls;
+- service diagnostics v2 snapshot shared with the setup wizard;
 - Local Skill Hub allowlist/token count/remote config metadata;
 - Enterprise Skill Lock policy summary and managed policy status;
 - existing `doctor` diagnostics after redaction.

@@ -71,6 +71,8 @@ def test_support_bundle_dry_run_writes_no_zip_and_redacts_private_data(tmp_path:
     assert report["manifest"]["wrote_bundle"] is False
     assert not out.exists()
     assert report["manifest"]["diagnostics_summary"]["physical_skill_files"] == 1
+    assert report["diagnostics"]["service"]["snapshot_version"] == 2
+    assert report["diagnostics"]["service"]["network"]["performed"] is False
     assert "private-customer-skill" not in serialized
     assert "uls_secret_support_token" not in serialized
     assert "uls_secret_skill_body" not in serialized
