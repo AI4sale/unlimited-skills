@@ -102,6 +102,8 @@ The v0.4 cross-repo readiness suite is a fixture/local-checkout verification gat
 
 The suite must not call production hosted services, require production signing keys, distribute private registry content in the public repo, enable live billing, publish to PyPI, distribute the full catalog, install/update/remove skills automatically, rewrite skills automatically, or auto-publish.
 
+The v0.4 go/no-go package can approve starting implementation epics after review and merge, but it does not authorize production rollout. Every v0.4 implementation layer still needs runtime, registry, security, privacy, and release-owner review before release.
+
 ## Known Security Limitations In v0.3.9-alpha
 
 - Hosted manifest signatures verify manifest authenticity; archive bytes are still verified with SHA256 and safe extraction, not archive-byte signatures.

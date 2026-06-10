@@ -9,12 +9,14 @@
 - v0.4 risk register, first four implementation epics, docs verifier, and focused docs tests.
 - v0.4 public blocker closure ledger and verifier for PR #69, B-02 closure, recommendation non-mutation, signed hosted metadata, registration-free MIT local core, and support-bundle redaction boundaries.
 - v0.4 cross-repo readiness suite, verifier, and fixture report proving the public client plus private registry contracts satisfy signed SkillOps metadata, eval gate, maintainer queue, recommendation refusal, skill improvement, support redaction, and no-mutation boundaries before the final go/no-go decision.
+- v0.4 go/no-go decision package with a GO recommendation to start the first four implementation epics after review and merge, plus verifier coverage for closed B-01..B-04 blockers, clean PR debt, cross-repo readiness evidence, and non-negotiable safety boundaries.
 
 ### Security
 
 - Repeated that v0.4 planning does not authorize automatic skill rewriting, auto-publish, automatic telemetry, live billing, PyPI publication, full catalog distribution, or automatic hosted query forwarding.
 - Repeated that v0.4 must preserve no-prompt/no-skill-body/no-private-data boundaries, signed hosted manifest requirements, and registration-free MIT local core behavior.
 - Added v0.4 cross-repo readiness checks that require no production hosted calls, no production signing key, no live billing, no PyPI, no full catalog distribution, no automatic install/update/remove, no automatic skill rewriting, and no auto-publish.
+- The v0.4 go/no-go package approves implementation planning only; production rollout remains blocked behind per-epic review, security/privacy gates, and release-owner approval.
 
 ## v0.3.9-alpha (publication candidate)
 
