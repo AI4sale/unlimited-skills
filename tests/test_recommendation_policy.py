@@ -121,6 +121,8 @@ def test_schema_and_example_files_are_valid_json_and_keep_contract_flags() -> No
 
     assert decision_example["manifest_type"] == "recommendation-decision"
     assert refusal_example["manifest_type"] == "recommendation-refusal"
+    assert decision_example == decision_table()
+    assert refusal_example == refusal_code_contract()
     for payload in (decision_example, refusal_example):
         assert payload["fixture_only"] is True
         assert payload["automatic_install"] is False
