@@ -17,8 +17,9 @@ MAINTAINER_QUEUE_REQUIRED_MESSAGE = (
     "Registration is required for hosted maintainer queue status. "
     "The MIT local search/list/view commands remain fully usable offline."
 )
-MAINTAINER_QUEUE_STATUS_MANIFEST = "maintainer-queue-status-client"
-FIXED_PENDING_EVAL_MANIFEST = "fixed-pending-eval-status"
+MAINTAINER_QUEUE_STATUS_MANIFEST = "maintainer-queue-runtime-status"
+MAINTAINER_QUEUE_SUMMARY_MANIFEST = "maintainer-queue-runtime-summary"
+FIXED_PENDING_EVAL_MANIFEST = "maintainer-queue-fixed-pending-eval"
 
 
 class MaintainerQueueStatusError(RuntimeError):
@@ -163,43 +164,49 @@ def _count_map(value: Any) -> dict[str, int]:
 
 
 def _status_from_json(data: dict[str, Any]) -> MaintainerQueueStatus:
+    category = str(data.get("category") or "")
+    severity = str(data.get("severity") or "")
     return MaintainerQueueStatus(
         item_id=_safe_item_id(str(data.get("item_id") or "")),
-        queue_status=str(data.get("queue_status") or "unknown"),
-        severity_summary=_count_map(data.get("severity_summary")),
-        maintainer_state=str(data.get("maintainer_state") or data.get("public_maintainer_state") or "unknown"),
+        queue_status=str(data.get("queue_status") or data.get("status") or "unknown"),
+        severity_summary=_count_map(data.get("severity_summary") or ({severity: 1} if severity else {})),
+        maintainer_state=str(data.get("maintainer_state") or data.get("public_maintainer_state") or data.get("maintainer_action_state") or "unknown"),
         fixed_pending_eval_evidence_ref=str(data.get("fixed_pending_eval_evidence_ref") or data.get("evidence_ref") or ""),
         eval_gate_ref=str(data.get("eval_gate_ref") or ""),
         recommended_user_action=str(data.get("recommended_user_action") or data.get("recommended_action") or "none"),
-        issue_categories=_tuple(data.get("issue_categories")),
-        updated_at=str(data.get("updated_at") or ""),
+        issue_categories=_tuple(data.get("issue_categories") or ([category] if category else [])),
+        updated_at=str(data.get("updated_at") or data.get("last_updated") or ""),
     )
 
 
 def _summary_from_json(data: dict[str, Any]) -> MaintainerQueueSummary:
+    action = str(data.get("recommended_user_action") or "")
+    maintainer_state = str(data.get("maintainer_action_state") or "")
     return MaintainerQueueSummary(
-        total_count=_int(data.get("total_count")),
-        queue_status_counts=_count_map(data.get("queue_status_counts")),
+        total_count=_int(data.get("total_count") or data.get("item_count")),
+        queue_status_counts=_count_map(data.get("queue_status_counts") or data.get("counts_by_state")),
         severity_summary=_count_map(data.get("severity_summary")),
         issue_categories=_tuple(data.get("issue_categories")),
-        maintainer_state_counts=_count_map(data.get("maintainer_state_counts") or data.get("public_maintainer_state_counts")),
+        maintainer_state_counts=_count_map(data.get("maintainer_state_counts") or data.get("public_maintainer_state_counts") or ({maintainer_state: 1} if maintainer_state else {})),
         fixed_pending_eval_count=_int(data.get("fixed_pending_eval_count")),
         blocked_eval_gate_count=_int(data.get("blocked_eval_gate_count")),
-        recommended_user_actions=_count_map(data.get("recommended_user_actions")),
+        recommended_user_actions=_count_map(data.get("recommended_user_actions") or ({action: 1} if action else {})),
     )
 
 
 def _fixed_pending_eval_from_json(data: dict[str, Any]) -> FixedPendingEvalStatus:
+    category = str(data.get("category") or "")
+    severity = str(data.get("severity") or "")
     return FixedPendingEvalStatus(
         item_id=_safe_item_id(str(data.get("item_id") or "")),
-        fixed_pending_eval=bool(data.get("fixed_pending_eval")),
-        queue_status=str(data.get("queue_status") or "unknown"),
-        severity_summary=_count_map(data.get("severity_summary")),
-        maintainer_state=str(data.get("maintainer_state") or data.get("public_maintainer_state") or "unknown"),
+        fixed_pending_eval=bool(data.get("fixed_pending_eval") or data.get("status") == "fixed_pending_eval"),
+        queue_status=str(data.get("queue_status") or data.get("status") or "unknown"),
+        severity_summary=_count_map(data.get("severity_summary") or ({severity: 1} if severity else {})),
+        maintainer_state=str(data.get("maintainer_state") or data.get("public_maintainer_state") or data.get("maintainer_action_state") or "unknown"),
         evidence_ref=str(data.get("evidence_ref") or data.get("fixed_pending_eval_evidence_ref") or ""),
         eval_gate_ref=str(data.get("eval_gate_ref") or ""),
         recommended_user_action=str(data.get("recommended_user_action") or data.get("recommended_action") or "none"),
-        issue_categories=_tuple(data.get("issue_categories")),
+        issue_categories=_tuple(data.get("issue_categories") or ([category] if category else [])),
     )
 
 
@@ -265,24 +272,34 @@ class MaintainerQueueStatusClient:
         return payload
 
     def status(self, root: Path, item_id: str) -> MaintainerQueueStatus:
-        response = self._post("/v1/catalog/maintainer-queue/status", self._payload(root, item_id=item_id))
+        response = self._post("/v1/skillops/maintainer-queue/status", self._payload(root, item_id=item_id))
         _verify_signed_payload(response, purpose="Maintainer queue status", expected_type=MAINTAINER_QUEUE_STATUS_MANIFEST)
         _assert_safe_metadata(response)
-        raw = response.get("queue_status") if isinstance(response.get("queue_status"), dict) else response
+        runtime = response.get("runtime") if isinstance(response.get("runtime"), dict) else {}
+        items = runtime.get("items") if isinstance(runtime.get("items"), list) else []
+        raw = dict(items[0]) if items and isinstance(items[0], dict) else dict(runtime)
+        if "recommended_user_action" not in raw:
+            raw["recommended_user_action"] = runtime.get("recommended_user_action")
         return _status_from_json(raw)
 
     def summary(self, root: Path) -> MaintainerQueueSummary:
-        response = self._post("/v1/catalog/maintainer-queue/summary", self._payload(root))
-        _verify_signed_payload(response, purpose="Maintainer queue summary", expected_type=MAINTAINER_QUEUE_STATUS_MANIFEST)
+        response = self._post("/v1/skillops/maintainer-queue/summary", self._payload(root))
+        _verify_signed_payload(response, purpose="Maintainer queue summary", expected_type=MAINTAINER_QUEUE_SUMMARY_MANIFEST)
         _assert_safe_metadata(response)
-        raw = response.get("queue_summary") if isinstance(response.get("queue_summary"), dict) else response
+        raw = response.get("runtime") if isinstance(response.get("runtime"), dict) else response
         return _summary_from_json(raw)
 
     def fixed_pending_eval(self, root: Path, item_id: str) -> FixedPendingEvalStatus:
-        response = self._post("/v1/catalog/maintainer-queue/fixed-pending-eval", self._payload(root, item_id=item_id))
+        response = self._post("/v1/skillops/maintainer-queue/fixed-pending-eval", self._payload(root, item_id=item_id))
         _verify_signed_payload(response, purpose="Fixed pending eval status", expected_type=FIXED_PENDING_EVAL_MANIFEST)
         _assert_safe_metadata(response)
-        raw = response.get("fixed_pending_eval") if isinstance(response.get("fixed_pending_eval"), dict) else response
+        runtime = response.get("runtime") if isinstance(response.get("runtime"), dict) else {}
+        items = runtime.get("items") if isinstance(runtime.get("items"), list) else []
+        raw = dict(items[0]) if items and isinstance(items[0], dict) else dict(runtime)
+        if "eval_gate_ref" not in raw:
+            raw["eval_gate_ref"] = runtime.get("eval_gate_reference")
+        if "recommended_user_action" not in raw:
+            raw["recommended_user_action"] = runtime.get("recommended_user_action")
         return _fixed_pending_eval_from_json(raw)
 
 

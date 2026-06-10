@@ -29,7 +29,7 @@ The public client verifies these signed manifest types:
 - `update-preview`;
 - `deprecation-status`.
 
-When `--include-queue` is passed, the client also verifies signed `maintainer-queue-status-client` metadata from the maintainer queue client before composing it into the display output.
+When `--include-queue` is passed, the client also verifies signed `maintainer-queue-runtime-status` and `maintainer-queue-runtime-summary` metadata from the maintainer queue client before composing it into the display output.
 
 ## Preview-Only Updates
 

@@ -1,39 +1,42 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Unlimited Skills fixed pending eval status",
+  "title": "Unlimited Skills signed fixed-pending-eval runtime status",
   "type": "object",
-  "additionalProperties": false,
-  "required": ["schema_version", "manifest_type", "fixed_pending_eval", "manifest_signature"],
+  "additionalProperties": true,
+  "required": ["schema_version", "manifest_type", "runtime", "manifest_signature"],
   "properties": {
     "schema_version": { "type": "integer", "const": 1 },
-    "manifest_type": { "type": "string", "const": "fixed-pending-eval-status" },
-    "fixed_pending_eval": {
+    "manifest_type": { "type": "string", "const": "maintainer-queue-fixed-pending-eval" },
+    "runtime": {
       "type": "object",
-      "additionalProperties": false,
-      "required": [
-        "item_id",
-        "fixed_pending_eval",
-        "queue_status",
-        "severity_summary",
-        "maintainer_state",
-        "evidence_ref",
-        "eval_gate_ref",
-        "recommended_user_action"
-      ],
+      "required": ["item_count", "items", "metadata_only", "mutates_queue"],
       "properties": {
-        "item_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$" },
-        "fixed_pending_eval": { "type": "boolean" },
-        "queue_status": { "type": "string" },
-        "severity_summary": {
-          "type": "object",
-          "additionalProperties": { "type": "integer", "minimum": 0 }
+        "endpoint": { "type": "string", "const": "POST /v1/skillops/maintainer-queue/fixed-pending-eval" },
+        "item_id": { "type": "string" },
+        "item_count": { "type": "integer", "minimum": 0 },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["item_id", "status", "fixed_pending_eval_evidence_ref", "eval_gate_ref"],
+            "properties": {
+              "item_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$" },
+              "status": { "type": "string", "const": "fixed_pending_eval" },
+              "severity": { "type": "string" },
+              "category": { "type": "string" },
+              "fixed_pending_eval_evidence_ref": { "type": "string" },
+              "eval_gate_ref": { "type": "string" },
+              "maintainer_action_state": { "type": "string" }
+            },
+            "additionalProperties": true
+          }
         },
-        "maintainer_state": { "type": "string" },
-        "evidence_ref": { "type": "string" },
-        "eval_gate_ref": { "type": "string" },
-        "recommended_user_action": { "type": "string", "enum": ["none", "wait_for_eval", "review_before_update", "update_when_available", "avoid_or_remove"] },
-        "issue_categories": { "type": "array", "items": { "type": "string" } }
-      }
+        "eval_gate_reference": { "type": "string" },
+        "recommended_user_action": { "type": "string" },
+        "metadata_only": { "type": "boolean", "const": true },
+        "mutates_queue": { "type": "boolean", "const": false }
+      },
+      "additionalProperties": true
     },
     "manifest_signature": { "type": "object" }
   }

@@ -17,7 +17,7 @@ unlimited-skills catalog update-recommendations --include-queue
 
 Hosted maintainer queue status requires registration. The local MIT core remains registration-free for search, list, view, where, reindex, vector-reindex, and other local-only commands.
 
-The client verifies signed `maintainer-queue-status-client` and `fixed-pending-eval-status` responses before display. Tests use fake services and fixture signing keys only.
+The client calls `/v1/skillops/maintainer-queue/*` endpoints and verifies signed `maintainer-queue-runtime-status`, `maintainer-queue-runtime-summary`, and `maintainer-queue-fixed-pending-eval` responses before display. Tests use fake services and fixture signing keys only.
 
 ## Public Fields
 
