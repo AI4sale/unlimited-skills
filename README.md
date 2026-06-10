@@ -70,6 +70,7 @@ Working now:
 - registered hosted catalog client;
 - registered community skills client for list/search/preview/install/submit/status/local remove;
 - registered Team Free create/join/members/pending/approve/reject/revoke/collections/sync/leave client;
+- registered private team pack client for list/preview/install/sync/installed/remove under `registry/private/<pack_id>`;
 - native skill sync for Codex, Claude Code, Hermes, and OpenClaw roots;
 - public repo self-update checks and applies latest releases/tags;
 - production service onboarding diagnostics for configured service URL, health, trust, redacted registration dry run, and local proof generation;
@@ -144,7 +145,7 @@ See [docs/product-editions.md](docs/product-editions.md) for the full edition ta
 - **Community Core**: MIT, local-first, no registration. Local search, list, view, where, use, feedback, reindex, vector-reindex, adapt, serve, installers, migration scripts, native sync, and public self-update stay available offline.
 - **Registered Community**: free registration for hosted adapted catalog access, early-access collection updates, registered local enhancer downloads, future official community catalog/submissions, and the Registered Local Skill Hub contract up to 100 active client instances.
 - **Team Free**: registered team sync MVP with master approval and up to 10 instances when enforced server-side.
-- **Pro / Team**: planned paid hosted collaboration, dashboard, private packs, collection assignment, longer auto-approval windows, and support.
+- **Pro / Team**: planned paid hosted collaboration, dashboard, private packs, collection assignment, longer auto-approval windows, and support. The public client already includes the registered private-pack install/sync command surface.
 - **Enterprise**: local Enterprise Skill Lock policy MVP and registered managed policy sync now; private registry enforcement, SSO/on-prem/VPC options later.
 
 Local Skill Hub is separate from the free local daemon: `unlimited-skills serve` remains unregistered, while `unlimited-skills hub serve` is registration-gated and allowlist-only. See [docs/local-skill-hub.md](docs/local-skill-hub.md).
@@ -334,6 +335,18 @@ unlimited-skills team collections
 unlimited-skills team sync --dry-run
 unlimited-skills team sync --yes
 unlimited-skills team leave --yes
+```
+
+Private team packs: registered installations can list, preview, install, sync, and remove team-scoped private packs. Installs verify signed `private-team-pack` manifests, use proofed POST downloads, check SHA256, safely extract zip archives, and write only under `registry/private/<pack_id>`. See [docs/private-team-packs.md](docs/private-team-packs.md).
+
+```bash
+unlimited-skills private-packs list
+unlimited-skills private-packs preview <pack_id>
+unlimited-skills private-packs install <pack_id> --yes
+unlimited-skills private-packs sync --dry-run
+unlimited-skills private-packs sync --yes
+unlimited-skills private-packs installed
+unlimited-skills private-packs remove <pack_id> --yes
 ```
 
 Enterprise Skill Lock MVP lets managed instances audit or refuse unmanaged skill delivery and direct operators to a corporate administrator or approved enterprise update channel. No policy means Community Core behavior is unchanged.
