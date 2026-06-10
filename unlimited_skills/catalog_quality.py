@@ -40,6 +40,9 @@ FORBIDDEN_TEXT_PATTERNS = (
     re.compile(r"(?<![\w-])/(?:home|Users|root)/[^\s\"']+"),
     re.compile(r"\bgh[pousr]_[A-Za-z0-9_]{20,}\b"),
     re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b"),
+    re.compile(r"\buls_(?:hub|token|license)_[A-Za-z0-9_-]{12,}\b"),
+    re.compile(r"(?i)\b(?:authorization\s*[:=]\s*bearer|x-uls-proof\s*[:=])\s*[^\s,'\"}]+"),
+    re.compile(r"\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b", re.IGNORECASE),
     re.compile(r"-----BEGIN [A-Z ]*(?:PRIVATE|OPENSSH) KEY-----", re.IGNORECASE),
 )
 

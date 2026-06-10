@@ -107,6 +107,19 @@ def test_catalog_quality_rejects_unsigned_or_sensitive_payload(tmp_path: Path, m
         with pytest.raises(CatalogQualityError, match="disallowed field"):
             client.quality("community:browser-qa-pack:0.1.0")
 
+    def sensitive_text_urlopen(request, timeout=30.0):
+        payload = {
+            "quality_status": {
+                **quality_status(),
+                "warnings": ["leaked uls_token_1234567890abcdef", "contact user@example.com"],
+            }
+        }
+        return FakeResponse(json.dumps(sign_catalog_payload(payload, private_key, manifest_type="catalog-quality-status")).encode("utf-8"))
+
+    with patch("urllib.request.urlopen", sensitive_text_urlopen):
+        with pytest.raises(CatalogQualityError, match="disallowed sensitive text"):
+            client.quality("community:browser-qa-pack:0.1.0")
+
 
 def test_catalog_install_warns_for_low_grade_and_refuses_blocked(tmp_path: Path, monkeypatch, capsys) -> None:
     home = tmp_path / "home"
