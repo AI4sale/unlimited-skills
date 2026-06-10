@@ -28,12 +28,19 @@ For organization and team governance, the support manifest includes only:
 
 For plans and entitlements, the support manifest includes only the redacted plan id, status, cache source, public feature flags, public limits, and offline-grace status.
 
+For billing lifecycle diagnostics, the support manifest includes only the redacted plan id, entitlement source, subscription lifecycle status, sandbox billing mode, public feature allow/deny codes, and the normalized denial reason. It does not include checkout sessions or live payment provider payloads.
+
 The support manifest excludes:
 
 - private pack names by default;
 - private skill names;
 - private skill bodies;
 - raw archive URLs;
+- checkout URLs;
+- payment links;
+- invoice URLs;
+- card data;
+- bank data;
 - local paths;
 - auth headers;
 - hosted tokens;

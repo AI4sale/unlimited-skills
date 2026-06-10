@@ -12,7 +12,9 @@ DENIAL_REASONS = {
     "unregistered": "Register this installation to refresh hosted plan and entitlement state.",
     "no_entitlement": "The current plan does not include this feature.",
     "plan_limit_exceeded": "The current plan limit was exceeded.",
+    "past_due": "The registered subscription is past due.",
     "suspended": "Hosted entitlements are suspended for this installation or scope.",
+    "expired": "The registered subscription or entitlement expired.",
     "service_unavailable": "The hosted entitlement service is unavailable.",
     "policy_denied": "A local or enterprise policy denied this feature.",
     "unknown_feature": "The requested feature is not known by this client.",
@@ -24,6 +26,16 @@ DENIAL_ALIASES = {
     "registry_access_denied": "no_entitlement",
     "client_limit_reached": "plan_limit_exceeded",
     "max_clients_reached": "plan_limit_exceeded",
+    "payment_failed": "past_due",
+    "billing_past_due": "past_due",
+    "subscription_past_due": "past_due",
+    "past_due_subscription": "past_due",
+    "subscription_expired": "expired",
+    "entitlement_expired": "expired",
+    "billing_expired": "expired",
+    "canceled": "suspended",
+    "cancelled": "suspended",
+    "subscription_canceled": "suspended",
     "denied_by_policy": "policy_denied",
     "offline": "service_unavailable",
     "unreachable": "service_unavailable",
@@ -60,8 +72,12 @@ def redacted_plan_summary(*, state: RegistrationState | None = None, home: Path 
     denial_reason = ""
     if not state.registered:
         denial_reason = "unregistered"
-    elif status == "suspended" or summary.get("offline_grace_status") == "expired":
-        denial_reason = "suspended" if status == "suspended" else ""
+    elif status in {"past_due", "suspended", "expired"}:
+        denial_reason = status
+    elif status in {"canceled", "cancelled"}:
+        denial_reason = "suspended"
+    elif summary.get("offline_grace_status") == "expired":
+        denial_reason = "suspended"
     payload = {
         "schema_version": 1,
         "registered": state.registered,
@@ -114,7 +130,9 @@ def explain_feature(feature: str, *, home: Path | None = None) -> dict[str, Any]
         return _feature_payload(requested, False, "unknown_feature", summary)
     if not state.registered and requested not in {"local_skill_hub"}:
         return _feature_payload(requested, False, "unregistered", summary)
-    if summary.get("status") == "suspended":
+    if summary.get("status") in {"past_due", "suspended", "expired"}:
+        return _feature_payload(requested, False, str(summary["status"]), summary)
+    if summary.get("status") in {"canceled", "cancelled"}:
         return _feature_payload(requested, False, "suspended", summary)
     features = set(summary.get("features_enabled") or [])
     limits = summary.get("limits") if isinstance(summary.get("limits"), dict) else {}
@@ -141,6 +159,7 @@ def doctor(*, home: Path | None = None) -> dict[str, Any]:
     checks = {
         "registration": {"ok": state.registered, "denial_reason": "" if state.registered else "unregistered"},
         "cached_entitlement": {"ok": summary["source"] != "unregistered", "source": summary["source"]},
+        "plan_state": {"ok": summary["denial_reason"] not in {"past_due", "suspended", "expired"}, "status": summary["status"], "denial_reason": summary["denial_reason"]},
         "offline_grace": {"ok": summary["offline_grace_status"] in {"none", "active"}, "status": summary["offline_grace_status"]},
         "local_core": {"ok": True, "requires_registration": False},
     }

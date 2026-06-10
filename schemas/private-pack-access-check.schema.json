@@ -17,6 +17,10 @@
         "type": "string",
         "enum": [
           "no_entitlement",
+          "plan_limit_exceeded",
+          "past_due",
+          "suspended",
+          "expired",
           "not_team_member",
           "wrong_agent",
           "wrong_channel",

@@ -5,6 +5,7 @@ import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
+from unlimited_skills.billing_status import save_billing_status
 from unlimited_skills.cli import main
 from unlimited_skills.private_packs import write_private_pack_metadata
 from unlimited_skills.registration import RegistrationState, save_registration, with_install_identity
@@ -131,6 +132,19 @@ def test_support_bundle_private_pack_summary_is_redacted(tmp_path: Path, monkeyp
     target.mkdir(parents=True)
     monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home))
     save_registration(registered_state(), home=home)
+    save_billing_status(
+        {
+            "schema_version": 1,
+            "source": "cached",
+            "plan": "business",
+            "entitlement_source": "organization",
+            "subscription_status": "past_due",
+            "billing_mode": "sandbox_only",
+            "features_denied": [{"feature": "private_team_packs", "denial_reason": "billing_past_due"}],
+            "denial_reason": "billing_past_due",
+        },
+        home=home,
+    )
     write_private_pack_metadata(
         root,
         {
@@ -155,8 +169,13 @@ def test_support_bundle_private_pack_summary_is_redacted(tmp_path: Path, monkeyp
     assert report["diagnostics"]["private_packs"]["local"]["installed_count"] == 1
     assert report["diagnostics"]["plan"]["registered"] is True
     assert report["diagnostics"]["plan"]["privacy"]["tokens_included"] is False
+    assert report["diagnostics"]["billing"]["subscription_status"] == "past_due"
+    assert report["diagnostics"]["billing"]["denial_reason"] == "past_due"
+    assert report["diagnostics"]["billing"]["privacy"]["checkout_urls_included"] is False
+    assert report["diagnostics"]["billing"]["privacy"]["payment_card_data_included"] is False
     assert report["diagnostics"]["private_packs"]["local"]["sha_mismatch_count"] == 1
     assert report["manifest"]["diagnostics_summary"]["plan"] == "community-core"
+    assert report["manifest"]["diagnostics_summary"]["subscription_status"] == "past_due"
     assert report["manifest"]["diagnostics_summary"]["private_pack_installed_count"] == 1
     assert report["diagnostics"]["privacy"]["skill_bodies_included"] is False
     assert "secret private skills" not in serialized

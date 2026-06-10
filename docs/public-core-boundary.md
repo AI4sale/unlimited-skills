@@ -81,6 +81,8 @@ Remote-first installer flags for Codex, Claude Code, Hermes, and OpenClaw write 
 
 `plan status`, `plan explain`, and `plan doctor` are local/cache-only plan diagnostics and must work without registration. `plan refresh` requires registration because it contacts the hosted `/v1/hub/entitlements` endpoint.
 
+`billing status` and `billing doctor` are local/cache-only billing lifecycle diagnostics and must work without registration. `billing refresh` requires registration because it contacts the hosted `/v1/hub/billing-status` endpoint. The public client must not create checkout sessions, collect card or bank data, store invoice/payment links, or enable live payment provider flows.
+
 `service configure`, `service status`, `service doctor`, `service verify-trust`, `service test-registration --dry-run`, and `service test-proof` are onboarding/support commands. They do not unlock hosted catalog features and do not gate local MIT commands. `service status` is local-only unless `--refresh` is passed. `service doctor` and `service verify-trust` may contact only health/ready/public-key endpoints and must not upload local skill bodies, skill names, prompts, paths, queries, tokens, or private keys.
 
 Enterprise Skill Lock is opt-in local governance. With no installed policy, Community Core behavior is unchanged. With a policy installed in `audit` mode, disallowed actions are logged and allowed. With a policy installed in `enforce` mode, hosted registry access, release-channel selection, manifest keys/scopes, community install/submit, hub local allowlists, remote fallback, and explicitly restricted local roots can be refused. This policy layer must not require registration and must not upload local skills or prompts.

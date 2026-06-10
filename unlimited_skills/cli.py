@@ -22,6 +22,8 @@ from .community import (
     list_installed_community_items,
     remove_community_item,
 )
+from .billing_status import doctor as billing_doctor
+from .billing_status import format_billing_status, redacted_billing_summary, refresh_billing_status
 from .doctor import build_doctor_report, doctor_json, format_doctor_text
 from .hub import (
     HUB_DEFAULT_PORT,
@@ -1620,6 +1622,38 @@ def cmd_plan_doctor(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_billing_status(args: argparse.Namespace) -> int:
+    payload = redacted_billing_summary()
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(format_billing_status(payload))
+    return 0
+
+
+def cmd_billing_refresh(args: argparse.Namespace) -> int:
+    payload = refresh_billing_status(timeout=args.timeout)
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(format_billing_status(payload["billing_status"]))
+    return 0
+
+
+def cmd_billing_doctor(args: argparse.Namespace) -> int:
+    payload = billing_doctor()
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print("Billing doctor: " + ("ok" if payload["ok"] else "needs attention"))
+        print(format_billing_status(payload["billing_status"]))
+        for name, check in payload["checks"].items():
+            print(f"{name}: {'ok' if check['ok'] else 'attention'}")
+            if check.get("denial_reason"):
+                print(f"  denial_reason={check['denial_reason']}")
+    return 0
+
+
 def cmd_enhance_download(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     client = UpdateClient(load_registration(), timeout=args.timeout)
@@ -2367,6 +2401,19 @@ def build_parser() -> argparse.ArgumentParser:
     plan_doctor_parser = plan_sub.add_parser("doctor", help="Run local plan and entitlement diagnostics.")
     plan_doctor_parser.add_argument("--json", action="store_true")
     plan_doctor_parser.set_defaults(func=cmd_plan_doctor)
+
+    billing = sub.add_parser("billing", help="Inspect sandbox billing lifecycle diagnostics.")
+    billing_sub = billing.add_subparsers(dest="billing_command", required=True)
+    billing_status = billing_sub.add_parser("status", help="Show cached billing lifecycle status without hosted calls.")
+    billing_status.add_argument("--json", action="store_true")
+    billing_status.set_defaults(func=cmd_billing_status)
+    billing_refresh = billing_sub.add_parser("refresh", help="Refresh billing lifecycle status from the registered service.")
+    billing_refresh.add_argument("--json", action="store_true")
+    billing_refresh.add_argument("--timeout", type=float, default=30.0)
+    billing_refresh.set_defaults(func=cmd_billing_refresh)
+    billing_doctor_parser = billing_sub.add_parser("doctor", help="Run local billing lifecycle diagnostics.")
+    billing_doctor_parser.add_argument("--json", action="store_true")
+    billing_doctor_parser.set_defaults(func=cmd_billing_doctor)
 
     private_packs = sub.add_parser("private-packs", help="Preview, install, sync, and remove registered private team packs.")
     private_packs_sub = private_packs.add_subparsers(dest="private_packs_command", required=True)

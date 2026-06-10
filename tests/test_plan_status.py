@@ -108,3 +108,27 @@ def test_plan_explain_and_doctor_denial_vocabulary(tmp_path: Path, monkeypatch, 
     doctor = json.loads(capsys.readouterr().out)
     assert "unregistered" in doctor["denial_vocabulary"]
     assert doctor["checks"]["registration"]["denial_reason"] == "unregistered"
+
+
+def test_plan_explain_uses_billing_lifecycle_denial_reasons(tmp_path: Path, monkeypatch) -> None:
+    home = tmp_path / ".unlimited-skills"
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home))
+    save_registration(registered_state(), home=home)
+    save_entitlements(
+        {
+            "schema_version": 1,
+            "source": "cached",
+            "plan": "business",
+            "status": "past_due",
+            "features_enabled": ["local_skill_hub", "private_team_packs"],
+            "limits": {"max_hub_clients": 100, "max_private_packs": 25},
+            "policy": {"hub_distribution_mode": "allowlist_only", "hosted_query_forwarding_allowed": False},
+            "offline_grace_until": "2999-01-01T00:00:00Z",
+        },
+        home=home,
+    )
+
+    payload = explain_feature("private_team_packs", home=home)
+
+    assert payload["allowed"] is False
+    assert payload["denial_reason"] == "past_due"

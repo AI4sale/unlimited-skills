@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
+from .billing_status import redacted_billing_summary
 from .doctor import build_doctor_report
 from .hub import active_hub_token_count, cached_allowlist_summary, load_hub_config, load_remote_config
 from .org_status import local_org_status
@@ -145,6 +146,41 @@ def _plan_status(home: Path) -> dict[str, Any]:
                 "private_pack_bodies_included": False,
                 "skill_names_included": False,
                 "search_queries_included": False,
+            },
+        }
+
+
+def _billing_status(home: Path) -> dict[str, Any]:
+    try:
+        state = load_registration(home)
+    except RegistrationError:
+        state = RegistrationState()
+    try:
+        return redacted_billing_summary(state=state, home=home)
+    except Exception as exc:  # noqa: BLE001 - support diagnostics must stay non-fatal.
+        return {
+            "schema_version": 1,
+            "registered": bool(state.registered),
+            "source": "local-error",
+            "plan": state.plan or ("registered-community" if state.registered else "community-core"),
+            "entitlement_source": "unknown",
+            "subscription_status": "unknown",
+            "billing_mode": "none",
+            "features_allowed": [],
+            "features_denied": [],
+            "denial_reason": "",
+            "last_refreshed_at": "",
+            "next_action": "",
+            "error": redact_sensitive_text(str(exc)),
+            "privacy": {
+                "tokens_included": False,
+                "proofs_included": False,
+                "private_keys_included": False,
+                "payment_card_data_included": False,
+                "checkout_urls_included": False,
+                "local_paths_included": False,
+                "private_pack_bodies_included": False,
+                "private_skill_names_included": False,
             },
         }
 
@@ -320,6 +356,7 @@ def build_support_diagnostics(root: Path, *, include_paths: bool = False, includ
         "library": _skill_inventory(root, include_paths=include_paths),
         "registration": _registration_status(home),
         "plan": _plan_status(home),
+        "billing": _billing_status(home),
         "service": _service_status(home),
         "hub": _hub_status(home),
         "enterprise": _enterprise_status(home),
@@ -359,6 +396,9 @@ def build_bundle_report(
             "plan": str(diagnostics.get("plan", {}).get("plan") or "community-core"),
             "plan_status": str(diagnostics.get("plan", {}).get("status") or "unknown"),
             "plan_source": str(diagnostics.get("plan", {}).get("source") or "unknown"),
+            "subscription_status": str(diagnostics.get("billing", {}).get("subscription_status") or "unknown"),
+            "billing_mode": str(diagnostics.get("billing", {}).get("billing_mode") or "none"),
+            "billing_source": str(diagnostics.get("billing", {}).get("source") or "unknown"),
             "library_present": bool(diagnostics.get("library", {}).get("root_present")),
             "physical_skill_files": int(diagnostics.get("library", {}).get("physical_skill_files") or 0),
             "index_present": bool(diagnostics.get("library", {}).get("index_present")),

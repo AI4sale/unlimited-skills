@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "registered": true,
+  "source": "cached",
+  "plan": "business",
+  "entitlement_source": "organization",
+  "subscription_status": "active",
+  "billing_mode": "sandbox_only",
+  "features_allowed": ["local_skill_hub", "private_team_packs", "team_sync"],
+  "features_denied": [],
+  "denial_reason": "",
+  "last_refreshed_at": "2026-06-09T00:00:00Z",
+  "next_action": "",
+  "privacy": {
+    "tokens_included": false,
+    "proofs_included": false,
+    "private_keys_included": false,
+    "payment_card_data_included": false,
+    "checkout_urls_included": false,
+    "local_paths_included": false,
+    "private_pack_bodies_included": false,
+    "private_skill_names_included": false
+  }
+}
