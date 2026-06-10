@@ -5,6 +5,7 @@ import importlib.util
 import json
 import os
 import socket
+import subprocess
 import sys
 import tempfile
 import threading
@@ -17,6 +18,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from unlimited_skills.private_packs import PrivatePackClient, PrivatePackError, list_installed_private_packs, remove_private_pack
 from unlimited_skills.registration import RegistrationState, register_installation, save_registration, with_install_identity
+from unlimited_skills.team import TeamState, save_team_state
 
 
 PACK_ID = "team_pack_acme_private_skills"
@@ -53,6 +55,77 @@ def read_json(path: Path) -> dict[str, Any]:
 def write_json(path: Path, payload: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def run_public_cli(args: list[str], *, env: dict[str, str]) -> dict[str, Any]:
+    completed = subprocess.run(
+        [sys.executable, "-m", "unlimited_skills.cli", *args],
+        cwd=Path(__file__).resolve().parents[1],
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        capture_output=True,
+        env=env,
+        check=False,
+    )
+    if completed.returncode != 0:
+        fail("CLI command failed: "
+             + " ".join(args)
+             + "\nstdout:\n"
+             + completed.stdout
+             + "\nstderr:\n"
+             + completed.stderr)
+    try:
+        payload = json.loads(completed.stdout)
+    except json.JSONDecodeError as exc:
+        fail(f"CLI command did not return JSON: {' '.join(args)}: {exc}\n{completed.stdout}")
+    if not isinstance(payload, dict):
+        fail(f"CLI command returned non-object JSON: {' '.join(args)}")
+    return payload
+
+
+def verify_registry_org_governance(registry_repo: Path, db_url: str, owner_install_id: str) -> dict[str, Any]:
+    from unlimited_registry.orgs import add_membership, assign_private_pack_ownership, create_namespace, create_organization, create_team, governance_entitlement_for_scope, set_governance_entitlement
+    from unlimited_registry.storage import ProductionStorage
+
+    storage = ProductionStorage(db_url)
+    with storage.connect() as conn:
+        org = create_organization(conn, org_id="org_acme_fixture", name="Acme Fixture", plan="business")
+        team = create_team(
+            conn,
+            org_id=org["org_id"],
+            team_id="team_acme_fixture",
+            name="Acme Platform",
+            owner_install_id=owner_install_id,
+            channel="stable",
+        )
+        membership = add_membership(conn, team_id=team["team_id"], install_id=owner_install_id, role="owner", status="active")
+        namespace = create_namespace(conn, org_id=org["org_id"], team_id=team["team_id"], namespace="team/acme")
+        set_governance_entitlement(
+            conn,
+            scope_type="organization",
+            scope_id=org["org_id"],
+            plan="business",
+            features=["private_team_packs", "team_sync", "community_catalog"],
+            private_pack_namespaces=["team/acme"],
+            active_client_limit=100,
+            offline_grace_seconds=86400,
+        )
+        entitlement = governance_entitlement_for_scope(conn, "organization", org["org_id"])
+        ownership = assign_private_pack_ownership(conn, pack_id=PACK_ID, scope_type="team", scope_id=team["team_id"], namespace=namespace["namespace"])
+    if entitlement.get("plan") != "business":
+        fail("Registry organization governance entitlement was not resolved")
+    if ownership.get("pack_id") != PACK_ID:
+        fail("Registry private pack ownership was not recorded")
+    return {
+        "org_id": org["org_id"],
+        "team_id": team["team_id"],
+        "namespace": namespace["namespace"],
+        "membership_status": membership["status"],
+        "entitlement_plan": entitlement["plan"],
+        "private_pack_owned": True,
+        "registry_repo": str(registry_repo),
+    }
 
 
 def build_installable_private_pack(private_root: Path) -> None:
@@ -224,6 +297,7 @@ def run_e2e(registry_repo: Path, *, temp_home: bool = False) -> dict[str, Any]:
         try:
             state = register_client(server_url, install_id="uls_inst_master", agent="codex", home=home)
             grant_private_pack_entitlement(db_url, state.install_id)
+            governance = verify_registry_org_governance(registry_repo, db_url, state.install_id)
             client = PrivatePackClient(state, timeout=10)
 
             listed = client.list()
@@ -255,6 +329,14 @@ def run_e2e(registry_repo: Path, *, temp_home: bool = False) -> dict[str, Any]:
             access = wrong_client.access_check(PACK_ID)
             if access.get("authorized") is not False:
                 fail("Wrong agent was not denied by access-check")
+            save_registration(wrong_state, home=home / ".unlimited-skills")
+            cli_env = os.environ.copy()
+            cli_env["UNLIMITED_SKILLS_HOME"] = str(home / ".unlimited-skills")
+            cli_access = run_public_cli(["--root", str(library), "private-packs", "access-check", PACK_ID, "--json"], env=cli_env)
+            if cli_access.get("status") != "denied" or "wrong_agent" not in cli_access.get("denial_reasons", []):
+                fail("CLI access-check did not report wrong_agent denial")
+            if PACK_ID in json.dumps(cli_access):
+                fail("CLI access-check leaked raw private pack id")
             try:
                 wrong_client.install(library, PACK_ID)
             except PrivatePackError:
@@ -268,6 +350,27 @@ def run_e2e(registry_repo: Path, *, temp_home: bool = False) -> dict[str, Any]:
                 pass
             else:
                 fail("Revoked pack install unexpectedly succeeded")
+
+            save_registration(state, home=home / ".unlimited-skills")
+            save_team_state(
+                TeamState(team_id=governance["team_id"], team_name="Acme Platform", role="owner", status="approved", approval_mode="manual"),
+                home=home / ".unlimited-skills",
+            )
+            write_json(
+                home / ".unlimited-skills" / "org-status.json",
+                {
+                    "schema_version": 1,
+                    "plan": governance["entitlement_plan"],
+                    "organization": {"org_id": governance["org_id"], "name": "Acme Fixture", "role": "owner", "status": "active"},
+                    "entitlements": {"private_packs": {"status": "allowed"}, "community_catalog": {"status": "allowed"}, "team_sync": {"status": "allowed"}},
+                    "last_refreshed_at": "2026-06-09T00:00:00Z",
+                },
+            )
+            cli_org = run_public_cli(["--root", str(library), "org", "status", "--json"], env=cli_env)
+            if cli_org.get("source") != "cache" or cli_org.get("entitlements", {}).get("private_packs") != "allowed":
+                fail("CLI org status did not read redacted local governance cache")
+            if "license_token" in json.dumps(cli_org).lower():
+                fail("CLI org status leaked registration token fields")
 
             local_skill = library / "local" / "skills" / "manual-skill"
             local_skill.mkdir(parents=True)
@@ -286,6 +389,9 @@ def run_e2e(registry_repo: Path, *, temp_home: bool = False) -> dict[str, Any]:
                 "removed": remove_result["removed"],
                 "wrong_agent_denied": True,
                 "revoked_denied": True,
+                "cli_access_check_denied": True,
+                "cli_org_status_cache": True,
+                "registry_org_governance": governance,
                 "local_skill_preserved": True,
                 "production_hosted_calls": False,
             }

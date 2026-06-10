@@ -199,6 +199,7 @@ def test_private_pack_list_preview_and_install_are_signed_and_redacted(tmp_path:
         ({"authorized": False, "denial_reasons": ["wrong_channel"]}, "wrong_channel", "denied"),
         ({"authorized": False, "revoked": True}, "revoked", "denied"),
         ({"authorized": False, "policy_denied": True}, "policy_denied", "denied"),
+        ({"authorized": False, "reason_code": "wrong_agent", "access_policy": {"reason_code": "wrong_agent"}}, "wrong_agent", "denied"),
         ({"authorized": True, "access_policy": {"current_install_authorized": True}}, None, "authorized"),
     ],
 )

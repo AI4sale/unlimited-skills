@@ -392,7 +392,15 @@ def remove_private_pack(root: Path, pack_id: str, *, dry_run: bool = True) -> di
 
 def normalize_private_pack_access_check(payload: dict[str, Any], *, pack_id: str = "") -> dict[str, Any]:
     policy = payload.get("access_policy") if isinstance(payload.get("access_policy"), dict) else {}
-    raw_reasons = payload.get("denial_reasons") or payload.get("reasons") or policy.get("denial_reasons") or policy.get("reasons") or []
+    raw_reasons = (
+        payload.get("denial_reasons")
+        or payload.get("reasons")
+        or payload.get("reason_code")
+        or policy.get("denial_reasons")
+        or policy.get("reasons")
+        or policy.get("reason_code")
+        or []
+    )
     if isinstance(raw_reasons, str):
         raw_reasons = [raw_reasons]
     if not isinstance(raw_reasons, list):
