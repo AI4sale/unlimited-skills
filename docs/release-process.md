@@ -61,6 +61,17 @@ python scripts/verify-v0.3.0-alpha-package-assets.py
 python scripts/run-v0.3.0-alpha-packaging-smoke.py
 ```
 
+For `v0.3.1-alpha`, also run the post-release stabilization gate:
+
+```bash
+python scripts/run-v0.3.1-alpha-post-release-smoke.py
+python scripts/run-v0.3.1-alpha-release-smoke.py
+python scripts/verify-v0.3.1-alpha-stabilization.py
+python scripts/verify-v0.3.1-alpha-publication.py --expected-sha <tag-target-sha>
+```
+
+The default `v0.3.1-alpha` publication verifier must fail until production-signed registry artifacts are verified. If the release owner explicitly accepts blocked registry signing as a known issue, rerun the verifier with `--allow-registry-signing-blocked --release-owner-override-reason "<reason>"` and document that decision in release notes.
+
 Legacy ad hoc checks may still be useful for manual verification:
 
 ```bash
