@@ -318,6 +318,8 @@ unlimited-skills search "security review" --native-agent hermes
 
 `search`, `list`, `view`, `where`, `use`, `reindex`, and `vector-reindex` automatically sync known native skill roots before running. This means newly installed Codex, Claude Code, Hermes, and OpenClaw skills are mirrored under the active Unlimited Skills library and become searchable through the router without manual migration. Codex defaults to `~/.codex/.unlimited-skills/library`; other agents default to `~/.unlimited-skills/library` unless their installer overrides the root. Native sync is non-destructive: it overlays new or changed skill files and never clears the existing `local/` library. Pass `--no-native-sync` or set `UNLIMITED_SKILLS_DISABLE_NATIVE_SYNC=1` to skip this behavior.
 
+For Claude Code, native sync also discovers skills bundled with installed plugins. It reads `~/.claude/plugins/installed_plugins.json`, resolves each plugin's install path (falling back to the marketplace clone listed in `known_marketplaces.json` when the cache snapshot is pruned), and mirrors the skill roots declared in the plugin's `.claude-plugin/plugin.json` (plus the conventional `skills/` and `.claude/skills/` folders) into `local/claude-code-plugin-<marketplace>-<plugin>/skills/`. Declared paths cannot escape the plugin root. Skills whose names already exist elsewhere in the library are diverted to `duplicates/` instead of overwriting. Set `UNLIMITED_SKILLS_DISABLE_PLUGIN_SYNC=1` to opt out of plugin discovery only.
+
 Download and run the registered local enhancer:
 
 ```bash
