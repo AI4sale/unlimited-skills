@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills catalog browser client state",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "registered_operation",
+    "metadata_only",
+    "queries_included",
+    "item_names_included",
+    "skill_bodies_included",
+    "private_paths_included"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "registered_operation": { "type": "boolean" },
+    "metadata_only": { "type": "boolean" },
+    "queries_included": { "type": "boolean", "const": false },
+    "item_names_included": { "type": "boolean", "const": false },
+    "skill_bodies_included": { "type": "boolean", "const": false },
+    "private_paths_included": { "type": "boolean", "const": false }
+  }
+}

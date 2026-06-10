@@ -15,6 +15,7 @@ from typing import Iterable
 
 from . import __version__
 from .adapters import SKILL_PACKS, adapt_library, apply_agent_adaptation, adaptation_task, install_pack, next_skill_for_agent
+from .catalog_browser import CatalogBrowserClient
 from .community import (
     CommunityClient,
     build_submission_draft,
@@ -1207,6 +1208,118 @@ def cmd_catalog_list(args: argparse.Namespace) -> int:
     return 0
 
 
+def _emit_catalog_browser_items(items, *, as_json: bool) -> int:
+    payload = {"count": len(items), "items": [asdict(item) for item in items]}
+    if as_json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    if not items:
+        print("No catalog items found.")
+        return 0
+    for item in items:
+        label = item.pack_id or item.item_id
+        suffix = f" {item.version}" if item.version else ""
+        status = item.review_status
+        marker = "installable" if item.installable else "not-installable"
+        print(f"{item.item_id}: {label}{suffix} [{item.source}/{status}/{marker}]")
+        if item.description:
+            print(f"  {item.description}")
+        if item.warnings:
+            print("  warnings: " + ", ".join(item.warnings))
+    return 0
+
+
+def _catalog_client(args: argparse.Namespace) -> CatalogBrowserClient:
+    return CatalogBrowserClient(load_registration(), timeout=args.timeout)
+
+
+def cmd_catalog_browse(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    items = _catalog_client(args).browse(
+        root,
+        channel=args.channel,
+        source=args.source,
+        compatible_agent=args.compatible_agent,
+        skill_kind=args.skill_kind,
+        category=args.category,
+        include_deprecated=args.include_deprecated,
+        limit=args.limit,
+    )
+    return _emit_catalog_browser_items(items, as_json=args.json)
+
+
+def cmd_catalog_search(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    items = _catalog_client(args).search(
+        root,
+        query=args.query,
+        channel=args.channel,
+        source=args.source,
+        compatible_agent=args.compatible_agent,
+        skill_kind=args.skill_kind,
+        category=args.category,
+        include_deprecated=args.include_deprecated,
+        limit=args.limit,
+    )
+    return _emit_catalog_browser_items(items, as_json=args.json)
+
+
+def cmd_catalog_filters(args: argparse.Namespace) -> int:
+    payload = _catalog_client(args).filters(channel=args.channel)
+    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_catalog_preview(args: argparse.Namespace) -> int:
+    payload = _catalog_client(args).preview(args.item_id, channel=args.channel)
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    item = payload["item"]
+    preview = item.get("preview", {}) if isinstance(item.get("preview"), dict) else {}
+    print(f"{item.get('item_id')}: {item.get('pack_id')} {item.get('version', '')} [{item.get('source')}/{item.get('review_status')}]")
+    if preview.get("description") or item.get("description"):
+        print(preview.get("description") or item.get("description"))
+    if preview.get("requirements"):
+        print("Requirements: " + ", ".join(str(value) for value in preview["requirements"]))
+    if item.get("warnings"):
+        print("Warnings: " + ", ".join(str(value) for value in item["warnings"]))
+    return 0
+
+
+def cmd_catalog_install(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    if not args.dry_run and not args.yes:
+        if not sys.stdin.isatty():
+            raise RuntimeError("Catalog install requires --yes in non-interactive mode.")
+        typed = input("Type INSTALL to install this signed catalog item: ")
+        if typed.strip() != "INSTALL":
+            raise RuntimeError("Catalog install cancelled.")
+    result = _catalog_client(args).install(
+        root,
+        item_id=args.item_id,
+        dry_run=args.dry_run,
+        yes=args.yes,
+        target_collection=args.collection,
+        skip_reindex=args.skip_reindex,
+    )
+    reindexed = False
+    if isinstance(result, dict) and result.get("installed") and not args.skip_reindex:
+        save_index(root)
+        reindexed = True
+        result["reindexed"] = True
+    if args.json or args.dry_run:
+        payload = asdict(result) if hasattr(result, "__dataclass_fields__") else result
+        if isinstance(payload, dict) and "reindexed" not in payload:
+            payload["reindexed"] = reindexed
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(f"Installed catalog item {args.item_id}")
+        if reindexed:
+            print("Lexical index rebuilt.")
+    return 0
+
+
 def cmd_release_status(args: argparse.Namespace) -> int:
     state = load_release_channel()
     client = UpdateClient(load_registration(), timeout=args.timeout, channel=args.channel)
@@ -2278,12 +2391,54 @@ def build_parser() -> argparse.ArgumentParser:
     updates_rollback.add_argument("--skip-reindex", action="store_true")
     updates_rollback.set_defaults(func=cmd_updates_rollback)
 
-    catalog = sub.add_parser("catalog", help="Query the registered hosted adapted-skill catalog.")
+    catalog = sub.add_parser("catalog", help="Query the registered hosted adapted-skill catalog and browser.")
     catalog_sub = catalog.add_subparsers(dest="catalog_command", required=True)
     catalog_list = catalog_sub.add_parser("list", help="List the hosted adapted-skill catalog for this registered installation.")
     catalog_list.add_argument("--channel", default="", help="Override the pinned release channel for this catalog request.")
     catalog_list.add_argument("--timeout", type=float, default=30.0)
     catalog_list.set_defaults(func=cmd_catalog_list)
+    catalog_browse = catalog_sub.add_parser("browse", help="Browse signed reviewed catalog metadata.")
+    catalog_browse.add_argument("--channel", default="", choices=["", "stable", "beta", "canary"])
+    catalog_browse.add_argument("--source", default="", choices=["", "official", "community", "private-visible"])
+    catalog_browse.add_argument("--compatible-agent", default="", choices=["", "codex", "claude-code", "hermes", "openclaw", "vellum-ai"])
+    catalog_browse.add_argument("--skill-kind", default="")
+    catalog_browse.add_argument("--category", default="")
+    catalog_browse.add_argument("--include-deprecated", action="store_true")
+    catalog_browse.add_argument("--limit", type=int, default=50)
+    catalog_browse.add_argument("--json", action="store_true")
+    catalog_browse.add_argument("--timeout", type=float, default=30.0)
+    catalog_browse.set_defaults(func=cmd_catalog_browse)
+    catalog_search = catalog_sub.add_parser("search", help="Search signed reviewed catalog metadata.")
+    catalog_search.add_argument("query")
+    catalog_search.add_argument("--channel", default="", choices=["", "stable", "beta", "canary"])
+    catalog_search.add_argument("--source", default="", choices=["", "official", "community", "private-visible"])
+    catalog_search.add_argument("--compatible-agent", default="", choices=["", "codex", "claude-code", "hermes", "openclaw", "vellum-ai"])
+    catalog_search.add_argument("--skill-kind", default="")
+    catalog_search.add_argument("--category", default="")
+    catalog_search.add_argument("--include-deprecated", action="store_true")
+    catalog_search.add_argument("--limit", type=int, default=20)
+    catalog_search.add_argument("--json", action="store_true")
+    catalog_search.add_argument("--timeout", type=float, default=30.0)
+    catalog_search.set_defaults(func=cmd_catalog_search)
+    catalog_filters = catalog_sub.add_parser("filters", help="Show signed catalog browser filter options.")
+    catalog_filters.add_argument("--channel", default="", choices=["", "stable", "beta", "canary"])
+    catalog_filters.add_argument("--timeout", type=float, default=30.0)
+    catalog_filters.set_defaults(func=cmd_catalog_filters)
+    catalog_preview = catalog_sub.add_parser("preview", help="Preview signed catalog metadata without skill bodies.")
+    catalog_preview.add_argument("item_id")
+    catalog_preview.add_argument("--channel", default="", choices=["", "stable", "beta", "canary"])
+    catalog_preview.add_argument("--json", action="store_true")
+    catalog_preview.add_argument("--timeout", type=float, default=30.0)
+    catalog_preview.set_defaults(func=cmd_catalog_preview)
+    catalog_install = catalog_sub.add_parser("install", help="Verify and install a signed approved catalog item.")
+    catalog_install.add_argument("item_id")
+    catalog_install.add_argument("--collection", default="", help="Override local target collection for delegated community installs.")
+    catalog_install.add_argument("--dry-run", action="store_true", help="Verify signed approved metadata without downloading or writing.")
+    catalog_install.add_argument("--yes", action="store_true", help="Confirm install in non-interactive mode.")
+    catalog_install.add_argument("--skip-reindex", action="store_true")
+    catalog_install.add_argument("--json", action="store_true")
+    catalog_install.add_argument("--timeout", type=float, default=30.0)
+    catalog_install.set_defaults(func=cmd_catalog_install)
 
     release = sub.add_parser("release", help="Inspect and pin hosted registry release channels.")
     release_sub = release.add_subparsers(dest="release_command", required=True)

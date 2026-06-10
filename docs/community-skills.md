@@ -9,6 +9,8 @@ The Community Skills surface is the user-facing discovery, installation, and sub
 
 The public MIT repository contains the local client, schemas, sanitized examples, and docs. It does not publish private registered catalog skill bodies.
 
+The registered catalog browser can discover reviewed community items through `catalog browse`, `catalog search`, and `catalog preview`. It verifies signed metadata and refuses unapproved or body-including responses before delegating community-source installs to the Community Skills install flow.
+
 ## Registration Boundary
 
 Registration is required for hosted community operations:
@@ -49,6 +51,15 @@ unlimited-skills community search "browser qa" --compatible-agent codex
 unlimited-skills community preview comm_browser_qa
 unlimited-skills community install comm_browser_qa --dry-run
 unlimited-skills community install comm_browser_qa --yes
+```
+
+Equivalent signed catalog browser discovery:
+
+```bash
+unlimited-skills catalog browse --source community --compatible-agent codex
+unlimited-skills catalog search "browser qa" --source community
+unlimited-skills catalog preview community:browser-qa-pack:0.1.0
+unlimited-skills catalog install community:browser-qa-pack:0.1.0 --dry-run
 ```
 
 Install flow:

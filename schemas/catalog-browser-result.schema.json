@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills catalog browser result",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "manifest_type", "signatures"],
+  "properties": {
+    "schema_version": { "type": "integer" },
+    "manifest_type": {
+      "type": "string",
+      "enum": ["catalog-browser-response", "catalog-browser-item", "catalog-browser-preview"]
+    },
+    "items": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/catalogBrowserItem" }
+    },
+    "item": { "$ref": "#/$defs/catalogBrowserItem" },
+    "filters": { "type": "object", "additionalProperties": true },
+    "signatures": {
+      "type": "array",
+      "items": { "type": "object", "additionalProperties": true },
+      "minItems": 1
+    }
+  },
+  "$defs": {
+    "catalogBrowserItem": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "item_id",
+        "pack_id",
+        "source",
+        "version",
+        "review_status",
+        "installable",
+        "requires_registration",
+        "body_included"
+      ],
+      "properties": {
+        "item_id": { "type": "string" },
+        "pack_id": { "type": "string" },
+        "collection": { "type": "string" },
+        "version": { "type": "string" },
+        "channel": { "type": "string", "enum": ["stable", "beta", "canary"] },
+        "source": { "type": "string", "enum": ["official", "community", "private-visible"] },
+        "skill_kind": { "type": "string" },
+        "categories": { "type": "array", "items": { "type": "string" } },
+        "compatible_agents": { "type": "array", "items": { "type": "string" } },
+        "plan_requirement": { "type": "string" },
+        "review_status": {
+          "type": "string",
+          "enum": ["approved", "published", "deprecated", "retired", "pending_review", "rejected", "withdrawn"]
+        },
+        "deprecated": { "type": "boolean" },
+        "retired": { "type": "boolean" },
+        "installable": { "type": "boolean" },
+        "requires_registration": { "type": "boolean" },
+        "description": { "type": "string" },
+        "license": { "type": "string" },
+        "source_repo": { "type": "string" },
+        "skill_count": { "type": "integer", "minimum": 0 },
+        "requirements": { "type": "array", "items": { "type": "string" } },
+        "distribution_policy": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "signed_metadata_required": { "type": "boolean" },
+            "approved_or_published_required": { "type": "boolean" },
+            "skill_execution": { "type": "boolean" },
+            "body_included": { "type": "boolean" }
+          }
+        },
+        "warnings": { "type": "array", "items": { "type": "string" } },
+        "body_included": { "type": "boolean" },
+        "preview": { "type": "object", "additionalProperties": true }
+      }
+    }
+  }
+}

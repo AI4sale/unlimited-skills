@@ -57,6 +57,8 @@ def test_support_bundle_private_pack_summary_is_redacted(tmp_path: Path, monkeyp
     assert payload["billing"]["denial_reason"] == "past_due"
     assert payload["billing"]["privacy"]["checkout_urls_included"] is False
     assert payload["billing"]["privacy"]["payment_card_data_included"] is False
+    assert payload["catalog_browser"]["queries_included"] is False
+    assert payload["catalog_browser"]["item_names_included"] is False
     assert payload["private_packs"]["sha_mismatch_count"] == 1
     assert payload["privacy"]["skill_bodies_included"] is False
     assert payload["privacy"]["local_paths_included"] is False
@@ -66,6 +68,7 @@ def test_support_bundle_private_pack_summary_is_redacted(tmp_path: Path, monkeyp
     assert "uls_support_token" not in serialized
     assert '"checkout_url":' not in serialized
     assert '"payment_link":' not in serialized
+    assert "browser-qa-pack" not in serialized
     assert "SKILL.md" not in serialized
     assert_support_bundle_safe(payload)
 

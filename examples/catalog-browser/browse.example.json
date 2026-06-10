@@ -1,0 +1,35 @@
+{
+  "count": 1,
+  "items": [
+    {
+      "body_included": false,
+      "categories": ["qa", "browser"],
+      "channel": "canary",
+      "collection": "community",
+      "compatible_agents": ["codex", "claude-code"],
+      "deprecated": false,
+      "description": "Browser QA workflows for validating web UI changes.",
+      "distribution_policy": {
+        "approved_or_published_required": true,
+        "body_included": false,
+        "signed_metadata_required": true,
+        "skill_execution": false
+      },
+      "installable": true,
+      "item_id": "community:browser-qa-pack:0.1.0",
+      "license": "MIT",
+      "pack_id": "browser-qa-pack",
+      "plan_requirement": "registered-community",
+      "requires_registration": true,
+      "requirements": ["registered community catalog"],
+      "retired": false,
+      "review_status": "published",
+      "skill_count": 2,
+      "skill_kind": "skill-pack",
+      "source": "community",
+      "source_repo": "https://github.com/example/community-skills",
+      "version": "0.1.0",
+      "warnings": []
+    }
+  ]
+}
