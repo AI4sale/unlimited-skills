@@ -1,10 +1,11 @@
 # Known Limitations
 
-`v0.3.2-alpha` is a developer preview, not a stable production SLA.
+`v0.3.7-alpha` is a developer preview, not a stable production SLA.
 
 - Hosted registry access is early-access.
 - The registered hosted catalog exists and is populated, but availability may be limited during alpha.
 - Exact registered catalog contents are delivered through registered hosted catalog/update commands, not published in the MIT repo.
+- Catalog feedback is explicit-only and registration-gated. It is a quality signal, not automatic telemetry or a support transcript upload path.
 - Community submissions are planned and not fully implemented unless current code explicitly says otherwise.
 - Enterprise Skill Lock is an opt-in local policy MVP. Managed hosted policy sync client behavior is implemented and fixture-verified; production private-registry endpoint delivery remains an in-review private registry dependency for the v0.3 alpha stack. SSO, SCIM, billing, organization administration, hosted dashboard controls, and broad enterprise private-registry enforcement are not implemented in this alpha.
 - Private team pack client commands are implemented and fixture-verified. Production private pack access requires registry-side entitlement or a Business/Enterprise plan plus the private registry distribution, publishing, admin, and entitlement PRs being accepted and deployed.

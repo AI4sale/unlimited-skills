@@ -12,7 +12,7 @@
 
 Keep thousands of `SKILL.md` files out of the always-loaded context. Ask one tiny router skill what the task needs. Load only the selected skill.
 
-**v0.3.3 alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, Local Skill Hub is allowlist-only alpha, Enterprise Skill Lock is a local policy MVP with registered managed sync, and private team packs plus org/team governance diagnostics are registered/entitled alpha paths.
+**v0.3.7 alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, Local Skill Hub is allowlist-only alpha, Enterprise Skill Lock is a local policy MVP with registered managed sync, and private team packs plus org/team governance diagnostics are registered/entitled alpha paths.
 
 [Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
 
@@ -69,6 +69,7 @@ Working now:
 - hosted update client with SHA256-verified collection archives;
 - registered hosted catalog client;
 - registered signed catalog browser for reviewed metadata search, filters, preview, and dry-run install verification;
+- explicit registered catalog feedback for redacted catalog quality signals;
 - registered community skills client for list/search/preview/install/submit/status/local remove;
 - registered Team Free create/join/members/pending/approve/reject/revoke/collections/sync/leave client;
 - registered private team pack client for list/preview/install/sync/installed/remove under `registry/private/<pack_id>`;
@@ -247,6 +248,8 @@ unlimited-skills catalog install <catalog-item-id> --dry-run
 ```
 
 Catalog browser responses must be signed, metadata-only, and approved or published before install can proceed. Community-source installs delegate to the Community Skills install flow after the signed browser metadata check. Official and private-visible browser items are metadata/dry-run only until dedicated install-plan capability checks are implemented. See [docs/catalog-browser.md](docs/catalog-browser.md).
+
+Catalog feedback is explicit only. `catalog feedback` requires registration and confirmation, `--dry-run` sends nothing, and feedback payloads are redacted before submit. See [docs/catalog-feedback.md](docs/catalog-feedback.md).
 
 Browse, preview, install, and submit registered community skills:
 
