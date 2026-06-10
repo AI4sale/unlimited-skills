@@ -4,6 +4,14 @@ This alpha client keeps the local MIT core available without registration. Servi
 
 ## Configure the service URL
 
+Start with the non-networked setup wizard when diagnosing a new installation:
+
+```bash
+unlimited-skills setup --registered --dry-run
+```
+
+It reports registration, service, trust, and device-proof readiness without contacting the hosted registry.
+
 ```bash
 unlimited-skills service configure --url https://unlimited.ai4.sale
 ```

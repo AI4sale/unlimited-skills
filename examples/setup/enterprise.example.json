@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "client": {
+    "name": "unlimited-skills",
+    "version": "0.3.1"
+  },
+  "mode": "enterprise",
+  "dry_run": true,
+  "writes_performed": false,
+  "hosted_calls_performed": false,
+  "destructive_changes": false,
+  "root": "/tmp/unlimited-skills",
+  "summary": {
+    "status": "needs_action",
+    "blocked_count": 0,
+    "needs_action_count": 2
+  },
+  "components": {
+    "enterprise": {
+      "policy": {
+        "installed": false
+      },
+      "managed_policy": {
+        "schema_version": 1,
+        "managed_state": {
+          "schema_version": 1,
+          "managed": false
+        }
+      }
+    }
+  },
+  "steps": [
+    {
+      "name": "enterprise_policy",
+      "status": "optional",
+      "message": "Enterprise Skill Lock is not installed. Community Core behavior is unchanged.",
+      "next_commands": ["unlimited-skills policy status", "unlimited-skills policy explain"]
+    },
+    {
+      "name": "managed_policy_sync",
+      "status": "optional",
+      "message": "Managed Enterprise policy sync is not active.",
+      "next_commands": [
+        "unlimited-skills policy managed-status --json",
+        "unlimited-skills policy sync --dry-run --json"
+      ]
+    }
+  ],
+  "next_commands": [
+    "unlimited-skills policy status",
+    "unlimited-skills policy explain",
+    "unlimited-skills policy managed-status --json",
+    "unlimited-skills policy sync --dry-run --json"
+  ],
+  "privacy": {
+    "tokens_redacted": true,
+    "private_keys_redacted": true,
+    "hosted_calls_performed": false,
+    "telemetry_collected": false
+  }
+}

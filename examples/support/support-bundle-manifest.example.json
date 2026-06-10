@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "client": {
+    "name": "unlimited-skills",
+    "version": "0.3.1"
+  },
+  "bundle_type": "support-diagnostic-bundle",
+  "created_at": "2026-06-09T00:00:00Z",
+  "dry_run": true,
+  "would_write": "/tmp/unlimited-skills-support-bundle-20260609T000000Z.zip",
+  "wrote_bundle": false,
+  "bundle_path": "",
+  "files": [
+    "manifest.json",
+    "diagnostics.json",
+    "README.txt"
+  ],
+  "privacy": {
+    "redacted": true,
+    "include_paths": false,
+    "skill_bodies_included": false,
+    "skill_names_included": false,
+    "prompts_included": false,
+    "search_queries_included": false,
+    "environment_values_included": false,
+    "tokens_included": false,
+    "private_keys_included": false
+  },
+  "diagnostics_summary": {
+    "registered": false,
+    "library_present": true,
+    "physical_skill_files": 12,
+    "index_present": true
+  }
+}
