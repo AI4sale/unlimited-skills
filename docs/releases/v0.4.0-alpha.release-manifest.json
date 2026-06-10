@@ -1,15 +1,16 @@
 {
   "schema_version": 1,
   "release": "v0.4.0-alpha",
-  "package_version": "0.4.0-alpha",
+  "package_version": "0.4.0",
   "generated_at": "2026-06-10T00:00:00Z",
   "distribution": "github-clone-alpha",
   "git": {
     "base_branch": "main",
     "integration_branch": "release/v0.4.0-alpha-e01-e04-integration",
+    "publication_branch": "release/v0.4.0-alpha-final-publication",
     "tag": "v0.4.0-alpha",
-    "tag_status": "not_created_by_task2",
-    "tag_target_sha_policy": "Task 3 must run verify-v040-alpha-publication.py against the final main SHA before creating or pushing this tag."
+    "tag_status": "pending_release_owner_approval",
+    "tag_target_sha_policy": "After the publication PR is merged, the release owner must run verify-v040-alpha-publication.py --expected-sha against the selected main SHA before creating or pushing this tag."
   },
   "required_prs": {
     "public": [
@@ -23,6 +24,12 @@
         "number": 74,
         "epic": "E03",
         "title": "signed maintainer queue status client and diagnostics",
+        "status": "merged"
+      },
+      {
+        "number": 75,
+        "epic": "E01-E04",
+        "title": "v0.4.0-alpha E01-E04 integration gate",
         "status": "merged"
       }
     ],
@@ -68,11 +75,21 @@
     ".venv\\Scripts\\python.exe scripts\\run-v040-alpha-e01-e04-cross-repo-e2e.py --fixture-mode --temp-home --json",
     ".venv\\Scripts\\python.exe scripts\\run-v040-alpha-e01-e04-cross-repo-e2e.py --registry-repo <private-registry-checkout> --temp-home --json",
     ".venv\\Scripts\\python.exe scripts\\run-v040-alpha-e01-e04-smoke.py --fixture-mode --temp-home",
+    ".venv\\Scripts\\python.exe scripts\\run-v040-alpha-release-smoke.py",
     ".venv\\Scripts\\python.exe scripts\\verify-v040-alpha-e01-e04.py --expected-sha <current-sha>",
+    ".venv\\Scripts\\python.exe scripts\\verify-v040-alpha-publication.py --expected-sha <current-sha>",
     ".venv\\Scripts\\python.exe -m pytest tests\\integration\\test_v040_alpha_e01_e04_cross_repo_e2e.py -q",
     ".venv\\Scripts\\python.exe -m pytest tests -q",
     ".venv\\Scripts\\python.exe scripts\\run-v0.2x-smoke-tests.py",
     ".venv\\Scripts\\python.exe -m compileall -q unlimited_skills scripts tests",
     "git diff --check"
-  ]
+  ],
+  "publication_evidence": {
+    "release_manifest": "docs/releases/v0.4.0-alpha.release-manifest.json",
+    "release_notes": "docs/releases/v0.4.0-alpha.md",
+    "upgrade_notes": "docs/releases/v0.4.0-alpha-upgrade-notes.md",
+    "known_issues": "docs/releases/v0.4.0-alpha-known-issues.md",
+    "tag_command_owner": "release-owner",
+    "codex_may_push_tag": false
+  }
 }

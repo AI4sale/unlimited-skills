@@ -62,6 +62,9 @@ def main(argv: list[str] | None = None) -> int:
             {
                 "HOME": str(smoke_home),
                 "USERPROFILE": str(smoke_home),
+                "CODEX_HOME": str(smoke_home / ".codex"),
+                "CLAUDE_HOME": str(smoke_home / ".claude"),
+                "OPENCLAW_HOME": str(smoke_home / ".openclaw"),
                 "UNLIMITED_SKILLS_HOME": str(smoke_home / ".unlimited-skills"),
                 "UNLIMITED_SKILLS_SMOKE_ROOT": str(smoke_library),
                 "UNLIMITED_SKILLS_DISABLE_NATIVE_SYNC": "1",

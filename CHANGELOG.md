@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.4.0-alpha
+
+### Added
+
+- Final v0.4.0-alpha SkillOps foundation publication package: release notes, checklist, upgrade notes, known issues, release manifest, final release smoke runner, and publication verifier.
+- Draft GitHub release notes and human tag command for release-owner publication after the final `main` SHA is verified.
+- Publication verifier coverage for package/plugin version consistency, required public/private PR traceability, metadata-only SkillOps boundaries, release-owner tag approval, no production hosted calls, no live billing, no PyPI, no full catalog distribution, no automatic install/update/remove/rewrite/reindex, no auto-publish, and public-doc private material scanning.
+
+### Changed
+
+- Raised package version to `0.4.0` for the `v0.4.0-alpha` tag.
+- Updated Claude Code plugin and marketplace metadata to version `0.4.0`.
+- Updated v0.2x smoke isolation to override `CODEX_HOME`, `CLAUDE_HOME`, and `OPENCLAW_HOME` in addition to `HOME`, `USERPROFILE`, `UNLIMITED_SKILLS_HOME`, and `HERMES_HOME`.
+- Promoted README, SECURITY, and known-limitations wording from the v0.3.9 developer preview to the v0.4.0-alpha SkillOps foundation milestone.
+
+### Security
+
+- Codex must not create or push the final `v0.4.0-alpha` tag. The release owner verifies the final `main` SHA and runs the human tag command.
+- The milestone keeps the MIT local core registration-free and keeps hosted/registry behavior signed, metadata-only, and explicitly gated.
+- The release does not authorize production rollout, live billing, PyPI publication, full catalog distribution, automatic install/update/remove, automatic rewriting, automatic reindexing, or auto-publish.
+
 ## v0.3.13
 
 ### Added
