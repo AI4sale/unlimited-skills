@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "release": "v0.3.7-alpha",
+  "package_version": "0.3.7",
+  "generated_at": "2026-06-10T00:00:00Z",
+  "distribution": "github-clone-alpha",
+  "git": {
+    "sha": "c99541493359531b2b9558449dfbfd8e4b7f819c",
+    "sha_kind": "release_candidate_stack_ancestor",
+    "tag": "v0.3.7-alpha",
+    "tag_status": "pending_release_owner_approval",
+    "publication_branch": "release/v0.3.7-alpha-final-publication",
+    "tag_owner_note": "Run scripts/verify-v0.3.7-alpha-publication.py --expected-sha <tag-target-sha> immediately before pushing the tag. Refresh git.sha if the merge strategy changes the tag target."
+  },
+  "required_prs": {
+    "public": [
+      {"number": 59, "title": "v0.3.6-alpha final publication", "status": "accepted_release_owner_review"},
+      {"number": 60, "title": "explicit catalog feedback client", "status": "open_mergeable_in_review"},
+      {"number": 61, "title": "v0.3.7-alpha catalog feedback integration", "status": "open_mergeable_in_review"},
+      {"number": 0, "title": "v0.3.7-alpha final publication", "status": "this_release_gate_pr"}
+    ],
+    "private_registry": [
+      {"number": 35, "title": "catalog feedback and quality signal API", "status": "open_mergeable_in_review"}
+    ]
+  },
+  "feedback_boundary": {
+    "explicit_feedback_only": true,
+    "automatic_telemetry": false,
+    "dry_run_sends_hosted_request": false,
+    "registration_required": true,
+    "confirmation_required": true,
+    "skill_bodies_included": false,
+    "prompts_included": false,
+    "local_paths_included": false,
+    "tokens_included": false,
+    "private_keys_included": false
+  },
+  "security_boundary": {
+    "production_hosted_calls_in_tests": false,
+    "support_bundle_redacted": true,
+    "private_skill_bodies_committed": false,
+    "raw_tokens_committed": false,
+    "payment_secrets_committed": false
+  },
+  "required_test_commands": [
+    "python -m pytest tests -q",
+    "python scripts/run-catalog-feedback-cross-repo-e2e.py --fixture-mode --temp-home --json",
+    "python scripts/run-v0.2x-smoke-tests.py",
+    "python scripts/run-v0.3.6-alpha-release-smoke.py",
+    "python scripts/run-v0.3.7-alpha-catalog-feedback-smoke.py",
+    "python scripts/run-v0.3.7-alpha-release-smoke.py",
+    "python scripts/verify-v0.3.7-alpha-catalog-feedback.py --expected-sha <tag-target-sha>",
+    "python scripts/verify-v0.3.7-alpha-publication.py --expected-sha <tag-target-sha>",
+    "python -m compileall -q unlimited_skills scripts tests",
+    "git diff --check"
+  ],
+  "release_owner_actions": [
+    "Review and merge required public and private registry PRs in dependency order.",
+    "Run scripts/verify-v0.3.7-alpha-publication.py --expected-sha <tag-target-sha>.",
+    "Refresh git.sha if the merge strategy changes the final tag target.",
+    "Create tag v0.3.7-alpha only after human release-owner approval.",
+    "Create a GitHub prerelease with docs/releases/v0.3.7-alpha.md as release notes."
+  ]
+}

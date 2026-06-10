@@ -4,20 +4,68 @@
 
 ### Added
 
+- Registered catalog quality and evaluation status commands: `catalog quality`, `catalog eval-status`, `catalog explain-risk`, plus browser/search `--show-quality`, signed metadata verification, install-risk warnings, blocked hosted install refusal, schemas, examples, docs, and support-bundle summary counts.
+- Skill evaluation cross-repo E2E, v0.3.8-alpha smoke/verifier, and release integration docs for signed catalog quality scoring.
+- v0.3.8-alpha release smoke, verifier, checklist, known limitations, and release manifest for skill evaluations and catalog quality scoring.
+
+### Changed
+
+- Raised package version to `0.3.8`.
+- Documented the catalog quality and skill evaluation boundary: signed metadata-only diagnostics, no prompt upload, no customer-data inspection, no untrusted skill execution, no automatic rewriting, and no auto-publish.
+
+## v0.3.7-alpha
+
+### Added
+
+- Explicit registered catalog feedback commands: `catalog feedback` and `catalog feedback-status`, with dry-run, confirmation, schemas, examples, docs, and support-bundle redaction.
+- v0.3.7-alpha final publication gate, release smoke, publication verifier, upgrade notes, known issues, and draft release notes for the explicit catalog feedback milestone.
+
+### Changed
+
+- Raised package version to `0.3.7`.
+- Documented the catalog feedback privacy boundary: explicit-only submission, no automatic telemetry, no production hosted calls in public tests, and redacted support bundle status.
+
+## v0.3.6-alpha
+
+### Added
+
+- Catalog browser release integration for registered signed metadata discovery.
+- Cross-repo catalog browser E2E runner with public fixture mode and local private-registry mode.
+- v0.3.6-alpha catalog browser release smoke, verifier, checklist, release notes, and manifest.
+- v0.3.6-alpha final publication upgrade notes, known issues, release smoke alias, and publication verifier.
+
+### Changed
+
+- Raised package version to `0.3.6`.
+- Extended trusted manifest key scopes to include catalog browser response, item, preview, and filters manifests.
+- Documented catalog browser registration, metadata-only preview, approved/published visibility, dry-run install, and support-bundle redaction boundaries.
+
+## v0.3.5-alpha
+
+### Added
+
+- Community catalog integration gate for registry submission review, signed canary publication, public review-status client UX, and fixture-only cross-repo E2E.
+
+### Changed
+
+- Raised package version to `0.3.5`.
+
+## v0.3.4-alpha
+
+### Added
+
 - Plan and entitlement status UX: `plan status`, `plan refresh`, `plan explain`, and `plan doctor`, with shared denial vocabulary, redacted support bundle plan summaries, schemas, examples, docs, and tests.
 - Billing lifecycle diagnostics: `billing status`, `billing refresh`, and `billing doctor`, with sandbox-only status refresh, redacted support bundle billing summaries, schema, examples, docs, and tests.
 - Billing lifecycle cross-repo E2E runner for sandbox `subscription_active`, `payment_failed`, and `subscription_canceled` reconciliation against the private registry checkout without production hosted calls.
 - Community catalog client v2: channel-filtered list, signed approved-only preview/install, local unregistered submit dry-run, and submission `withdraw` / `review-notes` commands.
 - Registered catalog browser client commands: `catalog browse`, `catalog search`, `catalog filters`, `catalog preview`, and signed metadata-verified `catalog install --dry-run`.
 - Explicit registered catalog feedback commands: `catalog feedback` and `catalog feedback-status`, with dry-run, confirmation, schemas, examples, docs, and support-bundle redaction.
-- Registered catalog quality and evaluation status commands: `catalog quality`, `catalog eval-status`, `catalog explain-risk`, plus browser/search `--show-quality`, signed metadata verification, install-risk warnings, blocked hosted install refusal, schemas, examples, docs, and support-bundle summary counts.
-- Skill evaluation cross-repo E2E, v0.3.8-alpha smoke/verifier, and release integration docs for signed catalog quality scoring.
+- v0.3.7-alpha final publication gate, release smoke, publication verifier, upgrade notes, known issues, and draft release notes for the explicit catalog feedback milestone.
 - Catalog browser schemas, sanitized examples, docs, support-bundle redaction, and tests for registration gating, signed response verification, approved-only visibility, metadata-only preview, and unapproved install refusal.
-- v0.3.8-alpha release smoke, verifier, checklist, known limitations, and release manifest for skill evaluations and catalog quality scoring.
 
 ### Changed
 
-- Raised package version to `0.3.8`.
+- Raised package version to `0.3.4`.
 - Extended plan/private-pack denial vocabulary with billing lifecycle reasons: `past_due`, `suspended`, and `expired`.
 - Documented that billing lifecycle diagnostics are `sandbox_only`, with no checkout sessions, live payment providers, card data, bank data, or payment collection in the public client.
 
@@ -53,6 +101,26 @@
 
 - Raised package version to `0.3.2`.
 - Documented that private team pack hosted access requires registry-side entitlement or a Business/Enterprise plan.
+
+## v0.3.1-alpha (in development)
+
+### Added
+
+- Post-release stabilization docs for the published `v0.3.0-alpha` baseline, including release health, known issues, upgrade notes, and a v0.3.1 stabilization verifier.
+- v0.3.1 post-release smoke runner covering published-release traceability, fresh install, synthetic upgrade, packaging smoke, and managed policy release smoke.
+- Guided first-run setup wizard with local-only, registered, Local Skill Hub, Enterprise, dry-run, and JSON reporting modes.
+- Public setup report schema, sanitized setup examples, and first-run onboarding documentation.
+- Redacted support diagnostic bundle with zip output, dry-run, JSON manifest, optional path inclusion, public schema, sanitized example, and privacy documentation.
+- v0.3.1-alpha publication manifest and verifier covering public PR #34-#38, private registry PR #9/#10/#11/#12/#18, the canonical 315-skill reconciliation counts, production registry signing status, and release-owner tag approval.
+- Shared service diagnostics v2 snapshot across setup reports and support bundles, preserving local-only defaults and redacted support output.
+- Final v0.3.1-alpha release smoke that proves the publication verifier blocks by default without production-signed registry artifacts and passes only with explicit release-owner blocked-signing override.
+
+### Changed
+
+- Raised package version to `0.3.1` for the v0.3.1-alpha stabilization train.
+- README, SECURITY, known limitations, install, upgrade, and release process docs now describe `v0.3.1-alpha` as the current stabilization train while preserving `v0.3.0-alpha` as the published baseline.
+
+## v0.3.0-alpha
 
 ## v0.2.2-alpha
 
