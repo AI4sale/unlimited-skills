@@ -175,6 +175,8 @@ def test_support_bundle_private_pack_summary_is_redacted(tmp_path: Path, monkeyp
     assert report["diagnostics"]["billing"]["privacy"]["payment_card_data_included"] is False
     assert report["diagnostics"]["catalog_browser"]["queries_included"] is False
     assert report["diagnostics"]["catalog_browser"]["item_names_included"] is False
+    assert report["diagnostics"]["catalog_feedback"]["explicit_feedback_only"] is True
+    assert report["diagnostics"]["catalog_feedback"]["raw_feedback_included"] is False
     assert report["diagnostics"]["private_packs"]["local"]["sha_mismatch_count"] == 1
     assert report["manifest"]["diagnostics_summary"]["plan"] == "community-core"
     assert report["manifest"]["diagnostics_summary"]["subscription_status"] == "past_due"

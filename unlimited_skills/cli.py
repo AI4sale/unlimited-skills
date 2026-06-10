@@ -16,6 +16,7 @@ from typing import Iterable
 from . import __version__
 from .adapters import SKILL_PACKS, adapt_library, apply_agent_adaptation, adaptation_task, install_pack, next_skill_for_agent
 from .catalog_browser import CatalogBrowserClient
+from .catalog_feedback import CatalogFeedbackClient, build_feedback_payload
 from .community import (
     CommunityClient,
     build_submission_draft,
@@ -1258,6 +1259,10 @@ def _catalog_client(args: argparse.Namespace) -> CatalogBrowserClient:
     return CatalogBrowserClient(load_registration(), timeout=args.timeout)
 
 
+def _catalog_feedback_client(args: argparse.Namespace) -> CatalogFeedbackClient:
+    return CatalogFeedbackClient(load_registration(), timeout=args.timeout)
+
+
 def cmd_catalog_browse(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     items = _catalog_client(args).browse(
@@ -1342,6 +1347,63 @@ def cmd_catalog_install(args: argparse.Namespace) -> int:
         print(f"Installed catalog item {args.item_id}")
         if reindexed:
             print("Lexical index rebuilt.")
+    return 0
+
+
+def _catalog_feedback_detail_from_args(args: argparse.Namespace) -> dict[str, object]:
+    detail: dict[str, object] = {}
+    for key, attr in (
+        ("agent", "agent"),
+        ("client_version", "client_version"),
+        ("core_version", "core_version"),
+        ("os", "os"),
+        ("command", "command"),
+        ("error_code", "error_code"),
+        ("expected_behavior", "expected_behavior"),
+        ("actual_behavior", "actual_behavior"),
+        ("reproduction_hint", "reproduction_hint"),
+    ):
+        value = getattr(args, attr, "")
+        if value:
+            detail[key] = value
+    if args.http_status:
+        detail["http_status"] = int(args.http_status)
+    return detail
+
+
+def cmd_catalog_feedback(args: argparse.Namespace) -> int:
+    payload = build_feedback_payload(
+        item_id=args.item_id,
+        feedback_type=args.type,
+        severity=args.severity,
+        title=args.title,
+        detail=_catalog_feedback_detail_from_args(args),
+    )
+    if args.dry_run:
+        print(json.dumps({"dry_run": True, "payload": payload.to_json(), "privacy": {"automatic_telemetry": False}}, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    if not args.yes:
+        if not sys.stdin.isatty():
+            raise RuntimeError("Catalog feedback submit requires --yes in non-interactive mode.")
+        typed = input("Type SEND to submit this redacted catalog feedback: ")
+        if typed.strip() != "SEND":
+            raise RuntimeError("Catalog feedback cancelled.")
+    response = _catalog_feedback_client(args).submit(payload)
+    if args.json:
+        print(json.dumps(response, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(f"Catalog feedback submitted: {response.get('feedback_id', '')}")
+    return 0
+
+
+def cmd_catalog_feedback_status(args: argparse.Namespace) -> int:
+    response = _catalog_feedback_client(args).status(args.item_id, limit=args.limit)
+    if args.json:
+        print(json.dumps(response, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(f"Feedback count: {response.get('feedback_count', 0)}")
+        for key, value in sorted((response.get("counts_by_status") or {}).items()):
+            print(f"{key}: {value}")
     return 0
 
 
@@ -2478,6 +2540,32 @@ def build_parser() -> argparse.ArgumentParser:
     catalog_install.add_argument("--json", action="store_true")
     catalog_install.add_argument("--timeout", type=float, default=30.0)
     catalog_install.set_defaults(func=cmd_catalog_install)
+    catalog_feedback = catalog_sub.add_parser("feedback", help="Submit explicit redacted feedback for a catalog item.")
+    catalog_feedback.add_argument("item_id")
+    catalog_feedback.add_argument("--type", required=True, choices=["install_failure", "compatibility_issue", "missing_capability", "documentation_issue", "security_concern"])
+    catalog_feedback.add_argument("--severity", default="medium", choices=["low", "medium", "high", "critical"])
+    catalog_feedback.add_argument("--title", default="")
+    catalog_feedback.add_argument("--agent", default="")
+    catalog_feedback.add_argument("--client-version", default="")
+    catalog_feedback.add_argument("--core-version", default="")
+    catalog_feedback.add_argument("--os", default="")
+    catalog_feedback.add_argument("--command", default="")
+    catalog_feedback.add_argument("--error-code", default="")
+    catalog_feedback.add_argument("--http-status", type=int, default=0)
+    catalog_feedback.add_argument("--expected-behavior", default="")
+    catalog_feedback.add_argument("--actual-behavior", default="")
+    catalog_feedback.add_argument("--reproduction-hint", default="")
+    catalog_feedback.add_argument("--dry-run", action="store_true", help="Print the redacted payload without sending it.")
+    catalog_feedback.add_argument("--yes", action="store_true", help="Confirm feedback submit in non-interactive mode.")
+    catalog_feedback.add_argument("--json", action="store_true")
+    catalog_feedback.add_argument("--timeout", type=float, default=30.0)
+    catalog_feedback.set_defaults(func=cmd_catalog_feedback)
+    catalog_feedback_status = catalog_sub.add_parser("feedback-status", help="Show aggregate feedback status for a catalog item.")
+    catalog_feedback_status.add_argument("item_id")
+    catalog_feedback_status.add_argument("--limit", type=int, default=100)
+    catalog_feedback_status.add_argument("--json", action="store_true")
+    catalog_feedback_status.add_argument("--timeout", type=float, default=30.0)
+    catalog_feedback_status.set_defaults(func=cmd_catalog_feedback_status)
 
     release = sub.add_parser("release", help="Inspect and pin hosted registry release channels.")
     release_sub = release.add_subparsers(dest="release_command", required=True)

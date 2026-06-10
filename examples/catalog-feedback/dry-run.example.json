@@ -1,0 +1,22 @@
+{
+  "dry_run": true,
+  "payload": {
+    "item_id": "community:browser-qa-pack:0.1.0",
+    "feedback_type": "install_failure",
+    "severity": "high",
+    "title": "Install plan unavailable",
+    "detail": {
+      "agent": "codex",
+      "client_version": "0.3.6",
+      "command": "unlimited-skills catalog install browser-qa-pack",
+      "error_code": "install_plan_missing",
+      "http_status": 404,
+      "expected_behavior": "Return a signed install plan or explicit metadata-only reason.",
+      "actual_behavior": "Install cannot continue after discovery.",
+      "reproduction_hint": "Registered canary client, community source."
+    }
+  },
+  "privacy": {
+    "automatic_telemetry": false
+  }
+}

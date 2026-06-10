@@ -34,6 +34,7 @@
 - Billing lifecycle cross-repo E2E runner for sandbox `subscription_active`, `payment_failed`, and `subscription_canceled` reconciliation against the private registry checkout without production hosted calls.
 - Community catalog client v2: channel-filtered list, signed approved-only preview/install, local unregistered submit dry-run, and submission `withdraw` / `review-notes` commands.
 - Registered catalog browser client commands: `catalog browse`, `catalog search`, `catalog filters`, `catalog preview`, and signed metadata-verified `catalog install --dry-run`.
+- Explicit registered catalog feedback commands: `catalog feedback` and `catalog feedback-status`, with dry-run, confirmation, schemas, examples, docs, and support-bundle redaction.
 - Catalog browser schemas, sanitized examples, docs, support-bundle redaction, and tests for registration gating, signed response verification, approved-only visibility, metadata-only preview, and unapproved install refusal.
 - v0.3.4-alpha release smoke, verifier, checklist, upgrade notes, known issues, and release manifest for plans and sandbox billing integration.
 

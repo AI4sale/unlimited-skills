@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Catalog Feedback Status",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "feedback_count", "counts_by_type", "counts_by_status", "privacy"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "feedback_count": {"type": "integer", "minimum": 0},
+    "counts_by_type": {"type": "object"},
+    "counts_by_status": {"type": "object"},
+    "counts_by_severity": {"type": "object"},
+    "top_items": {"type": "array"},
+    "recent": {"type": "array"},
+    "privacy": {
+      "type": "object",
+      "properties": {
+        "explicit_feedback_only": {"const": true},
+        "automatic_telemetry": {"const": false},
+        "skill_bodies_included": {"const": false},
+        "prompts_included": {"const": false},
+        "local_paths_included": {"const": false},
+        "tokens_included": {"const": false}
+      }
+    }
+  }
+}

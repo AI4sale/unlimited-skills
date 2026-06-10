@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "feedback_count": 1,
+  "counts_by_type": {"install_failure": 1},
+  "counts_by_status": {"new": 1},
+  "counts_by_severity": {"high": 1},
+  "top_items": [{"item_id": "community:browser-qa-pack:0.1.0", "count": 1}],
+  "recent": [
+    {
+      "feedback_id": "cfb_example",
+      "item_id": "community:browser-qa-pack:0.1.0",
+      "feedback_type": "install_failure",
+      "severity": "high",
+      "triage_status": "new"
+    }
+  ],
+  "privacy": {
+    "explicit_feedback_only": true,
+    "automatic_telemetry": false,
+    "skill_bodies_included": false,
+    "prompts_included": false,
+    "local_paths_included": false,
+    "tokens_included": false
+  }
+}
