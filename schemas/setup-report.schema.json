@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AI4sale/unlimited-skills/schemas/setup-report.schema.json",
+  "title": "Unlimited Skills first-run setup report",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "client",
+    "mode",
+    "dry_run",
+    "writes_performed",
+    "hosted_calls_performed",
+    "destructive_changes",
+    "root",
+    "summary",
+    "components",
+    "steps",
+    "next_commands",
+    "privacy"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "client": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string", "const": "unlimited-skills" },
+        "version": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["overview", "local-only", "registered", "hub", "enterprise"]
+    },
+    "dry_run": { "type": "boolean" },
+    "writes_performed": { "type": "boolean" },
+    "hosted_calls_performed": { "type": "boolean", "const": false },
+    "destructive_changes": { "type": "boolean", "const": false },
+    "root": { "type": "string" },
+    "summary": {
+      "type": "object",
+      "required": ["status", "blocked_count", "needs_action_count"],
+      "properties": {
+        "status": { "type": "string", "enum": ["ok", "needs_action", "blocked"] },
+        "blocked_count": { "type": "integer", "minimum": 0 },
+        "needs_action_count": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": true
+    },
+    "components": { "type": "object", "additionalProperties": true },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "status", "message", "next_commands"],
+        "properties": {
+          "name": { "type": "string" },
+          "status": { "type": "string", "enum": ["ok", "needs_action", "blocked", "optional"] },
+          "message": { "type": "string" },
+          "next_commands": { "type": "array", "items": { "type": "string" } }
+        },
+        "additionalProperties": true
+      }
+    },
+    "next_commands": { "type": "array", "items": { "type": "string" } },
+    "privacy": {
+      "type": "object",
+      "required": ["tokens_redacted", "private_keys_redacted", "hosted_calls_performed", "telemetry_collected"],
+      "properties": {
+        "tokens_redacted": { "type": "boolean", "const": true },
+        "private_keys_redacted": { "type": "boolean", "const": true },
+        "hosted_calls_performed": { "type": "boolean", "const": false },
+        "telemetry_collected": { "type": "boolean", "const": false }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

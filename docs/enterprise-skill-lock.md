@@ -9,6 +9,7 @@ When a policy is installed, the client can audit or enforce controls for approve
 ## Commands
 
 ```bash
+unlimited-skills setup --enterprise --dry-run
 unlimited-skills policy status
 unlimited-skills policy verify enterprise-policy.json
 unlimited-skills policy install enterprise-policy.json
@@ -22,6 +23,8 @@ unlimited-skills policy remove --yes
 Policies must be signed or hash-pinned. The MVP accepts either a valid `manifest_signature` / `signature_envelope` verified by local trust configuration, or a `policy_sha256` that matches the canonical policy payload excluding signature/hash fields.
 
 Managed policy sync is registration-gated. `policy sync` posts local registration metadata and the current policy summary to `/v1/policy/sync`, verifies the signed `enterprise-policy` assignment manifest, verifies the policy payload itself, and only then installs or updates the local policy. `action=remove` is guarded: the client removes only a policy that was previously installed by managed sync and whose `policy_id` plus `policy_sha256` still match local managed state. If a registry asks to remove an unmanaged local policy, the client refuses removal, leaves the policy installed, and writes a redacted audit event. `policy sync --dry-run` performs the same verification without writing local policy state. `policy managed-status` reads only local sync state and does not contact the hosted registry. See [Managed Enterprise Skill Lock Sync](managed-enterprise-policy-sync.md).
+
+Use `unlimited-skills setup --enterprise --dry-run` first when onboarding or repairing an installation. It reads local policy state only and prints the next policy commands without installing, removing, or syncing policy.
 
 ## Modes
 
