@@ -6,7 +6,7 @@ The MIT local core still works without registration. Private team pack commands 
 
 The hosted registry must also authorize the installation with a private-pack entitlement or a Business/Enterprise plan. Registered Community installs should receive a redacted `no_private_pack_entitlement` diagnostic until that entitlement is granted.
 
-Private-pack diagnostics normalize hosted entitlement failures to the same denial vocabulary used by `unlimited-skills plan explain`: `unregistered`, `no_entitlement`, `plan_limit_exceeded`, `suspended`, `service_unavailable`, `policy_denied`, and `unknown_feature`.
+Private-pack diagnostics normalize hosted entitlement failures to the same denial vocabulary used by `unlimited-skills plan explain`: `unregistered`, `no_entitlement`, `plan_limit_exceeded`, `past_due`, `suspended`, `expired`, `service_unavailable`, `policy_denied`, and `unknown_feature`.
 
 ## Commands
 
@@ -91,6 +91,10 @@ These surfaces include counts and error codes only. They do not include private 
 `private-packs access-check <pack_id>` is an explicit hosted call. It requires registration and sends only install identity, signed proof metadata, client version, and the requested pack id. Output normalizes registry denials into these stable reason codes:
 
 - `no_entitlement`
+- `plan_limit_exceeded`
+- `past_due`
+- `suspended`
+- `expired`
 - `not_team_member`
 - `wrong_agent`
 - `wrong_channel`

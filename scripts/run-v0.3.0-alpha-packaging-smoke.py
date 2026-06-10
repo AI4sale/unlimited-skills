@@ -42,7 +42,7 @@ def main() -> int:
         run([sys.executable, "scripts/verify-v0.3.0-alpha-package-assets.py"], cwd=repo, env=env)
         run([sys.executable, "-m", "pip", "install", "-e", "."], cwd=repo, env=env)
         version = run([sys.executable, "-m", "unlimited_skills.cli", "--version"], cwd=repo, env=env)
-        if "0.3.0" not in version:
+        if "0.3." not in version:
             raise SystemExit(f"unexpected CLI version output: {version}")
         run([sys.executable, "-m", "unlimited_skills.cli", "--root", str(library), "reindex", "--no-native-sync"], cwd=repo, env=env)
         run([sys.executable, "-m", "unlimited_skills.cli", "--root", str(library), "search", "packaging smoke", "--mode", "lexical", "--no-native-sync"], cwd=repo, env=env)

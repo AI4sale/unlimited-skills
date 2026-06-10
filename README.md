@@ -12,7 +12,7 @@
 
 Keep thousands of `SKILL.md` files out of the always-loaded context. Ask one tiny router skill what the task needs. Load only the selected skill.
 
-**v0.3.3 alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, Local Skill Hub is allowlist-only alpha, Enterprise Skill Lock is a local policy MVP with registered managed sync, and private team packs plus org/team governance diagnostics are registered/entitled alpha paths.
+**v0.3.7-alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, catalog browser discovery is signed metadata-only alpha, catalog feedback is explicit and registration-gated, Local Skill Hub is allowlist-only alpha, Enterprise Skill Lock is a local policy MVP with registered managed sync, private team packs plus org/team governance diagnostics are registered/entitled alpha paths, plan/billing diagnostics are sandbox-only with no live payment provider, and community catalog install is limited to signed approved/published items.
 
 [Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
 
@@ -69,15 +69,23 @@ Working now:
 - hosted update client with SHA256-verified collection archives;
 - registered hosted catalog client;
 - registered signed catalog browser for reviewed metadata search, filters, preview, and dry-run install verification;
-- registered community skills client for list/search/preview/install/submit/status/local remove;
+- explicit registered catalog feedback for redacted catalog quality signals;
+- registered community skills client for list/search/preview/install/submit/status/local remove with signed approved/published install enforcement;
 - registered Team Free create/join/members/pending/approve/reject/revoke/collections/sync/leave client;
 - registered private team pack client for list/preview/install/sync/installed/remove under `registry/private/<pack_id>`;
 - registered private pack access diagnostics with redacted `private-packs access-check <pack_id>` output;
 - local/cache org and team governance diagnostics with `org status`;
+- local/cache plan diagnostics with `plan status`, `plan explain`, and `plan doctor`;
+- registered plan refresh through `/v1/hub/entitlements`;
+- local/cache billing lifecycle diagnostics with `billing status` and `billing doctor`;
+- registered sandbox billing refresh through `/v1/hub/billing-status`;
 - private team pack setup, service diagnostics, doctor, and redacted support bundle summaries;
 - native skill sync for Codex, Claude Code, Hermes, and OpenClaw roots;
 - public repo self-update checks and applies latest releases/tags;
 - production service onboarding diagnostics for configured service URL, health, trust, redacted registration dry run, and local proof generation;
+- guided first-run setup wizard for local-only, registered, Local Skill Hub, and Enterprise onboarding paths;
+- redacted support diagnostic bundle for support handoff without skill bodies, prompts, search queries, env values, tokens, private keys, or local paths by default;
+- service diagnostics v2 shared by setup and support workflows, with explicit network checks and redacted output;
 - Enterprise Skill Lock policy MVP for governed registries, channels, signing keys, local roots, community install/submit, hub allowlists, and remote fallback;
 - managed Enterprise Skill Lock policy sync from a registered registry with signed `enterprise-policy` assignment verification and dry-run support;
 - allowlist-backed Local Skill Hub runtime MVP for local/controlled LAN testing when `server` extras are installed;
@@ -117,9 +125,27 @@ For minimal lexical-only usage:
 python -m pip install -e .
 ```
 
-PyPI packaging is not the supported v0.3.3-alpha distribution path. Install from a GitHub clone for now, because the router skills, scripts, docs, and bundled packs are repo assets. A PyPI package should wait until wheel/sdist asset inclusion and installer behavior are tested in CI.
+PyPI packaging is not the supported v0.3.7-alpha distribution path. Install from a GitHub clone for now, because the router skills, scripts, docs, and bundled packs are repo assets. A PyPI package should wait until wheel/sdist asset inclusion and installer behavior are tested in CI.
 
-For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md), [docs/packaging.md](docs/packaging.md), [docs/install-upgrade-uninstall.md](docs/install-upgrade-uninstall.md), and [SECURITY.md](SECURITY.md). For the v0.3.3 alpha publication gate, see [docs/releases/v0.3.3-alpha.md](docs/releases/v0.3.3-alpha.md) and [docs/releases/v0.3.3-alpha-known-issues.md](docs/releases/v0.3.3-alpha-known-issues.md).
+Run the first-run wizard:
+
+```powershell
+unlimited-skills setup --local-only --dry-run
+unlimited-skills setup --local-only
+```
+
+For registered, hub, and Enterprise paths, see [docs/first-run-setup.md](docs/first-run-setup.md).
+
+Create a redacted support bundle:
+
+```powershell
+unlimited-skills support bundle --dry-run
+unlimited-skills support bundle --out support-bundle.zip
+```
+
+See [docs/support-bundle.md](docs/support-bundle.md) for the privacy boundary.
+
+For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md), [docs/packaging.md](docs/packaging.md), [docs/install-upgrade-uninstall.md](docs/install-upgrade-uninstall.md), and [SECURITY.md](SECURITY.md). For the v0.3.7 alpha publication gate, see [docs/releases/v0.3.7-alpha.md](docs/releases/v0.3.7-alpha.md) and [docs/releases/v0.3.7-alpha-checklist.md](docs/releases/v0.3.7-alpha-checklist.md).
 
 ## Product Editions
 
@@ -246,7 +272,9 @@ unlimited-skills catalog preview <catalog-item-id>
 unlimited-skills catalog install <catalog-item-id> --dry-run
 ```
 
-Catalog browser responses must be signed, metadata-only, and approved or published before install can proceed. Community-source installs delegate to the Community Skills install flow after the signed browser metadata check. Official and private-visible browser items are metadata/dry-run only until dedicated install-plan capability checks are implemented. See [docs/catalog-browser.md](docs/catalog-browser.md).
+Catalog browser responses must be signed, metadata-only, and approved or published before install can proceed. Community-source installs delegate to the Community Skills install flow after the signed browser metadata check. Official and private-visible browser items are metadata/dry-run only until dedicated install-plan capability checks are implemented. The v0.3.6 release gate verifies public fixture mode without a private checkout and local registry mode when `D:\git\unlimited-skills-registry` is available. See [docs/catalog-browser.md](docs/catalog-browser.md) and [docs/releases/v0.3.6-alpha.md](docs/releases/v0.3.6-alpha.md).
+
+Catalog feedback is explicit only. `catalog feedback` requires registration and confirmation, `--dry-run` sends nothing, and feedback payloads are redacted before submit. See [docs/catalog-feedback.md](docs/catalog-feedback.md).
 
 Browse, preview, install, and submit registered community skills:
 
@@ -263,7 +291,7 @@ unlimited-skills community installed
 unlimited-skills community remove community --dry-run
 ```
 
-`catalog` is the official registered hosted catalog and collection metadata. `community` is the user-facing community discovery, submission, install, and local management flow. Community list/search/preview/install/status calls do not upload local skill bodies. `community submit` is the explicit exception: it uploads only the selected skill or pack after local validation, preview generation, and confirmation.
+`catalog` is the official registered hosted catalog and collection metadata. `community` is the user-facing community discovery, submission, install, and local management flow. Community list/search/preview/install/status calls do not upload local skill bodies. `community submit` is the explicit exception: it uploads only the selected skill or pack after local validation, preview generation, and confirmation. Community preview and install require signed hosted metadata, and install is allowed only for signed items whose review status is `approved` or `published`.
 
 Run a local-only diagnostic without registration or hosted calls:
 
