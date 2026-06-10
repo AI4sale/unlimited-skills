@@ -15,7 +15,7 @@
 - `cli.py` was split from ~3.4k lines down to ~1.6k: all command bodies moved into `unlimited_skills/commands/` (library, catalog, community, private-packs, accounts, team, policy, service, updates). `unlimited_skills.cli` re-exports every command, so existing imports and monkeypatch points keep working; CLI behavior, arguments, and output are unchanged.
 - Shared `migrate_source`/`existing_skill_names`/`MigrationResult` now live in `installers/common.py` instead of being duplicated per installer.
 - Backup directories are uniquified, so two installs in the same second can no longer clobber each other's rollback manifest.
-- Raised package version to `0.4.1` for the `v0.4.1-alpha` Reliability milestone (plugin and marketplace metadata included).
+- Package and plugin manifests stay at `0.4.0`; the `0.4.1` version bump lands in the v0.4.1-alpha publication gate, matching how `0.4.0` was bumped by the v0.4.0-alpha publication PR.
 
 ## v0.4.0-alpha
 
