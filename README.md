@@ -12,7 +12,7 @@
 
 Keep thousands of `SKILL.md` files out of the always-loaded context. Ask one tiny router skill what the task needs. Load only the selected skill.
 
-**v0.3.9-alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, catalog browser discovery is signed metadata-only alpha, catalog feedback is explicit and registration-gated, catalog quality and skill improvement status are signed metadata-only diagnostics, Local Skill Hub is allowlist-only alpha, Enterprise Skill Lock is a local policy MVP with registered managed sync, private team packs plus org/team governance diagnostics are registered/entitled alpha paths, plan/billing diagnostics are sandbox-only with no live payment provider, and community catalog install is limited to signed approved/published items. v0.4 SkillOps implementation epics are approved to start, but v0.4 release/tag and production rollout are still gated.
+**v0.3.9-alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, catalog browser discovery is signed metadata-only alpha, catalog feedback is explicit and registration-gated, catalog quality and skill improvement status are signed metadata-only diagnostics, Local Skill Hub is allowlist-only alpha, Enterprise Skill Lock is a local policy MVP with registered managed sync, private team packs plus org/team governance diagnostics are registered/entitled alpha paths, plan/billing diagnostics are sandbox-only with no live payment provider, and community catalog install is limited to signed approved/published items. The v0.4.0-alpha E01-E04 integration gate is in progress for SkillOps foundations, but the final v0.4 release/tag and production rollout are still gated.
 
 [Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
 
@@ -82,6 +82,7 @@ Working now:
 - registered signed skill improvement status, known issues, deprecated/retired warnings, and preview-only update recommendations;
 - v0.3.9-alpha cross-repo skill improvement integration gate proving feedback/evals -> improvement backlog -> maintainer triage -> catalog quality report -> public signed recommendations;
 - v0.4 policy-aware recommendation runtime preview with `catalog recommendation-preview`, combining signed catalog metadata with quality, improvement, entitlement, and policy signals without applying changes;
+- v0.4.0-alpha E01-E04 integration gate for policy-aware recommendation preview, eval release operator workflow, maintainer queue runtime/status, and governance dashboard signed summaries without production rollout;
 - private team pack setup, service diagnostics, doctor, and redacted support bundle summaries;
 - native skill sync for Codex, Claude Code, Hermes, and OpenClaw roots;
 - public repo self-update checks and applies latest releases/tags;
@@ -104,6 +105,7 @@ In development:
 - v0.4 readiness audit and SkillOps architecture RFC for governed delivery, eval-driven release gates, maintainer improvement queues, governance dashboards, optional self-hosted registry mode, and future human-reviewed automatic improvement proposals;
 - v0.4 cross-repo readiness suite that verifies public client and private registry readiness contracts in fixture mode or against a local private registry checkout without production hosted calls, production signing keys, live billing, PyPI publication, full catalog distribution, automatic install/update/remove, automatic skill rewriting, or auto-publish;
 - v0.4 go/no-go decision package that recommends GO for the first four implementation epics after review and merge while keeping production rollout behind per-epic review gates;
+- v0.4.0-alpha final publication gate, release smoke, and tag verifier; Task 2 integration does not create the tag;
 - persistent warm daemon as the default agent retrieval path;
 - richer learning loop for accepted/rejected matches;
 - automatic skill drafting from repeated task patterns;
@@ -151,7 +153,7 @@ unlimited-skills support bundle --out support-bundle.zip
 
 See [docs/support-bundle.md](docs/support-bundle.md) for the privacy boundary.
 
-For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md), [docs/packaging.md](docs/packaging.md), [docs/install-upgrade-uninstall.md](docs/install-upgrade-uninstall.md), and [SECURITY.md](SECURITY.md). For the v0.3.9 alpha publication candidate, see [docs/releases/v0.3.9-alpha.md](docs/releases/v0.3.9-alpha.md), [docs/releases/v0.3.9-alpha-checklist.md](docs/releases/v0.3.9-alpha-checklist.md), [docs/releases/v0.3.9-alpha-upgrade-notes.md](docs/releases/v0.3.9-alpha-upgrade-notes.md), and [docs/releases/v0.3.9-alpha-known-issues.md](docs/releases/v0.3.9-alpha-known-issues.md). For v0.4 planning, see [docs/releases/v0.4-readiness-audit.md](docs/releases/v0.4-readiness-audit.md), [docs/rfcs/v0.4-skillops-platform-rfc.md](docs/rfcs/v0.4-skillops-platform-rfc.md), [docs/rfcs/v0.4-risk-register.md](docs/rfcs/v0.4-risk-register.md), and [docs/rfcs/v0.4-implementation-epics.md](docs/rfcs/v0.4-implementation-epics.md).
+For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md), [docs/packaging.md](docs/packaging.md), [docs/install-upgrade-uninstall.md](docs/install-upgrade-uninstall.md), and [SECURITY.md](SECURITY.md). For the v0.3.9 alpha publication candidate, see [docs/releases/v0.3.9-alpha.md](docs/releases/v0.3.9-alpha.md), [docs/releases/v0.3.9-alpha-checklist.md](docs/releases/v0.3.9-alpha-checklist.md), [docs/releases/v0.3.9-alpha-upgrade-notes.md](docs/releases/v0.3.9-alpha-upgrade-notes.md), and [docs/releases/v0.3.9-alpha-known-issues.md](docs/releases/v0.3.9-alpha-known-issues.md). For v0.4 planning, see [docs/releases/v0.4-readiness-audit.md](docs/releases/v0.4-readiness-audit.md), [docs/rfcs/v0.4-skillops-platform-rfc.md](docs/rfcs/v0.4-skillops-platform-rfc.md), [docs/rfcs/v0.4-risk-register.md](docs/rfcs/v0.4-risk-register.md), and [docs/rfcs/v0.4-implementation-epics.md](docs/rfcs/v0.4-implementation-epics.md). For the v0.4.0-alpha E01-E04 integration gate, see [docs/releases/v0.4.0-alpha.md](docs/releases/v0.4.0-alpha.md), [docs/releases/v0.4.0-alpha-checklist.md](docs/releases/v0.4.0-alpha-checklist.md), and [docs/releases/v0.4.0-alpha-known-issues.md](docs/releases/v0.4.0-alpha-known-issues.md).
 
 ## Product Editions
 

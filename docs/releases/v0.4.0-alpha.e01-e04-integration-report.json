@@ -1,0 +1,272 @@
+{
+  "checks": {
+    "E01_policy_aware_recommendation_preview": true,
+    "E02_eval_release_operator_workflow": true,
+    "E03_maintainer_queue_runtime_and_public_status": true,
+    "E04_governance_dashboard_signed_summary": true,
+    "fixed_pending_eval_evidence": true,
+    "no_auto_publish": true,
+    "no_automatic_install_update_remove": true,
+    "no_automatic_rewrite": true,
+    "no_full_catalog_distribution": true,
+    "no_live_billing": true,
+    "no_private_registry_content_in_public_repo": true,
+    "no_production_hosted_calls": true,
+    "no_production_rollout": true,
+    "no_production_signing_key_required": true,
+    "no_pypi": true,
+    "signed_metadata_required": true,
+    "support_bundle_redaction": true
+  },
+  "evidence": [
+    "recommendation preview proof",
+    "eval operator workflow proof",
+    "signed maintainer queue status proof",
+    "fixed-pending-eval proof",
+    "signed governance dashboard summary proof",
+    "support bundle redaction proof",
+    "no mutation proof",
+    "no production hosted calls proof"
+  ],
+  "generated_at": "2026-06-10T00:00:00Z",
+  "merged_prs": {
+    "private_registry": [
+      {
+        "epic": "E02",
+        "number": 42,
+        "status": "merged"
+      },
+      {
+        "epic": "E03",
+        "number": 43,
+        "status": "merged"
+      },
+      {
+        "epic": "E04",
+        "number": 44,
+        "status": "merged"
+      }
+    ],
+    "public": [
+      {
+        "epic": "E01",
+        "number": 69,
+        "status": "merged"
+      },
+      {
+        "epic": "E03",
+        "number": 74,
+        "status": "merged"
+      }
+    ]
+  },
+  "mode": "fixture",
+  "public_client": {
+    "E01_policy_aware_recommendation_preview": {
+      "auto_publish": false,
+      "automatic_install": false,
+      "automatic_reindex": false,
+      "automatic_remove": false,
+      "automatic_rewrite": false,
+      "automatic_update": false,
+      "decision_count": 16,
+      "hosted_query_forwarding": false,
+      "preview_only": true,
+      "production_rollout": false,
+      "refusal_codes": [
+        "blocked_item",
+        "entitlement_denied",
+        "local_only",
+        "low_score",
+        "policy_denied",
+        "registration_required",
+        "retired_item",
+        "unsigned_metadata",
+        "wrong_agent",
+        "wrong_channel"
+      ],
+      "status": "passed"
+    },
+    "E03_public_maintainer_queue_client": {
+      "auto_publish": false,
+      "automatic_install": false,
+      "automatic_reindex": false,
+      "automatic_remove": false,
+      "automatic_rewrite": false,
+      "automatic_update": false,
+      "fixed_pending_eval_manifest_type": "maintainer-queue-fixed-pending-eval",
+      "metadata_only": true,
+      "production_rollout": false,
+      "signed_status_manifest_type": "maintainer-queue-runtime-status",
+      "signed_summary_manifest_type": "maintainer-queue-runtime-summary",
+      "status": "passed",
+      "support_summary_counts_only": true
+    },
+    "support_bundle_redaction": {
+      "counts_only": true,
+      "private_keys_included": false,
+      "prompts_included": false,
+      "proofs_included": false,
+      "skill_bodies_included": false,
+      "status": "passed",
+      "tokens_included": false
+    }
+  },
+  "registry": {
+    "E02_eval_release_operator_workflow": {
+      "auto_publish": false,
+      "automatic_install": false,
+      "automatic_production_rollback": false,
+      "automatic_reindex": false,
+      "automatic_remove": false,
+      "automatic_rewrite": false,
+      "automatic_update": false,
+      "covered_outcomes": [
+        "block_release",
+        "manual_review_required",
+        "pass",
+        "pass_with_warning",
+        "require_override",
+        "rollback_recommended"
+      ],
+      "override_rules_checked": true,
+      "production_rollout": false,
+      "release_owner_decides": true,
+      "rollback_recommended_checked": true,
+      "status": "passed"
+    },
+    "E03_maintainer_queue_runtime_api": {
+      "auto_publish": false,
+      "automatic_install": false,
+      "automatic_reindex": false,
+      "automatic_remove": false,
+      "automatic_rewrite": false,
+      "automatic_update": false,
+      "forbidden_field_rejection": true,
+      "metadata_only": true,
+      "mutates_queue": false,
+      "production_rollout": false,
+      "signed_manifest_types": [
+        "maintainer-queue-runtime-status",
+        "maintainer-queue-runtime-item",
+        "maintainer-queue-runtime-summary",
+        "maintainer-queue-fixed-pending-eval"
+      ],
+      "status": "passed",
+      "unsigned_rejection": true
+    },
+    "E04_governance_dashboard_summary_api": {
+      "admin_console_read_only": true,
+      "auto_publish": false,
+      "automatic_install": false,
+      "automatic_reindex": false,
+      "automatic_remove": false,
+      "automatic_rewrite": false,
+      "automatic_update": false,
+      "forbidden_field_rejection": true,
+      "metadata_only": true,
+      "mutates_policies": false,
+      "mutates_private_packs": false,
+      "mutates_queue": false,
+      "production_rollout": false,
+      "signed_manifest_types": [
+        "skillops-governance-dashboard-summary",
+        "skillops-governance-queue-health",
+        "skillops-governance-eval-gates",
+        "skillops-governance-entitlements",
+        "skillops-governance-policies",
+        "skillops-governance-private-packs",
+        "skillops-governance-support-diagnostics"
+      ],
+      "status": "passed",
+      "unsigned_rejection": true
+    },
+    "mode": "fixture",
+    "privacy": {
+      "automatic_telemetry": false,
+      "customer_data_included": false,
+      "full_catalog_distribution": false,
+      "live_billing": false,
+      "local_paths_included": false,
+      "private_keys_included": false,
+      "private_pack_bodies_included": false,
+      "production_hosted_calls": false,
+      "production_signing_key_required": false,
+      "prompts_included": false,
+      "proofs_included": false,
+      "pypi_publication": false,
+      "repo_paths_included": false,
+      "search_queries_included": false,
+      "skill_bodies_included": false,
+      "task_text_included": false,
+      "tokens_included": false
+    },
+    "skillops_manifest_types": [
+      "maintainer-queue-fixed-pending-eval",
+      "maintainer-queue-runtime-item",
+      "maintainer-queue-runtime-status",
+      "maintainer-queue-runtime-summary",
+      "skillops-dashboard-summary",
+      "skillops-eval-gate-summary",
+      "skillops-governance-dashboard-summary",
+      "skillops-governance-entitlements",
+      "skillops-governance-eval-gates",
+      "skillops-governance-policies",
+      "skillops-governance-private-packs",
+      "skillops-governance-queue-health",
+      "skillops-governance-support-diagnostics",
+      "skillops-maintainer-queue-status",
+      "skillops-recommendation-input",
+      "skillops-refusal",
+      "skillops-self-hosted-status"
+    ]
+  },
+  "release": "v0.4.0-alpha",
+  "release_boundary": {
+    "alpha_only": true,
+    "final_tag_created": false,
+    "production_rollout": false,
+    "tag_target_sha_policy": "Task 2 records integration evidence only. Task 3 must verify the final main SHA before tagging.",
+    "task3_publication_gate_required": true,
+    "version_prepared": "v0.4.0-alpha"
+  },
+  "report": "v0.4.0-alpha-e01-e04-integration",
+  "repositories": {
+    "private_registry": {
+      "repository": "AI4sale/unlimited-skills-registry",
+      "source": "fixture"
+    },
+    "public_client": {
+      "base_branch": "main",
+      "repository": "AI4sale/unlimited-skills"
+    }
+  },
+  "safety_boundaries": {
+    "auto_publish": false,
+    "automatic_install": false,
+    "automatic_reindex": false,
+    "automatic_remove": false,
+    "automatic_rewrite": false,
+    "automatic_telemetry": false,
+    "automatic_update": false,
+    "customer_data_included": false,
+    "full_catalog_distribution": false,
+    "live_billing": false,
+    "local_paths_included": false,
+    "private_keys_included": false,
+    "private_pack_bodies_included": false,
+    "production_hosted_calls": false,
+    "production_rollout": false,
+    "production_signing_key_required": false,
+    "prompts_included": false,
+    "proofs_included": false,
+    "pypi_publication": false,
+    "repo_paths_included": false,
+    "search_queries_included": false,
+    "skill_bodies_included": false,
+    "task_text_included": false,
+    "tokens_included": false
+  },
+  "schema_version": 1,
+  "status": "passed"
+}

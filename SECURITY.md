@@ -104,6 +104,12 @@ The suite must not call production hosted services, require production signing k
 
 The v0.4 go/no-go package can approve starting implementation epics after review and merge, but it does not authorize production rollout. Every v0.4 implementation layer still needs runtime, registry, security, privacy, and release-owner review before release.
 
+## v0.4.0-alpha E01-E04 Boundary
+
+The v0.4.0-alpha E01-E04 integration gate is an alpha verification layer for policy-aware recommendation preview, eval release operator workflow, maintainer queue runtime/status, and governance dashboard signed summaries. It is not a production release by itself.
+
+The gate must not call production hosted services, require production signing keys, upload prompts, upload task text, upload skill bodies, upload search queries, include private pack bodies, include local or repository paths, enable live billing, publish to PyPI, distribute the full catalog, install/update/remove skills automatically, rewrite skills automatically, auto-publish, or create the final release tag. MIT local core behavior remains registration-free.
+
 ## Known Security Limitations In v0.3.9-alpha
 
 - Hosted manifest signatures verify manifest authenticity; archive bytes are still verified with SHA256 and safe extraction, not archive-byte signatures.
