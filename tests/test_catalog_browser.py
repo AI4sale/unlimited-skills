@@ -81,7 +81,36 @@ def catalog_item(status: str = "published", *, item_id: str = "community:browser
             "body_included": False,
         },
         "warnings": ["deprecated"] if status == "deprecated" else [],
+        "quality_status": {
+            "quality_grade": "a",
+            "score_band": "90-100",
+            "last_eval_at": "2026-06-10T08:00:00Z",
+            "blockers": [],
+            "warnings": [],
+            "compatibility_notes": ["codex ok"],
+            "deprecation_status": "active",
+            "feedback_issue_categories": ["install_failure"],
+            "install_risk": "low",
+            "install_allowed": True,
+        },
         "body_included": False,
+    }
+
+
+def catalog_quality_status() -> dict:
+    return {
+        "item_id": "community:browser-qa-pack:0.1.0",
+        "quality_grade": "a",
+        "score_band": "90-100",
+        "last_eval_at": "2026-06-10T08:00:00Z",
+        "blockers": [],
+        "warnings": [],
+        "compatibility_notes": ["codex ok"],
+        "deprecation_status": "active",
+        "retired": False,
+        "feedback_issue_categories": ["install_failure"],
+        "install_risk": "low",
+        "install_allowed": True,
     }
 
 
@@ -121,12 +150,15 @@ def test_catalog_browser_browse_search_preview_and_dry_run_install_are_signed(tm
             return FakeResponse(json.dumps(sign_catalog_payload({"item": item}, private_key, manifest_type="catalog-browser-preview")).encode("utf-8"))
         if url.endswith("/v1/catalog/browser/item"):
             return FakeResponse(json.dumps(sign_catalog_payload({"item": catalog_item("published")}, private_key, manifest_type="catalog-browser-item")).encode("utf-8"))
+        if url.endswith("/v1/catalog/quality/status"):
+            return FakeResponse(json.dumps(sign_catalog_payload({"quality_status": catalog_quality_status()}, private_key, manifest_type="catalog-quality-status")).encode("utf-8"))
         raise AssertionError(f"Unexpected URL: {url}")
 
     with patch("urllib.request.urlopen", fake_urlopen):
-        assert main(["--root", str(root), "catalog", "browse", "--source", "community", "--json"]) == 0
+        assert main(["--root", str(root), "catalog", "browse", "--source", "community", "--show-quality", "--json"]) == 0
         browse = json.loads(capsys.readouterr().out)
         assert [item["pack_id"] for item in browse["items"]] == ["browser-qa-pack"]
+        assert browse["items"][0]["quality_grade"] == "a"
 
         assert main(["--root", str(root), "catalog", "search", "browser-qa", "--source", "community", "--json"]) == 0
         search = json.loads(capsys.readouterr().out)

@@ -10,6 +10,7 @@
 - Community catalog client v2: channel-filtered list, signed approved-only preview/install, local unregistered submit dry-run, and submission `withdraw` / `review-notes` commands.
 - Registered catalog browser client commands: `catalog browse`, `catalog search`, `catalog filters`, `catalog preview`, and signed metadata-verified `catalog install --dry-run`.
 - Explicit registered catalog feedback commands: `catalog feedback` and `catalog feedback-status`, with dry-run, confirmation, schemas, examples, docs, and support-bundle redaction.
+- Registered catalog quality and evaluation status commands: `catalog quality`, `catalog eval-status`, `catalog explain-risk`, plus browser/search `--show-quality`, signed metadata verification, install-risk warnings, blocked hosted install refusal, schemas, examples, docs, and support-bundle summary counts.
 - Catalog browser schemas, sanitized examples, docs, support-bundle redaction, and tests for registration gating, signed response verification, approved-only visibility, metadata-only preview, and unapproved install refusal.
 - v0.3.4-alpha release smoke, verifier, checklist, upgrade notes, known issues, and release manifest for plans and sandbox billing integration.
 

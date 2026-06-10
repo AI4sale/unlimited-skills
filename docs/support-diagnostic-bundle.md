@@ -41,6 +41,16 @@ For catalog browser diagnostics, the support manifest includes only a redacted m
 
 For catalog feedback diagnostics, the support manifest includes only the feedback boundary flags. It does not include raw feedback payloads, item names, prompts, skill bodies, local paths, tokens, proofs, or private keys.
 
+For catalog quality diagnostics, the support manifest includes summary counts only:
+
+- known quality status count;
+- blocked count;
+- warning count;
+- deprecated or retired count;
+- feedback issue category count.
+
+It does not include catalog item ids, item names, raw quality records, raw feedback, prompts, skill bodies, local paths, repo paths, customer data, tokens, proofs, or private keys.
+
 The support manifest excludes:
 
 - private pack names by default;
@@ -60,6 +70,7 @@ The support manifest excludes:
 - catalog browser search queries;
 - catalog browser item names;
 - raw catalog feedback payloads.
+- raw catalog quality or evaluation records.
 
 The support manifest is a local diagnostic artifact. Users decide whether to share it with support.
 

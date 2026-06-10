@@ -4,6 +4,7 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
+from .catalog_quality import CatalogQualityClient, assert_quality_allows_hosted_install, install_risk_message, quality_below_threshold
 from .community import CommunityClient, CommunityError
 from .registration import RegistrationError, RegistrationState, post_json
 from .signatures import ManifestSignatureError, verify_manifest_signature
@@ -51,6 +52,14 @@ class CatalogBrowserItem:
     distribution_policy: dict[str, Any] | None = None
     warnings: tuple[str, ...] = ()
     body_included: bool = False
+    quality_grade: str = ""
+    score_band: str = ""
+    last_eval_at: str = ""
+    blockers: tuple[str, ...] = ()
+    compatibility_notes: tuple[str, ...] = ()
+    deprecation_status: str = "active"
+    feedback_issue_categories: tuple[str, ...] = ()
+    install_risk: str = ""
 
 
 @dataclass(frozen=True)
@@ -63,6 +72,8 @@ class CatalogInstallResult:
     installed: bool = False
     delegated_source: str = ""
     message: str = ""
+    quality_grade: str = ""
+    quality_warning: str = ""
 
 
 def _tuple(value: Any) -> tuple[str, ...]:
@@ -78,6 +89,7 @@ def _item_from_json(data: dict[str, Any]) -> CatalogBrowserItem:
     pack_id = str(data.get("pack_id") or data.get("id") or item_id)
     if not item_id or not pack_id:
         raise CatalogBrowserError("Catalog browser item is missing item_id or pack_id.")
+    quality = data.get("quality_status") if isinstance(data.get("quality_status"), dict) else {}
     return CatalogBrowserItem(
         item_id=item_id,
         pack_id=pack_id,
@@ -102,6 +114,14 @@ def _item_from_json(data: dict[str, Any]) -> CatalogBrowserItem:
         distribution_policy=data.get("distribution_policy") if isinstance(data.get("distribution_policy"), dict) else {},
         warnings=_tuple(data.get("warnings")),
         body_included=bool(data.get("body_included")),
+        quality_grade=str(quality.get("quality_grade") or data.get("quality_grade") or ""),
+        score_band=str(quality.get("score_band") or data.get("score_band") or ""),
+        last_eval_at=str(quality.get("last_eval_at") or data.get("last_eval_at") or ""),
+        blockers=_tuple(quality.get("blockers") or data.get("blockers")),
+        compatibility_notes=_tuple(quality.get("compatibility_notes") or data.get("compatibility_notes")),
+        deprecation_status=str(quality.get("deprecation_status") or data.get("deprecation_status") or ("retired" if data.get("retired") else "active")),
+        feedback_issue_categories=_tuple(quality.get("feedback_issue_categories") or data.get("feedback_issue_categories")),
+        install_risk=str(quality.get("install_risk") or data.get("install_risk") or ""),
     )
 
 
@@ -203,6 +223,7 @@ class CatalogBrowserClient:
         skill_kind: str = "",
         category: str = "",
         include_deprecated: bool = False,
+        show_quality: bool = False,
         limit: int = 50,
     ) -> list[CatalogBrowserItem]:
         response = self._post(
@@ -215,6 +236,7 @@ class CatalogBrowserClient:
                 skill_kind=skill_kind,
                 category=category,
                 include_deprecated=include_deprecated,
+                include_quality=show_quality,
                 limit=limit,
             ),
         )
@@ -232,6 +254,7 @@ class CatalogBrowserClient:
         skill_kind: str = "",
         category: str = "",
         include_deprecated: bool = False,
+        show_quality: bool = False,
         limit: int = 20,
     ) -> list[CatalogBrowserItem]:
         response = self._post(
@@ -245,6 +268,7 @@ class CatalogBrowserClient:
                 skill_kind=skill_kind,
                 category=category,
                 include_deprecated=include_deprecated,
+                include_quality=show_quality,
                 limit=limit,
             ),
         )
@@ -285,6 +309,9 @@ class CatalogBrowserClient:
         _ = skip_reindex
         item = self.item(item_id)
         assert_item_installable(item)
+        quality = CatalogQualityClient(self.state, timeout=self.timeout).quality(item.item_id)
+        assert_quality_allows_hosted_install(quality)
+        quality_warning = install_risk_message(quality)
         if dry_run:
             return CatalogInstallResult(
                 item_id=item.item_id,
@@ -292,7 +319,9 @@ class CatalogBrowserClient:
                 review_status=item.review_status,
                 installable=True,
                 dry_run=True,
-                message="Dry run: signed approved/published metadata verified; no files written.",
+                message="Dry run: signed approved/published metadata and quality status verified; no files written.",
+                quality_grade=quality.quality_grade,
+                quality_warning=quality_warning if quality_below_threshold(quality.quality_grade) or quality.warnings else "",
             )
         if not yes:
             raise CatalogBrowserError("Catalog install requires --yes unless --dry-run is used.")
@@ -305,4 +334,11 @@ class CatalogBrowserClient:
             dry_run=False,
             force=False,
         )
-        return {"catalog_item": asdict(item), "delegated_install": asdict(result), "dry_run": False, "installed": True}
+        return {
+            "catalog_item": asdict(item),
+            "delegated_install": asdict(result),
+            "dry_run": False,
+            "installed": True,
+            "quality_status": quality.to_json(),
+            "quality_warning": quality_warning if quality_below_threshold(quality.quality_grade) or quality.warnings else "",
+        }

@@ -61,10 +61,13 @@ def test_support_bundle_private_pack_summary_is_redacted(tmp_path: Path, monkeyp
     assert payload["catalog_browser"]["item_names_included"] is False
     assert payload["catalog_feedback"]["explicit_feedback_only"] is True
     assert payload["catalog_feedback"]["raw_feedback_included"] is False
+    assert payload["catalog_quality"]["summary_counts_only"] is True
+    assert payload["catalog_quality"]["quality_status"]["known_count"] == 0
     assert payload["private_packs"]["sha_mismatch_count"] == 1
     assert payload["privacy"]["skill_bodies_included"] is False
     assert payload["privacy"]["local_paths_included"] is False
     assert payload["privacy"]["catalog_feedback_included"] is False
+    assert payload["privacy"]["catalog_quality_summary_counts_only"] is True
     serialized = json.dumps(payload, sort_keys=True)
     assert "secret private skills" not in serialized
     assert "team_pack_secret" not in serialized

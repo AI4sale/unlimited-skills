@@ -29,6 +29,15 @@ Status is aggregate-only:
 unlimited-skills catalog feedback-status community:browser-qa-pack:0.1.0 --json
 ```
 
+Feedback-derived issue categories can appear in signed quality and evaluation status:
+
+```bash
+unlimited-skills catalog quality community:browser-qa-pack:0.1.0
+unlimited-skills catalog eval-status community:browser-qa-pack:0.1.0
+```
+
+The quality commands receive aggregate categories only. They do not include raw feedback text.
+
 ## Privacy Boundary
 
 The client rejects obvious private keys, hosted tokens, local paths, repo paths, email addresses, prompt fields, and skill body fields before sending. The server receives only the allowlisted diagnostic fields selected by the user.
