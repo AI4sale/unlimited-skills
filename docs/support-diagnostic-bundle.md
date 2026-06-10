@@ -26,6 +26,8 @@ For organization and team governance, the support manifest includes only:
 - team joined/role/status/approval mode;
 - entitlement state summaries for private packs, community catalog, and team sync.
 
+For plans and entitlements, the support manifest includes only the redacted plan id, status, cache source, public feature flags, public limits, and offline-grace status.
+
 The support manifest excludes:
 
 - private pack names by default;

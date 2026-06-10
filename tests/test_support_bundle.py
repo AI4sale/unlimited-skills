@@ -153,7 +153,10 @@ def test_support_bundle_private_pack_summary_is_redacted(tmp_path: Path, monkeyp
     serialized = json.dumps(report, ensure_ascii=False, sort_keys=True)
 
     assert report["diagnostics"]["private_packs"]["local"]["installed_count"] == 1
+    assert report["diagnostics"]["plan"]["registered"] is True
+    assert report["diagnostics"]["plan"]["privacy"]["tokens_included"] is False
     assert report["diagnostics"]["private_packs"]["local"]["sha_mismatch_count"] == 1
+    assert report["manifest"]["diagnostics_summary"]["plan"] == "community-core"
     assert report["manifest"]["diagnostics_summary"]["private_pack_installed_count"] == 1
     assert report["diagnostics"]["privacy"]["skill_bodies_included"] is False
     assert "secret private skills" not in serialized

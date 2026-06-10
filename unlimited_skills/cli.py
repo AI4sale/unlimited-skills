@@ -72,6 +72,8 @@ from .setup_wizard import build_setup_report, format_setup_text
 from .support_bundle import build_bundle_report, format_bundle_text
 from .native import DEFAULT_AGENT_ORDER, sync_native_sources
 from .org_status import local_org_status, refresh_org_status
+from .plan_status import doctor as plan_doctor
+from .plan_status import explain_feature, format_plan_status, redacted_plan_summary, refresh_plan_status
 from .policy import explain_policy, install_policy, load_policy, policy_summary, read_policy_file, remove_policy, verify_policy_payload
 from .policy_enforcement import enforce_local_root
 from .policy_sync import managed_policy_status, sync_managed_policy
@@ -1573,6 +1575,51 @@ def cmd_org_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_plan_status(args: argparse.Namespace) -> int:
+    payload = redacted_plan_summary()
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(format_plan_status(payload))
+    return 0
+
+
+def cmd_plan_refresh(args: argparse.Namespace) -> int:
+    payload = refresh_plan_status(timeout=args.timeout)
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(format_plan_status(payload["plan_status"]))
+    return 0
+
+
+def cmd_plan_explain(args: argparse.Namespace) -> int:
+    payload = explain_feature(args.feature)
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(f"Feature: {payload['feature']}")
+        print("Allowed: " + ("yes" if payload["allowed"] else "no"))
+        if payload["denial_reason"]:
+            print(f"Denial reason: {payload['denial_reason']}")
+            print(payload["message"])
+    return 0
+
+
+def cmd_plan_doctor(args: argparse.Namespace) -> int:
+    payload = plan_doctor()
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print("Plan doctor: " + ("ok" if payload["ok"] else "needs attention"))
+        print(format_plan_status(payload["plan_status"]))
+        for name, check in payload["checks"].items():
+            print(f"{name}: {'ok' if check['ok'] else 'attention'}")
+            if check.get("denial_reason"):
+                print(f"  denial_reason={check['denial_reason']}")
+    return 0
+
+
 def cmd_enhance_download(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     client = UpdateClient(load_registration(), timeout=args.timeout)
@@ -2303,6 +2350,23 @@ def build_parser() -> argparse.ArgumentParser:
     org_status.add_argument("--json", action="store_true")
     org_status.add_argument("--timeout", type=float, default=30.0)
     org_status.set_defaults(func=cmd_org_status)
+
+    plan = sub.add_parser("plan", help="Inspect registered plan and entitlement status.")
+    plan_sub = plan.add_subparsers(dest="plan_command", required=True)
+    plan_status = plan_sub.add_parser("status", help="Show cached plan status without hosted calls.")
+    plan_status.add_argument("--json", action="store_true")
+    plan_status.set_defaults(func=cmd_plan_status)
+    plan_refresh = plan_sub.add_parser("refresh", help="Refresh plan status from the registered service.")
+    plan_refresh.add_argument("--json", action="store_true")
+    plan_refresh.add_argument("--timeout", type=float, default=30.0)
+    plan_refresh.set_defaults(func=cmd_plan_refresh)
+    plan_explain = plan_sub.add_parser("explain", help="Explain whether the current plan allows a feature.")
+    plan_explain.add_argument("feature")
+    plan_explain.add_argument("--json", action="store_true")
+    plan_explain.set_defaults(func=cmd_plan_explain)
+    plan_doctor_parser = plan_sub.add_parser("doctor", help="Run local plan and entitlement diagnostics.")
+    plan_doctor_parser.add_argument("--json", action="store_true")
+    plan_doctor_parser.set_defaults(func=cmd_plan_doctor)
 
     private_packs = sub.add_parser("private-packs", help="Preview, install, sync, and remove registered private team packs.")
     private_packs_sub = private_packs.add_subparsers(dest="private_packs_command", required=True)

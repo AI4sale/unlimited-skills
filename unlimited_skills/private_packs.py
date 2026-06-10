@@ -23,7 +23,10 @@ PRIVATE_PACKS_REQUIRED_MESSAGE = (
 PRIVATE_PACKS_METADATA = ".unlimited-skills-private-packs.json"
 PRIVATE_PACKS_SOURCE = "private-team-pack"
 PRIVATE_PACK_DENIAL_CODES = {
+    "unregistered",
     "no_entitlement",
+    "plan_limit_exceeded",
+    "suspended",
     "not_team_member",
     "wrong_agent",
     "wrong_channel",
@@ -35,6 +38,9 @@ PRIVATE_PACK_DENIAL_ALIASES = {
     "missing_entitlement": "no_entitlement",
     "no_private_pack_entitlement": "no_entitlement",
     "registry_access_denied": "no_entitlement",
+    "client_limit_reached": "plan_limit_exceeded",
+    "max_private_packs_reached": "plan_limit_exceeded",
+    "entitlement_suspended": "suspended",
     "not_a_team_member": "not_team_member",
     "not_org_member": "not_team_member",
     "agent_not_allowed": "wrong_agent",

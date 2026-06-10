@@ -14,6 +14,7 @@ from . import __version__
 from .doctor import build_doctor_report
 from .hub import active_hub_token_count, cached_allowlist_summary, load_hub_config, load_remote_config
 from .org_status import local_org_status
+from .plan_status import redacted_plan_summary
 from .policy import load_policy, policy_summary
 from .policy_sync import managed_policy_status
 from .private_pack_diagnostics import assert_private_pack_diagnostics_safe, private_pack_local_summary, private_pack_setup_summary
@@ -113,6 +114,39 @@ def _registration_status(home: Path) -> dict[str, Any]:
         return redacted_status(load_registration(home))
     except RegistrationError:
         return {"registered": False, "plan": "community-core", "server_url": "", "telemetry": "off"}
+
+
+def _plan_status(home: Path) -> dict[str, Any]:
+    try:
+        state = load_registration(home)
+    except RegistrationError:
+        state = RegistrationState()
+    try:
+        return redacted_plan_summary(state=state, home=home)
+    except Exception as exc:  # noqa: BLE001 - support diagnostics must stay non-fatal.
+        return {
+            "schema_version": 1,
+            "registered": bool(state.registered),
+            "source": "local-error",
+            "plan": state.plan or ("registered-community" if state.registered else "community-core"),
+            "status": "unknown",
+            "features_enabled": [],
+            "limits": {},
+            "policy": {},
+            "last_heartbeat_at": "",
+            "offline_grace_status": "unknown",
+            "denial_reason": "",
+            "error": redact_sensitive_text(str(exc)),
+            "privacy": {
+                "tokens_included": False,
+                "proofs_included": False,
+                "private_keys_included": False,
+                "local_paths_included": False,
+                "private_pack_bodies_included": False,
+                "skill_names_included": False,
+                "search_queries_included": False,
+            },
+        }
 
 
 def _service_status(home: Path) -> dict[str, Any]:
@@ -285,6 +319,7 @@ def build_support_diagnostics(root: Path, *, include_paths: bool = False, includ
         },
         "library": _skill_inventory(root, include_paths=include_paths),
         "registration": _registration_status(home),
+        "plan": _plan_status(home),
         "service": _service_status(home),
         "hub": _hub_status(home),
         "enterprise": _enterprise_status(home),
@@ -321,6 +356,9 @@ def build_bundle_report(
         "privacy": diagnostics["privacy"],
         "diagnostics_summary": {
             "registered": bool(diagnostics.get("registration", {}).get("registered")),
+            "plan": str(diagnostics.get("plan", {}).get("plan") or "community-core"),
+            "plan_status": str(diagnostics.get("plan", {}).get("status") or "unknown"),
+            "plan_source": str(diagnostics.get("plan", {}).get("source") or "unknown"),
             "library_present": bool(diagnostics.get("library", {}).get("root_present")),
             "physical_skill_files": int(diagnostics.get("library", {}).get("physical_skill_files") or 0),
             "index_present": bool(diagnostics.get("library", {}).get("index_present")),

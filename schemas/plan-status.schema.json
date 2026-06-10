@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unlimited.ai4.sale/schemas/plan-status.schema.json",
+  "title": "Unlimited Skills Plan Status",
+  "type": "object",
+  "required": ["schema_version", "registered", "source", "plan", "status", "features_enabled", "limits", "privacy"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "registered": {"type": "boolean"},
+    "source": {"type": "string"},
+    "plan": {"type": "string"},
+    "status": {"type": "string"},
+    "features_enabled": {"type": "array", "items": {"type": "string"}, "uniqueItems": true},
+    "limits": {"type": "object"},
+    "policy": {"type": "object"},
+    "last_heartbeat_at": {"type": "string"},
+    "offline_grace_status": {"type": "string"},
+    "denial_reason": {"type": "string"},
+    "privacy": {
+      "type": "object",
+      "required": ["tokens_included", "proofs_included", "private_keys_included", "local_paths_included"],
+      "properties": {
+        "tokens_included": {"const": false},
+        "proofs_included": {"const": false},
+        "private_keys_included": {"const": false},
+        "local_paths_included": {"const": false},
+        "private_pack_bodies_included": {"const": false},
+        "skill_names_included": {"const": false},
+        "search_queries_included": {"const": false}
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

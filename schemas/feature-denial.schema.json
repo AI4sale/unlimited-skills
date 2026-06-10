@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unlimited.ai4.sale/schemas/feature-denial.schema.json",
+  "title": "Unlimited Skills Feature Denial",
+  "type": "object",
+  "required": ["schema_version", "feature", "allowed", "denial_reason", "plan", "status", "registered"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "feature": {"type": "string"},
+    "allowed": {"type": "boolean"},
+    "denial_reason": {
+      "type": "string",
+      "enum": ["", "unregistered", "no_entitlement", "plan_limit_exceeded", "suspended", "service_unavailable", "policy_denied", "unknown_feature"]
+    },
+    "message": {"type": "string"},
+    "plan": {"type": "string"},
+    "status": {"type": "string"},
+    "registered": {"type": "boolean"}
+  },
+  "additionalProperties": false
+}

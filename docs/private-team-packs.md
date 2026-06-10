@@ -6,6 +6,8 @@ The MIT local core still works without registration. Private team pack commands 
 
 The hosted registry must also authorize the installation with a private-pack entitlement or a Business/Enterprise plan. Registered Community installs should receive a redacted `no_private_pack_entitlement` diagnostic until that entitlement is granted.
 
+Private-pack diagnostics normalize hosted entitlement failures to the same denial vocabulary used by `unlimited-skills plan explain`: `unregistered`, `no_entitlement`, `plan_limit_exceeded`, `suspended`, `service_unavailable`, `policy_denied`, and `unknown_feature`.
+
 ## Commands
 
 ```bash

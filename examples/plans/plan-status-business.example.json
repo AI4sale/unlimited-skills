@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "registered": true,
+  "source": "cached",
+  "plan": "business",
+  "status": "active",
+  "features_enabled": ["local_skill_hub", "private_team_packs", "team_sync"],
+  "limits": {
+    "max_hub_clients": 100,
+    "max_private_packs": 25,
+    "release_channels": ["stable", "alpha"]
+  },
+  "policy": {
+    "hub_distribution_mode": "allowlist_only",
+    "hosted_query_forwarding_allowed": false,
+    "team_sync_enabled": true
+  },
+  "last_heartbeat_at": "2026-06-09T00:00:00Z",
+  "offline_grace_status": "active",
+  "denial_reason": "",
+  "privacy": {
+    "tokens_included": false,
+    "proofs_included": false,
+    "private_keys_included": false,
+    "local_paths_included": false,
+    "private_pack_bodies_included": false,
+    "skill_names_included": false,
+    "search_queries_included": false
+  }
+}
