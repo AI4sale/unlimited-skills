@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+### Added
+
+- Local-only `skillops usage-snapshot` command with JSON, `--out`, `--dry-run`, and `explain` modes for privacy-preserving SkillOps recommendation context.
+- Usage snapshot schema, example payload, and documentation covering included counts, excluded sensitive data, and no-hosted-call behavior.
+- Support bundle counts-only usage snapshot summary.
+
+### Security
+
+- Usage snapshots exclude prompts, task text, skill bodies, search queries, local paths, repo paths, customer data, environment values, tokens, proofs, private keys, private pack names, and private skill names by default.
+- Usage snapshot tests block hosted calls and grep fixture secrets/private names/paths from CLI, file output, and support bundle summary.
+
 ## v0.4.0-alpha
 
 ### Added

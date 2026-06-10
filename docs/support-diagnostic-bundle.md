@@ -74,6 +74,18 @@ For maintainer queue diagnostics, the support manifest includes only queue statu
 
 It does not include catalog item ids, item names, prompts, task text, skill bodies, maintainer private notes, local paths, repo paths, customer data, tokens, proofs, or private keys.
 
+For SkillOps usage snapshot diagnostics, the support manifest includes counts only:
+
+- physical skill file count;
+- official, community, private, and local skill counts;
+- index record count;
+- recommendation outcome counts;
+- quality warning counts;
+- update recommendation counts;
+- maintainer queue counts.
+
+It does not include snapshot details, private pack names, private skill names, skill bodies, prompts, task text, search queries, local paths, repo paths, customer data, tokens, proofs, or private keys.
+
 For v0.4 blocker-closure reports, support diagnostics remain counts, booleans, status strings, and redacted summaries only. No prompt or task content, skill content, local or repository locations, customer data, tokens, device proofs, private keys, or search terms may appear in the report payload.
 
 The support manifest excludes:
@@ -98,6 +110,7 @@ The support manifest excludes:
 - raw catalog quality or evaluation records.
 - raw skill improvement records or update recommendations.
 - raw maintainer queue records.
+- raw SkillOps usage snapshot details.
 
 The support manifest is a local diagnostic artifact. Users decide whether to share it with support.
 

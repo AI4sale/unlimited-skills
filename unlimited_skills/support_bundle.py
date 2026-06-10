@@ -26,6 +26,7 @@ from .private_pack_diagnostics import assert_private_pack_diagnostics_safe, priv
 from .registration import DEFAULT_SERVICE_URL, RegistrationError, RegistrationState, load_registration, redacted_status, redact_sensitive_text, unlimited_skills_home
 from .service_diagnostics import load_service_config, service_health_snapshot
 from .skill_improvements import redacted_skill_improvement_summary
+from .skillops_usage_snapshot import support_bundle_usage_summary
 from .team import load_team_state
 
 
@@ -349,6 +350,7 @@ def build_support_diagnostics(root: Path, *, include_paths: bool = False, includ
             "catalog_quality_summary_counts_only": True,
             "skill_improvements_summary_counts_only": True,
             "maintainer_queue_summary_counts_only": True,
+            "skillops_usage_snapshot_counts_only": True,
         },
         "system": {
             "platform": platform.system(),
@@ -369,6 +371,7 @@ def build_support_diagnostics(root: Path, *, include_paths: bool = False, includ
         "catalog_feedback": redacted_catalog_feedback_summary(),
         "catalog_quality": redacted_catalog_quality_summary(),
         "skill_improvements": redacted_skill_improvement_summary(),
+        "skillops_usage_snapshot": support_bundle_usage_summary(root),
         "maintainer_queue": redacted_maintainer_queue_summary(),
         "service": _service_status(home),
         "hub": _hub_status(home),
@@ -424,6 +427,7 @@ def build_bundle_report(
             "skill_improvement_remove_recommendation_count": int(
                 diagnostics.get("skill_improvements", {}).get("improvement_status", {}).get("remove_recommendation_count") or 0
             ),
+            "skillops_usage_snapshot_available": bool(diagnostics.get("skillops_usage_snapshot", {}).get("available")),
             "team_joined": bool(diagnostics.get("org_team", {}).get("team", {}).get("joined")),
         },
     }

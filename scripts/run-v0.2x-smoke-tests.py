@@ -15,6 +15,20 @@ WATCHED_HOME_DIRS = (
     ".codex/skills",
     ".codex/.unlimited-skills",
 )
+VOLATILE_HOME_FILES = {
+    ".unlimited-skills/library/.learning/events.jsonl",
+    ".unlimited-skills/library/.unlimited-skills-index.json",
+    ".codex/.unlimited-skills/library/.learning/events.jsonl",
+    ".codex/.unlimited-skills/library/.unlimited-skills-index.json",
+}
+
+
+def _is_volatile_home_file(home: Path, path: Path) -> bool:
+    try:
+        rel = path.relative_to(home).as_posix()
+    except ValueError:
+        return False
+    return rel in VOLATILE_HOME_FILES
 
 
 def snapshot_real_home(home: Path) -> dict[str, tuple[bool, int, float]]:
@@ -25,7 +39,8 @@ def snapshot_real_home(home: Path) -> dict[str, tuple[bool, int, float]]:
             snapshot[name] = (False, 0, 0.0)
             continue
         files = [item for item in path.rglob("*") if item.is_file()]
-        newest = max((item.stat().st_mtime for item in files), default=path.stat().st_mtime)
+        stable_files = [item for item in files if not _is_volatile_home_file(home, item)]
+        newest = max((item.stat().st_mtime for item in stable_files), default=path.stat().st_mtime)
         snapshot[name] = (True, len(files), newest)
     return snapshot
 

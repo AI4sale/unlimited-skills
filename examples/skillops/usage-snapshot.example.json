@@ -1,0 +1,201 @@
+{
+  "catalog_browser": {
+    "item_names_included": false,
+    "metadata_only": true,
+    "private_paths_included": false,
+    "queries_included": false,
+    "registered_operation": true,
+    "schema_version": 1,
+    "skill_bodies_included": false
+  },
+  "catalog_quality": {
+    "automatic_telemetry": false,
+    "customer_data_included": false,
+    "item_names_included": false,
+    "local_paths_included": false,
+    "metadata_only": true,
+    "private_keys_included": false,
+    "prompts_included": false,
+    "proofs_included": false,
+    "quality_status": {
+      "blocked_count": 0,
+      "deprecated_or_retired_count": 0,
+      "feedback_issue_category_count": 0,
+      "known_count": 0,
+      "warning_count": 0
+    },
+    "queries_included": false,
+    "registered_operation": true,
+    "repo_paths_included": false,
+    "schema_version": 1,
+    "skill_bodies_included": false,
+    "summary_counts_only": true,
+    "tokens_included": false
+  },
+  "client": {
+    "name": "unlimited-skills",
+    "version": "0.4.0"
+  },
+  "created_at": "2026-06-10T00:00:00Z",
+  "dry_run": false,
+  "governance": {
+    "policy_body_included": false,
+    "policy_mode": "disabled",
+    "summary_available": false
+  },
+  "hosted_calls": false,
+  "library": {
+    "chroma_present": false,
+    "collection_count": 3,
+    "collection_names_included": false,
+    "community_pack_skill_count": 8,
+    "index_present": true,
+    "index_readable": true,
+    "index_record_count": 42,
+    "installed_pack_counts": {
+      "community": 1,
+      "local": 1,
+      "official": 1,
+      "private": 0
+    },
+    "local_paths_included": false,
+    "local_skill_count": 12,
+    "official_pack_skill_count": 22,
+    "physical_skill_file_bucket": "11-50",
+    "physical_skill_files": 42,
+    "private_pack_skill_count": 0,
+    "root_present": true,
+    "skill_bodies_included": false,
+    "skill_names_included": false,
+    "vector_sidecar_present": true
+  },
+  "local_only": true,
+  "network_calls": false,
+  "plan": {
+    "denial_reason": "",
+    "features_enabled": [
+      "local_skill_hub"
+    ],
+    "last_heartbeat_at": "",
+    "limits": {},
+    "offline_grace_status": "none",
+    "plan": "community-core",
+    "policy": {},
+    "privacy": {
+      "local_paths_included": false,
+      "private_keys_included": false,
+      "private_pack_bodies_included": false,
+      "proofs_included": false,
+      "search_queries_included": false,
+      "skill_names_included": false,
+      "tokens_included": false
+    },
+    "registered": false,
+    "schema_version": 1,
+    "source": "unregistered",
+    "status": "active"
+  },
+  "policy": {
+    "governance_summary_available": false,
+    "installed": false,
+    "local_paths_included": false,
+    "locked": false,
+    "managed": false,
+    "mode": "disabled",
+    "policy_bodies_included": false,
+    "policy_ids_included": false,
+    "schema_version": 1
+  },
+  "privacy": {
+    "customer_data_included": false,
+    "environment_values_included": false,
+    "local_paths_included": false,
+    "private_keys_included": false,
+    "private_pack_names_included": false,
+    "private_skill_names_included": false,
+    "prompts_included": false,
+    "proofs_included": false,
+    "repo_paths_included": false,
+    "search_queries_included": false,
+    "skill_bodies_included": false,
+    "skill_names_included": false,
+    "task_text_included": false,
+    "tokens_included": false
+  },
+  "private_packs": {
+    "access_denied_count": 0,
+    "archive_urls_included": false,
+    "installed_count": 0,
+    "local_paths_included": false,
+    "missing_target_count": 0,
+    "pack_names_included": false,
+    "pack_refs_included": false,
+    "revoked_count": 0,
+    "skill_bodies_included": false,
+    "skill_names_included": false,
+    "stale_count": 0
+  },
+  "recommendations": {
+    "automatic_install": false,
+    "automatic_remove": false,
+    "automatic_update": false,
+    "fixture_decision_count": 10,
+    "item_ids_included": false,
+    "item_names_included": false,
+    "outcome_counts": {
+      "allow_install": 1,
+      "allow_preview": 1,
+      "allow_update_preview": 1,
+      "deny_install": 2,
+      "deny_update": 1,
+      "local_only": 1,
+      "require_entitlement": 1,
+      "require_policy_override": 1,
+      "unsupported": 1
+    },
+    "preview_only": true,
+    "refusal_code_counts": {
+      "blocked_item": 1,
+      "entitlement_denied": 1,
+      "local_only": 1,
+      "low_score": 1,
+      "policy_denied": 1,
+      "retired_item": 1,
+      "wrong_agent": 1
+    }
+  },
+  "registration": {
+    "install_id_included": false,
+    "license_token_included": false,
+    "plan": "community-core",
+    "private_keys_included": false,
+    "proofs_included": false,
+    "registered": false,
+    "telemetry": "off"
+  },
+  "release_channel": {
+    "channel": "stable",
+    "pinned": false,
+    "schema_version": 1,
+    "status": "ok"
+  },
+  "schema_version": 1,
+  "snapshot_type": "skillops-usage-snapshot",
+  "support_bundle": {
+    "counts_only": true,
+    "details_included_by_default": false,
+    "may_include_usage_snapshot_counts": true
+  },
+  "system": {
+    "os_bucket": "linux"
+  },
+  "update_recommendations": {
+    "automatic_install": false,
+    "automatic_remove": false,
+    "automatic_update": false,
+    "preview_only": true,
+    "remove_recommendation_count": 0,
+    "update_recommendation_count": 0
+  },
+  "upload_available": false
+}
