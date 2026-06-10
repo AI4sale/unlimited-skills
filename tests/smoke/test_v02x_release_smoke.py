@@ -423,7 +423,7 @@ def test_redaction_for_tokens_headers_and_device_keys() -> None:
 def test_docs_security_claims_are_consistent() -> None:
     root = Path(__file__).resolve().parents[2]
     docs = "\n".join(path.read_text(encoding="utf-8", errors="replace") for path in [root / "SECURITY.md", root / "README.md", *list((root / "docs").glob("*.md"))]).lower()
-    assert "v0.3.2-alpha" in (root / "SECURITY.md").read_text(encoding="utf-8", errors="replace")
+    assert "v0.3.3-alpha" in (root / "SECURITY.md").read_text(encoding="utf-8", errors="replace")
     assert "sha256" in docs
     assert "hosted remote manifests must include valid signed manifest envelopes" in docs
     assert "serve` is the free local daemon and remains unregistered" in docs
