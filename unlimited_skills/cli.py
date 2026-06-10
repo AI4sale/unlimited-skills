@@ -78,6 +78,7 @@ from .service_diagnostics import (
 )
 from .setup_wizard import build_setup_report, format_setup_text
 from .skill_improvements import SkillImprovementClient, dumps_improvement
+from .skillops_usage_snapshot import build_usage_snapshot, format_usage_snapshot_text, usage_snapshot_explain
 from .support_bundle import build_bundle_report, format_bundle_text
 from .native import DEFAULT_AGENT_ORDER, sync_native_sources
 from .org_status import local_org_status, refresh_org_status
@@ -1071,6 +1072,25 @@ def cmd_support_bundle(args: argparse.Namespace) -> int:
         print(json.dumps(report["manifest"], ensure_ascii=False, indent=2, sort_keys=True))
     else:
         print(format_bundle_text(report))
+    return 0
+
+
+def cmd_skillops_usage_snapshot(args: argparse.Namespace) -> int:
+    if getattr(args, "usage_snapshot_command", None) == "explain":
+        print(usage_snapshot_explain())
+        return 0
+    root = Path(args.root).expanduser()
+    snapshot = build_usage_snapshot(root, dry_run=args.dry_run)
+    if args.out and not args.dry_run:
+        out = Path(args.out).expanduser()
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(snapshot, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    if args.json:
+        print(json.dumps(snapshot, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(format_usage_snapshot_text(snapshot))
+        if args.out:
+            print("Output write: " + ("skipped by dry-run" if args.dry_run else "done"))
     return 0
 
 
@@ -2942,6 +2962,15 @@ def build_parser() -> argparse.ArgumentParser:
     updates_rollback.add_argument("--yes", action="store_true", help="Confirm rollback in non-interactive mode.")
     updates_rollback.add_argument("--skip-reindex", action="store_true")
     updates_rollback.set_defaults(func=cmd_updates_rollback)
+
+    skillops = sub.add_parser("skillops", help="Run local SkillOps diagnostics and previews.")
+    skillops_sub = skillops.add_subparsers(dest="skillops_command", required=True)
+    usage_snapshot = skillops_sub.add_parser("usage-snapshot", help="Build a local-only privacy-preserving usage snapshot.")
+    usage_snapshot.add_argument("usage_snapshot_command", nargs="?", choices=["explain"], default=None)
+    usage_snapshot.add_argument("--json", action="store_true")
+    usage_snapshot.add_argument("--out", default="", help="Write the snapshot JSON to a local file. Ignored with --dry-run.")
+    usage_snapshot.add_argument("--dry-run", action="store_true", help="Build and print the snapshot without writing --out.")
+    usage_snapshot.set_defaults(func=cmd_skillops_usage_snapshot)
 
     catalog = sub.add_parser("catalog", help="Query the registered hosted adapted-skill catalog and browser.")
     catalog_sub = catalog.add_subparsers(dest="catalog_command", required=True)
