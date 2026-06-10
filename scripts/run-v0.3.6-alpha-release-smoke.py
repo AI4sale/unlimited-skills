@@ -1,47 +1,32 @@
 from __future__ import annotations
 
-import re
+import subprocess
+import sys
 from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def read(path: Path) -> str:
-    return path.read_text(encoding="utf-8", errors="replace")
-
-
-def require(condition: bool, message: str) -> None:
-    if not condition:
-        raise SystemExit(f"v0.3.6-alpha baseline smoke failed: {message}")
+def run(command: list[str]) -> None:
+    completed = subprocess.run(command, cwd=ROOT, text=True, encoding="utf-8", errors="replace", capture_output=True, check=False)
+    if completed.returncode != 0:
+        raise SystemExit(
+            "command failed: "
+            + " ".join(command)
+            + "\nstdout:\n"
+            + completed.stdout
+            + "\nstderr:\n"
+            + completed.stderr
+        )
+    print(completed.stdout, end="")
 
 
 def main() -> int:
-    print("Running v0.3.6-alpha catalog browser baseline smoke")
-    cli = read(ROOT / "unlimited_skills" / "cli.py")
-    docs = "\n".join(
-        read(path)
-        for path in (
-            ROOT / "README.md",
-            ROOT / "docs" / "catalog-browser.md",
-            ROOT / "docs" / "known-limitations.md",
-        )
-        if path.exists()
-    ).lower()
-    for command in ("browse", "search", "filters", "preview", "install"):
-        require(
-            re.search(rf"catalog_{command}\s*=\s*catalog_sub\.add_parser\(\"{command}\"", cli) is not None,
-            f"missing catalog {command} parser",
-        )
-    for phrase in (
-        "catalog browse",
-        "catalog search",
-        "metadata-only",
-        "registration",
-        "signed",
-    ):
-        require(phrase in docs, f"missing catalog browser docs phrase: {phrase}")
-    print("v0.3.6-alpha catalog browser baseline smoke passed")
+    print("Running v0.3.6-alpha final release smoke")
+    run([sys.executable, "scripts/run-v0.3.6-alpha-catalog-browser-release-smoke.py"])
+    run([sys.executable, "scripts/verify-v0.3.6-alpha-publication.py"])
+    print("v0.3.6-alpha final release smoke passed")
     return 0
 
 
