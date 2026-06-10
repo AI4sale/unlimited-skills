@@ -451,6 +451,24 @@ Restart Codex after installing the router skill.
 
 ## Install for Claude Code
 
+### Option A: Claude Code plugin (recommended)
+
+Since v0.3.12 the router ships as a native Claude Code plugin with a `SessionStart` hook, so the router contract is injected into every session deterministically instead of relying on `CLAUDE.md` or skill-list visibility. Install the CLI, then add the plugin inside Claude Code:
+
+```bash
+pip install unlimited-skills
+unlimited-skills setup --local-only
+```
+
+```text
+/plugin marketplace add AI4sale/unlimited-skills
+/plugin install unlimited-skills@unlimited-skills
+```
+
+See `docs/claude-code-plugin.md` for details, including how the plugin coexists with the script installer below.
+
+### Option B: script installer
+
 Install the router skill into `~/.claude/skills/unlimited-skills`.
 
 Claude Code's current skills documentation defines personal skills at `~/.claude/skills/<skill-name>/SKILL.md` and project skills at `.claude/skills/<skill-name>/SKILL.md`. The installer follows that layout: it installs one visible router skill, migrates existing personal and project skills into the Unlimited Skills library, patches `CLAUDE.md` by default, writes launchers that remember the selected project root, and rebuilds the index.
