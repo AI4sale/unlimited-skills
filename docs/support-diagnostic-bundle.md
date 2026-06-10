@@ -63,6 +63,8 @@ For skill improvement diagnostics, the support manifest includes summary counts 
 
 It does not include catalog item ids, item names, issue titles, raw recommendations, prompts, skill bodies, local paths, repo paths, customer data, tokens, proofs, or private keys.
 
+For v0.4 blocker-closure reports, support diagnostics remain counts, booleans, status strings, and redacted summaries only. No prompt or task content, skill content, local or repository locations, customer data, tokens, device proofs, private keys, or search terms may appear in the report payload.
+
 The support manifest excludes:
 
 - private pack names by default;

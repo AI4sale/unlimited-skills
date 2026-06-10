@@ -15,6 +15,8 @@ This contract does not:
 
 ## Outcomes
 
+All outcomes are preview or decision-only. No recommendation command applies an install, update, or remove operation automatically; future commands that act on an outcome must require explicit user confirmation and their own policy checks.
+
 The public outcome vocabulary is:
 
 - `allow_preview`: metadata can be shown without claiming install eligibility.
@@ -73,3 +75,9 @@ The fixture table in `unlimited_skills/recommendation_policy.py` covers:
 - stale installed version.
 
 The table is intentionally deterministic. It is a contract fixture for tests and future client/server integration, not a ranking algorithm and not an install plan.
+
+## v0.4 B-02 Closure Boundary
+
+B-02 is closed for public readiness by the public recommendation contract and refusal-code coverage. This closure does not approve v0.4 implementation until the final go/no-go review passes.
+
+Hosted recommendation metadata that affects install or update advice must be signed before the client treats it as trusted. Unsigned metadata remains refused or display-only fixture data. MIT local core remains registration-free: local search, list, view, where, use, feedback, reindex, vector reindex, serve, and public self-update behavior do not require hosted registration.
