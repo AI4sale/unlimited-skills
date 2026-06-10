@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "manifest_type": "catalog-eval-status",
+  "eval_status": {
+    "item_id": "community:browser-qa-pack:0.1.0",
+    "evaluation_status": "passed",
+    "quality_grade": "b",
+    "score_band": "80-89",
+    "last_eval_at": "2026-06-10T08:00:00Z",
+    "next_eval_at": "2026-06-17T08:00:00Z",
+    "evaluator_version": "catalog-eval-v1",
+    "blockers": [],
+    "warnings": ["low_recent_success_rate"],
+    "compatibility_notes": ["codex ok"],
+    "feedback_issue_categories": ["install_failure"],
+    "deprecation_status": "active",
+    "retired": false
+  },
+  "manifest_signature": {
+    "algorithm": "ed25519",
+    "key_id": "registry-alpha-2026-06",
+    "signed_payload_sha256": "example",
+    "signature": "example"
+  }
+}

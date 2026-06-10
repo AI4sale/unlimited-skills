@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills catalog evaluation status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "manifest_type",
+    "eval_status",
+    "manifest_signature"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "manifest_type": { "type": "string", "const": "catalog-eval-status" },
+    "eval_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["item_id", "evaluation_status", "quality_grade", "score_band", "last_eval_at", "blockers", "warnings", "compatibility_notes", "feedback_issue_categories", "deprecation_status", "retired"],
+      "properties": {
+        "item_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$" },
+        "evaluation_status": { "type": "string", "enum": ["passed", "warning", "blocked", "pending", "stale", "unknown"] },
+        "quality_grade": { "type": "string", "enum": ["a", "b", "c", "d", "f", "blocked", "unknown"] },
+        "score_band": { "type": "string" },
+        "last_eval_at": { "type": "string" },
+        "next_eval_at": { "type": "string" },
+        "evaluator_version": { "type": "string" },
+        "blockers": { "type": "array", "items": { "type": "string" } },
+        "warnings": { "type": "array", "items": { "type": "string" } },
+        "compatibility_notes": { "type": "array", "items": { "type": "string" } },
+        "feedback_issue_categories": { "type": "array", "items": { "type": "string" } },
+        "deprecation_status": { "type": "string", "enum": ["active", "deprecated", "retired", "blocked"] },
+        "retired": { "type": "boolean" }
+      }
+    },
+    "manifest_signature": { "type": "object" }
+  }
+}

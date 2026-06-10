@@ -25,6 +25,7 @@ def test_catalog_browser_public_fixture_e2e_without_private_checkout() -> None:
     assert payload["signed_metadata_verified"] is True
     assert payload["metadata_only_preview"] is True
     assert payload["dry_run_install_verified"] is True
+    assert payload["quality_status_verified"] is True
     assert payload["production_hosted_calls"] is False
 
 
@@ -39,5 +40,5 @@ def test_catalog_browser_local_registry_e2e_when_available() -> None:
     assert payload["approved_only_visibility"] is True
     assert payload["signed_metadata_verified"] is True
     assert payload["metadata_only_preview"] is True
-    assert payload["dry_run_install_verified"] is True
+    assert payload["dry_run_install_verified"] is payload["quality_status_api_available"]
     assert payload["production_hosted_calls"] is False

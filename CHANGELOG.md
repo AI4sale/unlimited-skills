@@ -6,6 +6,7 @@
 
 - Explicit registered catalog feedback commands: `catalog feedback` and `catalog feedback-status`, with dry-run, confirmation, schemas, examples, docs, and support-bundle redaction.
 - v0.3.7-alpha final publication gate, release smoke, publication verifier, upgrade notes, known issues, and draft release notes for the explicit catalog feedback milestone.
+- Registered catalog quality and evaluation status commands: `catalog quality`, `catalog eval-status`, `catalog explain-risk`, plus browser/search `--show-quality`, signed metadata verification, install-risk warnings, blocked hosted install refusal, schemas, examples, docs, and support-bundle summary counts.
 
 ### Changed
 

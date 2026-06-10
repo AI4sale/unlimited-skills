@@ -34,6 +34,8 @@ BUNDLED_TRUSTED_MANIFEST_KEYS = [
             "catalog-browser-item",
             "catalog-browser-preview",
             "catalog-browser-filters",
+            "catalog-quality-status",
+            "catalog-eval-status",
             "enhancement-manifest",
             "team-sync-manifest",
             "release-channels",

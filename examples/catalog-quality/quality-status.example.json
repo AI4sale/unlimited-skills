@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "manifest_type": "catalog-quality-status",
+  "quality_status": {
+    "item_id": "community:browser-qa-pack:0.1.0",
+    "quality_grade": "b",
+    "score_band": "80-89",
+    "last_eval_at": "2026-06-10T08:00:00Z",
+    "blockers": [],
+    "warnings": ["low_recent_success_rate"],
+    "compatibility_notes": ["codex ok", "claude-code requires 0.3.4 or newer"],
+    "deprecation_status": "active",
+    "retired": false,
+    "feedback_issue_categories": ["install_failure", "documentation_issue"],
+    "install_risk": "warning",
+    "install_allowed": true
+  },
+  "manifest_signature": {
+    "algorithm": "ed25519",
+    "key_id": "registry-alpha-2026-06",
+    "signed_payload_sha256": "example",
+    "signature": "example"
+  }
+}

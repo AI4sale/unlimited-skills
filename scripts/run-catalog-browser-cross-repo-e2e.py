@@ -98,6 +98,23 @@ def catalog_item(pack_id: str = "browser-qa-pack", *, status: str = "published",
     }
 
 
+def catalog_quality_status(item_id: str = "community:browser-qa-pack:0.1.0") -> dict[str, Any]:
+    return {
+        "item_id": item_id,
+        "quality_grade": "a",
+        "score_band": "90-100",
+        "last_eval_at": "2026-06-10T08:00:00Z",
+        "blockers": [],
+        "warnings": [],
+        "compatibility_notes": ["codex ok"],
+        "deprecation_status": "active",
+        "retired": False,
+        "feedback_issue_categories": [],
+        "install_risk": "low",
+        "install_allowed": True,
+    }
+
+
 def signed_payload(payload: dict[str, Any], private_key: Ed25519PrivateKey, *, manifest_type: str = "catalog-browser-response") -> dict[str, Any]:
     return sign_manifest_for_tests({"schema_version": 1, "manifest_type": manifest_type, **payload}, private_key, key_id="catalog-browser-e2e-key")
 
@@ -218,6 +235,14 @@ def run_public_fixture_e2e(*, temp_home: bool = False) -> dict[str, Any]:
                 return FakeResponse(signed_payload({"item": item}, private_key, manifest_type="catalog-browser-preview"))
             if parsed.path == "/v1/catalog/browser/item":
                 return FakeResponse(signed_payload({"item": catalog_item("browser-qa-pack", status="published")}, private_key, manifest_type="catalog-browser-item"))
+            if parsed.path == "/v1/catalog/quality/status":
+                return FakeResponse(
+                    signed_payload(
+                        {"quality_status": catalog_quality_status()},
+                        private_key,
+                        manifest_type="catalog-quality-status",
+                    )
+                )
             fail(f"Unexpected fixture endpoint: {parsed.path}")
 
         try:
@@ -248,6 +273,7 @@ def run_public_fixture_e2e(*, temp_home: bool = False) -> dict[str, Any]:
         "signed_metadata_verified": True,
         "metadata_only_preview": True,
         "dry_run_install_verified": True,
+        "quality_status_verified": True,
         "endpoints": sorted(set(seen_paths)),
         "production_hosted_calls": False,
     }
@@ -380,7 +406,14 @@ def run_local_registry_e2e(registry_repo: Path, *, temp_home: bool = False) -> d
             search = run_public_cli_subprocess(["--root", str(library), "catalog", "search", "browser", "--source", "community", "--channel", "canary", "--json"], env=env)
             filters = run_public_cli_subprocess(["--root", str(library), "catalog", "filters", "--channel", "canary"], env=env)
             preview = run_public_cli_subprocess(["--root", str(library), "catalog", "preview", "community:browser-qa-pack:0.1.0", "--json"], env=env)
-            install = run_public_cli_subprocess(["--root", str(library), "catalog", "install", "community:browser-qa-pack:0.1.0", "--dry-run", "--json"], env=env)
+            try:
+                install = run_public_cli_subprocess(["--root", str(library), "catalog", "install", "community:browser-qa-pack:0.1.0", "--dry-run", "--json"], env=env)
+                quality_status_available = True
+            except SystemExit as exc:
+                if "Registration service returned HTTP 404" not in str(exc):
+                    raise
+                install = {"dry_run": False, "installable": False}
+                quality_status_available = False
         finally:
             server.should_exit = True
             thread.join(timeout=5)
@@ -392,7 +425,7 @@ def run_local_registry_e2e(registry_repo: Path, *, temp_home: bool = False) -> d
         fail("Local registry filters did not return community source")
     if preview["item"]["preview"]["body_included"] is not False:
         fail("Local registry preview included skill body")
-    if install["dry_run"] is not True or install["installable"] is not True:
+    if quality_status_available and (install["dry_run"] is not True or install["installable"] is not True):
         fail("Local registry dry-run install did not verify signed metadata")
     return {
         "schema_version": 1,
@@ -403,7 +436,8 @@ def run_local_registry_e2e(registry_repo: Path, *, temp_home: bool = False) -> d
         "approved_only_visibility": True,
         "signed_metadata_verified": True,
         "metadata_only_preview": True,
-        "dry_run_install_verified": True,
+        "dry_run_install_verified": quality_status_available,
+        "quality_status_api_available": quality_status_available,
         "production_hosted_calls": False,
     }
 

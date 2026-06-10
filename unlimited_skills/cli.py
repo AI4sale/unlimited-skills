@@ -17,6 +17,7 @@ from . import __version__
 from .adapters import SKILL_PACKS, adapt_library, apply_agent_adaptation, adaptation_task, install_pack, next_skill_for_agent
 from .catalog_browser import CatalogBrowserClient
 from .catalog_feedback import CatalogFeedbackClient, build_feedback_payload
+from .catalog_quality import CatalogQualityClient, dumps_status
 from .community import (
     CommunityClient,
     build_submission_draft,
@@ -1234,7 +1235,7 @@ def cmd_catalog_list(args: argparse.Namespace) -> int:
     return 0
 
 
-def _emit_catalog_browser_items(items, *, as_json: bool) -> int:
+def _emit_catalog_browser_items(items, *, as_json: bool, show_quality: bool = False) -> int:
     payload = {"count": len(items), "items": [asdict(item) for item in items]}
     if as_json:
         print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
@@ -1252,6 +1253,16 @@ def _emit_catalog_browser_items(items, *, as_json: bool) -> int:
             print(f"  {item.description}")
         if item.warnings:
             print("  warnings: " + ", ".join(item.warnings))
+        if show_quality and item.quality_grade:
+            print(f"  quality: {item.quality_grade.upper()} / {item.score_band or 'unknown'}")
+            if item.last_eval_at:
+                print(f"  last eval: {item.last_eval_at}")
+            if item.blockers:
+                print("  blockers: " + ", ".join(item.blockers))
+            if item.compatibility_notes:
+                print("  compatibility: " + ", ".join(item.compatibility_notes))
+            if item.feedback_issue_categories:
+                print("  feedback issues: " + ", ".join(item.feedback_issue_categories))
     return 0
 
 
@@ -1261,6 +1272,10 @@ def _catalog_client(args: argparse.Namespace) -> CatalogBrowserClient:
 
 def _catalog_feedback_client(args: argparse.Namespace) -> CatalogFeedbackClient:
     return CatalogFeedbackClient(load_registration(), timeout=args.timeout)
+
+
+def _catalog_quality_client(args: argparse.Namespace) -> CatalogQualityClient:
+    return CatalogQualityClient(load_registration(), timeout=args.timeout)
 
 
 def cmd_catalog_browse(args: argparse.Namespace) -> int:
@@ -1273,9 +1288,10 @@ def cmd_catalog_browse(args: argparse.Namespace) -> int:
         skill_kind=args.skill_kind,
         category=args.category,
         include_deprecated=args.include_deprecated,
+        show_quality=args.show_quality,
         limit=args.limit,
     )
-    return _emit_catalog_browser_items(items, as_json=args.json)
+    return _emit_catalog_browser_items(items, as_json=args.json, show_quality=args.show_quality)
 
 
 def cmd_catalog_search(args: argparse.Namespace) -> int:
@@ -1289,9 +1305,10 @@ def cmd_catalog_search(args: argparse.Namespace) -> int:
         skill_kind=args.skill_kind,
         category=args.category,
         include_deprecated=args.include_deprecated,
+        show_quality=args.show_quality,
         limit=args.limit,
     )
-    return _emit_catalog_browser_items(items, as_json=args.json)
+    return _emit_catalog_browser_items(items, as_json=args.json, show_quality=args.show_quality)
 
 
 def cmd_catalog_filters(args: argparse.Namespace) -> int:
@@ -1404,6 +1421,69 @@ def cmd_catalog_feedback_status(args: argparse.Namespace) -> int:
         print(f"Feedback count: {response.get('feedback_count', 0)}")
         for key, value in sorted((response.get("counts_by_status") or {}).items()):
             print(f"{key}: {value}")
+    return 0
+
+
+def cmd_catalog_quality(args: argparse.Namespace) -> int:
+    status = _catalog_quality_client(args).quality(args.item_id)
+    if args.json:
+        print(dumps_status(status))
+        return 0
+    print(f"Item: {status.item_id}")
+    print(f"Quality: {status.quality_grade.upper()} ({status.score_band})")
+    print(f"Last eval: {status.last_eval_at or '(unknown)'}")
+    print(f"Install risk: {status.install_risk}")
+    print(f"Deprecation: {status.deprecation_status}")
+    if status.blockers:
+        print("Blockers: " + ", ".join(status.blockers))
+    if status.warnings:
+        print("Warnings: " + ", ".join(status.warnings))
+    if status.compatibility_notes:
+        print("Compatibility: " + ", ".join(status.compatibility_notes))
+    if status.feedback_issue_categories:
+        print("Feedback issues: " + ", ".join(status.feedback_issue_categories))
+    return 0
+
+
+def cmd_catalog_eval_status(args: argparse.Namespace) -> int:
+    status = _catalog_quality_client(args).eval_status(args.item_id)
+    if args.json:
+        print(dumps_status(status))
+        return 0
+    print(f"Item: {status.item_id}")
+    print(f"Evaluation: {status.evaluation_status}")
+    print(f"Quality: {status.quality_grade.upper()} ({status.score_band})")
+    print(f"Last eval: {status.last_eval_at or '(unknown)'}")
+    if status.next_eval_at:
+        print(f"Next eval: {status.next_eval_at}")
+    if status.blockers:
+        print("Blockers: " + ", ".join(status.blockers))
+    if status.warnings:
+        print("Warnings: " + ", ".join(status.warnings))
+    if status.compatibility_notes:
+        print("Compatibility: " + ", ".join(status.compatibility_notes))
+    if status.feedback_issue_categories:
+        print("Feedback issues: " + ", ".join(status.feedback_issue_categories))
+    return 0
+
+
+def cmd_catalog_explain_risk(args: argparse.Namespace) -> int:
+    payload = _catalog_quality_client(args).explain_risk(args.item_id)
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    status = payload["quality_status"]
+    print(f"Item: {payload['item_id']}")
+    print(f"Quality: {str(status.get('quality_grade') or 'unknown').upper()} ({status.get('score_band') or 'unknown'})")
+    print("Blocked: " + ("yes" if payload["blocked"] else "no"))
+    print("Warning: " + ("yes" if payload["warning"] else "no"))
+    print(payload["message"])
+    blockers = status.get("blockers") or []
+    warnings = status.get("warnings") or []
+    if blockers:
+        print("Blockers: " + ", ".join(str(item) for item in blockers))
+    if warnings:
+        print("Warnings: " + ", ".join(str(item) for item in warnings))
     return 0
 
 
@@ -2505,6 +2585,7 @@ def build_parser() -> argparse.ArgumentParser:
     catalog_browse.add_argument("--skill-kind", default="")
     catalog_browse.add_argument("--category", default="")
     catalog_browse.add_argument("--include-deprecated", action="store_true")
+    catalog_browse.add_argument("--show-quality", action="store_true", help="Include signed quality/evaluation summary fields in browser results.")
     catalog_browse.add_argument("--limit", type=int, default=50)
     catalog_browse.add_argument("--json", action="store_true")
     catalog_browse.add_argument("--timeout", type=float, default=30.0)
@@ -2517,6 +2598,7 @@ def build_parser() -> argparse.ArgumentParser:
     catalog_search.add_argument("--skill-kind", default="")
     catalog_search.add_argument("--category", default="")
     catalog_search.add_argument("--include-deprecated", action="store_true")
+    catalog_search.add_argument("--show-quality", action="store_true", help="Include signed quality/evaluation summary fields in search results.")
     catalog_search.add_argument("--limit", type=int, default=20)
     catalog_search.add_argument("--json", action="store_true")
     catalog_search.add_argument("--timeout", type=float, default=30.0)
@@ -2566,6 +2648,21 @@ def build_parser() -> argparse.ArgumentParser:
     catalog_feedback_status.add_argument("--json", action="store_true")
     catalog_feedback_status.add_argument("--timeout", type=float, default=30.0)
     catalog_feedback_status.set_defaults(func=cmd_catalog_feedback_status)
+    catalog_quality = catalog_sub.add_parser("quality", help="Show signed quality status for one catalog item.")
+    catalog_quality.add_argument("item_id")
+    catalog_quality.add_argument("--json", action="store_true")
+    catalog_quality.add_argument("--timeout", type=float, default=30.0)
+    catalog_quality.set_defaults(func=cmd_catalog_quality)
+    catalog_eval_status = catalog_sub.add_parser("eval-status", help="Show signed evaluation status for one catalog item.")
+    catalog_eval_status.add_argument("item_id")
+    catalog_eval_status.add_argument("--json", action="store_true")
+    catalog_eval_status.add_argument("--timeout", type=float, default=30.0)
+    catalog_eval_status.set_defaults(func=cmd_catalog_eval_status)
+    catalog_explain_risk = catalog_sub.add_parser("explain-risk", help="Explain signed install-risk warnings for one catalog item.")
+    catalog_explain_risk.add_argument("item_id")
+    catalog_explain_risk.add_argument("--json", action="store_true")
+    catalog_explain_risk.add_argument("--timeout", type=float, default=30.0)
+    catalog_explain_risk.set_defaults(func=cmd_catalog_explain_risk)
 
     release = sub.add_parser("release", help="Inspect and pin hosted registry release channels.")
     release_sub = release.add_subparsers(dest="release_command", required=True)

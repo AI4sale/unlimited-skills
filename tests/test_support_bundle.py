@@ -177,11 +177,14 @@ def test_support_bundle_private_pack_summary_is_redacted(tmp_path: Path, monkeyp
     assert report["diagnostics"]["catalog_browser"]["item_names_included"] is False
     assert report["diagnostics"]["catalog_feedback"]["explicit_feedback_only"] is True
     assert report["diagnostics"]["catalog_feedback"]["raw_feedback_included"] is False
+    assert report["diagnostics"]["catalog_quality"]["summary_counts_only"] is True
+    assert report["diagnostics"]["catalog_quality"]["quality_status"]["known_count"] == 0
     assert report["diagnostics"]["private_packs"]["local"]["sha_mismatch_count"] == 1
     assert report["manifest"]["diagnostics_summary"]["plan"] == "community-core"
     assert report["manifest"]["diagnostics_summary"]["subscription_status"] == "past_due"
     assert report["manifest"]["diagnostics_summary"]["private_pack_installed_count"] == 1
     assert report["diagnostics"]["privacy"]["skill_bodies_included"] is False
+    assert report["diagnostics"]["privacy"]["catalog_quality_summary_counts_only"] is True
     assert "secret private skills" not in serialized
     assert "team_pack_secret" not in serialized
     assert "uls_secret_support_token" not in serialized
