@@ -1,0 +1,175 @@
+{
+  "blocker_closure_inputs": {
+    "B-01": "closed_on_private_registry_main",
+    "B-02": "closed_on_public_main",
+    "B-03": "closed_on_private_registry_main",
+    "B-04": "closed_on_private_registry_main"
+  },
+  "checks": {
+    "eval_release_gate_outcomes": true,
+    "forbidden_field_rejection": true,
+    "maintainer_queue_transitions": true,
+    "no_auto_publish": true,
+    "no_automatic_install_update_remove": true,
+    "no_automatic_skill_rewriting": true,
+    "no_full_catalog_distribution": true,
+    "no_live_billing": true,
+    "no_private_registry_content_in_public_repo": true,
+    "no_production_hosted_calls": true,
+    "no_production_signing_key_required": true,
+    "no_pypi": true,
+    "policy_aware_recommendation_refusal_codes": true,
+    "signed_skillops_metadata_contract": true,
+    "skill_improvement_workflow": true,
+    "support_bundle_redaction": true,
+    "unsigned_metadata_rejection": true
+  },
+  "evidence": [
+    "signed SkillOps metadata fixture validation",
+    "unsigned metadata rejection proof",
+    "forbidden-field rejection proof",
+    "policy-aware refusal-code contract",
+    "eval release gate fixture coverage",
+    "maintainer queue lifecycle fixture coverage",
+    "skill improvement cross-repo E2E",
+    "support diagnostics redaction proof"
+  ],
+  "generated_at": "2026-06-10T00:00:00Z",
+  "implementation_approval": {
+    "approved": false,
+    "reason": "This suite is technical readiness evidence only; v0.4 still requires the go/no-go decision gate."
+  },
+  "mode": "fixture",
+  "public_client": {
+    "recommendation_policy": {
+      "decision_count": 16,
+      "no_mutation": true,
+      "preview_only": true,
+      "refusal_codes": [
+        "blocked_item",
+        "entitlement_denied",
+        "local_only",
+        "low_score",
+        "policy_denied",
+        "registration_required",
+        "retired_item",
+        "unsigned_metadata",
+        "wrong_agent",
+        "wrong_channel"
+      ],
+      "support_bundle": {
+        "counts_and_status_only": true,
+        "private_keys_included": false,
+        "prompts_included": false,
+        "skill_bodies_included": false,
+        "tokens_included": false
+      }
+    },
+    "skill_improvement_e2e": {
+      "mode": "fixture",
+      "production_hosted_calls": false,
+      "status": "passed",
+      "support_bundle_counts_only": true,
+      "update_preview_will_update": false,
+      "update_recommendations_preview_only": true
+    }
+  },
+  "registry": {
+    "eval_release_gates": {
+      "automatic_production_rollback": false,
+      "covered_outcomes": [
+        "block_release",
+        "pass",
+        "pass_with_warning",
+        "require_override",
+        "rollback_recommended"
+      ],
+      "override_rules_checked": true,
+      "rollback_recommended_fixture_checked": true,
+      "status": "passed"
+    },
+    "maintainer_queue": {
+      "auto_publish": false,
+      "automatic_skill_rewrite": false,
+      "fixed_pending_eval_checked": true,
+      "invalid_transitions_rejected": true,
+      "status": "passed",
+      "valid_transitions_checked": true
+    },
+    "mode": "fixture",
+    "privacy": {
+      "automatic_telemetry": false,
+      "customer_data_included": false,
+      "full_catalog_distribution": false,
+      "live_billing": false,
+      "local_paths_included": false,
+      "private_keys_included": false,
+      "production_hosted_calls": false,
+      "production_signing_key_required": false,
+      "prompts_included": false,
+      "proofs_included": false,
+      "pypi_publication": false,
+      "repo_paths_included": false,
+      "search_queries_included": false,
+      "skill_bodies_included": false,
+      "task_text_included": false,
+      "tokens_included": false
+    },
+    "skillops_contracts": {
+      "forbidden_field_rejection": true,
+      "production_hosted_calls": false,
+      "production_signing_key_required": false,
+      "signed_manifest_types": [
+        "skillops-dashboard-summary",
+        "skillops-eval-gate-summary",
+        "skillops-maintainer-queue-status",
+        "skillops-recommendation-input",
+        "skillops-refusal",
+        "skillops-self-hosted-status"
+      ],
+      "status": "passed",
+      "unsigned_rejection": true
+    }
+  },
+  "report": "v0.4-cross-repo-readiness",
+  "repositories": {
+    "private_registry": {
+      "repository": "AI4sale/unlimited-skills-registry",
+      "source": "fixture"
+    },
+    "public_client": {
+      "base_branch": "main",
+      "repository": "AI4sale/unlimited-skills"
+    }
+  },
+  "residual_risks": [
+    {
+      "action": "Run and approve the v0.4 go/no-go decision gate.",
+      "fallback": "Keep v0.4 as NO_GO and continue blocker cleanup only.",
+      "id": "CRR-01",
+      "owner": "release-owner",
+      "severity": "P0",
+      "summary": "Final v0.4 go/no-go is still required before implementation epics start."
+    }
+  ],
+  "safety_boundaries": {
+    "automatic_telemetry": false,
+    "customer_data_included": false,
+    "full_catalog_distribution": false,
+    "live_billing": false,
+    "local_paths_included": false,
+    "private_keys_included": false,
+    "production_hosted_calls": false,
+    "production_signing_key_required": false,
+    "prompts_included": false,
+    "proofs_included": false,
+    "pypi_publication": false,
+    "repo_paths_included": false,
+    "search_queries_included": false,
+    "skill_bodies_included": false,
+    "task_text_included": false,
+    "tokens_included": false
+  },
+  "schema_version": 1,
+  "status": "passed"
+}

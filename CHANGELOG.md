@@ -8,11 +8,13 @@
 - SkillOps architecture RFC defining the v0.4 VFP, non-goals, data/trust boundaries, permission model, migration plan, Mermaid architecture diagram, and candidate modules for policy-aware skill recommendation, eval-driven catalog release gates, maintainer improvement queues, agent/runtime usage summaries, governance dashboard, optional self-hosted registry mode, and future human-reviewed automatic improvement proposals.
 - v0.4 risk register, first four implementation epics, docs verifier, and focused docs tests.
 - v0.4 public blocker closure ledger and verifier for PR #69, B-02 closure, recommendation non-mutation, signed hosted metadata, registration-free MIT local core, and support-bundle redaction boundaries.
+- v0.4 cross-repo readiness suite, verifier, and fixture report proving the public client plus private registry contracts satisfy signed SkillOps metadata, eval gate, maintainer queue, recommendation refusal, skill improvement, support redaction, and no-mutation boundaries before the final go/no-go decision.
 
 ### Security
 
 - Repeated that v0.4 planning does not authorize automatic skill rewriting, auto-publish, automatic telemetry, live billing, PyPI publication, full catalog distribution, or automatic hosted query forwarding.
 - Repeated that v0.4 must preserve no-prompt/no-skill-body/no-private-data boundaries, signed hosted manifest requirements, and registration-free MIT local core behavior.
+- Added v0.4 cross-repo readiness checks that require no production hosted calls, no production signing key, no live billing, no PyPI, no full catalog distribution, no automatic install/update/remove, no automatic skill rewriting, and no auto-publish.
 
 ## v0.3.9-alpha (publication candidate)
 

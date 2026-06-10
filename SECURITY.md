@@ -96,6 +96,12 @@ The public client and v0.3.9-alpha tests must not rewrite skills automatically, 
 
 Support bundles include only aggregate skill improvement counters. They must not print item ids, issue titles, raw feedback, recommendations, private skill bodies, prompts, search queries, local paths, repo paths, hosted tokens, device proofs, or private keys.
 
+## v0.4 Cross-Repo Readiness Boundary
+
+The v0.4 cross-repo readiness suite is a fixture/local-checkout verification gate, not v0.4 feature implementation. It verifies signed SkillOps metadata, unsigned and forbidden-field rejection, policy-aware refusal codes, eval gate fixtures, maintainer queue transition fixtures, skill improvement workflow evidence, and support-bundle redaction.
+
+The suite must not call production hosted services, require production signing keys, distribute private registry content in the public repo, enable live billing, publish to PyPI, distribute the full catalog, install/update/remove skills automatically, rewrite skills automatically, or auto-publish.
+
 ## Known Security Limitations In v0.3.9-alpha
 
 - Hosted manifest signatures verify manifest authenticity; archive bytes are still verified with SHA256 and safe extraction, not archive-byte signatures.
