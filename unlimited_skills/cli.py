@@ -1281,7 +1281,7 @@ def _emit_community_items(items, *, as_json: bool) -> int:
 def cmd_community_list(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     client = CommunityClient(load_registration(), timeout=args.timeout)
-    items = client.list_community_items(root, limit=args.limit, compatible_agent=args.compatible_agent, tags=_split_csv(args.tags))
+    items = client.list_community_items_v2(root, limit=args.limit, compatible_agent=args.compatible_agent, tags=_split_csv(args.tags), channel=args.channel)
     return _emit_community_items(items, as_json=args.json)
 
 
@@ -1366,7 +1366,13 @@ def cmd_community_submit(args: argparse.Namespace) -> int:
         "note": "Community submission uploads the selected skill/pack content for maintainer review.",
     }
     if args.dry_run:
-        payload["result"] = asdict(CommunityClient(load_registration(), timeout=args.timeout).submit_community_skill(draft, dry_run=True))
+        payload["result"] = {
+            "submission_id": "",
+            "status": "draft",
+            "preview_path": draft.preview_path,
+            "uploaded": False,
+            "message": "Dry run: no content uploaded.",
+        }
         print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
         return 0
     client = CommunityClient(load_registration(), timeout=args.timeout)
@@ -1380,6 +1386,20 @@ def cmd_community_submit(args: argparse.Namespace) -> int:
 def cmd_community_submission_status(args: argparse.Namespace) -> int:
     client = CommunityClient(load_registration(), timeout=args.timeout)
     payload = client.get_submission_status(args.submission_id)
+    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_community_withdraw(args: argparse.Namespace) -> int:
+    client = CommunityClient(load_registration(), timeout=args.timeout)
+    payload = client.withdraw_submission(args.submission_id)
+    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0
+
+
+def cmd_community_review_notes(args: argparse.Namespace) -> int:
+    client = CommunityClient(load_registration(), timeout=args.timeout)
+    payload = client.review_notes(args.submission_id)
     print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 
@@ -2320,6 +2340,7 @@ def build_parser() -> argparse.ArgumentParser:
     community_list = community_sub.add_parser("list", help="List registered community catalog skills.")
     community_list.add_argument("--limit", type=int, default=50)
     community_list.add_argument("--tags", default="", help="Comma-separated tag filter.")
+    community_list.add_argument("--channel", default="", choices=["", "canary", "beta", "stable"], help="Filter approved signed community items by release channel.")
     community_list.add_argument("--compatible-agent", default="", choices=["", "codex", "claude-code", "hermes", "openclaw", "vellum-ai"])
     community_list.add_argument("--json", action="store_true")
     community_list.add_argument("--timeout", type=float, default=30.0)
@@ -2363,6 +2384,14 @@ def build_parser() -> argparse.ArgumentParser:
     community_status.add_argument("submission_id", nargs="?", default="")
     community_status.add_argument("--timeout", type=float, default=30.0)
     community_status.set_defaults(func=cmd_community_submission_status)
+    community_withdraw = community_sub.add_parser("withdraw", help="Withdraw a pending community submission.")
+    community_withdraw.add_argument("submission_id")
+    community_withdraw.add_argument("--timeout", type=float, default=30.0)
+    community_withdraw.set_defaults(func=cmd_community_withdraw)
+    community_review_notes = community_sub.add_parser("review-notes", help="Show maintainer review notes for a community submission.")
+    community_review_notes.add_argument("submission_id")
+    community_review_notes.add_argument("--timeout", type=float, default=30.0)
+    community_review_notes.set_defaults(func=cmd_community_review_notes)
     community_installed = community_sub.add_parser("installed", help="List locally installed community skills without hosted calls by default.")
     community_installed.add_argument("--refresh", action="store_true", help="Check hosted service for refresh metadata; requires registration.")
     community_installed.add_argument("--json", action="store_true")

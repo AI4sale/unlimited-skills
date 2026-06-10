@@ -18,8 +18,10 @@ unlimited-skills community list
 unlimited-skills community search "react"
 unlimited-skills community preview <catalog-item-id>
 unlimited-skills community install <catalog-item-id>
-unlimited-skills community submit <path>
 unlimited-skills community submission-status [submission-id]
+unlimited-skills community withdraw <submission-id>
+unlimited-skills community review-notes <submission-id>
+unlimited-skills community submit <path> --yes
 ```
 
 Without registration, the MIT local core still works:
@@ -37,10 +39,12 @@ Without registration, the MIT local core still works:
 
 `community installed` reads local metadata and does not call the hosted service unless `--refresh` is passed. `community remove` is local-only by default.
 
+`community submit <path> --dry-run` is also local-only: it validates the selected path and writes the upload preview without requiring registration or contacting the hosted service.
+
 ## Browse And Install
 
 ```bash
-unlimited-skills community list
+unlimited-skills community list --channel canary
 unlimited-skills community search "browser qa" --compatible-agent codex
 unlimited-skills community preview comm_browser_qa
 unlimited-skills community install comm_browser_qa --dry-run
@@ -50,14 +54,14 @@ unlimited-skills community install comm_browser_qa --yes
 Install flow:
 
 1. The client requests an install plan from the registered community service.
-2. The server returns sanitized metadata plus an archive URL and SHA256.
+2. The server returns a signed approved/published item plus sanitized metadata, archive URL, and SHA256.
 3. The client downloads the archive over HTTPS.
 4. The client verifies SHA256 before extraction.
 5. The client safely extracts the archive and rejects path traversal.
 6. The client installs under `registry/<requested-collection>/`, usually `registry/community/`.
 7. The client records local installed metadata and rebuilds the lexical index unless `--skip-reindex` is passed.
 
-No downloaded community content is executed by this flow.
+No downloaded community content is executed by this flow. Preview and install refuse unsigned hosted community responses and signed items whose review status is not `approved` or `published`.
 
 ## Submit
 
@@ -85,6 +89,8 @@ The upload contains only the user-selected skill or pack content. List, search, 
 ```bash
 unlimited-skills community submission-status
 unlimited-skills community submission-status <submission-id>
+unlimited-skills community withdraw <submission-id>
+unlimited-skills community review-notes <submission-id>
 unlimited-skills community installed
 unlimited-skills community installed --refresh
 unlimited-skills community remove community --dry-run

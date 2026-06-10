@@ -98,6 +98,8 @@ class CommunityCatalogItem:
     tags: tuple[str, ...] = ()
     skill_count: int = 0
     updated_at: str = ""
+    channel: str = "canary"
+    review_status: str = "approved"
     min_client_version: str = ""
     license_label: str = ""
     install_target: str = "community"
@@ -217,6 +219,8 @@ def _item_from_json(data: dict[str, Any]) -> CommunityCatalogItem:
         tags=_tuple_of_strings(data.get("tags")),
         skill_count=int(data.get("skill_count") or 0),
         updated_at=str(data.get("updated_at") or ""),
+        channel=str(data.get("channel") or "canary"),
+        review_status=str(data.get("review_status") or data.get("status") or "approved"),
         min_client_version=str(data.get("min_client_version") or ""),
         license_label=str(data.get("license_label") or ""),
         install_target=str(data.get("install_target") or "community"),
@@ -230,6 +234,34 @@ def parse_catalog_items(data: dict[str, Any]) -> list[CommunityCatalogItem]:
     if not isinstance(raw, list):
         raise CommunityError("Community service returned an invalid catalog item list.")
     return [_item_from_json(item) for item in raw if isinstance(item, dict)]
+
+
+def _verify_signed_community_payload(data: dict[str, Any], *, purpose: str) -> None:
+    try:
+        verify_manifest_signature(
+            data,
+            purpose=purpose,
+            required=True,
+            scope=str(data.get("manifest_type") or "community-catalog"),
+            registry_url="",
+        )
+    except ManifestSignatureError as exc:
+        raise CommunityError(str(exc)) from exc
+
+
+def _is_approved_review_status(value: str) -> bool:
+    return str(value or "").lower() in {"approved", "published"}
+
+
+def _approved_items(items: list[CommunityCatalogItem], *, channel: str = "") -> list[CommunityCatalogItem]:
+    selected = []
+    for item in items:
+        if not _is_approved_review_status(item.review_status):
+            continue
+        if channel and item.channel != channel:
+            continue
+        selected.append(item)
+    return selected
 
 
 def _is_missing_endpoint_error(exc: Exception) -> bool:
@@ -267,6 +299,8 @@ def _pack_item(pack: dict[str, Any]) -> CommunityCatalogItem:
             "tags": ["registered-catalog", str(pack.get("channel") or "community")],
             "skill_count": int(pack.get("skill_count") or 0),
             "updated_at": str(pack.get("generated_at") or ""),
+            "channel": str(pack.get("channel") or "canary"),
+            "review_status": str(pack.get("review_status") or pack.get("status") or "approved"),
             "min_client_version": str(pack.get("min_core_version") or ""),
             "license_label": str(pack.get("license") or "registered-community-terms"),
             "install_target": collection or pack_id,
@@ -281,7 +315,7 @@ def _catalog_packs(data: dict[str, Any]) -> list[dict[str, Any]]:
     return [item for item in packs if isinstance(item, dict)] if isinstance(packs, list) else []
 
 
-def _catalog_items_from_packs(data: dict[str, Any], *, query: str = "", tags: tuple[str, ...] = (), limit: int = 50) -> list[CommunityCatalogItem]:
+def _catalog_items_from_packs(data: dict[str, Any], *, query: str = "", tags: tuple[str, ...] = (), channel: str = "", limit: int = 50) -> list[CommunityCatalogItem]:
     query_lower = query.strip().lower()
     wanted_tags = {tag.lower() for tag in tags}
     items: list[CommunityCatalogItem] = []
@@ -292,6 +326,10 @@ def _catalog_items_from_packs(data: dict[str, Any], *, query: str = "", tags: tu
         if query_lower and query_lower not in haystack:
             continue
         if wanted_tags and not wanted_tags.issubset(item_tags):
+            continue
+        if channel and item.channel != channel:
+            continue
+        if not _is_approved_review_status(item.review_status):
             continue
         items.append(item)
         if len(items) >= max(1, min(limit, 500)):
@@ -584,23 +622,36 @@ class CommunityClient:
         return response
 
     def list_community_items(self, root: Path, *, limit: int = 50, compatible_agent: str = "", tags: tuple[str, ...] = ()) -> list[CommunityCatalogItem]:
+        return self.list_community_items_v2(root, limit=limit, compatible_agent=compatible_agent, tags=tags)
+
+    def list_community_items_v2(
+        self,
+        root: Path,
+        *,
+        limit: int = 50,
+        compatible_agent: str = "",
+        tags: tuple[str, ...] = (),
+        channel: str = "",
+    ) -> list[CommunityCatalogItem]:
         payload = {
             "schema_version": 1,
             "install_id": self.state.install_id,
             "client": self._client_payload(),
             "compatible_agent": compatible_agent,
             "tags": list(tags),
+            "channel": channel,
             "limit": limit,
             "collections": current_collection_state(root),
         }
         try:
             response = self._post("/v1/community/list", payload)
-            return parse_catalog_items(response)
+            _verify_signed_community_payload(response, purpose="Community catalog list")
+            return _approved_items(parse_catalog_items(response), channel=channel)
         except RegistrationError as exc:
             if not _is_missing_endpoint_error(exc):
                 raise
             catalog = self._signed_catalog(root)
-            return _catalog_items_from_packs(catalog, tags=tags, limit=limit)
+            return _catalog_items_from_packs(catalog, tags=tags, channel=channel, limit=limit)
 
     def search_community_items(
         self,
@@ -617,13 +668,15 @@ class CommunityClient:
             "client": self._client_payload(),
             "query": query,
             "tags": list(tags),
+            "channel": "",
             "compatible_agent": compatible_agent,
             "limit": limit,
             "collections": current_collection_state(root),
         }
         try:
             response = self._post("/v1/community/search", payload)
-            return parse_catalog_items(response)
+            _verify_signed_community_payload(response, purpose="Community catalog search")
+            return _approved_items(parse_catalog_items(response))
         except RegistrationError as exc:
             if not _is_missing_endpoint_error(exc):
                 raise
@@ -634,7 +687,11 @@ class CommunityClient:
         payload = {"schema_version": 1, "install_id": self.state.install_id, "client": self._client_payload(), "item_id": item_id}
         try:
             response = self._post("/v1/community/preview", payload)
-            return parse_preview(response)
+            _verify_signed_community_payload(response, purpose="Community catalog preview")
+            preview = parse_preview(response)
+            if not _is_approved_review_status(preview.item.review_status):
+                raise CommunityError("Community preview is available only for approved or published signed items.")
+            return preview
         except RegistrationError as exc:
             if not _is_missing_endpoint_error(exc):
                 raise
@@ -685,7 +742,12 @@ class CommunityClient:
         }
         try:
             response = self._post("/v1/community/install", payload)
+            _verify_signed_community_payload(response, purpose="Community catalog install")
             plan = _install_plan_from_response(item_id, response, target_collection)
+            raw_item = response.get("item") if isinstance(response.get("item"), dict) else response
+            review_status = str(raw_item.get("review_status") or raw_item.get("status") or "approved")
+            if not _is_approved_review_status(review_status):
+                raise CommunityError("Community install is available only for approved or published signed items.")
         except RegistrationError as exc:
             if not _is_missing_endpoint_error(exc):
                 raise
@@ -760,6 +822,18 @@ class CommunityClient:
     def get_submission_status(self, submission_id: str = "") -> dict[str, Any]:
         return self._post(
             "/v1/community/submission-status",
+            {"schema_version": 1, "install_id": self.state.install_id, "client": self._client_payload(), "submission_id": submission_id},
+        )
+
+    def withdraw_submission(self, submission_id: str) -> dict[str, Any]:
+        return self._post(
+            "/v1/community/withdraw",
+            {"schema_version": 1, "install_id": self.state.install_id, "client": self._client_payload(), "submission_id": submission_id},
+        )
+
+    def review_notes(self, submission_id: str) -> dict[str, Any]:
+        return self._post(
+            "/v1/community/review-notes",
             {"schema_version": 1, "install_id": self.state.install_id, "client": self._client_payload(), "submission_id": submission_id},
         )
 

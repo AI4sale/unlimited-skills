@@ -59,6 +59,18 @@ def make_archive(tmp_path: Path, collection: str = "community", skill: str = "br
     return archive
 
 
+def trust_test_key(monkeypatch) -> Ed25519PrivateKey:
+    private_key = Ed25519PrivateKey.generate()
+    public_key = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+    monkeypatch.setenv("UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS", f"community-test-key:{base64_urlsafe_encode(public_key)}")
+    return private_key
+
+
+def sign_community_payload(payload: dict, private_key: Ed25519PrivateKey) -> dict:
+    body = {"schema_version": 1, "manifest_type": "community-catalog", **payload}
+    return sign_manifest_for_tests(body, private_key, key_id="community-test-key")
+
+
 def test_community_hosted_commands_require_registration(tmp_path: Path, monkeypatch, capsys) -> None:
     home = tmp_path / "home"
     root = tmp_path / "library"
@@ -110,7 +122,6 @@ def test_community_installed_is_local_only_without_refresh(tmp_path: Path, monke
 def test_submit_dry_run_writes_preview_and_sends_no_request(tmp_path: Path, monkeypatch, capsys) -> None:
     home = tmp_path / "home"
     root = tmp_path / "library"
-    write_registration(home)
     skill = tmp_path / "browser-qa"
     write_skill(skill)
     monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home / ".unlimited-skills"))
@@ -159,27 +170,32 @@ def test_submit_requires_confirmation_unless_yes(tmp_path: Path, monkeypatch, ca
     assert "requires --yes" in capsys.readouterr().err
 
 
-def test_community_install_verifies_sha_extracts_and_reindexes_metadata(tmp_path: Path) -> None:
+def test_community_install_verifies_sha_extracts_and_reindexes_metadata(tmp_path: Path, monkeypatch) -> None:
     root = tmp_path / "library"
     archive = make_archive(tmp_path)
     digest = sha256_file(archive)
+    private_key = trust_test_key(monkeypatch)
 
     def fake_urlopen(request, timeout=30.0):
         url = request.full_url if hasattr(request, "full_url") else str(request)
         if url.endswith("/v1/community/install"):
             return FakeResponse(
                 json.dumps(
-                    {
-                        "schema_version": 1,
-                        "name": "browser-qa",
-                        "install_plan": {
-                            "collection": "community",
-                            "version": "2026.06.08",
-                            "archive_url": "https://community.example.test/browser-qa.zip",
-                            "sha256": digest,
-                            "skill_count": 1,
+                    sign_community_payload(
+                        {
+                            "schema_version": 1,
+                            "item": {"item_id": "comm_browser_qa", "name": "browser-qa", "status": "approved", "channel": "canary"},
+                            "name": "browser-qa",
+                            "install_plan": {
+                                "collection": "community",
+                                "version": "2026.06.08",
+                                "archive_url": "https://community.example.test/browser-qa.zip",
+                                "sha256": digest,
+                                "skill_count": 1,
+                            },
                         },
-                    }
+                        private_key,
+                    )
                 ).encode("utf-8")
             )
         if url.endswith("/browser-qa.zip"):
@@ -195,8 +211,9 @@ def test_community_install_verifies_sha_extracts_and_reindexes_metadata(tmp_path
     assert installed[0].source == "community"
 
 
-def test_community_install_rejects_zip_path_traversal(tmp_path: Path) -> None:
+def test_community_install_rejects_zip_path_traversal(tmp_path: Path, monkeypatch) -> None:
     root = tmp_path / "library"
+    private_key = trust_test_key(monkeypatch)
     archive = tmp_path / "bad.zip"
     with zipfile.ZipFile(archive, "w") as zf:
         zf.writestr("../escape.txt", "no")
@@ -207,15 +224,19 @@ def test_community_install_rejects_zip_path_traversal(tmp_path: Path) -> None:
         if url.endswith("/v1/community/install"):
             return FakeResponse(
                 json.dumps(
-                    {
-                        "schema_version": 1,
-                        "install_plan": {
-                            "collection": "community",
-                            "version": "2026.06.08",
-                            "archive_url": "https://community.example.test/bad.zip",
-                            "sha256": digest,
+                    sign_community_payload(
+                        {
+                            "schema_version": 1,
+                            "item": {"item_id": "comm_bad", "name": "bad", "status": "approved", "channel": "canary"},
+                            "install_plan": {
+                                "collection": "community",
+                                "version": "2026.06.08",
+                                "archive_url": "https://community.example.test/bad.zip",
+                                "sha256": digest,
+                            },
                         },
-                    }
+                        private_key,
+                    )
                 ).encode("utf-8")
             )
         if url.endswith("/bad.zip"):
@@ -227,24 +248,29 @@ def test_community_install_rejects_zip_path_traversal(tmp_path: Path) -> None:
             CommunityClient(registered_state()).install_community_item(root, item_id="comm_bad")
 
 
-def test_community_install_checksum_mismatch_fails_before_extract(tmp_path: Path) -> None:
+def test_community_install_checksum_mismatch_fails_before_extract(tmp_path: Path, monkeypatch) -> None:
     root = tmp_path / "library"
     archive = make_archive(tmp_path)
+    private_key = trust_test_key(monkeypatch)
 
     def fake_urlopen(request, timeout=30.0):
         url = request.full_url if hasattr(request, "full_url") else str(request)
         if url.endswith("/v1/community/install"):
             return FakeResponse(
                 json.dumps(
-                    {
-                        "schema_version": 1,
-                        "install_plan": {
-                            "collection": "community",
-                            "version": "2026.06.08",
-                            "archive_url": "https://community.example.test/bad-sha.zip",
-                            "sha256": "0" * 64,
+                    sign_community_payload(
+                        {
+                            "schema_version": 1,
+                            "item": {"item_id": "comm_bad_sha", "name": "bad-sha", "status": "approved", "channel": "canary"},
+                            "install_plan": {
+                                "collection": "community",
+                                "version": "2026.06.08",
+                                "archive_url": "https://community.example.test/bad-sha.zip",
+                                "sha256": "0" * 64,
+                            },
                         },
-                    }
+                        private_key,
+                    )
                 ).encode("utf-8")
             )
         if url.endswith("/bad-sha.zip"):
@@ -257,6 +283,98 @@ def test_community_install_checksum_mismatch_fails_before_extract(tmp_path: Path
 
     assert not (root / "registry" / "community" / "skills" / "browser-qa" / "SKILL.md").exists()
     assert not (root / ".unlimited-skills-community.json").exists()
+
+
+def test_community_list_requires_signed_payload_and_filters_channel(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "library"
+    private_key = trust_test_key(monkeypatch)
+    response = sign_community_payload(
+        {
+            "items": [
+                {"item_id": "canary_pack", "name": "canary", "kind": "skill-pack", "status": "approved", "channel": "canary"},
+                {"item_id": "stable_pack", "name": "stable", "kind": "skill-pack", "status": "approved", "channel": "stable"},
+                {"item_id": "pending_pack", "name": "pending", "kind": "skill-pack", "status": "pending_review", "channel": "canary"},
+            ]
+        },
+        private_key,
+    )
+
+    def fake_urlopen(request, timeout=30.0):
+        url = request.full_url if hasattr(request, "full_url") else str(request)
+        if url.endswith("/v1/community/list"):
+            return FakeResponse(json.dumps(response).encode("utf-8"))
+        raise AssertionError(f"Unexpected URL: {url}")
+
+    with patch("urllib.request.urlopen", fake_urlopen):
+        items = CommunityClient(registered_state()).list_community_items_v2(root, channel="canary")
+
+    assert [item.item_id for item in items] == ["canary_pack"]
+
+    def unsigned_urlopen(request, timeout=30.0):
+        return FakeResponse(json.dumps({"items": [{"item_id": "unsafe", "name": "unsafe"}]}).encode("utf-8"))
+
+    with patch("urllib.request.urlopen", unsigned_urlopen):
+        with pytest.raises(CommunityError):
+            CommunityClient(registered_state()).list_community_items_v2(root)
+
+
+def test_community_install_rejects_signed_but_unapproved_item(tmp_path: Path, monkeypatch) -> None:
+    root = tmp_path / "library"
+    private_key = trust_test_key(monkeypatch)
+
+    def fake_urlopen(request, timeout=30.0):
+        url = request.full_url if hasattr(request, "full_url") else str(request)
+        if url.endswith("/v1/community/install"):
+            return FakeResponse(
+                json.dumps(
+                    sign_community_payload(
+                        {
+                            "item": {"item_id": "pending", "name": "pending", "status": "pending_review", "channel": "canary"},
+                            "install_plan": {
+                                "collection": "community",
+                                "version": "2026.06.08",
+                                "archive_url": "https://community.example.test/pending.zip",
+                                "sha256": "0" * 64,
+                            },
+                        },
+                        private_key,
+                    )
+                ).encode("utf-8")
+            )
+        raise AssertionError(f"Unexpected URL: {url}")
+
+    with patch("urllib.request.urlopen", fake_urlopen):
+        with pytest.raises(CommunityError, match="approved or published"):
+            CommunityClient(registered_state()).install_community_item(root, item_id="pending")
+
+
+def test_community_submission_status_withdraw_and_review_notes_commands(tmp_path: Path, monkeypatch, capsys) -> None:
+    home = tmp_path / "home"
+    root = tmp_path / "library"
+    write_registration(home)
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home / ".unlimited-skills"))
+    seen_paths: list[str] = []
+
+    def fake_urlopen(request, timeout=30.0):
+        url = request.full_url if hasattr(request, "full_url") else str(request)
+        seen_paths.append(url)
+        if url.endswith("/v1/community/submission-status"):
+            return FakeResponse(json.dumps({"submission_id": "sub_1", "status": "pending_review"}).encode("utf-8"))
+        if url.endswith("/v1/community/withdraw"):
+            return FakeResponse(json.dumps({"submission_id": "sub_1", "status": "withdrawn"}).encode("utf-8"))
+        if url.endswith("/v1/community/review-notes"):
+            return FakeResponse(json.dumps({"submission_id": "sub_1", "reviewer_notes": "needs docs"}).encode("utf-8"))
+        raise AssertionError(f"Unexpected URL: {url}")
+
+    with patch("urllib.request.urlopen", fake_urlopen):
+        assert main(["--root", str(root), "community", "submission-status", "sub_1"]) == 0
+        assert json.loads(capsys.readouterr().out)["status"] == "pending_review"
+        assert main(["--root", str(root), "community", "withdraw", "sub_1"]) == 0
+        assert json.loads(capsys.readouterr().out)["status"] == "withdrawn"
+        assert main(["--root", str(root), "community", "review-notes", "sub_1"]) == 0
+        assert json.loads(capsys.readouterr().out)["reviewer_notes"] == "needs docs"
+
+    assert any(path.endswith("/v1/community/withdraw") for path in seen_paths)
 
 
 def test_community_install_falls_back_to_signed_catalog_when_endpoint_missing(tmp_path: Path, monkeypatch) -> None:

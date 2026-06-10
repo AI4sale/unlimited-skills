@@ -4,9 +4,9 @@ Community submission is an explicit publishing workflow. It uploads selected use
 
 ## Submitter Flow
 
-1. Register the installation.
-2. Select a single skill, skill directory, pack, or collection directory.
-3. Run `unlimited-skills community submit <path> --dry-run`.
+1. Select a single skill, skill directory, pack, or collection directory.
+2. Run `unlimited-skills community submit <path> --dry-run`.
+3. Register the installation before uploading to the hosted service.
 4. Review the generated preview file and terminal output.
 5. Fix warnings before upload when possible.
 6. Run `unlimited-skills community submit <path> --yes` to upload in non-interactive mode, or type the confirmation phrase in interactive mode.
@@ -35,6 +35,16 @@ After upload, maintainers review the submission before publication. The hosted s
 - `withdrawn`: removed by submitter or maintainer workflow.
 
 Reviewer notes may be shown to the submitter. Private review internals are not exposed by the client.
+
+Client commands:
+
+```bash
+unlimited-skills community submission-status [submission-id]
+unlimited-skills community review-notes <submission-id>
+unlimited-skills community withdraw <submission-id>
+```
+
+`submission-status`, `review-notes`, and `withdraw` are hosted community operations and require a registered installation.
 
 ## Prohibited Content
 
