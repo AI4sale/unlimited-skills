@@ -65,6 +65,7 @@ from .registration import (
     save_registration,
     set_telemetry,
 )
+from .recommendation_preview import build_policy_aware_preview, dumps_preview, fixture_preview
 from .service_diagnostics import (
     configure_service,
     doctor as service_doctor,
@@ -1336,6 +1337,75 @@ def cmd_catalog_preview(args: argparse.Namespace) -> int:
         print("Requirements: " + ", ".join(str(value) for value in preview["requirements"]))
     if item.get("warnings"):
         print("Warnings: " + ", ".join(str(value) for value in item["warnings"]))
+    return 0
+
+
+def cmd_catalog_recommendation_preview(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    if args.fixture_case:
+        payload = fixture_preview(args.fixture_case)
+    else:
+        if not args.item_id:
+            raise RuntimeError("catalog recommendation-preview requires item_id unless --fixture-case is used.")
+        state = load_registration()
+        if not state.registered:
+            payload = build_policy_aware_preview(
+                catalog_item={
+                    "item_id": args.item_id,
+                    "source_type": "hosted_official",
+                    "review_status": "registration_required",
+                    "requires_registration": True,
+                    "installable": False,
+                },
+                registered=False,
+                signed_metadata=True,
+                active_agent=args.agent,
+                channel=args.channel or "stable",
+                entitlement_status=redacted_plan_summary(state=state),
+                policy_status=policy_summary(load_policy()),
+            )
+        else:
+            catalog_payload = _catalog_client(args).preview(args.item_id, channel=args.channel)
+            item = catalog_payload.get("item") if isinstance(catalog_payload.get("item"), dict) else {}
+            quality_status = None
+            improvement_status = None
+            for label, loader in (
+                ("quality", lambda: _catalog_quality_client(args).quality(args.item_id)),
+                ("improvement", lambda: _skill_improvement_client(args).improvement_status(root, args.item_id)),
+            ):
+                try:
+                    if label == "quality":
+                        quality_status = loader()
+                    else:
+                        improvement_status = loader()
+                except Exception:
+                    if args.strict_supplemental:
+                        raise
+            payload = build_policy_aware_preview(
+                catalog_item=item,
+                signed_metadata=True,
+                registered=True,
+                active_agent=args.agent,
+                channel=args.channel or str(item.get("channel") or "stable"),
+                quality_status=quality_status,
+                improvement_status=improvement_status,
+                entitlement_status=redacted_plan_summary(state=state),
+                policy_status=policy_summary(load_policy()),
+            )
+    if args.json:
+        print(dumps_preview(payload))
+        return 0
+    decision = payload["decision"]
+    print(f"Item: {payload['item_id']}")
+    print("Preview only: yes")
+    print(f"Outcome: {decision['outcome']}")
+    print(f"Reason: {decision['reason']}")
+    print(f"Next: {decision['next_command']}")
+    if decision.get("refusal_code"):
+        print(f"Refusal: {decision['refusal_code']}")
+        print(f"Owner: {decision.get('owner') or '(unknown)'}")
+        print(f"Fallback: {decision.get('fallback') or '(none)'}")
+    print("No install, update, remove, rewrite, telemetry, or catalog distribution was performed.")
     return 0
 
 
@@ -2748,6 +2818,22 @@ def build_parser() -> argparse.ArgumentParser:
     catalog_preview.add_argument("--json", action="store_true")
     catalog_preview.add_argument("--timeout", type=float, default=30.0)
     catalog_preview.set_defaults(func=cmd_catalog_preview)
+    catalog_recommendation_preview = catalog_sub.add_parser(
+        "recommendation-preview",
+        help="Build a policy-aware recommendation preview without applying changes.",
+    )
+    catalog_recommendation_preview.add_argument("item_id", nargs="?", default="")
+    catalog_recommendation_preview.add_argument("--fixture-case", default="", help="Use a deterministic recommendation-policy fixture case instead of hosted metadata.")
+    catalog_recommendation_preview.add_argument("--agent", default="", choices=["", "codex", "claude-code", "hermes", "openclaw", "vellum-ai"])
+    catalog_recommendation_preview.add_argument("--channel", default="", choices=["", "stable", "beta", "canary"])
+    catalog_recommendation_preview.add_argument(
+        "--strict-supplemental",
+        action="store_true",
+        help="Fail if supplemental signed quality or improvement metadata cannot be loaded.",
+    )
+    catalog_recommendation_preview.add_argument("--json", action="store_true")
+    catalog_recommendation_preview.add_argument("--timeout", type=float, default=30.0)
+    catalog_recommendation_preview.set_defaults(func=cmd_catalog_recommendation_preview)
     catalog_install = catalog_sub.add_parser("install", help="Verify and install a signed approved catalog item.")
     catalog_install.add_argument("item_id")
     catalog_install.add_argument("--collection", default="", help="Override local target collection for delegated community installs.")

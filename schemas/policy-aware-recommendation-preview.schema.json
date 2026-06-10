@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills policy-aware recommendation runtime preview",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "manifest_type",
+    "fixture_only",
+    "preview_only",
+    "automatic_install",
+    "automatic_update",
+    "automatic_remove",
+    "automatic_telemetry",
+    "hosted_query_forwarding",
+    "skill_rewriting",
+    "full_catalog_distribution",
+    "item_id",
+    "channel",
+    "decision",
+    "signals",
+    "will_install",
+    "will_update",
+    "will_remove"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "manifest_type": { "type": "string", "const": "policy-aware-recommendation-preview" },
+    "fixture_only": { "type": "boolean" },
+    "preview_only": { "type": "boolean", "const": true },
+    "automatic_install": { "type": "boolean", "const": false },
+    "automatic_update": { "type": "boolean", "const": false },
+    "automatic_remove": { "type": "boolean", "const": false },
+    "automatic_telemetry": { "type": "boolean", "const": false },
+    "hosted_query_forwarding": { "type": "boolean", "const": false },
+    "skill_rewriting": { "type": "boolean", "const": false },
+    "full_catalog_distribution": { "type": "boolean", "const": false },
+    "skill_bodies_included": { "type": "boolean", "const": false },
+    "prompts_included": { "type": "boolean", "const": false },
+    "task_text_included": { "type": "boolean", "const": false },
+    "local_paths_included": { "type": "boolean", "const": false },
+    "repo_paths_included": { "type": "boolean", "const": false },
+    "customer_data_included": { "type": "boolean", "const": false },
+    "tokens_included": { "type": "boolean", "const": false },
+    "proofs_included": { "type": "boolean", "const": false },
+    "private_keys_included": { "type": "boolean", "const": false },
+    "item_id": { "type": "string", "minLength": 1 },
+    "channel": { "type": "string" },
+    "decision": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["item_id", "outcome", "reason", "next_command", "will_install", "will_update", "will_remove"],
+      "properties": {
+        "item_id": { "type": "string", "minLength": 1 },
+        "outcome": {
+          "type": "string",
+          "enum": [
+            "allow_preview",
+            "allow_install",
+            "allow_update_preview",
+            "warn_before_install",
+            "deny_install",
+            "deny_update",
+            "require_registration",
+            "require_entitlement",
+            "require_policy_override",
+            "local_only",
+            "unsupported"
+          ]
+        },
+        "reason": { "type": "string", "minLength": 1 },
+        "next_command": { "type": "string", "minLength": 1 },
+        "refusal_code": { "type": "string" },
+        "owner": { "type": "string" },
+        "action": { "type": "string" },
+        "fallback": { "type": "string" },
+        "will_install": { "type": "boolean", "const": false },
+        "will_update": { "type": "boolean", "const": false },
+        "will_remove": { "type": "boolean", "const": false }
+      }
+    },
+    "signals": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["catalog_metadata", "quality_status", "improvement_status", "entitlement", "policy"],
+      "properties": {
+        "catalog_metadata": { "$ref": "#/$defs/signal" },
+        "quality_status": { "$ref": "#/$defs/signal" },
+        "improvement_status": { "$ref": "#/$defs/signal" },
+        "entitlement": { "$ref": "#/$defs/signal" },
+        "policy": { "$ref": "#/$defs/signal" }
+      }
+    },
+    "will_install": { "type": "boolean", "const": false },
+    "will_update": { "type": "boolean", "const": false },
+    "will_remove": { "type": "boolean", "const": false }
+  },
+  "$defs": {
+    "signal": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["present", "status", "summary"],
+      "properties": {
+        "present": { "type": "boolean" },
+        "status": { "type": "string" },
+        "summary": { "type": "object", "additionalProperties": true }
+      }
+    }
+  }
+}
