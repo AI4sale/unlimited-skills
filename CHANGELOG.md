@@ -9,8 +9,9 @@
 - Guided first-run setup wizard with local-only, registered, Local Skill Hub, Enterprise, dry-run, and JSON reporting modes.
 - Public setup report schema, sanitized setup examples, and first-run onboarding documentation.
 - Redacted support diagnostic bundle with zip output, dry-run, JSON manifest, optional path inclusion, public schema, sanitized example, and privacy documentation.
-- v0.3.1-alpha publication manifest and verifier covering public PR #34-#36, private registry PR #9/#10, the canonical 315-skill reconciliation counts, and release-owner tag approval.
+- v0.3.1-alpha publication manifest and verifier covering public PR #34-#38, private registry PR #9/#10/#11/#12/#18, the canonical 315-skill reconciliation counts, production registry signing status, and release-owner tag approval.
 - Shared service diagnostics v2 snapshot across setup reports and support bundles, preserving local-only defaults and redacted support output.
+- Final v0.3.1-alpha release smoke that proves the publication verifier blocks by default without production-signed registry artifacts and passes only with explicit release-owner blocked-signing override.
 
 ### Changed
 
