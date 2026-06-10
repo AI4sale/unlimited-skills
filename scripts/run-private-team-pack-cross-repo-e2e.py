@@ -190,11 +190,12 @@ def register_client(server_url: str, *, install_id: str, agent: str, home: Path)
 def grant_private_pack_entitlement(db_url: str, install_id: str) -> None:
     from unlimited_registry.storage import ProductionStorage
 
-    ProductionStorage(db_url).set_entitlement(
+    storage = ProductionStorage(db_url)
+    storage.set_entitlement(
         install_id,
         plan="business",
         features=["hosted_catalog", "private_team_packs"],
-        active_client_limit=25,
+        active_client_limit=100,
         offline_grace_seconds=86400,
     )
 
