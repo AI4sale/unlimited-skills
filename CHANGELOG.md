@@ -13,7 +13,7 @@
 - Repeated that v0.4 planning does not authorize automatic skill rewriting, auto-publish, automatic telemetry, live billing, PyPI publication, full catalog distribution, or automatic hosted query forwarding.
 - Repeated that v0.4 must preserve no-prompt/no-skill-body/no-private-data boundaries, signed hosted manifest requirements, and registration-free MIT local core behavior.
 
-## v0.3.9-alpha (in development)
+## v0.3.9-alpha (publication candidate)
 
 ### Added
 
@@ -21,11 +21,13 @@
 - Preview-only update recommendation contracts, schemas, examples, docs, trust scopes, and fake-service tests for known issues, fix status, recommended channel/version, deprecation/retirement status, compatibility notes, and stale installed-version status.
 - Support-bundle skill improvement summary counts, excluding item ids, issue details, recommendations, skill bodies, prompts, local paths, repo paths, customer data, tokens, proofs, and private keys.
 - Cross-repo skill improvement E2E, v0.3.9-alpha smoke runner, release verifier, checklist, and manifest for feedback/evals -> improvement backlog -> maintainer triage -> catalog quality report -> public signed recommendations.
+- v0.3.9-alpha final publication smoke, publication verifier, upgrade notes, and known issues for the skill improvement workflow milestone.
 
 ### Changed
 
 - Raised package version to `0.3.9`.
 - Documented the maintainer-controlled workflow boundary: no automatic skill rewriting, no auto-publish, no prompt upload, no user telemetry, no production hosted calls, and no private skill bodies in the public repo.
+- Marked the final tag as pending release-owner approval; this branch does not create or push `v0.3.9-alpha`.
 
 ## v0.3.8-alpha (in development)
 

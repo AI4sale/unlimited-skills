@@ -2,35 +2,40 @@
   "schema_version": 1,
   "release": "v0.3.9-alpha",
   "package_version": "0.3.9",
-  "generated_at": "2026-06-10T00:00:00Z",
+  "generated_at": "2026-06-10T09:10:00Z",
   "distribution": "github-clone-alpha",
   "git": {
-    "sha": "3a87462e43a37b747a5c2ed3b27ab4f0ea969d39",
-    "sha_kind": "integration_branch_ancestor",
+    "sha": "53cbd0936e9a5f5f8086bd93f1766472ee6a2e20",
+    "sha_kind": "publication_candidate_ancestor",
     "tag": "v0.3.9-alpha",
-    "tag_status": "not_tagged_integration_gate",
-    "publication_branch": "release/v0.3.9-alpha-skill-improvement-integration",
-    "base_branch": "feat/skill-improvement-status-client-v1",
-    "tag_owner_note": "Do not tag from this integration PR. Refresh git.sha if the merge strategy changes the final integration target."
+    "tag_status": "pending_release_owner_approval",
+    "publication_branch": "release/v0.3.9-alpha-final-publication",
+    "base_branch": "main",
+    "tag_owner_note": "Tag only after release-owner approval and a passing publication verifier on the final tag target."
   },
   "required_prs": {
     "public": [
       {
         "number": 65,
         "title": "feat: add skill improvement status and safe update recommendations",
-        "status": "open_mergeable_in_review"
+        "status": "merged"
       },
       {
-        "number": 0,
-        "title": "v0.3.9-alpha skill improvement integration",
-        "status": "this_integration_gate_pr"
+        "number": 66,
+        "title": "release: integrate skill improvement workflow for v0.3.9-alpha",
+        "status": "merged"
+      },
+      {
+        "number": 67,
+        "title": "docs: add v0.4 readiness audit and SkillOps architecture RFC",
+        "status": "merged_as_no_go_readiness_record"
       }
     ],
     "private_registry": [
       {
         "number": 37,
         "title": "feat: add skill improvement backlog and maintainer remediation workflow",
-        "status": "open_mergeable_in_review"
+        "status": "merged"
       }
     ]
   },
@@ -56,7 +61,9 @@
     ".venv\\Scripts\\python.exe -m pytest tests -q",
     ".venv\\Scripts\\python.exe scripts/run-v0.2x-smoke-tests.py",
     ".venv\\Scripts\\python.exe scripts/run-v0.3.9-alpha-skill-improvement-smoke.py --fixture-mode --temp-home",
+    ".venv\\Scripts\\python.exe scripts/run-v0.3.9-alpha-release-smoke.py",
     ".venv\\Scripts\\python.exe scripts/verify-v0.3.9-alpha-skill-improvement.py --expected-sha <tag-target-sha>",
+    ".venv\\Scripts\\python.exe scripts/verify-v0.3.9-alpha-publication.py --expected-sha <tag-target-sha>",
     ".venv\\Scripts\\python.exe -m compileall -q unlimited_skills scripts tests",
     "git diff --check"
   ]
