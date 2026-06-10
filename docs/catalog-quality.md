@@ -1,6 +1,6 @@
 # Catalog Quality
 
-Catalog quality commands show signed hosted metadata for registered catalog items. They are read-only diagnostics for choosing and supporting skills.
+Catalog quality commands show signed hosted metadata for registered catalog items. They are read-only diagnostics for choosing and supporting skills. In `v0.3.8-alpha`, the cross-repo integration proves fixture/static skill evaluation metadata without automatic telemetry, prompt upload, untrusted script execution, automatic skill rewriting, or auto-publish.
 
 ## Commands
 

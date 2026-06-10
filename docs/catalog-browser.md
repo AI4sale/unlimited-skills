@@ -73,6 +73,8 @@ Official and private-visible catalog browser items are metadata/dry-run only unt
 
 `catalog quality <item_id>` and `catalog eval-status <item_id>` fetch signed hosted metadata for one catalog item. `catalog explain-risk <item_id>` summarizes whether signed quality metadata blocks install or only warns. `catalog browse --show-quality` and `catalog search --show-quality` request quality summary fields in browser results.
 
+The v0.3.8-alpha skill evaluation integration keeps quality metadata fixture/static and signed. It does not upload prompts, task text, customer data, local paths, repo paths, tokens, proofs, private keys, or skill bodies, and it does not execute untrusted scripts or rewrite skills automatically.
+
 Quality status is metadata-only and registration-gated. It includes grade, score band, last evaluation timestamp, blockers, warnings, compatibility notes, deprecation or retirement status, and feedback-derived issue categories. It must not include skill bodies, prompts, local paths, repo paths, customer data, tokens, proofs, or private keys.
 
 ## Support Bundle Redaction

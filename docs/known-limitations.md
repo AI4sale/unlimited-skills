@@ -1,10 +1,11 @@
 # Known Limitations
 
-`v0.3.7-alpha` is a developer preview, not a stable production SLA.
+`v0.3.8-alpha` is a developer preview, not a stable production SLA.
 
 - Hosted registry access is early-access.
 - The registered hosted catalog exists and is populated, but availability may be limited during alpha.
 - Exact registered catalog contents are delivered through registered hosted catalog/update commands, not published in the MIT repo.
+- Catalog quality and skill evaluation status are signed metadata-only diagnostics. The v0.3.8-alpha integration uses fixture/static evaluations; it does not upload prompts, inspect customer data, execute untrusted skill scripts, rewrite skills automatically, or auto-publish fixes.
 - Catalog feedback is explicit-only and registration-gated. It is a quality signal, not automatic telemetry or a support transcript upload path.
 - Catalog browser discovery requires registration and hosted `/v1/catalog/browser/*` support. It is signed metadata-only alpha; official and private-visible installs are metadata/dry-run only until dedicated install-plan capability checks are implemented.
 - Community submissions are implemented as explicit registered uploads with local dry-run preview, hosted maintainer review, and signed approved/published distribution. `community submit --dry-run` remains local-only and uploads nothing.
@@ -13,7 +14,7 @@
 - `billing refresh` requires a registered installation and hosted `/v1/hub/billing-status` support. `billing status` and `billing doctor` remain local/cache-only.
 - Private team pack client commands are implemented and fixture-verified. Production private pack access requires registry-side entitlement or a Business/Enterprise plan plus the private registry distribution, publishing, admin, and entitlement PRs being accepted and deployed.
 - Hosted remote manifests must include valid signed manifest envelopes. SHA256 verification is still enforced for hosted collection archives and enhancement scripts before local installation.
-- PyPI is not the supported v0.3.7-alpha distribution path because router skills, scripts, docs, and bundled packs are repo assets.
+- PyPI is not the supported v0.3.8-alpha distribution path because router skills, scripts, docs, and bundled packs are repo assets.
 - Warm daemon mode is experimental and not the default retrieval path.
 - Team sync is an MVP; server-side enforcement of limits and paid plan behavior may evolve.
 - Local Skill Hub runtime is MVP alpha. The public repo includes docs, schemas, sanitized examples, CLI commands, and an allowlist-backed local FastAPI runtime when `server` extras are installed.
