@@ -108,6 +108,8 @@ Catalog browser discovery is also hosted and registration-gated. `catalog browse
 
 Public repo self-update remains unregistered because it updates the MIT public core from GitHub. Hosted skill updates require registration.
 
+For v0.4 policy-aware recommendation work, the MIT local core remains registration-free. Recommendation output is preview or decision-only. No recommendation path may install, update, remove, rewrite, reindex, or submit skills automatically. Hosted recommendation metadata that influences install or update advice must arrive in signed responses where applicable; unsigned hosted metadata must be refused or treated as display-only fixture data.
+
 Team status may read local `team.json` without a hosted refresh. Any hosted status refresh, member listing, approval, rejection, revocation, collection listing, sync, or leave operation requires registration.
 
 Organization status follows the same boundary. `org status` is local/cache-only and works without registration. `org status --refresh` requires registration, calls the hosted organization status endpoint, and writes only a redacted local cache.

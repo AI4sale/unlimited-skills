@@ -7,6 +7,7 @@
 - v0.4 readiness audit covering public core, private registry, signed manifests, catalog browser, feedback, evals, improvement workflow, private packs, org/team governance, plan/entitlement/sandbox billing, support diagnostics, security/privacy boundaries, and PR hygiene/release train health.
 - SkillOps architecture RFC defining the v0.4 VFP, non-goals, data/trust boundaries, permission model, migration plan, Mermaid architecture diagram, and candidate modules for policy-aware skill recommendation, eval-driven catalog release gates, maintainer improvement queues, agent/runtime usage summaries, governance dashboard, optional self-hosted registry mode, and future human-reviewed automatic improvement proposals.
 - v0.4 risk register, first four implementation epics, docs verifier, and focused docs tests.
+- v0.4 public blocker closure ledger and verifier for PR #69, B-02 closure, recommendation non-mutation, signed hosted metadata, registration-free MIT local core, and support-bundle redaction boundaries.
 
 ### Security
 

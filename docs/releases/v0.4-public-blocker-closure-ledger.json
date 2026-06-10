@@ -1,0 +1,136 @@
+{
+  "schema_version": 1,
+  "ledger": "v0.4-public-blocker-closure",
+  "status": "public-readiness-ledger",
+  "implementation_approval": {
+    "approved": false,
+    "reason": "v0.4 implementation is not approved until the final go/no-go review passes."
+  },
+  "public_main": {
+    "repository": "AI4sale/unlimited-skills",
+    "base_branch": "main",
+    "merged_pr": 69,
+    "merge_sha": "ff518157916d9312f5ca51217b6088ae97ae661e",
+    "verified_on_main": true
+  },
+  "blockers": {
+    "B-02": {
+      "title": "Policy-aware recommendation semantics",
+      "status": "closed_on_public_main",
+      "vfp_delivered": true,
+      "evidence": [
+        "deterministic recommendation decision table",
+        "stable refusal-code vocabulary",
+        "fixture-backed public examples",
+        "recommendation policy tests"
+      ],
+      "non_goals_preserved": [
+        "no automatic install",
+        "no automatic update",
+        "no automatic remove",
+        "no automatic telemetry",
+        "no automatic hosted query forwarding"
+      ]
+    }
+  },
+  "public_safety_boundaries": {
+    "recommendation_outcomes_preview_or_decision_only": true,
+    "recommendation_paths_apply_changes_automatically": false,
+    "mit_local_core_requires_registration": false,
+    "hosted_recommendation_metadata_requires_signed_response_where_applicable": true,
+    "support_bundle_counts_and_status_only": true,
+    "support_bundle_contains_payload_content": false
+  },
+  "refusal_code_coverage": [
+    "registration_required",
+    "entitlement_denied",
+    "policy_denied",
+    "blocked_item",
+    "retired_item",
+    "low_score",
+    "wrong_channel",
+    "wrong_agent",
+    "unsigned_metadata",
+    "local_only"
+  ],
+  "redaction_proof": {
+    "report_payload_classes_excluded": [
+      "prompt or task content",
+      "skill content",
+      "local or repository locations",
+      "customer data",
+      "tokens",
+      "device proofs",
+      "private keys",
+      "search terms"
+    ],
+    "support_diagnostics_expose": [
+      "counts",
+      "booleans",
+      "status strings",
+      "redacted summaries"
+    ]
+  },
+  "verification_evidence": [
+    {
+      "name": "recommendation policy and support bundle focused tests",
+      "status": "passed",
+      "result": "12 passed"
+    },
+    {
+      "name": "public blocker closure focused tests",
+      "status": "passed",
+      "result": "4 passed"
+    },
+    {
+      "name": "full public test suite",
+      "status": "passed",
+      "result": "291 passed, 3 skipped"
+    },
+    {
+      "name": "v0.2x public smoke suite",
+      "status": "passed",
+      "result": "12 passed; production hosted registry calls disabled"
+    },
+    {
+      "name": "v0.3.9-alpha public release smoke",
+      "status": "passed",
+      "result": "fixture mode passed; production hosted calls false"
+    },
+    {
+      "name": "v0.4 public blocker closure verifier",
+      "status": "passed",
+      "result": "B-02 closed on public main; implementation approved false"
+    },
+    {
+      "name": "compileall public package sweep",
+      "status": "passed",
+      "result": "no compile errors"
+    },
+    {
+      "name": "git whitespace check",
+      "status": "passed",
+      "result": "no whitespace errors"
+    }
+  ],
+  "residual_risks": [
+    {
+      "id": "RR-01",
+      "severity": "P0",
+      "summary": "A final go/no-go review is still required before any v0.4 runtime implementation starts.",
+      "mitigation": "Keep this ledger as readiness evidence only and require release-owner approval."
+    },
+    {
+      "id": "RR-02",
+      "severity": "P1",
+      "summary": "Private registry hosted behavior remains an external contract dependency.",
+      "mitigation": "Keep public client behavior fixture-backed and signed-metadata-only until matching private contracts are approved."
+    },
+    {
+      "id": "RR-03",
+      "severity": "P1",
+      "summary": "Future recommendation UI could be misread as permission to mutate local state.",
+      "mitigation": "Keep preview and decision-only wording in docs, tests, and examples."
+    }
+  ]
+}
