@@ -41,6 +41,8 @@ BUNDLED_TRUSTED_MANIFEST_KEYS = [
             "update-recommendations",
             "update-preview",
             "deprecation-status",
+            "maintainer-queue-status-client",
+            "fixed-pending-eval-status",
             "enhancement-manifest",
             "team-sync-manifest",
             "release-channels",

@@ -182,6 +182,9 @@ def test_support_bundle_private_pack_summary_is_redacted(tmp_path: Path, monkeyp
     assert report["diagnostics"]["skill_improvements"]["summary_counts_only"] is True
     assert report["diagnostics"]["skill_improvements"]["automatic_update"] is False
     assert report["diagnostics"]["skill_improvements"]["improvement_status"]["update_recommendation_count"] == 0
+    assert report["diagnostics"]["maintainer_queue"]["summary_counts_only"] is True
+    assert report["diagnostics"]["maintainer_queue"]["queue_status"]["total_count"] == 0
+    assert report["diagnostics"]["maintainer_queue"]["queue_status"]["issue_categories"] == []
     assert report["diagnostics"]["private_packs"]["local"]["sha_mismatch_count"] == 1
     assert report["manifest"]["diagnostics_summary"]["plan"] == "community-core"
     assert report["manifest"]["diagnostics_summary"]["subscription_status"] == "past_due"
@@ -189,6 +192,7 @@ def test_support_bundle_private_pack_summary_is_redacted(tmp_path: Path, monkeyp
     assert report["diagnostics"]["privacy"]["skill_bodies_included"] is False
     assert report["diagnostics"]["privacy"]["catalog_quality_summary_counts_only"] is True
     assert report["diagnostics"]["privacy"]["skill_improvements_summary_counts_only"] is True
+    assert report["diagnostics"]["privacy"]["maintainer_queue_summary_counts_only"] is True
     assert "secret private skills" not in serialized
     assert "team_pack_secret" not in serialized
     assert "uls_secret_support_token" not in serialized

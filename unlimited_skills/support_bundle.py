@@ -17,6 +17,7 @@ from .catalog_feedback import redacted_catalog_feedback_summary
 from .catalog_quality import redacted_catalog_quality_summary
 from .doctor import build_doctor_report
 from .hub import active_hub_token_count, cached_allowlist_summary, load_hub_config, load_remote_config
+from .maintainer_queue_status import redacted_maintainer_queue_summary
 from .org_status import local_org_status
 from .plan_status import redacted_plan_summary
 from .policy import load_policy, policy_summary
@@ -347,6 +348,7 @@ def build_support_diagnostics(root: Path, *, include_paths: bool = False, includ
             "private_keys_included": False,
             "catalog_quality_summary_counts_only": True,
             "skill_improvements_summary_counts_only": True,
+            "maintainer_queue_summary_counts_only": True,
         },
         "system": {
             "platform": platform.system(),
@@ -367,6 +369,7 @@ def build_support_diagnostics(root: Path, *, include_paths: bool = False, includ
         "catalog_feedback": redacted_catalog_feedback_summary(),
         "catalog_quality": redacted_catalog_quality_summary(),
         "skill_improvements": redacted_skill_improvement_summary(),
+        "maintainer_queue": redacted_maintainer_queue_summary(),
         "service": _service_status(home),
         "hub": _hub_status(home),
         "enterprise": _enterprise_status(home),

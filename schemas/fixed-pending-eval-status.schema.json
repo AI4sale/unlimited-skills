@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills fixed pending eval status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "manifest_type", "fixed_pending_eval", "manifest_signature"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "manifest_type": { "type": "string", "const": "fixed-pending-eval-status" },
+    "fixed_pending_eval": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "item_id",
+        "fixed_pending_eval",
+        "queue_status",
+        "severity_summary",
+        "maintainer_state",
+        "evidence_ref",
+        "eval_gate_ref",
+        "recommended_user_action"
+      ],
+      "properties": {
+        "item_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$" },
+        "fixed_pending_eval": { "type": "boolean" },
+        "queue_status": { "type": "string" },
+        "severity_summary": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "maintainer_state": { "type": "string" },
+        "evidence_ref": { "type": "string" },
+        "eval_gate_ref": { "type": "string" },
+        "recommended_user_action": { "type": "string", "enum": ["none", "wait_for_eval", "review_before_update", "update_when_available", "avoid_or_remove"] },
+        "issue_categories": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "manifest_signature": { "type": "object" }
+  }
+}

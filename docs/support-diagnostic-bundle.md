@@ -63,6 +63,17 @@ For skill improvement diagnostics, the support manifest includes summary counts 
 
 It does not include catalog item ids, item names, issue titles, raw recommendations, prompts, skill bodies, local paths, repo paths, customer data, tokens, proofs, or private keys.
 
+For maintainer queue diagnostics, the support manifest includes only queue status counts and issue categories:
+
+- total queued count;
+- queue status counts;
+- severity summary counts;
+- fixed-pending-eval count;
+- blocked eval gate count;
+- public-safe issue categories.
+
+It does not include catalog item ids, item names, prompts, task text, skill bodies, maintainer private notes, local paths, repo paths, customer data, tokens, proofs, or private keys.
+
 For v0.4 blocker-closure reports, support diagnostics remain counts, booleans, status strings, and redacted summaries only. No prompt or task content, skill content, local or repository locations, customer data, tokens, device proofs, private keys, or search terms may appear in the report payload.
 
 The support manifest excludes:
@@ -86,6 +97,7 @@ The support manifest excludes:
 - raw catalog feedback payloads.
 - raw catalog quality or evaluation records.
 - raw skill improvement records or update recommendations.
+- raw maintainer queue records.
 
 The support manifest is a local diagnostic artifact. Users decide whether to share it with support.
 
