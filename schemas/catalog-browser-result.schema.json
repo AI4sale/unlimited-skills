@@ -8,7 +8,7 @@
     "schema_version": { "type": "integer" },
     "manifest_type": {
       "type": "string",
-      "enum": ["catalog-browser-response", "catalog-browser-item", "catalog-browser-preview"]
+      "enum": ["catalog-browser-response", "catalog-browser-item", "catalog-browser-preview", "catalog-browser-filters"]
     },
     "items": {
       "type": "array",

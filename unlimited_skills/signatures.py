@@ -27,7 +27,18 @@ BUNDLED_TRUSTED_MANIFEST_KEYS = [
         "public_key": "HkSfNF1lZbdWlXsBrCa7bok-2N64WzvOsujYv2QvlFA",
         "status": "active",
         "source": "bundled",
-        "scopes": ["hub-allowlist", "catalog-updates", "enhancement-manifest", "team-sync-manifest", "release-channels", "enterprise-policy"],
+        "scopes": [
+            "hub-allowlist",
+            "catalog-updates",
+            "catalog-browser-response",
+            "catalog-browser-item",
+            "catalog-browser-preview",
+            "catalog-browser-filters",
+            "enhancement-manifest",
+            "team-sync-manifest",
+            "release-channels",
+            "enterprise-policy",
+        ],
         "registry_origins": ["https://unlimited.ai4.sale"],
     }
 ]
