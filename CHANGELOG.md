@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.3.10
+
+### Added
+
+- Claude Code plugin skill discovery in native sync: `search`, `list`, `view`, `reindex`, and `sync-native --agent claude-code` now mirror skills bundled with installed Claude Code plugins. Discovery reads `~/.claude/plugins/installed_plugins.json`, resolves each plugin's cache `installPath`, and falls back to the marketplace clone (`known_marketplaces.json` + `.claude-plugin/marketplace.json`) when the cache snapshot is pruned or the plugin is disabled.
+- Plugin skill roots are resolved from the plugin's `.claude-plugin/plugin.json` `skills` declarations plus the conventional `skills/` and `.claude/skills/` folders; mirrored collections are named `local/claude-code-plugin-<marketplace>-<plugin>`.
+- New opt-out environment variable `UNLIMITED_SKILLS_DISABLE_PLUGIN_SYNC=1` (plugin discovery only; `UNLIMITED_SKILLS_DISABLE_NATIVE_SYNC=1` still disables all native sync).
+- Tests covering cache-path discovery, marketplace-clone fallback, the opt-out variable, and missing plugin state (`tests/test_claude_plugin_sync.py`).
+
+### Security
+
+- Plugin-declared skill paths are validated against the plugin root: declarations that resolve outside the plugin directory (path escape) are ignored.
+- Plugin sync reuses the non-destructive overlay: existing library files are never deleted, and name collisions are diverted to `duplicates/` instead of overwriting.
+
+### Changed
+
+- Raised package version to `0.3.10`.
+
 ## v0.4-readiness-rfc (planning)
 
 ### Added
