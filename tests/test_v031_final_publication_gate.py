@@ -4,9 +4,14 @@ import subprocess
 import sys
 from pathlib import Path
 
+import pytest
+
+from unlimited_skills import __version__
+
 
 ROOT = Path(__file__).resolve().parents[1]
 OVERRIDE_REASON = "Release owner explicitly accepts blocked production registry signing as a v0.3.1-alpha known issue."
+pytestmark = pytest.mark.skipif(__version__ != "0.3.1", reason="v0.3.1 publication gate is only active on the v0.3.1 release train")
 
 
 def run_verifier(*args: str) -> subprocess.CompletedProcess[str]:

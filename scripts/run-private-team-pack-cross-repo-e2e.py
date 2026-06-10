@@ -194,7 +194,7 @@ def grant_private_pack_entitlement(db_url: str, install_id: str) -> None:
     storage.set_entitlement(
         install_id,
         plan="business",
-        features=["private_team_packs"],
+        features=["hosted_catalog", "private_team_packs"],
         active_client_limit=100,
         offline_grace_seconds=86400,
     )
@@ -223,7 +223,7 @@ def run_e2e(registry_repo: Path, *, temp_home: bool = False) -> dict[str, Any]:
         server, thread, server_url = start_registry_server(registry_repo, artifact_root, db_url)
         try:
             state = register_client(server_url, install_id="uls_inst_master", agent="codex", home=home)
-            grant_private_pack_entitlement(db_url, "uls_inst_master")
+            grant_private_pack_entitlement(db_url, state.install_id)
             client = PrivatePackClient(state, timeout=10)
 
             listed = client.list()
@@ -250,7 +250,7 @@ def run_e2e(registry_repo: Path, *, temp_home: bool = False) -> dict[str, Any]:
                 fail("Private pack sync did not detect installed current version")
 
             wrong_state = register_client(server_url, install_id="uls_inst_worker", agent="unknown-agent", home=home)
-            grant_private_pack_entitlement(db_url, "uls_inst_worker")
+            grant_private_pack_entitlement(db_url, wrong_state.install_id)
             wrong_client = PrivatePackClient(wrong_state, timeout=10)
             access = wrong_client.access_check(PACK_ID)
             if access.get("authorized") is not False:

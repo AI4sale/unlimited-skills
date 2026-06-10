@@ -12,7 +12,7 @@
 
 Keep thousands of `SKILL.md` files out of the always-loaded context. Ask one tiny router skill what the task needs. Load only the selected skill.
 
-**v0.3.1 alpha / developer preview.** The local-first MIT core is usable today. `v0.3.1-alpha` is the final publication gate for the published `v0.3.0-alpha` baseline. Hosted registry features are registration-gated early access, Local Skill Hub is allowlist-only alpha, and Enterprise Skill Lock is a local policy MVP with registered managed sync. Production-signed registry artifacts are still a release-owner decision point: the verifier blocks by default until signing is completed or explicitly accepted as a known issue.
+**v0.3.2 alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, Local Skill Hub is allowlist-only alpha, Enterprise Skill Lock is a local policy MVP with registered managed sync, and private team packs are a registered/entitled alpha path.
 
 [Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
 
@@ -71,6 +71,7 @@ Working now:
 - registered community skills client for list/search/preview/install/submit/status/local remove;
 - registered Team Free create/join/members/pending/approve/reject/revoke/collections/sync/leave client;
 - registered private team pack client for list/preview/install/sync/installed/remove under `registry/private/<pack_id>`;
+- private team pack setup, service diagnostics, doctor, and redacted support bundle summaries;
 - native skill sync for Codex, Claude Code, Hermes, and OpenClaw roots;
 - public repo self-update checks and applies latest releases/tags;
 - production service onboarding diagnostics for configured service URL, health, trust, redacted registration dry run, and local proof generation;
@@ -116,7 +117,7 @@ For minimal lexical-only usage:
 python -m pip install -e .
 ```
 
-PyPI packaging is not the supported v0.3.1-alpha distribution path. Install from a GitHub clone for now, because the router skills, scripts, docs, and bundled packs are repo assets. A PyPI package should wait until wheel/sdist asset inclusion and installer behavior are tested in CI.
+PyPI packaging is not the supported v0.3.2-alpha distribution path. Install from a GitHub clone for now, because the router skills, scripts, docs, and bundled packs are repo assets. A PyPI package should wait until wheel/sdist asset inclusion and installer behavior are tested in CI.
 
 Run the first-run wizard:
 
@@ -136,7 +137,7 @@ unlimited-skills support bundle --out support-bundle.zip
 
 See [docs/support-bundle.md](docs/support-bundle.md) for the privacy boundary.
 
-For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md), [docs/packaging.md](docs/packaging.md), [docs/install-upgrade-uninstall.md](docs/install-upgrade-uninstall.md), and [SECURITY.md](SECURITY.md). For the previous v0.2.2-alpha gate, see [docs/releases/v0.2.2-alpha.md](docs/releases/v0.2.2-alpha.md).
+For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md), [docs/packaging.md](docs/packaging.md), [docs/install-upgrade-uninstall.md](docs/install-upgrade-uninstall.md), and [SECURITY.md](SECURITY.md). For the private team packs integration gate, see [docs/releases/v0.3.2-alpha.md](docs/releases/v0.3.2-alpha.md).
 
 ## Product Editions
 
@@ -145,7 +146,7 @@ See [docs/product-editions.md](docs/product-editions.md) for the full edition ta
 - **Community Core**: MIT, local-first, no registration. Local search, list, view, where, use, feedback, reindex, vector-reindex, adapt, serve, installers, migration scripts, native sync, and public self-update stay available offline.
 - **Registered Community**: free registration for hosted adapted catalog access, early-access collection updates, registered local enhancer downloads, future official community catalog/submissions, and the Registered Local Skill Hub contract up to 100 active client instances.
 - **Team Free**: registered team sync MVP with master approval and up to 10 instances when enforced server-side.
-- **Pro / Team**: planned paid hosted collaboration, dashboard, private packs, collection assignment, longer auto-approval windows, and support. The public client already includes the registered private-pack install/sync command surface.
+- **Pro / Team**: planned paid hosted collaboration, dashboard, private packs, collection assignment, longer auto-approval windows, and support. The public client includes registered private-pack install/sync commands; registry-side access requires private-pack entitlement or a Business/Enterprise plan.
 - **Enterprise**: local Enterprise Skill Lock policy MVP and registered managed policy sync now; private registry enforcement, SSO/on-prem/VPC options later.
 
 Local Skill Hub is separate from the free local daemon: `unlimited-skills serve` remains unregistered, while `unlimited-skills hub serve` is registration-gated and allowlist-only. See [docs/local-skill-hub.md](docs/local-skill-hub.md).

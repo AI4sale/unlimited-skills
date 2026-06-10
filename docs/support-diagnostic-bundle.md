@@ -32,3 +32,5 @@ The support manifest excludes:
 - private keys.
 
 The support manifest is a local diagnostic artifact. Users decide whether to share it with support.
+
+Registry-side private-pack entitlement denials are represented as error codes such as `no_private_pack_entitlement`. The bundle does not include the denied pack name by default.

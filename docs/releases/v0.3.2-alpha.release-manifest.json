@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "release": "v0.3.2-alpha",
+  "package_name": "unlimited-skills",
+  "package_version": "0.3.2",
+  "git": {
+    "repository": "https://github.com/AI4sale/unlimited-skills",
+    "sha": "da7025cad663d0262c85bc67c9e1e5f647d980d3",
+    "sha_kind": "release_candidate_stack_head",
+    "tag": "v0.3.2-alpha",
+    "tag_status": "pending_release_owner_approval",
+    "publication_branch": "release/v0.3.2-alpha-private-packs-integration",
+    "tag_owner_note": "Run scripts/verify-v0.3.2-alpha-private-packs.py --expected-sha <tag-target-sha> immediately before pushing the tag. Refresh git.sha if the merge strategy changes the tag target."
+  },
+  "required_prs": {
+    "public": [
+      {"number": 43, "title": "private team pack cross-repo fixture E2E"},
+      {"number": 44, "title": "private pack setup, diagnostics, and support bundle integration"}
+    ],
+    "private_registry": [
+      {"number": 23, "repository": "AI4sale/unlimited-skills-registry", "title": "private team pack distribution API"},
+      {"number": 24, "repository": "AI4sale/unlimited-skills-registry", "title": "admin console private pack management"},
+      {"number": 26, "repository": "AI4sale/unlimited-skills-registry", "title": "private team pack publishing pipeline"},
+      {"number": 27, "repository": "AI4sale/unlimited-skills-registry", "title": "private pack entitlement and plan gates"}
+    ]
+  },
+  "distribution": {
+    "official_alpha_path": "GitHub clone",
+    "pypi_supported": false,
+    "pypi_deferral": "PyPI is not the supported v0.3.2-alpha distribution path because router skills, installers, schemas, docs, and repo assets must be present beside the checkout."
+  },
+  "registration_boundary": {
+    "local_mit_core_unregistered": true,
+    "serve_unregistered": true,
+    "private_team_pack_hosted_calls_registration_gated": true,
+    "private_team_pack_device_proof_required": true,
+    "private_team_pack_entitlement_required": true
+  },
+  "security_boundary": {
+    "full_catalog_distribution": false,
+    "local_skill_hub_distribution_mode": "allowlist_only",
+    "hosted_query_forwarding": false,
+    "private_pack_manifest_signature_required": true,
+    "manifest_signature_algorithm": "ed25519",
+    "manifest_scopes": ["private-team-pack"],
+    "archive_bytes_verified_by_sha256": true,
+    "zip_safe_extraction_required": true,
+    "private_pack_remove_owned_paths_only": true,
+    "support_bundle_redacted": true,
+    "production_hosted_calls_in_tests": false,
+    "private_registry_skill_bodies_committed": false,
+    "private_signing_keys_committed": false,
+    "raw_tokens_committed": false
+  },
+  "feature_scope": [
+    "registered private team pack client commands",
+    "private team pack setup wizard checks",
+    "service diagnostics and doctor private-pack counters",
+    "redacted support bundle private-pack summary",
+    "cross-repo private team pack fixture E2E",
+    "v0.3.2-alpha private pack release smoke and verifier"
+  ],
+  "known_limitations": [
+    "Developer preview, not a production SLA.",
+    "PyPI is not the supported v0.3.2-alpha distribution path.",
+    "Private team pack hosted operations require registry-side entitlement or Business/Enterprise plan.",
+    "Private registry PR #26 and PR #27 must be accepted for production private-pack publishing and entitlement gates.",
+    "Full catalog distribution remains disabled.",
+    "Local Skill Hub remains allowlist-only.",
+    "Archive bytes are SHA256-verified and safely extracted, not archive-byte signed.",
+    "Support bundle output is redacted and local; users decide whether to share it."
+  ],
+  "required_test_commands": [
+    "python -m pytest tests -q",
+    "python scripts/run-v0.2x-smoke-tests.py",
+    "python scripts/run-production-registry-contract-e2e.py --fixture-mode --temp-home",
+    "python scripts/run-managed-policy-sync-e2e.py --fixture-mode --temp-home",
+    "python scripts/run-private-team-pack-cross-repo-e2e.py --fixture-mode --temp-home",
+    "python scripts/run-v0.3.2-alpha-private-packs-smoke.py",
+    "python scripts/verify-v0.3.2-alpha-private-packs.py",
+    "python -m compileall -q unlimited_skills scripts tests",
+    "git diff --check"
+  ],
+  "private_registry_required_test_commands": [
+    "python -m pytest tests -q",
+    "python scripts/verify-production-registry-api.py --fixture-mode --private-pack-root examples/private-packs",
+    "python scripts/run-registry-operator-gates.py --json",
+    "python -m compileall unlimited_registry scripts tests",
+    "git diff --check"
+  ],
+  "release_owner_actions": [
+    "Review and merge required public and private registry PRs in dependency order.",
+    "Run scripts/verify-v0.3.2-alpha-private-packs.py --expected-sha <tag-target-sha>.",
+    "Refresh git.sha if the merge strategy changes the final tag target.",
+    "Create tag v0.3.2-alpha only after human release-owner approval.",
+    "Create a GitHub prerelease with docs/releases/v0.3.2-alpha.md as release notes."
+  ]
+}

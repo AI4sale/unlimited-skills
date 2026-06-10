@@ -4,6 +4,8 @@ Private team packs are registered, team-scoped skill packs served by the hosted 
 
 The MIT local core still works without registration. Private team pack commands require a registered installation with a license token and device proof.
 
+The hosted registry must also authorize the installation with a private-pack entitlement or a Business/Enterprise plan. Registered Community installs should receive a redacted `no_private_pack_entitlement` diagnostic until that entitlement is granted.
+
 ## Commands
 
 ```bash
@@ -41,6 +43,7 @@ The metadata file records only registry-owned private packs. `remove` refuses to
 The client:
 
 - requires local registration before hosted private-pack calls;
+- expects the registry to enforce private-pack entitlement or Business/Enterprise plan gates;
 - sends bearer token plus device proof to every private-pack endpoint;
 - verifies the signed private team pack manifest before download/install;
 - downloads archives only through the registered POST download endpoint;
