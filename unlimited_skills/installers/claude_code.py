@@ -29,6 +29,7 @@ class ClaudeCodeInstallOptions:
     mode: str = "default"
     claude_file: Path | None = None
     patch_claude: bool = True
+    patch_global_claude: bool = True
     include_project_skills: bool = True
     skip_reindex: bool = False
     vector_reindex: bool = False
@@ -55,8 +56,10 @@ class ClaudeCodeInstallReport:
     shell_launcher: str
     powershell_launcher: str
     claude_file: str
+    global_claude_file: str = ""
     router_installed: bool = False
     claude_patched: bool = False
+    global_claude_patched: bool = False
     lexical_index: str = "skipped"
     vector_index: str = "skipped"
     remote_config: str = ""
@@ -83,8 +86,10 @@ class ClaudeCodeInstallReport:
             f"  PowerShell launcher: {self.powershell_launcher}",
             "",
             "CLAUDE.md:",
-            f"  patched: {'yes' if self.claude_patched else 'no'}",
-            f"  path: {self.claude_file or '<skipped>'}",
+            f"  project patched: {'yes' if self.claude_patched else 'no'}",
+            f"  project path: {self.claude_file or '<skipped>'}",
+            f"  global patched: {'yes' if self.global_claude_patched else 'no'}",
+            f"  global path: {self.global_claude_file or '<skipped>'}",
             "",
             "Migrations:",
         ]
@@ -311,6 +316,24 @@ def install_claude_code(options: ClaudeCodeInstallOptions) -> ClaudeCodeInstallR
         _patch_claude_file(claude_file, sh_launcher, ps_launcher)
         claude_patched = True
 
+    # The project CLAUDE.md is only loaded when Claude Code runs inside that
+    # project, so the router contract must also live in the global memory file
+    # that is loaded for every session.
+    global_claude_file = claude_home / "CLAUDE.md"
+    global_claude_patched = False
+    if options.patch_global_claude:
+        same_file = False
+        if options.patch_claude:
+            try:
+                same_file = global_claude_file.resolve() == claude_file.resolve()
+            except OSError:
+                same_file = global_claude_file == claude_file
+        if same_file:
+            global_claude_patched = claude_patched
+        else:
+            _patch_claude_file(global_claude_file, sh_launcher, ps_launcher)
+            global_claude_patched = True
+
     migrations: list[MigrationResult] = []
     if options.mode == "bundled":
         for pack in ("ecc", "superpowers"):
@@ -378,8 +401,10 @@ def install_claude_code(options: ClaudeCodeInstallOptions) -> ClaudeCodeInstallR
         shell_launcher=str(sh_launcher),
         powershell_launcher=str(ps_launcher),
         claude_file=str(claude_file) if options.patch_claude else "",
+        global_claude_file=str(global_claude_file) if options.patch_global_claude else "",
         router_installed=router_target.is_dir(),
         claude_patched=claude_patched,
+        global_claude_patched=global_claude_patched,
         lexical_index=lexical_index,
         vector_index=vector_index,
         remote_config=remote_config,
@@ -413,6 +438,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--mode", choices=sorted(INSTALL_MODES), default="default")
     parser.add_argument("--claude-file", type=Path)
     parser.add_argument("--no-claude-patch", action="store_true")
+    parser.add_argument("--no-global-claude-patch", action="store_true")
     parser.add_argument("--no-project-skills", action="store_true")
     parser.add_argument("--python-executable", default=sys.executable)
     parser.add_argument("--skip-reindex", action="store_true")
@@ -439,6 +465,7 @@ def main(argv: list[str] | None = None) -> int:
             mode=args.mode,
             claude_file=args.claude_file,
             patch_claude=not args.no_claude_patch,
+            patch_global_claude=not args.no_global_claude_patch,
             include_project_skills=not args.no_project_skills,
             skip_reindex=args.skip_reindex,
             vector_reindex=args.vector_reindex,

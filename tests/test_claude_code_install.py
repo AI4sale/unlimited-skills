@@ -59,6 +59,7 @@ def test_claude_code_install_bundled_imports_personal_and_project_skills(tmp_pat
     router_target = claude_home / "skills" / "unlimited-skills"
     assert report.router_installed is True
     assert report.claude_patched is True
+    assert report.global_claude_patched is True
     assert report.lexical_index == "rebuilt"
     assert (router_target / "scripts" / "unlimited-skills.sh").is_file()
     assert (router_target / "scripts" / "unlimited-skills.ps1").is_file()
@@ -82,6 +83,10 @@ def test_claude_code_install_bundled_imports_personal_and_project_skills(tmp_pat
     assert "Claude Code's current skill listing" in claude_text
     assert "scripts/unlimited-skills.sh" in claude_text
     assert "scripts/unlimited-skills.ps1" in claude_text
+
+    global_claude_text = (claude_home / "CLAUDE.md").read_text(encoding="utf-8")
+    assert "<!-- BEGIN UNLIMITED SKILLS -->" in global_claude_text
+    assert "scripts/unlimited-skills.sh" in global_claude_text
 
     assert (library / "registry" / "ecc" / "skills" / "security-review" / "SKILL.md").is_file()
     assert (library / "registry" / "superpowers" / "skills" / "systematic-debugging" / "SKILL.md").is_file()
@@ -112,13 +117,16 @@ def test_claude_code_install_can_skip_claude_patch_and_project_skills(tmp_path: 
             install_root=install_root,
             repo_root=repo_root,
             patch_claude=False,
+            patch_global_claude=False,
             include_project_skills=False,
             skip_reindex=True,
         )
     )
 
     assert report.claude_patched is False
+    assert report.global_claude_patched is False
     assert not (project_root / "CLAUDE.md").exists()
+    assert not (claude_home / "CLAUDE.md").exists()
     assert (claude_home / "skills" / "unlimited-skills" / "SKILL.md").is_file()
     assert (install_root / "library" / "local" / "claude-code" / "skills" / "article-writing" / "SKILL.md").is_file()
     assert not (install_root / "library" / "local" / "claude-code-project").exists()
@@ -151,6 +159,29 @@ def test_claude_code_reinstall_refreshes_same_collection_skills(tmp_path: Path) 
     library_skill = install_root / "library" / "local" / "claude-code" / "skills" / "custom-skill" / "SKILL.md"
     assert second.migrations[0].migrated_count == 1
     assert "description: v2" in library_skill.read_text(encoding="utf-8")
+
+
+def test_claude_code_install_patches_global_claude_even_when_same_as_project_file(tmp_path: Path) -> None:
+    repo_root = make_repo(tmp_path / "repo")
+    claude_home = tmp_path / ".claude-home"
+    project_root = tmp_path / "project"
+    install_root = tmp_path / ".unlimited-skills"
+
+    report = install_claude_code(
+        ClaudeCodeInstallOptions(
+            claude_home=claude_home,
+            project_root=project_root,
+            install_root=install_root,
+            repo_root=repo_root,
+            claude_file=claude_home / "CLAUDE.md",
+            skip_reindex=True,
+        )
+    )
+
+    assert report.claude_patched is True
+    assert report.global_claude_patched is True
+    text = (claude_home / "CLAUDE.md").read_text(encoding="utf-8")
+    assert text.count("<!-- BEGIN UNLIMITED SKILLS -->") == 1
 
 
 def test_claude_code_remote_first_router_config_uses_token_env(tmp_path: Path) -> None:
