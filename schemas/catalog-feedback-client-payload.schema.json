@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Catalog Feedback Client Payload",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["item_id", "feedback_type", "severity"],
+  "properties": {
+    "item_id": {"type": "string", "minLength": 1, "maxLength": 192, "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$"},
+    "feedback_type": {
+      "type": "string",
+      "enum": ["install_failure", "compatibility_issue", "missing_capability", "documentation_issue", "security_concern"]
+    },
+    "severity": {"type": "string", "enum": ["low", "medium", "high", "critical"]},
+    "title": {"type": "string", "maxLength": 160},
+    "detail": {"type": "object"}
+  }
+}

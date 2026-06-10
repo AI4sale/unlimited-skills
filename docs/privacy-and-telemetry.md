@@ -80,6 +80,10 @@ Private team pack diagnostics are count-based by default. Setup, service diagnos
 
 Managed Enterprise Skill Lock sync sends install id, client version, and a local policy summary to `/v1/policy/sync`. It must not upload skill bodies, prompts, source code, local paths, repository paths, search queries, environment variable values, tokens, secrets, or device private keys. The response must be a signed `enterprise-policy` assignment manifest before the client applies any local policy change.
 
+## Catalog feedback
+
+Catalog feedback is explicit only. `catalog feedback` requires registration and user confirmation, and `--dry-run` prints the redacted payload without sending it. The client rejects obvious private keys, hosted tokens, local paths, repo paths, email addresses, prompt fields, and skill body fields before submit. Feedback must not include prompts, task text, skill bodies, local or repo paths, customer data, tokens, device proofs, private keys, archive URLs, checkout URLs, or payment links.
+
 ## Telemetry
 
 Telemetry is off by default.

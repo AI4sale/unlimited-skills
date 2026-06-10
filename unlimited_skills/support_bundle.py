@@ -7,6 +7,7 @@ from typing import Any
 from . import __version__
 from .billing_status import redacted_billing_summary
 from .catalog_browser import redacted_catalog_browser_summary
+from .catalog_feedback import redacted_catalog_feedback_summary
 from .org_status import local_org_status
 from .plan_status import redacted_plan_summary
 from .private_pack_diagnostics import assert_private_pack_diagnostics_safe, private_pack_local_summary, private_pack_setup_summary
@@ -34,6 +35,7 @@ def build_support_bundle_manifest(root: Path, *, include_private_pack_refs: bool
         "plan": redacted_plan_summary(state=state),
         "billing": redacted_billing_summary(state=state),
         "catalog_browser": redacted_catalog_browser_summary(),
+        "catalog_feedback": redacted_catalog_feedback_summary(),
         "private_pack_setup": {
             "status": setup["status"],
             "checks": setup["checks"],
@@ -67,6 +69,7 @@ def build_support_bundle_manifest(root: Path, *, include_private_pack_refs: bool
             "bank_data_included": False,
             "catalog_queries_included": False,
             "catalog_item_names_included": False,
+            "catalog_feedback_included": False,
             "local_paths_included": False,
             "tokens_included": False,
             "proofs_included": False,

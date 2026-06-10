@@ -13,9 +13,11 @@ unlimited-skills catalog filters
 unlimited-skills catalog preview community:browser-qa-pack:0.1.0
 unlimited-skills catalog install community:browser-qa-pack:0.1.0 --dry-run
 unlimited-skills catalog install community:browser-qa-pack:0.1.0 --yes
+unlimited-skills catalog feedback community:browser-qa-pack:0.1.0 --type install_failure --dry-run
+unlimited-skills catalog feedback-status community:browser-qa-pack:0.1.0 --json
 ```
 
-`catalog list` remains the official collection/update metadata command. `catalog browse`, `catalog search`, `catalog filters`, `catalog preview`, and `catalog install` are the user-facing discovery commands.
+`catalog list` remains the official collection/update metadata command. `catalog browse`, `catalog search`, `catalog filters`, `catalog preview`, `catalog install`, `catalog feedback`, and `catalog feedback-status` are the user-facing discovery and quality-signal commands.
 
 ## Registration Boundary
 
@@ -54,6 +56,10 @@ Preview and search responses are metadata-only. They are intended to help users 
 For community-source items, `catalog install <item-id> --yes` delegates the final write path to the existing Community Skills install flow after the signed browser metadata check passes. That flow requests the install plan, verifies signed approved/published metadata, downloads the archive over HTTPS, checks SHA256, safely extracts the archive, writes under `registry/<collection>/`, records local installed metadata, and reindexes unless skipped.
 
 Official and private-visible catalog browser items are metadata/dry-run only until their dedicated install-plan capability checks are implemented.
+
+## Feedback
+
+`catalog feedback` submits explicit, redacted feedback for one catalog item. It requires `--yes` unless `--dry-run` is used. `catalog feedback-status` returns aggregate status for an item. Feedback commands must not send prompts, task text, skill bodies, local paths, repo paths, customer data, tokens, proofs, private keys, archive URLs, checkout URLs, or payment links.
 
 ## Support Bundle Redaction
 

@@ -39,6 +39,8 @@ For catalog browser diagnostics, the support manifest includes only a redacted m
 - skill-body inclusion flag, always false;
 - private-path inclusion flag, always false.
 
+For catalog feedback diagnostics, the support manifest includes only the feedback boundary flags. It does not include raw feedback payloads, item names, prompts, skill bodies, local paths, tokens, proofs, or private keys.
+
 The support manifest excludes:
 
 - private pack names by default;
@@ -56,7 +58,8 @@ The support manifest excludes:
 - device proofs;
 - private keys;
 - catalog browser search queries;
-- catalog browser item names.
+- catalog browser item names;
+- raw catalog feedback payloads.
 
 The support manifest is a local diagnostic artifact. Users decide whether to share it with support.
 
