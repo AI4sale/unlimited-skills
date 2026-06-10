@@ -92,7 +92,11 @@ def assert_manifest(payload: dict[str, Any], expected_sha: str | None) -> str:
     require(re.fullmatch(r"[0-9a-f]{40}", sha) is not None, "manifest git.sha must be 40 lowercase hex")
     require(git_info.get("tag") == RELEASE, "manifest tag mismatch")
     require(git_info.get("tag_status") == "pending_release_owner_approval", "manifest must require human tag approval")
-    require(git_info.get("publication_branch") == "release/v0.3.4-alpha-plans-billing-integration", "manifest publication branch mismatch")
+    require(
+        git_info.get("publication_branch")
+        in {"release/v0.3.4-alpha-plans-billing-integration", "release/v0.3.4-alpha-final-publication"},
+        "manifest publication branch mismatch",
+    )
     if expected_sha is not None:
         require(re.fullmatch(r"[0-9a-f]{40}", expected_sha) is not None, "--expected-sha must be 40 lowercase hex")
         require(git_ok(["merge-base", "--is-ancestor", sha, expected_sha]), f"manifest release candidate {sha} is not contained in expected tag target {expected_sha}")
@@ -100,9 +104,10 @@ def assert_manifest(payload: dict[str, Any], expected_sha: str | None) -> str:
     prs = payload.get("required_prs", {}) if isinstance(payload.get("required_prs"), dict) else {}
     public_numbers = [item.get("number") for item in prs.get("public", []) if isinstance(item, dict)]
     private_numbers = [item.get("number") for item in prs.get("private_registry", []) if isinstance(item, dict)]
-    for number in (50, 51):
+    for number in (50, 51, 52):
         require(number in public_numbers, f"manifest missing public PR #{number}")
-    require(32 in private_numbers, "manifest missing private registry PR #32")
+    for number in (30, 31, 32):
+        require(number in private_numbers, f"manifest missing private registry PR #{number}")
 
     billing = payload.get("billing_boundary", {}) if isinstance(payload.get("billing_boundary"), dict) else {}
     require(billing.get("sandbox_only") is True, "billing boundary must be sandbox_only")
