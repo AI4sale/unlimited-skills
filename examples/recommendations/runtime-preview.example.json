@@ -1,0 +1,115 @@
+{
+  "automatic_install": false,
+  "automatic_remove": false,
+  "automatic_telemetry": false,
+  "automatic_update": false,
+  "channel": "stable",
+  "customer_data_included": false,
+  "decision": {
+    "automatic_install": false,
+    "automatic_remove": false,
+    "automatic_telemetry": false,
+    "automatic_update": false,
+    "case": "runtime_preview",
+    "fallback": "Use local approved skills only.",
+    "full_catalog_distribution": false,
+    "hosted_query_forwarding": false,
+    "installed_version": "",
+    "item_id": "official:ecc:network_automation",
+    "local_paths_included": false,
+    "next_command": "unlimited-skills policy status",
+    "outcome": "require_policy_override",
+    "owner": "policy owner",
+    "preview_only": true,
+    "private_keys_included": false,
+    "prompts_included": false,
+    "proofs_included": false,
+    "reason": "Managed policy denies this item for the current installation.",
+    "recommended_channel": "stable",
+    "recommended_version": "",
+    "refusal_code": "policy_denied",
+    "repo_paths_included": false,
+    "skill_bodies_included": false,
+    "skill_rewriting": false,
+    "source_type": "hosted_official",
+    "status": "policy_denied",
+    "task_text_included": false,
+    "tokens_included": false,
+    "will_install": false,
+    "will_remove": false,
+    "will_update": false
+  },
+  "fixture_only": false,
+  "full_catalog_distribution": false,
+  "hosted_query_forwarding": false,
+  "item_id": "official:ecc:network_automation",
+  "local_paths_included": false,
+  "manifest_type": "policy-aware-recommendation-preview",
+  "preview_only": true,
+  "private_keys_included": false,
+  "prompts_included": false,
+  "proofs_included": false,
+  "repo_paths_included": false,
+  "schema_version": 1,
+  "signals": {
+    "catalog_metadata": {
+      "present": true,
+      "status": "published",
+      "summary": {
+        "channel": "stable",
+        "compatible_agents": ["codex"],
+        "installable": true,
+        "item_id": "official:ecc:network_automation",
+        "pack_id": "network-automation",
+        "plan_requirement": "registered-community",
+        "requires_registration": true,
+        "review_status": "published",
+        "source": "official",
+        "version": "0.4.0"
+      }
+    },
+    "entitlement": {
+      "present": true,
+      "status": "active",
+      "summary": {
+        "denial_reason": "",
+        "features_enabled": ["local_skill_hub"],
+        "plan": "community",
+        "registered": true,
+        "source": "fixture",
+        "status": "active"
+      }
+    },
+    "improvement_status": {
+      "present": false,
+      "status": "unknown",
+      "summary": {}
+    },
+    "policy": {
+      "present": true,
+      "status": "denied",
+      "summary": {
+        "default_action": "deny",
+        "installed": true,
+        "policy_id": "policy_example_enterprise"
+      }
+    },
+    "quality_status": {
+      "present": true,
+      "status": "low",
+      "summary": {
+        "install_allowed": true,
+        "install_risk": "low",
+        "quality_grade": "a",
+        "score_band": "A"
+      }
+    }
+  },
+  "skill_bodies_included": false,
+  "skill_rewriting": false,
+  "task_text_included": false,
+  "tokens_included": false,
+  "will_install": false,
+  "will_remove": false,
+  "will_update": false
+}

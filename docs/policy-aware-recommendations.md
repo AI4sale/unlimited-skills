@@ -1,6 +1,8 @@
 # Policy-Aware Recommendations
 
-Policy-aware recommendations are a v0.4 preview contract for deciding whether a catalog item may be shown, installed, updated, warned, or refused. The public v0.3.9-alpha follow-up only defines a fixture-backed decision table and refusal-code vocabulary. It does not implement a live recommendation engine.
+Policy-aware recommendations are a v0.4 preview contract for deciding whether a catalog item may be shown, installed, updated, warned, or refused. The public v0.3.9-alpha follow-up defined the fixture-backed decision table and refusal-code vocabulary. The v0.4 runtime preview layer adds a public-safe preview command that combines signed catalog metadata, signed quality metadata when available, signed improvement metadata when available, local entitlement summary, and local enterprise policy summary.
+
+The runtime preview still does not install, update, remove, rewrite, publish, or reindex skills. It only explains the decision and the next command a user or operator may run explicitly.
 
 ## Non-Goals
 
@@ -53,6 +55,51 @@ The public schemas are:
 
 Public examples live in `examples/recommendations/`.
 
+## Runtime Preview
+
+The runtime preview contract is emitted by:
+
+```bash
+unlimited-skills catalog recommendation-preview <item_id> --json
+```
+
+For deterministic tests and reviewer checks, use:
+
+```bash
+unlimited-skills catalog recommendation-preview --fixture-case policy_denied --json
+```
+
+The payload shape is:
+
+- `manifest_type: policy-aware-recommendation-preview`;
+- top-level safety flags copied from the recommendation policy contract;
+- `fixture_only: false` for live runtime previews and `fixture_only: true` for deterministic fixture previews;
+- one `decision` object with outcome, reason, next command, optional refusal details, and all write flags set to false;
+- `signals.catalog_metadata`;
+- `signals.quality_status`;
+- `signals.improvement_status`;
+- `signals.entitlement`;
+- `signals.policy`.
+
+The public schema is `schemas/policy-aware-recommendation-preview.schema.json`. The example payload is `examples/recommendations/runtime-preview.example.json`.
+
+Live preview mode requires registration because it reads signed hosted catalog metadata by item id. Unregistered clients can still produce a registration-required decision without making hosted calls. Supplemental quality and improvement metadata are best-effort by default so an unavailable supplemental endpoint cannot break the base signed catalog preview; `--strict-supplemental` makes those failures explicit for operator checks.
+
+Runtime previews never include skill bodies, prompts, task text, local paths, repo paths, customer data, tokens, proofs, private keys, or private pack contents. Private team-pack items may appear only by metadata/reference and still require entitlement.
+
+## Registry Inputs
+
+The public client consumes existing registered contracts; this preview layer does not require a new registry endpoint:
+
+- signed catalog browser `list`, `search`, `item`, `preview`, and `filters` metadata;
+- signed catalog quality blocks on browser items and signed quality/eval status where available;
+- signed SkillOps aggregate summaries for improvement and maintainer state;
+- redacted private-pack `list`, `preview`, and `access-check` metadata for team/private items;
+- signed managed Enterprise policy assignment through policy sync;
+- local redacted plan/entitlement and policy summaries.
+
+Raw maintainer backlog records, private team-pack skill bodies, local paths, prompts, proofs, tokens, and private keys are never recommendation-preview inputs or outputs.
+
 ## Fixture Coverage
 
 The fixture table in `unlimited_skills/recommendation_policy.py` covers:
@@ -74,7 +121,7 @@ The fixture table in `unlimited_skills/recommendation_policy.py` covers:
 - unsigned metadata;
 - stale installed version.
 
-The table is intentionally deterministic. It is a contract fixture for tests and future client/server integration, not a ranking algorithm and not an install plan.
+The table is intentionally deterministic. It is a contract fixture for tests and client/server integration, not a ranking algorithm and not an install plan. Runtime preview uses the same outcome and refusal vocabulary.
 
 ## v0.4 B-02 Closure Boundary
 
