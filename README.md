@@ -12,7 +12,7 @@
 
 Keep thousands of `SKILL.md` files out of the always-loaded context. Ask one tiny router skill what the task needs. Load only the selected skill.
 
-**v0.3.3 alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, Local Skill Hub is allowlist-only alpha, Enterprise Skill Lock is a local policy MVP with registered managed sync, and private team packs plus org/team governance diagnostics are registered/entitled alpha paths.
+**v0.3.5-alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, Local Skill Hub is allowlist-only alpha, Enterprise Skill Lock is a local policy MVP with registered managed sync, private team packs plus org/team governance diagnostics are registered/entitled alpha paths, and community catalog install is limited to signed approved/published items.
 
 [Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
 
@@ -68,7 +68,7 @@ Working now:
 - registered-installation state for hosted catalog and adapted collection updates;
 - hosted update client with SHA256-verified collection archives;
 - registered hosted catalog client;
-- registered community skills client for list/search/preview/install/submit/status/local remove;
+- registered community skills client for list/search/preview/install/submit/status/local remove with signed approved/published install enforcement;
 - registered Team Free create/join/members/pending/approve/reject/revoke/collections/sync/leave client;
 - registered private team pack client for list/preview/install/sync/installed/remove under `registry/private/<pack_id>`;
 - registered private pack access diagnostics with redacted `private-packs access-check <pack_id>` output;
@@ -116,9 +116,9 @@ For minimal lexical-only usage:
 python -m pip install -e .
 ```
 
-PyPI packaging is not the supported v0.3.3-alpha distribution path. Install from a GitHub clone for now, because the router skills, scripts, docs, and bundled packs are repo assets. A PyPI package should wait until wheel/sdist asset inclusion and installer behavior are tested in CI.
+PyPI packaging is not the supported v0.3.5-alpha distribution path. Install from a GitHub clone for now, because the router skills, scripts, docs, and bundled packs are repo assets. A PyPI package should wait until wheel/sdist asset inclusion and installer behavior are tested in CI.
 
-For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md), [docs/packaging.md](docs/packaging.md), [docs/install-upgrade-uninstall.md](docs/install-upgrade-uninstall.md), and [SECURITY.md](SECURITY.md). For the v0.3.3 alpha publication gate, see [docs/releases/v0.3.3-alpha.md](docs/releases/v0.3.3-alpha.md) and [docs/releases/v0.3.3-alpha-known-issues.md](docs/releases/v0.3.3-alpha-known-issues.md).
+For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md), [docs/packaging.md](docs/packaging.md), [docs/install-upgrade-uninstall.md](docs/install-upgrade-uninstall.md), and [SECURITY.md](SECURITY.md). For the v0.3.5 alpha publication gate, see [docs/releases/v0.3.5-alpha.md](docs/releases/v0.3.5-alpha.md), [docs/releases/v0.3.5-alpha-upgrade-notes.md](docs/releases/v0.3.5-alpha-upgrade-notes.md), and [docs/releases/v0.3.5-alpha-known-issues.md](docs/releases/v0.3.5-alpha-known-issues.md).
 
 ## Product Editions
 
@@ -250,7 +250,7 @@ unlimited-skills community installed
 unlimited-skills community remove community --dry-run
 ```
 
-`catalog` is the official registered hosted catalog and collection metadata. `community` is the user-facing community discovery, submission, install, and local management flow. Community list/search/preview/install/status calls do not upload local skill bodies. `community submit` is the explicit exception: it uploads only the selected skill or pack after local validation, preview generation, and confirmation.
+`catalog` is the official registered hosted catalog and collection metadata. `community` is the user-facing community discovery, submission, install, and local management flow. Community list/search/preview/install/status calls do not upload local skill bodies. `community submit` is the explicit exception: it uploads only the selected skill or pack after local validation, preview generation, and confirmation. Community preview and install require signed hosted metadata, and install is allowed only for signed items whose review status is `approved` or `published`.
 
 Run a local-only diagnostic without registration or hosted calls:
 
