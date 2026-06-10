@@ -2,6 +2,8 @@
 
 `v0.3.9-alpha` is a developer preview, not a stable production SLA.
 
+- v0.4 SkillOps is planning-only. The readiness audit recommends NO-GO for runtime implementation until P0 blockers are closed, and the RFC does not authorize live billing, PyPI publication, full catalog distribution, automatic telemetry, automatic hosted query forwarding, automatic skill rewriting, or auto-publish.
+- v0.4 planning must preserve no-prompt/no-skill-body/no-private-data boundaries, signed hosted manifest requirements, and registration-free MIT local core behavior.
 - Hosted registry access is early-access.
 - The registered hosted catalog exists and is populated, but availability may be limited during alpha.
 - Exact registered catalog contents are delivered through registered hosted catalog/update commands, not published in the MIT repo.

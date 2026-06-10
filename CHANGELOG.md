@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.4-readiness-rfc (planning)
+
+### Added
+
+- v0.4 readiness audit covering public core, private registry, signed manifests, catalog browser, feedback, evals, improvement workflow, private packs, org/team governance, plan/entitlement/sandbox billing, support diagnostics, security/privacy boundaries, and PR hygiene/release train health.
+- SkillOps architecture RFC defining the v0.4 VFP, non-goals, data/trust boundaries, permission model, migration plan, Mermaid architecture diagram, and candidate modules for policy-aware skill recommendation, eval-driven catalog release gates, maintainer improvement queues, agent/runtime usage summaries, governance dashboard, optional self-hosted registry mode, and future human-reviewed automatic improvement proposals.
+- v0.4 risk register, first four implementation epics, docs verifier, and focused docs tests.
+
+### Security
+
+- Repeated that v0.4 planning does not authorize automatic skill rewriting, auto-publish, automatic telemetry, live billing, PyPI publication, full catalog distribution, or automatic hosted query forwarding.
+- Repeated that v0.4 must preserve no-prompt/no-skill-body/no-private-data boundaries, signed hosted manifest requirements, and registration-free MIT local core behavior.
+
 ## v0.3.9-alpha (in development)
 
 ### Added
