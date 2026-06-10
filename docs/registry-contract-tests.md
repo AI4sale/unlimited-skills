@@ -37,6 +37,12 @@ Run the production-shaped registered registry contract E2E fixture:
 python scripts/run-production-registry-contract-e2e.py --fixture-mode --temp-home
 ```
 
+Run the billing lifecycle cross-repo fixture:
+
+```bash
+python scripts/run-billing-lifecycle-cross-repo-e2e.py --fixture-mode --temp-home --json
+```
+
 ## Pytest
 
 The test suite also exercises the examples against current client parsers:
