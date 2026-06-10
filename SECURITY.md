@@ -70,7 +70,7 @@ Setup, service diagnostics, doctor, and support bundle output include only redac
 
 ## Billing Lifecycle Diagnostics Boundary
 
-`billing status` and `billing doctor` are local/cache-only diagnostics. `billing refresh` requires a registered installation and hosted device proof. The public client treats billing as sandbox lifecycle visibility only: it does not create checkout sessions, collect payment data, store card or bank data, or enable live payment providers.
+`billing status` and `billing doctor` are local/cache-only diagnostics. `billing refresh` requires a registered installation and hosted device proof. The public client treats billing as sandbox lifecycle visibility only: it does not create checkout sessions, collect payment data, store card or bank data, create real charges, or enable live payment providers.
 
 Billing diagnostics and support bundles must not print checkout URLs, payment links, invoice URLs, card data, bank data, hosted tokens, device proofs, device private keys, local paths, private skill names, private skill bodies, or private pack bodies.
 
