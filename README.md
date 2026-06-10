@@ -12,7 +12,7 @@
 
 Keep thousands of `SKILL.md` files out of the always-loaded context. Ask one tiny router skill what the task needs. Load only the selected skill.
 
-**v0.3.7-alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, catalog browser discovery is signed metadata-only alpha, catalog feedback is explicit and registration-gated, Local Skill Hub is allowlist-only alpha, Enterprise Skill Lock is a local policy MVP with registered managed sync, private team packs plus org/team governance diagnostics are registered/entitled alpha paths, plan/billing diagnostics are sandbox-only with no live payment provider, and community catalog install is limited to signed approved/published items.
+**v0.3.9-alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, catalog browser discovery is signed metadata-only alpha, catalog feedback is explicit and registration-gated, catalog quality and skill improvement status are signed metadata-only diagnostics, Local Skill Hub is allowlist-only alpha, Enterprise Skill Lock is a local policy MVP with registered managed sync, private team packs plus org/team governance diagnostics are registered/entitled alpha paths, plan/billing diagnostics are sandbox-only with no live payment provider, and community catalog install is limited to signed approved/published items.
 
 [Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
 
@@ -79,6 +79,8 @@ Working now:
 - registered plan refresh through `/v1/hub/entitlements`;
 - local/cache billing lifecycle diagnostics with `billing status` and `billing doctor`;
 - registered sandbox billing refresh through `/v1/hub/billing-status`;
+- registered signed skill improvement status, known issues, deprecated/retired warnings, and preview-only update recommendations;
+- v0.3.9-alpha cross-repo skill improvement integration gate proving feedback/evals -> improvement backlog -> maintainer triage -> catalog quality report -> public signed recommendations;
 - private team pack setup, service diagnostics, doctor, and redacted support bundle summaries;
 - native skill sync for Codex, Claude Code, Hermes, and OpenClaw roots;
 - public repo self-update checks and applies latest releases/tags;
@@ -125,7 +127,7 @@ For minimal lexical-only usage:
 python -m pip install -e .
 ```
 
-PyPI packaging is not the supported v0.3.7-alpha distribution path. Install from a GitHub clone for now, because the router skills, scripts, docs, and bundled packs are repo assets. A PyPI package should wait until wheel/sdist asset inclusion and installer behavior are tested in CI.
+PyPI packaging is not the supported v0.3.9-alpha distribution path. Install from a GitHub clone for now, because the router skills, scripts, docs, and bundled packs are repo assets. A PyPI package should wait until wheel/sdist asset inclusion and installer behavior are tested in CI.
 
 Run the first-run wizard:
 
@@ -145,7 +147,7 @@ unlimited-skills support bundle --out support-bundle.zip
 
 See [docs/support-bundle.md](docs/support-bundle.md) for the privacy boundary.
 
-For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md), [docs/packaging.md](docs/packaging.md), [docs/install-upgrade-uninstall.md](docs/install-upgrade-uninstall.md), and [SECURITY.md](SECURITY.md). For the v0.3.7 alpha publication gate, see [docs/releases/v0.3.7-alpha.md](docs/releases/v0.3.7-alpha.md) and [docs/releases/v0.3.7-alpha-checklist.md](docs/releases/v0.3.7-alpha-checklist.md).
+For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md), [docs/packaging.md](docs/packaging.md), [docs/install-upgrade-uninstall.md](docs/install-upgrade-uninstall.md), and [SECURITY.md](SECURITY.md). For the v0.3.9 alpha integration gate, see [docs/releases/v0.3.9-alpha.md](docs/releases/v0.3.9-alpha.md) and [docs/releases/v0.3.9-alpha-checklist.md](docs/releases/v0.3.9-alpha-checklist.md).
 
 ## Product Editions
 
@@ -272,7 +274,7 @@ unlimited-skills catalog preview <catalog-item-id>
 unlimited-skills catalog install <catalog-item-id> --dry-run
 ```
 
-Catalog browser responses must be signed, metadata-only, and approved or published before install can proceed. Community-source installs delegate to the Community Skills install flow after the signed browser metadata check. Official and private-visible browser items are metadata/dry-run only until dedicated install-plan capability checks are implemented. The v0.3.6 release gate verifies public fixture mode without a private checkout and local registry mode when `D:\git\unlimited-skills-registry` is available. See [docs/catalog-browser.md](docs/catalog-browser.md) and [docs/releases/v0.3.6-alpha.md](docs/releases/v0.3.6-alpha.md).
+Catalog browser responses must be signed, metadata-only, and approved or published before install can proceed. Community-source installs delegate to the Community Skills install flow after the signed browser metadata check. Official and private-visible browser items are metadata/dry-run only until dedicated install-plan capability checks are implemented. The v0.3.6 release gate verifies public fixture mode without a private checkout and local registry mode when `<private-registry-checkout>` is available. See [docs/catalog-browser.md](docs/catalog-browser.md) and [docs/releases/v0.3.6-alpha.md](docs/releases/v0.3.6-alpha.md).
 
 Catalog feedback is explicit only. `catalog feedback` requires registration and confirmation, `--dry-run` sends nothing, and feedback payloads are redacted before submit. See [docs/catalog-feedback.md](docs/catalog-feedback.md).
 
@@ -403,7 +405,7 @@ Windows PowerShell:
 ```powershell
 .\scripts\install-codex.ps1
 .\scripts\install-codex.ps1 -Mode bundled
-.\scripts\install-codex.ps1 -AgentsFile C:\path\to\project\AGENTS.md
+.\scripts\install-codex.ps1 -AgentsFile <project>\AGENTS.md
 .\scripts\install-codex.ps1 -NoAgentsPatch
 ```
 
@@ -458,7 +460,7 @@ Windows PowerShell:
 ```powershell
 .\scripts\install-claude-code.ps1
 .\scripts\install-claude-code.ps1 -Mode bundled
-.\scripts\install-claude-code.ps1 -ClaudeFile C:\path\to\project\CLAUDE.md
+.\scripts\install-claude-code.ps1 -ClaudeFile <project>\CLAUDE.md
 .\scripts\install-claude-code.ps1 -NoClaudePatch
 ```
 

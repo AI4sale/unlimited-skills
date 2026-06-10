@@ -7,6 +7,12 @@
 - Registered signed skill improvement status commands: `catalog improvement-status`, `catalog known-issues`, `catalog update-recommendations`, `catalog update-preview`, and `catalog deprecation-status`.
 - Preview-only update recommendation contracts, schemas, examples, docs, trust scopes, and fake-service tests for known issues, fix status, recommended channel/version, deprecation/retirement status, compatibility notes, and stale installed-version status.
 - Support-bundle skill improvement summary counts, excluding item ids, issue details, recommendations, skill bodies, prompts, local paths, repo paths, customer data, tokens, proofs, and private keys.
+- Cross-repo skill improvement E2E, v0.3.9-alpha smoke runner, release verifier, checklist, and manifest for feedback/evals -> improvement backlog -> maintainer triage -> catalog quality report -> public signed recommendations.
+
+### Changed
+
+- Raised package version to `0.3.9`.
+- Documented the maintainer-controlled workflow boundary: no automatic skill rewriting, no auto-publish, no prompt upload, no user telemetry, no production hosted calls, and no private skill bodies in the public repo.
 
 ## v0.3.8-alpha (in development)
 
