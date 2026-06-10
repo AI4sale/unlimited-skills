@@ -12,7 +12,7 @@
 
 Keep thousands of `SKILL.md` files out of the always-loaded context. Ask one tiny router skill what the task needs. Load only the selected skill.
 
-**v0.3.0 alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, Local Skill Hub is allowlist-only alpha, and Enterprise Skill Lock is a local policy MVP with registered managed sync.
+**v0.3.1 alpha / developer preview.** The local-first MIT core is usable today. `v0.3.1-alpha` is the post-release stabilization train for the published `v0.3.0-alpha` baseline. Hosted registry features are registration-gated early access, Local Skill Hub is allowlist-only alpha, and Enterprise Skill Lock is a local policy MVP with registered managed sync.
 
 [Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
 
@@ -112,7 +112,7 @@ For minimal lexical-only usage:
 python -m pip install -e .
 ```
 
-PyPI packaging is not the supported v0.3.0-alpha distribution path. Install from a GitHub clone for now, because the router skills, scripts, docs, and bundled packs are repo assets. A PyPI package should wait until wheel/sdist asset inclusion and installer behavior are tested in CI.
+PyPI packaging is not the supported v0.3.1-alpha distribution path. Install from a GitHub clone for now, because the router skills, scripts, docs, and bundled packs are repo assets. A PyPI package should wait until wheel/sdist asset inclusion and installer behavior are tested in CI.
 
 For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md), [docs/packaging.md](docs/packaging.md), [docs/install-upgrade-uninstall.md](docs/install-upgrade-uninstall.md), and [SECURITY.md](SECURITY.md). For the previous v0.2.2-alpha gate, see [docs/releases/v0.2.2-alpha.md](docs/releases/v0.2.2-alpha.md).
 

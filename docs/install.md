@@ -1,6 +1,6 @@
 # Install
 
-Status: `v0.3.0-alpha`.
+Status: `v0.3.1-alpha` stabilization train. Published baseline: `v0.3.0-alpha`.
 
 Use a GitHub clone for this alpha:
 
@@ -11,6 +11,6 @@ python -m pip install -e ".[all]"
 unlimited-skills --version
 ```
 
-PyPI is not the supported `v0.3.0-alpha` distribution path because the alpha still depends on repo assets: router skills, installers, schemas, docs, and migration scripts.
+PyPI is not the supported `v0.3.1-alpha` distribution path because the alpha still depends on repo assets: router skills, installers, schemas, docs, and migration scripts.
 
 See [install-upgrade-uninstall.md](install-upgrade-uninstall.md) for agent-specific installer commands.

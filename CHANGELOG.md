@@ -1,6 +1,18 @@
 # Changelog
 
-## v0.3.0-alpha (in development)
+## v0.3.1-alpha (in development)
+
+### Added
+
+- Post-release stabilization docs for the published `v0.3.0-alpha` baseline, including release health, known issues, upgrade notes, and a v0.3.1 stabilization verifier.
+- v0.3.1 post-release smoke runner covering published-release traceability, fresh install, synthetic upgrade, packaging smoke, and managed policy release smoke.
+
+### Changed
+
+- Raised package version to `0.3.1` for the v0.3.1-alpha stabilization train.
+- README, SECURITY, known limitations, install, upgrade, and release process docs now describe `v0.3.1-alpha` as the current stabilization train while preserving `v0.3.0-alpha` as the published baseline.
+
+## v0.3.0-alpha
 
 ### Added
 
