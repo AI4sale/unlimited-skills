@@ -1,0 +1,57 @@
+{
+  "$id": "https://unlimited.ai4.sale/schemas/org-status.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills organization status",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "registered", "source", "plan", "organization", "team", "entitlements", "privacy"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "registered": { "type": "boolean" },
+    "refreshed": { "type": "boolean" },
+    "source": { "type": "string", "enum": ["local", "cache", "hosted"] },
+    "last_refreshed_at": { "type": "string" },
+    "server_url": { "type": "string" },
+    "plan": { "type": "string" },
+    "organization": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "org_id": { "type": "string" },
+        "name": { "type": "string" },
+        "role": { "type": "string" },
+        "status": { "type": "string" }
+      }
+    },
+    "team": { "type": "object" },
+    "entitlements": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "recommendations": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "privacy": {
+      "type": "object",
+      "required": [
+        "tokens_included",
+        "proofs_included",
+        "private_keys_included",
+        "private_skill_names_included",
+        "private_pack_names_included",
+        "archive_urls_included",
+        "local_paths_included"
+      ],
+      "properties": {
+        "tokens_included": { "const": false },
+        "proofs_included": { "const": false },
+        "private_keys_included": { "const": false },
+        "private_skill_names_included": { "const": false },
+        "private_pack_names_included": { "const": false },
+        "archive_urls_included": { "const": false },
+        "local_paths_included": { "const": false }
+      }
+    }
+  }
+}

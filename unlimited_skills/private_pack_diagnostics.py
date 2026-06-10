@@ -1,10 +1,9 @@
 from __future__ import annotations
 
-import hashlib
 from pathlib import Path
 from typing import Any
 
-from .private_packs import read_private_pack_metadata
+from .private_packs import private_pack_ref, read_private_pack_metadata
 from .registration import RegistrationState, load_registration
 from .signatures import key_record_allows, trusted_manifest_key_records
 
@@ -19,8 +18,11 @@ PRIVATE_PACK_ERROR_CODES = {
     "stale_version",
     "unauthorized",
     "no_entitlement",
+    "not_team_member",
     "wrong_agent",
     "wrong_channel",
+    "policy_denied",
+    "service_unavailable",
 }
 
 
@@ -72,7 +74,7 @@ def private_pack_local_summary(root: Path, *, include_pack_ids: bool = False) ->
             failed_signature_count += 1
         if last_error == "sha_mismatch":
             sha_mismatch_count += 1
-        if last_error in {"registry_access_denied", "unauthorized", "no_entitlement", "wrong_agent", "wrong_channel"}:
+        if last_error in {"registry_access_denied", "unauthorized", "no_entitlement", "not_team_member", "wrong_agent", "wrong_channel", "policy_denied"}:
             access_denied_count += 1
         if include_pack_ids:
             pack_refs.append(_pack_ref(str(pack_id)))
@@ -130,6 +132,40 @@ def private_pack_setup_summary(root: Path, *, state: RegistrationState | None = 
     }
 
 
+def private_pack_doctor(root: Path, *, state: RegistrationState | None = None, service_url: str = "") -> dict[str, Any]:
+    state = state or load_registration()
+    setup = private_pack_setup_summary(root, state=state, service_url=service_url or state.server_url)
+    payload = {
+        "schema_version": 1,
+        "status": setup["status"],
+        "registered": state.registered,
+        "plan": state.plan or ("registered-community" if state.registered else "community-core"),
+        "setup": {
+            "checks": setup["checks"],
+            "trust": {
+                "required_scope": setup["trust"].get("required_scope", "private-team-pack"),
+                "status": setup["trust"].get("status", "missing"),
+                "compatible_key_count": setup["trust"].get("compatible_key_count", 0),
+            },
+            "local": setup["local"],
+        },
+        "recommendations": setup["recommendations"],
+        "network_calls": False,
+        "privacy": {
+            "skill_names_included": False,
+            "skill_bodies_included": False,
+            "private_pack_names_included": False,
+            "archive_urls_included": False,
+            "local_paths_included": False,
+            "tokens_included": False,
+            "proofs_included": False,
+            "private_keys_included": False,
+        },
+    }
+    assert_private_pack_diagnostics_safe(payload)
+    return payload
+
+
 def assert_private_pack_diagnostics_safe(payload: dict[str, Any]) -> None:
     serialized = str(payload).lower()
     forbidden = ["skill.md", "when to use", "authorization", "bearer ", "license_token", "device_private_key", "x-uls-proof", '"archive_url":']
@@ -139,4 +175,4 @@ def assert_private_pack_diagnostics_safe(payload: dict[str, Any]) -> None:
 
 
 def _pack_ref(pack_id: str) -> str:
-    return "pack:" + hashlib.sha256(pack_id.encode("utf-8")).hexdigest()[:12]
+    return private_pack_ref(pack_id)

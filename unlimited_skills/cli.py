@@ -71,9 +71,11 @@ from .service_diagnostics import (
 from .setup_wizard import build_setup_report, format_setup_text
 from .support_bundle import build_bundle_report, format_bundle_text
 from .native import DEFAULT_AGENT_ORDER, sync_native_sources
+from .org_status import local_org_status, refresh_org_status
 from .policy import explain_policy, install_policy, load_policy, policy_summary, read_policy_file, remove_policy, verify_policy_payload
 from .policy_enforcement import enforce_local_root
 from .policy_sync import managed_policy_status, sync_managed_policy
+from .private_pack_diagnostics import private_pack_doctor
 from .private_packs import PrivatePackClient, list_installed_private_packs, remove_private_pack
 from .self_update import DEFAULT_PUBLIC_REPO, apply_public_repo_update, check_public_repo_update
 from .team import (
@@ -1516,6 +1518,61 @@ def cmd_private_packs_remove(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_private_packs_access_check(args: argparse.Namespace) -> int:
+    client = PrivatePackClient(load_registration(), timeout=args.timeout)
+    payload = client.access_check_diagnostic(args.pack_id)
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    print(f"Pack: {payload['pack_ref']}")
+    print(f"Status: {payload['status']}")
+    print("Authorized: " + ("yes" if payload["authorized"] else "no"))
+    if payload["denial_reasons"]:
+        print("Denial reasons: " + ", ".join(payload["denial_reasons"]))
+    if payload["request_id"]:
+        print(f"Request: {payload['request_id']}")
+    return 0
+
+
+def cmd_private_packs_doctor(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    payload = private_pack_doctor(root, state=load_registration())
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    print(f"Status: {payload['status']}")
+    print("Registered: " + ("yes" if payload["registered"] else "no"))
+    checks = payload["setup"]["checks"]
+    print(f"Installed private packs: {checks['installed_count']}")
+    print(f"Trust key: {checks['trust_key']}")
+    if payload["recommendations"]:
+        print("Recommendations: " + " ".join(payload["recommendations"]))
+    return 0
+
+
+def cmd_org_status(args: argparse.Namespace) -> int:
+    registration = load_registration()
+    if args.refresh:
+        payload = refresh_org_status(registration, timeout=args.timeout)
+    else:
+        payload = local_org_status(registration)
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    print("Registered: " + ("yes" if payload["registered"] else "no"))
+    print(f"Plan: {payload['plan']}")
+    org = payload["organization"]
+    print(f"Organization: {org.get('name') or '(none)'} ({org.get('status') or 'unknown'}, role: {org.get('role') or 'none'})")
+    team = payload["team"]
+    print(f"Team: {team.get('team_name') or '(none)'} ({team.get('status') or 'none'}, role: {team.get('role') or 'none'})")
+    print(f"Source: {payload['source']}")
+    if payload["last_refreshed_at"]:
+        print(f"Last refreshed: {payload['last_refreshed_at']}")
+    if payload["recommendations"]:
+        print("Recommendations: " + " ".join(payload["recommendations"]))
+    return 0
+
+
 def cmd_enhance_download(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     client = UpdateClient(load_registration(), timeout=args.timeout)
@@ -2239,6 +2296,14 @@ def build_parser() -> argparse.ArgumentParser:
     community_remove.add_argument("--json", action="store_true")
     community_remove.set_defaults(func=cmd_community_remove)
 
+    org = sub.add_parser("org", help="Show registered organization and entitlement status.")
+    org_sub = org.add_subparsers(dest="org_command", required=True)
+    org_status = org_sub.add_parser("status", help="Show cached organization status, or refresh it from the hosted service.")
+    org_status.add_argument("--refresh", action="store_true", help="Refresh hosted organization status; requires registration.")
+    org_status.add_argument("--json", action="store_true")
+    org_status.add_argument("--timeout", type=float, default=30.0)
+    org_status.set_defaults(func=cmd_org_status)
+
     private_packs = sub.add_parser("private-packs", help="Preview, install, sync, and remove registered private team packs.")
     private_packs_sub = private_packs.add_subparsers(dest="private_packs_command", required=True)
     private_packs_list = private_packs_sub.add_parser("list", help="List private team packs authorized for this installation.")
@@ -2275,6 +2340,14 @@ def build_parser() -> argparse.ArgumentParser:
     private_packs_remove.add_argument("--skip-reindex", action="store_true", help="Do not rebuild the lexical index after removal.")
     private_packs_remove.add_argument("--json", action="store_true")
     private_packs_remove.set_defaults(func=cmd_private_packs_remove)
+    private_packs_access_check = private_packs_sub.add_parser("access-check", help="Check this installation's private pack entitlement without downloading the pack.")
+    private_packs_access_check.add_argument("pack_id")
+    private_packs_access_check.add_argument("--json", action="store_true")
+    private_packs_access_check.add_argument("--timeout", type=float, default=30.0)
+    private_packs_access_check.set_defaults(func=cmd_private_packs_access_check)
+    private_packs_doctor_parser = private_packs_sub.add_parser("doctor", help="Diagnose local private pack setup without downloading skill bodies.")
+    private_packs_doctor_parser.add_argument("--json", action="store_true")
+    private_packs_doctor_parser.set_defaults(func=cmd_private_packs_doctor)
 
     enhance = sub.add_parser("enhance", help="Download or run the registered local skill enhancement script.")
     enhance_sub = enhance.add_subparsers(dest="enhance_command", required=True)

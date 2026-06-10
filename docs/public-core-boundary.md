@@ -26,6 +26,7 @@ The public MIT core must remain local-first. Registration gates hosted services 
 - `service verify-trust`
 - `service test-registration --dry-run`
 - `service test-proof`
+- `org status`
 - `policy status`
 - `policy verify`
 - `policy install`
@@ -48,6 +49,7 @@ The public MIT core must remain local-first. Registration gates hosted services 
 - `enhance run`
 - `team create`
 - `team join`
+- `org status --refresh`
 - `team sync`
 - `team pending`
 - `team members`
@@ -96,6 +98,8 @@ Community submission is the explicit exception: `community submit <path>` upload
 Public repo self-update remains unregistered because it updates the MIT public core from GitHub. Hosted skill updates require registration.
 
 Team status may read local `team.json` without a hosted refresh. Any hosted status refresh, member listing, approval, rejection, revocation, collection listing, sync, or leave operation requires registration.
+
+Organization status follows the same boundary. `org status` is local/cache-only and works without registration. `org status --refresh` requires registration, calls the hosted organization status endpoint, and writes only a redacted local cache.
 
 `hub status`, `hub init`, `hub doctor`, `remote configure`, and `remote status` may read or write local configuration without hosted calls. `hub init --allowlist <file>` is allowed without registration because the operator explicitly supplies a local fixture allowlist. Official `hub sync` requires registration and must not upload local skill bodies. `hub serve` is a separate registration-required product command and must not be confused with the free `serve` daemon.
 

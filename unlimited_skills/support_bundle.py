@@ -13,11 +13,13 @@ from typing import Any
 from . import __version__
 from .doctor import build_doctor_report
 from .hub import active_hub_token_count, cached_allowlist_summary, load_hub_config, load_remote_config
+from .org_status import local_org_status
 from .policy import load_policy, policy_summary
 from .policy_sync import managed_policy_status
 from .private_pack_diagnostics import assert_private_pack_diagnostics_safe, private_pack_local_summary, private_pack_setup_summary
 from .registration import DEFAULT_SERVICE_URL, RegistrationError, RegistrationState, load_registration, redacted_status, redact_sensitive_text, unlimited_skills_home
 from .service_diagnostics import load_service_config, service_health_snapshot
+from .team import load_team_state
 
 
 SUPPORT_SCHEMA_VERSION = 1
@@ -160,6 +162,31 @@ def _private_pack_status(root: Path, home: Path, *, include_pack_ids: bool) -> d
     }
 
 
+def _org_team_status(home: Path) -> dict[str, Any]:
+    try:
+        state = load_registration(home)
+    except RegistrationError:
+        state = RegistrationState()
+    status = local_org_status(state, load_team_state(home=home))
+    return {
+        "registered": bool(status.get("registered")),
+        "source": str(status.get("source") or "local"),
+        "last_refreshed_at": str(status.get("last_refreshed_at") or ""),
+        "plan": str(status.get("plan") or "community-core"),
+        "organization": {
+            "status": str(status.get("organization", {}).get("status") or "unknown"),
+            "role": str(status.get("organization", {}).get("role") or "none"),
+        },
+        "team": {
+            "joined": bool(status.get("team", {}).get("joined")),
+            "role": str(status.get("team", {}).get("role") or "none"),
+            "status": str(status.get("team", {}).get("status") or ""),
+            "approval_mode": str(status.get("team", {}).get("approval_mode") or "manual"),
+        },
+        "entitlements": status.get("entitlements", {}),
+    }
+
+
 def _doctor_status(root: Path) -> dict[str, Any]:
     try:
         return build_doctor_report(root)
@@ -262,6 +289,7 @@ def build_support_diagnostics(root: Path, *, include_paths: bool = False, includ
         "hub": _hub_status(home),
         "enterprise": _enterprise_status(home),
         "private_packs": _private_pack_status(root, home, include_pack_ids=include_private_pack_refs),
+        "org_team": _org_team_status(home),
         "doctor": _doctor_status(root),
     }
     sanitized = sanitize_support_payload(payload, root=root, home=home, include_paths=include_paths)
@@ -299,6 +327,7 @@ def build_bundle_report(
             "private_pack_installed_count": int(diagnostics.get("private_packs", {}).get("local", {}).get("installed_count") or 0),
             "private_pack_revoked_count": int(diagnostics.get("private_packs", {}).get("local", {}).get("revoked_count") or 0),
             "private_pack_stale_count": int(diagnostics.get("private_packs", {}).get("local", {}).get("stale_count") or 0),
+            "team_joined": bool(diagnostics.get("org_team", {}).get("team", {}).get("joined")),
         },
     }
     report = {"manifest": manifest, "diagnostics": diagnostics}
@@ -341,5 +370,6 @@ def format_bundle_text(report: dict[str, Any]) -> str:
         f"Physical skill files counted: {summary['physical_skill_files']}",
         f"Index present: {'yes' if summary['index_present'] else 'no'}",
         f"Private packs installed: {summary['private_pack_installed_count']}",
+        f"Team joined: {'yes' if summary['team_joined'] else 'no'}",
     ]
     return "\n".join(lines)

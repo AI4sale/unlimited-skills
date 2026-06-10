@@ -22,6 +22,28 @@ PRIVATE_PACKS_REQUIRED_MESSAGE = (
 )
 PRIVATE_PACKS_METADATA = ".unlimited-skills-private-packs.json"
 PRIVATE_PACKS_SOURCE = "private-team-pack"
+PRIVATE_PACK_DENIAL_CODES = {
+    "no_entitlement",
+    "not_team_member",
+    "wrong_agent",
+    "wrong_channel",
+    "revoked",
+    "policy_denied",
+    "service_unavailable",
+}
+PRIVATE_PACK_DENIAL_ALIASES = {
+    "missing_entitlement": "no_entitlement",
+    "no_private_pack_entitlement": "no_entitlement",
+    "registry_access_denied": "no_entitlement",
+    "not_a_team_member": "not_team_member",
+    "not_org_member": "not_team_member",
+    "agent_not_allowed": "wrong_agent",
+    "channel_not_allowed": "wrong_channel",
+    "pack_revoked": "revoked",
+    "denied_by_policy": "policy_denied",
+    "unreachable": "service_unavailable",
+    "service_unreachable": "service_unavailable",
+}
 
 
 class PrivatePackError(RuntimeError):
@@ -107,6 +129,12 @@ def list_installed_private_packs(root: Path) -> list[InstalledPrivatePack]:
             )
         )
     return installed
+
+
+def private_pack_ref(pack_id: str) -> str:
+    import hashlib
+
+    return "pack:" + hashlib.sha256(pack_id.encode("utf-8")).hexdigest()[:12]
 
 
 def _preview_from_json(data: dict[str, Any]) -> PrivatePackPreview:
@@ -270,6 +298,16 @@ class PrivatePackClient:
     def access_check(self, pack_id: str) -> dict[str, Any]:
         return self._post("/v1/private-packs/access-check", self._payload({"pack_id": pack_id}))
 
+    def access_check_diagnostic(self, pack_id: str) -> dict[str, Any]:
+        try:
+            response = self.access_check(pack_id)
+        except PrivatePackError as exc:
+            return normalize_private_pack_access_check(
+                {"authorized": False, "denial_reasons": ["service_unavailable"], "message": str(exc)},
+                pack_id=pack_id,
+            )
+        return normalize_private_pack_access_check(response, pack_id=pack_id)
+
     def install(self, root: Path, pack_id: str, *, dry_run: bool = False) -> PrivatePackInstallResult:
         root = root.expanduser().resolve()
         manifest_payload = self.signed_manifest(pack_id)
@@ -350,3 +388,78 @@ def remove_private_pack(root: Path, pack_id: str, *, dry_run: bool = True) -> di
     items.pop(pack_id, None)
     write_private_pack_metadata(root, metadata)
     return {"pack_id": pack_id, "target": str(target), "removed": True, "dry_run": False}
+
+
+def normalize_private_pack_access_check(payload: dict[str, Any], *, pack_id: str = "") -> dict[str, Any]:
+    policy = payload.get("access_policy") if isinstance(payload.get("access_policy"), dict) else {}
+    raw_reasons = payload.get("denial_reasons") or payload.get("reasons") or policy.get("denial_reasons") or policy.get("reasons") or []
+    if isinstance(raw_reasons, str):
+        raw_reasons = [raw_reasons]
+    if not isinstance(raw_reasons, list):
+        raw_reasons = []
+    denied_by_policy = payload.get("policy_denied") is True or policy.get("denied") is True
+    revoked = payload.get("revoked") is True or policy.get("revoked") is True
+    authorized = bool(payload.get("authorized") or policy.get("current_install_authorized") is True)
+    if denied_by_policy:
+        raw_reasons.append("policy_denied")
+    if revoked:
+        raw_reasons.append("revoked")
+    reasons = sorted({_normalize_denial_code(str(reason)) for reason in raw_reasons if str(reason).strip()})
+    if not authorized and not reasons:
+        reasons = ["policy_denied"]
+    status = "authorized" if authorized else ("unavailable" if "service_unavailable" in reasons else "denied")
+    result = {
+        "schema_version": 1,
+        "pack_ref": private_pack_ref(pack_id or str(payload.get("pack_id") or "")),
+        "authorized": authorized,
+        "status": status,
+        "denial_reasons": reasons,
+        "plan": _safe_string(payload.get("plan") or policy.get("plan") or ""),
+        "scope": _safe_string(payload.get("scope") or policy.get("scope") or ""),
+        "organization": _safe_dict(payload.get("organization")),
+        "team": _safe_dict(payload.get("team")),
+        "request_id": _safe_string(payload.get("request_id") or ""),
+        "privacy": {
+            "pack_id_included": False,
+            "pack_name_included": False,
+            "skill_names_included": False,
+            "skill_bodies_included": False,
+            "archive_urls_included": False,
+            "tokens_included": False,
+            "proofs_included": False,
+            "private_keys_included": False,
+            "local_paths_included": False,
+        },
+    }
+    _assert_access_check_safe(result)
+    return result
+
+
+def _normalize_denial_code(value: str) -> str:
+    normalized = value.strip().lower().replace("-", "_").replace(" ", "_")
+    normalized = PRIVATE_PACK_DENIAL_ALIASES.get(normalized, normalized)
+    if normalized in PRIVATE_PACK_DENIAL_CODES:
+        return normalized
+    return "policy_denied"
+
+
+def _safe_string(value: object) -> str:
+    return redact_sensitive_text(value).strip()
+
+
+def _safe_dict(value: object) -> dict[str, str]:
+    if not isinstance(value, dict):
+        return {}
+    allowed = {}
+    for key in ("org_id", "team_id", "role", "status", "namespace", "scope"):
+        if key in value:
+            allowed[key] = _safe_string(value.get(key))
+    return allowed
+
+
+def _assert_access_check_safe(payload: dict[str, Any]) -> None:
+    serialized = json.dumps(payload, ensure_ascii=False).lower()
+    forbidden = ["authorization", "bearer ", "license_token", "device_private_key", "x-uls-proof", '"archive_url":', '"download_url":', "skill.md"]
+    for marker in forbidden:
+        if marker in serialized:
+            raise PrivatePackError(f"Private pack access diagnostic contains forbidden marker: {marker}")

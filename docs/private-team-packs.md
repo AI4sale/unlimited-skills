@@ -16,6 +16,8 @@ unlimited-skills private-packs sync --dry-run
 unlimited-skills private-packs sync --yes
 unlimited-skills private-packs installed
 unlimited-skills private-packs remove <pack_id> --yes
+unlimited-skills private-packs access-check <pack_id>
+unlimited-skills private-packs doctor
 unlimited-skills setup --private-packs
 unlimited-skills support bundle --json
 ```
@@ -52,6 +54,7 @@ The client:
 - installs only under `registry/private/<pack_id>`;
 - lists installed private packs locally without hosted calls.
 - exposes only redacted private-pack counters in setup, service diagnostics, doctor, and support bundle output.
+- exposes hosted access decisions only through a redacted `access-check` payload with hashed pack references.
 
 Metadata responses must not include private skill bodies, tokens, proofs, join codes, or private keys. The downloaded archive may contain the private team skills and is installed locally only after manifest and SHA verification.
 
@@ -72,9 +75,25 @@ Production deployments should distribute private-pack public keys through the no
 Private-pack-aware diagnostics are local and redacted by default:
 
 - `unlimited-skills setup --private-packs`;
+- `unlimited-skills private-packs doctor`;
+- `unlimited-skills private-packs access-check <pack_id>`;
 - `unlimited-skills service status`;
 - `unlimited-skills service doctor`;
 - `unlimited-skills doctor --json`;
 - `unlimited-skills support bundle --json`.
 
 These surfaces include counts and error codes only. They do not include private pack names by default, private skill names, private skill bodies, raw archive URLs, local paths, tokens, device proofs, or private keys. `support bundle --include-private-pack-refs` may include hashed private pack references for support correlation; it still excludes names and contents.
+
+`private-packs doctor` is local-only and does not contact hosted private-pack endpoints. It reports registration presence, trust-key compatibility, installed-pack counts, and local metadata errors.
+
+`private-packs access-check <pack_id>` is an explicit hosted call. It requires registration and sends only install identity, signed proof metadata, client version, and the requested pack id. Output normalizes registry denials into these stable reason codes:
+
+- `no_entitlement`
+- `not_team_member`
+- `wrong_agent`
+- `wrong_channel`
+- `revoked`
+- `policy_denied`
+- `service_unavailable`
+
+The JSON result uses a hashed `pack_ref` instead of printing the raw pack id by default.

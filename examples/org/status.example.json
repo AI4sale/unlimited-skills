@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "source": "hosted",
+  "registered": true,
+  "refreshed": true,
+  "last_refreshed_at": "2026-06-09T00:00:00Z",
+  "server_url": "https://unlimited.ai4.sale",
+  "plan": "business",
+  "organization": {
+    "org_id": "org_example",
+    "name": "Example Organization",
+    "role": "admin",
+    "status": "active"
+  },
+  "team": {
+    "joined": true,
+    "team_id": "team_example",
+    "team_name": "Example Team",
+    "role": "member",
+    "status": "approved",
+    "approval_mode": "manual"
+  },
+  "entitlements": {
+    "private_packs": "allowed",
+    "community_catalog": "allowed",
+    "team_sync": "allowed"
+  },
+  "recommendations": [],
+  "privacy": {
+    "tokens_included": false,
+    "proofs_included": false,
+    "private_keys_included": false,
+    "private_skill_names_included": false,
+    "private_pack_names_included": false,
+    "archive_urls_included": false,
+    "local_paths_included": false
+  }
+}
