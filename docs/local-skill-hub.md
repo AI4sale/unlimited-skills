@@ -35,6 +35,12 @@ Local search queries are not sent to the hosted registry by default. Hosted regi
 Bootstrap local hub state:
 
 ```bash
+unlimited-skills setup --hub --dry-run
+```
+
+The setup wizard checks registration, service trust, cached allowlist metadata, hub token presence, and remote client configuration without serving the hub or contacting hosted services.
+
+```bash
 unlimited-skills hub init
 unlimited-skills hub init --allowlist examples/hub/allowlist-fixture.v1.json
 unlimited-skills hub sync --dry-run

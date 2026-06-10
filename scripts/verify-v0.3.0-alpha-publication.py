@@ -197,8 +197,10 @@ def main() -> int:
     parser.add_argument("--expected-sha", help="Final tag target SHA to compare with docs/releases/v0.3.0-alpha.release-manifest.json")
     args = parser.parse_args()
 
-    require(package_version() == VERSION, f"pyproject version must be {VERSION}")
-    require(init_version() == VERSION, f"__version__ must be {VERSION}")
+    current_package_version = package_version()
+    current_init_version = init_version()
+    require(current_package_version == VERSION or current_package_version.startswith("0.3."), f"pyproject version must be {VERSION} or a v0.3.x stabilization version")
+    require(current_init_version == VERSION or current_init_version.startswith("0.3."), f"__version__ must be {VERSION} or a v0.3.x stabilization version")
     manifest_sha = assert_manifest(load_manifest(), args.expected_sha)
     assert_docs()
     assert_no_private_material()
@@ -216,6 +218,7 @@ def main() -> int:
     print("pypi support: deferred")
     print("production hosted calls: blocked by fixture-mode release commands")
     print("private key/token scan: passed for public release docs")
+    print(f"current package version: {current_package_version}")
     if args.expected_sha:
         print(f"expected tag target sha: {args.expected_sha}")
     else:

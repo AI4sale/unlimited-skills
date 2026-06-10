@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "client": {
+    "name": "unlimited-skills",
+    "version": "0.3.1"
+  },
+  "mode": "hub",
+  "dry_run": true,
+  "writes_performed": false,
+  "hosted_calls_performed": false,
+  "destructive_changes": false,
+  "root": "/tmp/unlimited-skills",
+  "summary": {
+    "status": "blocked",
+    "blocked_count": 1,
+    "needs_action_count": 7
+  },
+  "components": {
+    "hub": {
+      "hub_id": "",
+      "distribution_mode": "allowlist_only",
+      "active_client_limit": 100,
+      "active_token_count": 0,
+      "allowlist": {
+        "present": false
+      },
+      "remote": {
+        "configured": false
+      }
+    }
+  },
+  "steps": [
+    {
+      "name": "hub_allowlist",
+      "status": "needs_action",
+      "message": "Local Skill Hub allowlist is not configured.",
+      "next_commands": [
+        "unlimited-skills hub init --allowlist <allowlist.v1.json>",
+        "unlimited-skills hub sync --dry-run --json"
+      ]
+    },
+    {
+      "name": "hub_token",
+      "status": "needs_action",
+      "message": "No active hub client token exists.",
+      "next_commands": ["unlimited-skills hub token create --label default --json"]
+    }
+  ],
+  "next_commands": [
+    "unlimited-skills hub init --allowlist <allowlist.v1.json>",
+    "unlimited-skills hub sync --dry-run --json",
+    "unlimited-skills hub token create --label default --json"
+  ],
+  "privacy": {
+    "tokens_redacted": true,
+    "private_keys_redacted": true,
+    "hosted_calls_performed": false,
+    "telemetry_collected": false
+  }
+}
