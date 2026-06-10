@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.3.14
+
+### Added
+
+- Transactional installs for all agents. The Claude Code, OpenClaw, and Hermes installers now record every destructive step (router replacement, CLAUDE.md/AGENTS.md patches, library skill copies, index rewrites, remote config) in a schema v2 rollback manifest under `<install-root>/backups/`, generalizing the manifest that previously existed only for Hermes (`installers/common.py`: `InstallTransaction`, `rollback_install`).
+- If an install fails midway, the already-applied steps are rolled back automatically before the error propagates.
+- `--rollback MANIFEST [--rollback-apply]` flags on the Claude Code and OpenClaw installers (dry-run by default); Hermes `rollback` keeps its existing subcommand and still understands old v1 manifests.
+- `VectorModelMismatch`: searching with a different embedding model than the one the vector index was built with (`UNLIMITED_SKILLS_EMBED_MODEL` / `--model`) is now a clear error telling you to run `vector-reindex`, instead of silently ranking with incomparable stale embeddings. Hybrid search degrades to lexical with a stderr warning; `--require-vector` raises.
+- Tests for generic rollback, mid-install failure rollback, reinstall router restore, and model-mismatch detection.
+
+### Changed
+
+- `cli.py` was split from ~3.4k lines down to ~1.6k: all command bodies moved into `unlimited_skills/commands/` (library, catalog, community, private-packs, accounts, team, policy, service, updates). `unlimited_skills.cli` re-exports every command, so existing imports and monkeypatch points keep working; CLI behavior, arguments, and output are unchanged.
+- Shared `migrate_source`/`existing_skill_names`/`MigrationResult` now live in `installers/common.py` instead of being duplicated per installer.
+- Backup directories are uniquified, so two installs in the same second can no longer clobber each other's rollback manifest.
+- Raised package version to `0.3.14` (plugin manifests, previously stuck at `0.3.12`, are version-pinned again).
+
 ## v0.3.13
 
 ### Added
