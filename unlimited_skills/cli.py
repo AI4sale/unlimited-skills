@@ -384,6 +384,17 @@ def cosine_similarity(left: list[float], right: list[float]) -> float:
     return dot / (math.sqrt(left_norm) * math.sqrt(right_norm))
 
 
+class VectorModelMismatch(RuntimeError):
+    """The on-disk vector index was built with a different embedding model."""
+
+
+def _model_mismatch_error(built_with: str, requested: str, index_path: Path) -> VectorModelMismatch:
+    return VectorModelMismatch(
+        f"Vector index was built with embedding model '{built_with}' but the current model is '{requested}' "
+        f"({index_path}). Run `unlimited-skills vector-reindex` to rebuild the index with the current model."
+    )
+
+
 def load_vector_sidecar(root: Path, model: str) -> list[dict] | None:
     path = vector_sidecar_path(root)
     if not path.is_file():
@@ -392,8 +403,11 @@ def load_vector_sidecar(root: Path, model: str) -> list[dict] | None:
         payload = json.loads(read_text(path))
     except json.JSONDecodeError as exc:
         raise RuntimeError(f"Vector sidecar is invalid JSON: {path}") from exc
-    if str(payload.get("model") or "") != model:
-        return None
+    built_with = str(payload.get("model") or "")
+    if built_with != model:
+        # Embeddings from different models are not comparable; falling back to
+        # stale vectors would silently return garbage rankings.
+        raise _model_mismatch_error(built_with or "<unknown>", model, path)
     records = payload.get("records")
     if not isinstance(records, list):
         raise RuntimeError(f"Vector sidecar has no records list: {path}")
@@ -486,6 +500,15 @@ def vector_search(root: Path, query: str, limit: int, model: str, collection_nam
     sidecar_hits = vector_search_sidecar(root, query, limit, model, collection_name=collection_name)
     if sidecar_hits is not None:
         return sidecar_hits
+    meta_path = vector_meta_path(root)
+    if meta_path.is_file():
+        try:
+            meta = json.loads(read_text(meta_path))
+        except json.JSONDecodeError:
+            meta = {}
+        built_with = str(meta.get("model") or "")
+        if built_with and built_with != model:
+            raise _model_mismatch_error(built_with, model, meta_path)
     try:
         collection = chroma_client(root).get_collection(CHROMA_COLLECTION)
     except Exception as exc:
@@ -532,6 +555,11 @@ def hybrid_search(
                 merged[hit.path].score += hit.score
             else:
                 merged[hit.path] = hit
+    except VectorModelMismatch as exc:
+        if require_vector:
+            raise
+        # Degrading to lexical-only must not be silent: results change quality.
+        print(f"[unlimited-skills] vector search skipped: {exc}", file=sys.stderr)
     except Exception:
         if require_vector:
             raise
