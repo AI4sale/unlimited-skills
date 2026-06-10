@@ -1,0 +1,32 @@
+{
+  "name": "unlimited-skills",
+  "owner": {
+    "name": "AI4sale"
+  },
+  "metadata": {
+    "description": "Unlimited Skills - external skill memory and retrieval router for Claude Code"
+  },
+  "plugins": [
+    {
+      "name": "unlimited-skills",
+      "source": "./plugin",
+      "description": "Router skill plus SessionStart hook that wire the Unlimited Skills library (local skill retrieval: lexical, vector, and hybrid search) into every Claude Code session. Requires the unlimited-skills CLI (pip install unlimited-skills).",
+      "version": "0.3.12",
+      "author": {
+        "name": "AI4sale"
+      },
+      "homepage": "https://github.com/AI4sale/unlimited-skills",
+      "repository": "https://github.com/AI4sale/unlimited-skills",
+      "license": "MIT",
+      "keywords": [
+        "skills",
+        "retrieval",
+        "router",
+        "memory",
+        "search"
+      ],
+      "category": "workflow",
+      "strict": false
+    }
+  ]
+}

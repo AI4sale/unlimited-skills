@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.3.12
+
+### Added
+
+- Unlimited Skills now ships as a native Claude Code plugin: `.claude-plugin/marketplace.json` (marketplace manifest) plus `plugin/` (plugin root with `.claude-plugin/plugin.json`, router skill, and hooks). Install with `/plugin marketplace add AI4sale/unlimited-skills` then `/plugin install unlimited-skills@unlimited-skills`.
+- `SessionStart` hook (`plugin/hooks/session_start.py`) injects a short router contract into every Claude Code session, making routing deterministic instead of dependent on `CLAUDE.md` state or skill-list visibility. If the `unlimited-skills` CLI is missing from `PATH`, the hook prints an install hint instead. The hook always exits 0 and emits no skill bodies, prompts, paths, or private data.
+- Plugin router skill variant without machine-specific launcher paths (calls the `unlimited-skills` CLI from `PATH`).
+- `docs/claude-code-plugin.md` covering install, plugin-vs-installer comparison, and privacy boundaries; README Claude Code section now lists the plugin as the recommended path.
+- Package tests for the plugin manifests, version pinning to the package version, hook wiring, and hook output (`tests/test_claude_code_plugin_package.py`).
+
+### Changed
+
+- Raised package version to `0.3.12`.
+
 ## v0.3.11
 
 ### Fixed
