@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "unlimited-skills"
-version = "0.3.12"
+version = "0.3.13"
 description = "A local skill retrieval library for coding agents: lexical search, vector sidecar search, warm daemon mode, and learning-loop logs."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -14,6 +14,7 @@ authors = [
 ]
 dependencies = [
   "cryptography>=42,<47",
+  "PyYAML>=6,<7",
 ]
 keywords = ["agents", "skills", "codex", "claude-code", "chroma", "retrieval", "rag"]
 classifiers = [

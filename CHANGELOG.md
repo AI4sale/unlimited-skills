@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.3.13
+
+### Added
+
+- `import-dir <path> --collection <name>` command: import skills from any local directory into the library with sha256-based dedup and a conflict report. Same name + identical content is skipped; same name + different content is diverted to the collection's `duplicates/` folder and reported; new names are imported and adapted.
+- `import-github <org/name|url> [--ref] [--subdir] [--collection]` command: shallow-clone a repo and import its skills through the same dedup pipeline. Repo spec and subdir are validated against injection/path-escape.
+- Both commands support `--dry-run` (report without writing), `--skip-reindex`, and `--json`.
+- Shared `unlimited_skills/frontmatter.py` module backed by PyYAML, replacing three separate hand-rolled line parsers (`cli.py`, `adapters.py`, `community.py`). Correctly handles multi-line scalars, colons inside values, YAML lists, and nested maps; falls back to the legacy line parser when PyYAML is absent.
+- `NativeSyncResult.duplicate_count` so `sync-native --json` reports how many skills were diverted as duplicates.
+- Tests for import dedup/conflict/dry-run and the new frontmatter parser (`tests/test_import_and_frontmatter.py`).
+
+### Changed
+
+- Added `PyYAML>=6,<7` as a dependency (the frontmatter parser degrades gracefully if it is missing).
+- Raised package version to `0.3.13`.
+
 ## v0.3.12
 
 ### Added

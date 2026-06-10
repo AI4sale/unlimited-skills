@@ -14,6 +14,7 @@ from typing import Any
 from urllib.parse import quote
 
 from . import __version__
+from .frontmatter import split_frontmatter as _shared_split_frontmatter
 from .registration import RegistrationError, RegistrationState, post_json, unlimited_skills_home, write_private_json
 from .signatures import ManifestSignatureError, verify_manifest_signature
 from .updates import (
@@ -436,24 +437,7 @@ def list_installed_community_items(root: Path) -> list[InstalledCommunityItem]:
 
 
 def _split_frontmatter(text: str) -> tuple[dict[str, str], str]:
-    text = text.lstrip("\ufeff")
-    if not text.startswith("---"):
-        return {}, text
-    lines = text.splitlines()
-    end = None
-    for idx in range(1, len(lines)):
-        if lines[idx].strip() == "---":
-            end = idx
-            break
-    if end is None:
-        return {}, text
-    meta: dict[str, str] = {}
-    for line in lines[1:end]:
-        if ":" not in line:
-            continue
-        key, value = line.split(":", 1)
-        meta[key.strip().lower()] = value.strip().strip("'\"")
-    return meta, "\n".join(lines[end + 1 :])
+    return _shared_split_frontmatter(text, lower_keys=True)
 
 
 def _source_root_for_submission(path: Path) -> tuple[Path, list[Path]]:

@@ -320,6 +320,16 @@ unlimited-skills search "security review" --native-agent hermes
 
 For Claude Code, native sync also discovers skills bundled with installed plugins. It reads `~/.claude/plugins/installed_plugins.json`, resolves each plugin's install path (falling back to the marketplace clone listed in `known_marketplaces.json` when the cache snapshot is pruned), and mirrors the skill roots declared in the plugin's `.claude-plugin/plugin.json` (plus the conventional `skills/` and `.claude/skills/` folders) into `local/claude-code-plugin-<marketplace>-<plugin>/skills/`. Declared paths cannot escape the plugin root. Skills whose names already exist elsewhere in the library are diverted to `duplicates/` instead of overwriting. Set `UNLIMITED_SKILLS_DISABLE_PLUGIN_SYNC=1` to opt out of plugin discovery only.
 
+Import skills from a local directory or a GitHub repository into the library:
+
+```bash
+unlimited-skills import-dir ./my-skills --collection my-team
+unlimited-skills import-github obra/superpowers --collection superpowers --ref main
+unlimited-skills import-github org/repo --subdir skills --dry-run --json
+```
+
+Both commands deduplicate by content (sha256): a skill whose name already exists with identical content is skipped, a skill whose name collides with different content is diverted to the collection's `duplicates/` folder and reported as a conflict, and new skills are imported and structurally adapted. Use `--dry-run` to preview, `--json` for machine-readable reports, and `--skip-reindex` to defer index rebuilds.
+
 Download and run the registered local enhancer:
 
 ```bash

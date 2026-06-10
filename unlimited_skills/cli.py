@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Iterable
 
 from . import __version__
-from .adapters import SKILL_PACKS, adapt_library, apply_agent_adaptation, adaptation_task, install_pack, next_skill_for_agent
+from .adapters import SKILL_PACKS, adapt_library, apply_agent_adaptation, adaptation_task, import_github_repo, import_skill_dirs, install_pack, next_skill_for_agent
 from .catalog_browser import CatalogBrowserClient
 from .catalog_feedback import CatalogFeedbackClient, build_feedback_payload
 from .catalog_quality import CatalogQualityClient, dumps_status
@@ -28,6 +28,7 @@ from .community import (
 from .billing_status import doctor as billing_doctor
 from .billing_status import format_billing_status, redacted_billing_summary, refresh_billing_status
 from .doctor import build_doctor_report, doctor_json, format_doctor_text
+from .frontmatter import split_frontmatter as _shared_split_frontmatter
 from .hub import (
     HUB_DEFAULT_PORT,
     cmd_hub_clients,
@@ -168,30 +169,7 @@ def write_jsonl(path: Path, row: dict) -> None:
 
 
 def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
-    text = text.lstrip("\ufeff")
-    if not text.startswith("---"):
-        return {}, text
-    lines = text.splitlines()
-    if not lines or lines[0].strip() != "---":
-        return {}, text
-    end = None
-    for idx in range(1, len(lines)):
-        if lines[idx].strip() == "---":
-            end = idx
-            break
-    if end is None:
-        return {}, text
-
-    meta: dict[str, str] = {}
-    for line in lines[1:end]:
-        if ":" not in line:
-            continue
-        key, value = line.split(":", 1)
-        key = key.strip().lower()
-        value = value.strip().strip('"').strip("'")
-        if key:
-            meta[key] = value
-    return meta, "\n".join(lines[end + 1 :])
+    return _shared_split_frontmatter(text, lower_keys=True)
 
 
 def first_body_line(body: str) -> str:
@@ -922,6 +900,66 @@ def cmd_sync_native(args: argparse.Namespace) -> int:
     if reindexed:
         print("Lexical index rebuilt.")
     return 0
+
+
+def _print_import_report(report, *, as_json: bool) -> None:
+    from dataclasses import asdict as _asdict
+
+    if as_json:
+        print(json.dumps(_asdict(report), ensure_ascii=False, indent=2))
+        return
+    verb = "Would import" if report.dry_run else "Imported"
+    print(f"{verb} {len(report.imported)} skill(s) into local/{report.collection}")
+    print(f"  source: {report.source}")
+    if report.skipped_identical:
+        print(f"  skipped (identical): {len(report.skipped_identical)}")
+    if report.conflicts:
+        print(f"  conflicts (same name, different content): {len(report.conflicts)}")
+        for conflict in report.conflicts:
+            print(f"    - {conflict.name}: {conflict.reason}")
+            print(f"      incoming: {conflict.source_path}")
+            print(f"      existing: {conflict.existing_path}")
+        if not report.dry_run:
+            print("  conflicting skills were copied to the collection's duplicates/ folder.")
+
+
+def cmd_import_dir(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    source = Path(args.path).expanduser()
+    if not source.is_dir():
+        print(f"Source directory not found: {source}", file=sys.stderr)
+        return 1
+    report = import_skill_dirs(source, root, args.collection, dry_run=args.dry_run)
+    if not args.dry_run and not args.skip_reindex and report.imported:
+        save_index(root)
+    _print_import_report(report, as_json=args.json)
+    return 0
+
+
+def cmd_import_github(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    collection = args.collection or _collection_from_repo(args.repo)
+    try:
+        report = import_github_repo(
+            root,
+            args.repo,
+            collection,
+            ref=args.ref or "",
+            subdir=args.subdir or "",
+            dry_run=args.dry_run,
+        )
+    except (RuntimeError, OSError) as exc:
+        print(f"Import failed: {exc}", file=sys.stderr)
+        return 1
+    if not args.dry_run and not args.skip_reindex and report.imported:
+        save_index(root)
+    _print_import_report(report, as_json=args.json)
+    return 0
+
+
+def _collection_from_repo(repo: str) -> str:
+    tail = repo.rstrip("/").split("/")[-1]
+    return re.sub(r"[^a-z0-9._-]+", "-", tail.removesuffix(".git").lower()).strip("-.") or "imported"
 
 
 def resolve_skill_path(root: Path, name_or_path: str) -> Path | None:
@@ -2630,6 +2668,24 @@ def build_parser() -> argparse.ArgumentParser:
     apply_adaptation.add_argument("--source-repo", default="", help="Source repository metadata override.")
     apply_adaptation.add_argument("--dry-run", action="store_true", help="Validate and print result without writing.")
     apply_adaptation.set_defaults(func=cmd_apply_adaptation)
+
+    import_dir = sub.add_parser("import-dir", help="Import skills from a local directory into the library with sha256 dedup and conflict reporting.")
+    import_dir.add_argument("path", help="Directory to scan recursively for SKILL.md files.")
+    import_dir.add_argument("--collection", required=True, help="Library collection name (stored under local/<collection>).")
+    import_dir.add_argument("--dry-run", action="store_true", help="Report what would be imported without writing files.")
+    import_dir.add_argument("--skip-reindex", action="store_true", help="Do not rebuild the lexical index after importing.")
+    import_dir.add_argument("--json", action="store_true")
+    import_dir.set_defaults(func=cmd_import_dir)
+
+    import_github = sub.add_parser("import-github", help="Shallow-clone a GitHub repo and import its skills into the library.")
+    import_github.add_argument("repo", help="Repository as 'org/name' or a full git URL.")
+    import_github.add_argument("--collection", default="", help="Library collection name. Defaults to the repo name.")
+    import_github.add_argument("--ref", default="", help="Git ref (branch, tag, or commit) to check out.")
+    import_github.add_argument("--subdir", default="", help="Only import skills under this subdirectory of the repo.")
+    import_github.add_argument("--dry-run", action="store_true", help="Report what would be imported without writing files.")
+    import_github.add_argument("--skip-reindex", action="store_true", help="Do not rebuild the lexical index after importing.")
+    import_github.add_argument("--json", action="store_true")
+    import_github.set_defaults(func=cmd_import_github)
 
     serve = sub.add_parser("serve", help="Run the experimental warm search daemon.")
     serve.add_argument("--host", default="127.0.0.1")
