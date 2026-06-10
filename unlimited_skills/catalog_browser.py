@@ -60,6 +60,9 @@ class CatalogBrowserItem:
     deprecation_status: str = "active"
     feedback_issue_categories: tuple[str, ...] = ()
     install_risk: str = ""
+    open_issue_count: int = 0
+    fix_status: str = ""
+    stale_installed_version: bool = False
 
 
 @dataclass(frozen=True)
@@ -122,6 +125,9 @@ def _item_from_json(data: dict[str, Any]) -> CatalogBrowserItem:
         deprecation_status=str(quality.get("deprecation_status") or data.get("deprecation_status") or ("retired" if data.get("retired") else "active")),
         feedback_issue_categories=_tuple(quality.get("feedback_issue_categories") or data.get("feedback_issue_categories")),
         install_risk=str(quality.get("install_risk") or data.get("install_risk") or ""),
+        open_issue_count=int(quality.get("open_issue_count") or data.get("open_issue_count") or 0),
+        fix_status=str(quality.get("fix_status") or data.get("fix_status") or ""),
+        stale_installed_version=bool(quality.get("stale_installed_version") or data.get("stale_installed_version")),
     )
 
 

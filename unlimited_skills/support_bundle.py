@@ -24,6 +24,7 @@ from .policy_sync import managed_policy_status
 from .private_pack_diagnostics import assert_private_pack_diagnostics_safe, private_pack_local_summary, private_pack_setup_summary
 from .registration import DEFAULT_SERVICE_URL, RegistrationError, RegistrationState, load_registration, redacted_status, redact_sensitive_text, unlimited_skills_home
 from .service_diagnostics import load_service_config, service_health_snapshot
+from .skill_improvements import redacted_skill_improvement_summary
 from .team import load_team_state
 
 
@@ -345,6 +346,7 @@ def build_support_diagnostics(root: Path, *, include_paths: bool = False, includ
             "tokens_included": False,
             "private_keys_included": False,
             "catalog_quality_summary_counts_only": True,
+            "skill_improvements_summary_counts_only": True,
         },
         "system": {
             "platform": platform.system(),
@@ -364,6 +366,7 @@ def build_support_diagnostics(root: Path, *, include_paths: bool = False, includ
         "catalog_browser": redacted_catalog_browser_summary(),
         "catalog_feedback": redacted_catalog_feedback_summary(),
         "catalog_quality": redacted_catalog_quality_summary(),
+        "skill_improvements": redacted_skill_improvement_summary(),
         "service": _service_status(home),
         "hub": _hub_status(home),
         "enterprise": _enterprise_status(home),
@@ -412,6 +415,12 @@ def build_bundle_report(
             "private_pack_installed_count": int(diagnostics.get("private_packs", {}).get("local", {}).get("installed_count") or 0),
             "private_pack_revoked_count": int(diagnostics.get("private_packs", {}).get("local", {}).get("revoked_count") or 0),
             "private_pack_stale_count": int(diagnostics.get("private_packs", {}).get("local", {}).get("stale_count") or 0),
+            "skill_improvement_update_recommendation_count": int(
+                diagnostics.get("skill_improvements", {}).get("improvement_status", {}).get("update_recommendation_count") or 0
+            ),
+            "skill_improvement_remove_recommendation_count": int(
+                diagnostics.get("skill_improvements", {}).get("improvement_status", {}).get("remove_recommendation_count") or 0
+            ),
             "team_joined": bool(diagnostics.get("org_team", {}).get("team", {}).get("joined")),
         },
     }

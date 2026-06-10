@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "manifest_type": "skill-improvement-status",
+  "improvement_status": {
+    "item_id": "community:browser-qa-pack:0.1.0",
+    "installed_version": "0.1.0",
+    "latest_version": "0.2.0",
+    "recommended_version": "0.2.0",
+    "recommended_channel": "stable",
+    "open_issue_count": 3,
+    "severity_summary": {
+      "critical": 1,
+      "high": 1,
+      "medium": 1
+    },
+    "fix_status": "fixed",
+    "deprecated": false,
+    "retired": false,
+    "deprecation_reason": "",
+    "retirement_reason": "",
+    "compatibility_notes": ["codex 0.3.8 or newer", "claude-code ok"],
+    "stale_installed_version": true,
+    "update_available": true,
+    "recommended_action": "update"
+  },
+  "manifest_signature": {
+    "algorithm": "ed25519",
+    "key_id": "registry-alpha-2026-06",
+    "signed_payload_sha256": "example",
+    "signature": "example"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "manifest_type": "update-recommendations",
+  "recommendations": [
+    {
+      "item_id": "community:browser-qa-pack:0.1.0",
+      "installed_version": "0.1.0",
+      "recommended_version": "0.2.0",
+      "recommended_channel": "stable",
+      "recommended_action": "update",
+      "reason": "Fixes signed high severity known issue metadata.",
+      "open_issue_count": 2,
+      "severity_summary": {
+        "high": 1,
+        "medium": 1
+      },
+      "fix_status": "fixed",
+      "deprecated": false,
+      "retired": false,
+      "stale_installed_version": true,
+      "compatibility_notes": ["codex 0.3.8 or newer"],
+      "preview_only": true,
+      "will_install": false,
+      "will_update": false,
+      "will_remove": false
+    }
+  ],
+  "manifest_signature": {
+    "algorithm": "ed25519",
+    "key_id": "registry-alpha-2026-06",
+    "signed_payload_sha256": "example",
+    "signature": "example"
+  }
+}

@@ -74,6 +74,7 @@ from .service_diagnostics import (
     verify_trust as service_verify_trust,
 )
 from .setup_wizard import build_setup_report, format_setup_text
+from .skill_improvements import SkillImprovementClient, dumps_improvement
 from .support_bundle import build_bundle_report, format_bundle_text
 from .native import DEFAULT_AGENT_ORDER, sync_native_sources
 from .org_status import local_org_status, refresh_org_status
@@ -1278,6 +1279,10 @@ def _catalog_quality_client(args: argparse.Namespace) -> CatalogQualityClient:
     return CatalogQualityClient(load_registration(), timeout=args.timeout)
 
 
+def _skill_improvement_client(args: argparse.Namespace) -> SkillImprovementClient:
+    return SkillImprovementClient(load_registration(), timeout=args.timeout)
+
+
 def cmd_catalog_browse(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     items = _catalog_client(args).browse(
@@ -1484,6 +1489,136 @@ def cmd_catalog_explain_risk(args: argparse.Namespace) -> int:
         print("Blockers: " + ", ".join(str(item) for item in blockers))
     if warnings:
         print("Warnings: " + ", ".join(str(item) for item in warnings))
+    return 0
+
+
+def cmd_catalog_improvement_status(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    status = _skill_improvement_client(args).improvement_status(root, args.item_id)
+    if args.json:
+        print(dumps_improvement(status))
+        return 0
+    print(f"Item: {status.item_id}")
+    print(f"Installed version: {status.installed_version or '(unknown)'}")
+    print(f"Recommended: {status.recommended_version or '(none)'} on {status.recommended_channel}")
+    print(f"Open issues: {status.open_issue_count}")
+    if status.severity_summary:
+        print("Severity: " + ", ".join(f"{key}={value}" for key, value in sorted(status.severity_summary.items())))
+    print(f"Fix status: {status.fix_status}")
+    print("Stale installed version: " + ("yes" if status.stale_installed_version else "no"))
+    print(f"Recommended action: {status.recommended_action}")
+    print("Deprecated: " + ("yes" if status.deprecated else "no"))
+    print("Retired: " + ("yes" if status.retired else "no"))
+    if status.deprecation_reason:
+        print(f"Deprecation reason: {status.deprecation_reason}")
+    if status.retirement_reason:
+        print(f"Retirement reason: {status.retirement_reason}")
+    if status.compatibility_notes:
+        print("Compatibility: " + ", ".join(status.compatibility_notes))
+    return 0
+
+
+def cmd_catalog_known_issues(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    status = _skill_improvement_client(args).known_issues(root, args.item_id)
+    if args.json:
+        print(dumps_improvement(status))
+        return 0
+    print(f"Item: {status.item_id}")
+    print(f"Open issues: {status.open_issue_count}")
+    if status.severity_summary:
+        print("Severity: " + ", ".join(f"{key}={value}" for key, value in sorted(status.severity_summary.items())))
+    print(f"Fix status: {status.fix_status}")
+    for issue in status.issues:
+        label = issue.issue_id or "(issue)"
+        title = f": {issue.title}" if issue.title else ""
+        print(f"- {label} [{issue.severity}/{issue.status}/{issue.fix_status}]{title}")
+        if issue.fixed_in_version:
+            print(f"  fixed in: {issue.fixed_in_version}")
+        if issue.compatibility_notes:
+            print("  compatibility: " + ", ".join(issue.compatibility_notes))
+    if status.compatibility_notes:
+        print("Compatibility: " + ", ".join(status.compatibility_notes))
+    return 0
+
+
+def cmd_catalog_update_recommendations(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    recommendations = _skill_improvement_client(args).update_recommendations(root)
+    payload = {
+        "schema_version": 1,
+        "count": len(recommendations),
+        "preview_only": True,
+        "automatic_update": False,
+        "automatic_install": False,
+        "automatic_remove": False,
+        "recommendations": [item.to_json() for item in recommendations],
+    }
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+        return 0
+    if not recommendations:
+        print("No skill update recommendations.")
+        return 0
+    print("Skill update recommendations (preview only):")
+    for item in recommendations:
+        print(
+            f"{item.item_id}: {item.recommended_action} "
+            f"{item.installed_version or '(unknown)'} -> {item.recommended_version or '(none)'} "
+            f"on {item.recommended_channel}"
+        )
+        print(f"  stale: {'yes' if item.stale_installed_version else 'no'}; open issues: {item.open_issue_count}; fix status: {item.fix_status}")
+        if item.reason:
+            print(f"  reason: {item.reason}")
+        if item.compatibility_notes:
+            print("  compatibility: " + ", ".join(item.compatibility_notes))
+    return 0
+
+
+def cmd_catalog_update_preview(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    recommendation = _skill_improvement_client(args).update_preview(root, args.item_id)
+    if args.json:
+        print(dumps_improvement(recommendation))
+        return 0
+    print(f"Item: {recommendation.item_id}")
+    print("Preview only: yes")
+    print(f"Recommended action: {recommendation.recommended_action}")
+    print(f"Installed version: {recommendation.installed_version or '(unknown)'}")
+    print(f"Recommended: {recommendation.recommended_version or '(none)'} on {recommendation.recommended_channel}")
+    print("Stale installed version: " + ("yes" if recommendation.stale_installed_version else "no"))
+    print(f"Open issues: {recommendation.open_issue_count}")
+    if recommendation.severity_summary:
+        print("Severity: " + ", ".join(f"{key}={value}" for key, value in sorted(recommendation.severity_summary.items())))
+    print(f"Fix status: {recommendation.fix_status}")
+    if recommendation.reason:
+        print(f"Reason: {recommendation.reason}")
+    if recommendation.compatibility_notes:
+        print("Compatibility: " + ", ".join(recommendation.compatibility_notes))
+    print("No update, install, or remove operation was performed.")
+    return 0
+
+
+def cmd_catalog_deprecation_status(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    status = _skill_improvement_client(args).deprecation_status(root, args.item_id)
+    if args.json:
+        print(dumps_improvement(status))
+        return 0
+    print(f"Item: {status.item_id}")
+    print("Deprecated: " + ("yes" if status.deprecated else "no"))
+    print("Retired: " + ("yes" if status.retired else "no"))
+    if status.deprecation_reason:
+        print(f"Deprecation reason: {status.deprecation_reason}")
+    if status.retirement_reason:
+        print(f"Retirement reason: {status.retirement_reason}")
+    if status.replacement_item_id:
+        print(f"Replacement: {status.replacement_item_id}")
+    print(f"Recommended action: {status.recommended_action}")
+    if status.recommended_version:
+        print(f"Recommended: {status.recommended_version} on {status.recommended_channel}")
+    if status.compatibility_notes:
+        print("Compatibility: " + ", ".join(status.compatibility_notes))
     return 0
 
 
@@ -2663,6 +2798,30 @@ def build_parser() -> argparse.ArgumentParser:
     catalog_explain_risk.add_argument("--json", action="store_true")
     catalog_explain_risk.add_argument("--timeout", type=float, default=30.0)
     catalog_explain_risk.set_defaults(func=cmd_catalog_explain_risk)
+    catalog_improvement_status = catalog_sub.add_parser("improvement-status", help="Show signed skill improvement and remediation status.")
+    catalog_improvement_status.add_argument("item_id")
+    catalog_improvement_status.add_argument("--json", action="store_true")
+    catalog_improvement_status.add_argument("--timeout", type=float, default=30.0)
+    catalog_improvement_status.set_defaults(func=cmd_catalog_improvement_status)
+    catalog_known_issues = catalog_sub.add_parser("known-issues", help="Show signed known-issue metadata for one catalog item.")
+    catalog_known_issues.add_argument("item_id")
+    catalog_known_issues.add_argument("--json", action="store_true")
+    catalog_known_issues.add_argument("--timeout", type=float, default=30.0)
+    catalog_known_issues.set_defaults(func=cmd_catalog_known_issues)
+    catalog_update_recommendations = catalog_sub.add_parser("update-recommendations", help="Show preview-only signed update/remove recommendations.")
+    catalog_update_recommendations.add_argument("--json", action="store_true")
+    catalog_update_recommendations.add_argument("--timeout", type=float, default=30.0)
+    catalog_update_recommendations.set_defaults(func=cmd_catalog_update_recommendations)
+    catalog_update_preview = catalog_sub.add_parser("update-preview", help="Preview a signed update/remove recommendation without applying it.")
+    catalog_update_preview.add_argument("item_id")
+    catalog_update_preview.add_argument("--json", action="store_true")
+    catalog_update_preview.add_argument("--timeout", type=float, default=30.0)
+    catalog_update_preview.set_defaults(func=cmd_catalog_update_preview)
+    catalog_deprecation_status = catalog_sub.add_parser("deprecation-status", help="Show signed deprecation or retirement status for one catalog item.")
+    catalog_deprecation_status.add_argument("item_id")
+    catalog_deprecation_status.add_argument("--json", action="store_true")
+    catalog_deprecation_status.add_argument("--timeout", type=float, default=30.0)
+    catalog_deprecation_status.set_defaults(func=cmd_catalog_deprecation_status)
 
     release = sub.add_parser("release", help="Inspect and pin hosted registry release channels.")
     release_sub = release.add_subparsers(dest="release_command", required=True)

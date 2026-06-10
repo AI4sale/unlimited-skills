@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills update recommendation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "manifest_type", "recommendations", "manifest_signature"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "manifest_type": { "type": "string", "const": "update-recommendations" },
+    "recommendations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "item_id",
+          "installed_version",
+          "recommended_version",
+          "recommended_channel",
+          "recommended_action",
+          "open_issue_count",
+          "severity_summary",
+          "fix_status",
+          "deprecated",
+          "retired",
+          "stale_installed_version",
+          "preview_only",
+          "will_install",
+          "will_update",
+          "will_remove"
+        ],
+        "properties": {
+          "item_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$" },
+          "installed_version": { "type": "string" },
+          "recommended_version": { "type": "string" },
+          "recommended_channel": { "type": "string", "enum": ["stable", "beta", "canary"] },
+          "recommended_action": { "type": "string", "enum": ["none", "update", "remove", "pin", "review"] },
+          "reason": { "type": "string" },
+          "open_issue_count": { "type": "integer", "minimum": 0 },
+          "severity_summary": {
+            "type": "object",
+            "additionalProperties": { "type": "integer", "minimum": 0 }
+          },
+          "fix_status": { "type": "string", "enum": ["unknown", "none", "pending", "partial", "fixed", "wont_fix"] },
+          "deprecated": { "type": "boolean" },
+          "retired": { "type": "boolean" },
+          "stale_installed_version": { "type": "boolean" },
+          "compatibility_notes": { "type": "array", "items": { "type": "string" } },
+          "preview_only": { "type": "boolean", "const": true },
+          "will_install": { "type": "boolean", "const": false },
+          "will_update": { "type": "boolean", "const": false },
+          "will_remove": { "type": "boolean", "const": false }
+        }
+      }
+    },
+    "manifest_signature": { "type": "object" }
+  }
+}

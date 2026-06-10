@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills skill improvement status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "manifest_type", "improvement_status", "manifest_signature"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "manifest_type": { "type": "string", "const": "skill-improvement-status" },
+    "improvement_status": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "item_id",
+        "installed_version",
+        "latest_version",
+        "recommended_version",
+        "recommended_channel",
+        "open_issue_count",
+        "severity_summary",
+        "fix_status",
+        "deprecated",
+        "retired",
+        "compatibility_notes",
+        "stale_installed_version",
+        "recommended_action"
+      ],
+      "properties": {
+        "item_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$" },
+        "installed_version": { "type": "string" },
+        "latest_version": { "type": "string" },
+        "recommended_version": { "type": "string" },
+        "recommended_channel": { "type": "string", "enum": ["stable", "beta", "canary"] },
+        "open_issue_count": { "type": "integer", "minimum": 0 },
+        "severity_summary": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 0 }
+        },
+        "fix_status": { "type": "string", "enum": ["unknown", "none", "pending", "partial", "fixed", "wont_fix"] },
+        "deprecated": { "type": "boolean" },
+        "retired": { "type": "boolean" },
+        "deprecation_reason": { "type": "string" },
+        "retirement_reason": { "type": "string" },
+        "compatibility_notes": { "type": "array", "items": { "type": "string" } },
+        "stale_installed_version": { "type": "boolean" },
+        "update_available": { "type": "boolean" },
+        "recommended_action": { "type": "string", "enum": ["none", "update", "remove", "pin", "review"] }
+      }
+    },
+    "manifest_signature": { "type": "object" }
+  }
+}

@@ -18,11 +18,16 @@ unlimited-skills catalog feedback-status community:browser-qa-pack:0.1.0 --json
 unlimited-skills catalog quality community:browser-qa-pack:0.1.0
 unlimited-skills catalog eval-status community:browser-qa-pack:0.1.0
 unlimited-skills catalog explain-risk community:browser-qa-pack:0.1.0
+unlimited-skills catalog improvement-status community:browser-qa-pack:0.1.0
+unlimited-skills catalog known-issues community:browser-qa-pack:0.1.0
+unlimited-skills catalog update-recommendations
+unlimited-skills catalog update-preview community:browser-qa-pack:0.1.0
+unlimited-skills catalog deprecation-status community:browser-qa-pack:0.1.0
 unlimited-skills catalog browse --show-quality
 unlimited-skills catalog search "browser qa" --show-quality
 ```
 
-`catalog list` remains the official collection/update metadata command. `catalog browse`, `catalog search`, `catalog filters`, `catalog preview`, `catalog install`, `catalog feedback`, `catalog feedback-status`, `catalog quality`, `catalog eval-status`, and `catalog explain-risk` are the user-facing discovery and quality-signal commands.
+`catalog list` remains the official collection/update metadata command. `catalog browse`, `catalog search`, `catalog filters`, `catalog preview`, `catalog install`, `catalog feedback`, `catalog feedback-status`, `catalog quality`, `catalog eval-status`, `catalog explain-risk`, `catalog improvement-status`, `catalog known-issues`, `catalog update-recommendations`, `catalog update-preview`, and `catalog deprecation-status` are the user-facing discovery and quality-signal commands.
 
 ## Registration Boundary
 
@@ -77,6 +82,12 @@ The v0.3.8-alpha skill evaluation integration keeps quality metadata fixture/sta
 
 Quality status is metadata-only and registration-gated. It includes grade, score band, last evaluation timestamp, blockers, warnings, compatibility notes, deprecation or retirement status, and feedback-derived issue categories. It must not include skill bodies, prompts, local paths, repo paths, customer data, tokens, proofs, or private keys.
 
+## Improvement And Update Recommendations
+
+`catalog improvement-status <item_id>`, `catalog known-issues <item_id>`, and `catalog deprecation-status <item_id>` fetch signed hosted remediation metadata for one item. `catalog update-recommendations` and `catalog update-preview <item_id>` show signed recommendations only; they do not install, update, remove, download, rewrite, or reindex skills.
+
+Improvement output includes open issue count, severity summary, fix status, recommended version/channel, stale installed-version status, compatibility notes, and deprecation or retirement reason. Recommendation payloads must be preview-only and must set automatic write flags to false.
+
 ## Support Bundle Redaction
 
 `unlimited-skills support bundle` reports only a redacted catalog browser summary:
@@ -88,5 +99,6 @@ Quality status is metadata-only and registration-gated. It includes grade, score
 - no skill bodies;
 - no private paths.
 - quality diagnostics in support bundles are summary counts only.
+- skill improvement diagnostics in support bundles are summary counts only.
 
 See `schemas/catalog-browser-client-state.schema.json` and `examples/catalog-browser/*.example.json` for the public contract shape.

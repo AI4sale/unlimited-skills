@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.3.9-alpha (in development)
+
+### Added
+
+- Registered signed skill improvement status commands: `catalog improvement-status`, `catalog known-issues`, `catalog update-recommendations`, `catalog update-preview`, and `catalog deprecation-status`.
+- Preview-only update recommendation contracts, schemas, examples, docs, trust scopes, and fake-service tests for known issues, fix status, recommended channel/version, deprecation/retirement status, compatibility notes, and stale installed-version status.
+- Support-bundle skill improvement summary counts, excluding item ids, issue details, recommendations, skill bodies, prompts, local paths, repo paths, customer data, tokens, proofs, and private keys.
+
 ## v0.3.8-alpha (in development)
 
 ### Added

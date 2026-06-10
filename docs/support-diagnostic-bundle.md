@@ -51,6 +51,18 @@ For catalog quality diagnostics, the support manifest includes summary counts on
 
 It does not include catalog item ids, item names, raw quality records, raw feedback, prompts, skill bodies, local paths, repo paths, customer data, tokens, proofs, or private keys.
 
+For skill improvement diagnostics, the support manifest includes summary counts only:
+
+- known item count;
+- open issue count;
+- critical or high issue count;
+- update recommendation count;
+- remove recommendation count;
+- deprecated or retired count;
+- stale installed count.
+
+It does not include catalog item ids, item names, issue titles, raw recommendations, prompts, skill bodies, local paths, repo paths, customer data, tokens, proofs, or private keys.
+
 The support manifest excludes:
 
 - private pack names by default;
@@ -71,6 +83,7 @@ The support manifest excludes:
 - catalog browser item names;
 - raw catalog feedback payloads.
 - raw catalog quality or evaluation records.
+- raw skill improvement records or update recommendations.
 
 The support manifest is a local diagnostic artifact. Users decide whether to share it with support.
 
