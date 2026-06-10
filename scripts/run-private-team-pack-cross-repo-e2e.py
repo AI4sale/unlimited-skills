@@ -187,6 +187,19 @@ def register_client(server_url: str, *, install_id: str, agent: str, home: Path)
     return registered
 
 
+def grant_private_pack_entitlement(db_url: str, install_id: str) -> None:
+    from unlimited_registry.storage import ProductionStorage
+
+    storage = ProductionStorage(db_url)
+    storage.set_entitlement(
+        install_id,
+        plan="business",
+        features=["private_team_packs"],
+        active_client_limit=100,
+        offline_grace_seconds=86400,
+    )
+
+
 def run_e2e(registry_repo: Path, *, temp_home: bool = False) -> dict[str, Any]:
     registry_repo = registry_repo.resolve()
     if not (registry_repo / "unlimited_registry" / "production_api.py").is_file():
@@ -206,9 +219,11 @@ def run_e2e(registry_repo: Path, *, temp_home: bool = False) -> dict[str, Any]:
         os.environ["UNLIMITED_SKILLS_HOME"] = str(home / ".unlimited-skills")
         os.environ["UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS"] = trusted_keys_env(private_root)
 
-        server, thread, server_url = start_registry_server(registry_repo, artifact_root, f"sqlite:///{tmp_root / 'registry.sqlite3'}")
+        db_url = f"sqlite:///{tmp_root / 'registry.sqlite3'}"
+        server, thread, server_url = start_registry_server(registry_repo, artifact_root, db_url)
         try:
             state = register_client(server_url, install_id="uls_inst_master", agent="codex", home=home)
+            grant_private_pack_entitlement(db_url, "uls_inst_master")
             client = PrivatePackClient(state, timeout=10)
 
             listed = client.list()
@@ -235,6 +250,7 @@ def run_e2e(registry_repo: Path, *, temp_home: bool = False) -> dict[str, Any]:
                 fail("Private pack sync did not detect installed current version")
 
             wrong_state = register_client(server_url, install_id="uls_inst_worker", agent="unknown-agent", home=home)
+            grant_private_pack_entitlement(db_url, "uls_inst_worker")
             wrong_client = PrivatePackClient(wrong_state, timeout=10)
             access = wrong_client.access_check(PACK_ID)
             if access.get("authorized") is not False:
