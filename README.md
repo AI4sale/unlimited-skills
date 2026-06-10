@@ -101,6 +101,7 @@ Working now:
 In development:
 
 - v0.4 readiness audit and SkillOps architecture RFC for governed delivery, eval-driven release gates, maintainer improvement queues, policy-aware recommendations, governance dashboards, optional self-hosted registry mode, and future human-reviewed automatic improvement proposals;
+- v0.4 cross-repo readiness suite that verifies public client and private registry readiness contracts in fixture mode or against a local private registry checkout without production hosted calls, production signing keys, live billing, PyPI publication, full catalog distribution, automatic install/update/remove, automatic skill rewriting, or auto-publish;
 - persistent warm daemon as the default agent retrieval path;
 - richer learning loop for accepted/rejected matches;
 - automatic skill drafting from repeated task patterns;
