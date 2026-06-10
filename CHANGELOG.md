@@ -7,6 +7,7 @@
 - Catalog browser release integration for registered signed metadata discovery.
 - Cross-repo catalog browser E2E runner with public fixture mode and local private-registry mode.
 - v0.3.6-alpha catalog browser release smoke, verifier, checklist, release notes, and manifest.
+- v0.3.6-alpha final publication upgrade notes, known issues, release smoke alias, and publication verifier.
 
 ### Changed
 

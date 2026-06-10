@@ -98,7 +98,12 @@ def assert_manifest(payload: dict[str, Any], expected_sha: str | None) -> str:
     require(re.fullmatch(r"[0-9a-f]{40}", sha) is not None, "manifest git.sha must be 40 lowercase hex")
     require(git_info.get("tag") == RELEASE, "manifest tag mismatch")
     require(git_info.get("tag_status") == "pending_release_owner_approval", "manifest must require human tag approval")
-    require(git_info.get("publication_branch") == "release/v0.3.6-alpha-catalog-browser-integration", "manifest publication branch mismatch")
+    publication_branch = git_info.get("publication_branch")
+    allowed_publication_branches = {
+        "release/v0.3.6-alpha-catalog-browser-integration",
+        "release/v0.3.6-alpha-final-publication",
+    }
+    require(publication_branch in allowed_publication_branches, "manifest publication branch mismatch")
     if expected_sha is not None:
         require(re.fullmatch(r"[0-9a-f]{40}", expected_sha) is not None, "--expected-sha must be 40 lowercase hex")
         require(git_ok(["merge-base", "--is-ancestor", sha, expected_sha]), f"manifest release candidate {sha} is not contained in expected tag target {expected_sha}")
