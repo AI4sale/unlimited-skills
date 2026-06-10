@@ -1,6 +1,6 @@
 # Upgrade
 
-Status: `v0.3.0-alpha`.
+Status: `v0.3.1-alpha` stabilization train. Published baseline: `v0.3.0-alpha`.
 
 Upgrade from a GitHub clone:
 
@@ -20,6 +20,8 @@ python scripts/verify-v0.3.0-alpha-package-assets.py
 python scripts/run-v0.3.0-alpha-packaging-smoke.py
 python scripts/run-managed-policy-sync-e2e.py --fixture-mode --temp-home
 python scripts/run-v0.3.0-alpha-release-smoke.py
+python scripts/run-v0.3.1-alpha-post-release-smoke.py
+python scripts/verify-v0.3.1-alpha-stabilization.py
 ```
 
 Sync/update flows must not delete pre-existing local library files. Managed policy sync may update only the Enterprise Skill Lock policy it owns through managed sync state.
