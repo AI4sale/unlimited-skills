@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "client": {
+    "name": "unlimited-skills",
+    "version": "0.3.1"
+  },
+  "mode": "local-only",
+  "dry_run": true,
+  "writes_performed": false,
+  "hosted_calls_performed": false,
+  "destructive_changes": false,
+  "root": "/tmp/unlimited-skills",
+  "summary": {
+    "status": "needs_action",
+    "blocked_count": 0,
+    "needs_action_count": 2
+  },
+  "components": {
+    "library": {
+      "root": "/tmp/unlimited-skills",
+      "exists": false,
+      "local_skills_exists": false,
+      "index_present": false,
+      "created": false
+    }
+  },
+  "steps": [
+    {
+      "name": "local_library",
+      "status": "needs_action",
+      "message": "Local library root is missing.",
+      "next_commands": ["unlimited-skills --root /tmp/unlimited-skills reindex --no-native-sync"]
+    },
+    {
+      "name": "local_search",
+      "status": "needs_action",
+      "message": "Lexical index is missing or not yet built.",
+      "next_commands": ["unlimited-skills --root /tmp/unlimited-skills search \"your task\" --mode hybrid --limit 8 --no-native-sync"]
+    }
+  ],
+  "next_commands": [
+    "unlimited-skills --root /tmp/unlimited-skills reindex --no-native-sync",
+    "unlimited-skills --root /tmp/unlimited-skills search \"your task\" --mode hybrid --limit 8 --no-native-sync"
+  ],
+  "privacy": {
+    "tokens_redacted": true,
+    "private_keys_redacted": true,
+    "hosted_calls_performed": false,
+    "telemetry_collected": false
+  }
+}

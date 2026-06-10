@@ -73,6 +73,7 @@ Working now:
 - native skill sync for Codex, Claude Code, Hermes, and OpenClaw roots;
 - public repo self-update checks and applies latest releases/tags;
 - production service onboarding diagnostics for configured service URL, health, trust, redacted registration dry run, and local proof generation;
+- guided first-run setup wizard for local-only, registered, Local Skill Hub, and Enterprise onboarding paths;
 - Enterprise Skill Lock policy MVP for governed registries, channels, signing keys, local roots, community install/submit, hub allowlists, and remote fallback;
 - managed Enterprise Skill Lock policy sync from a registered registry with signed `enterprise-policy` assignment verification and dry-run support;
 - allowlist-backed Local Skill Hub runtime MVP for local/controlled LAN testing when `server` extras are installed;
@@ -113,6 +114,15 @@ python -m pip install -e .
 ```
 
 PyPI packaging is not the supported v0.3.1-alpha distribution path. Install from a GitHub clone for now, because the router skills, scripts, docs, and bundled packs are repo assets. A PyPI package should wait until wheel/sdist asset inclusion and installer behavior are tested in CI.
+
+Run the first-run wizard:
+
+```powershell
+unlimited-skills setup --local-only --dry-run
+unlimited-skills setup --local-only
+```
+
+For registered, hub, and Enterprise paths, see [docs/first-run-setup.md](docs/first-run-setup.md).
 
 For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md), [docs/packaging.md](docs/packaging.md), [docs/install-upgrade-uninstall.md](docs/install-upgrade-uninstall.md), and [SECURITY.md](SECURITY.md). For the previous v0.2.2-alpha gate, see [docs/releases/v0.2.2-alpha.md](docs/releases/v0.2.2-alpha.md).
 
