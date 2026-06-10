@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.3.4-alpha (in development)
+## v0.3.8-alpha (in development)
 
 ### Added
 
@@ -11,12 +11,13 @@
 - Registered catalog browser client commands: `catalog browse`, `catalog search`, `catalog filters`, `catalog preview`, and signed metadata-verified `catalog install --dry-run`.
 - Explicit registered catalog feedback commands: `catalog feedback` and `catalog feedback-status`, with dry-run, confirmation, schemas, examples, docs, and support-bundle redaction.
 - Registered catalog quality and evaluation status commands: `catalog quality`, `catalog eval-status`, `catalog explain-risk`, plus browser/search `--show-quality`, signed metadata verification, install-risk warnings, blocked hosted install refusal, schemas, examples, docs, and support-bundle summary counts.
+- Skill evaluation cross-repo E2E, v0.3.8-alpha smoke/verifier, and release integration docs for signed catalog quality scoring.
 - Catalog browser schemas, sanitized examples, docs, support-bundle redaction, and tests for registration gating, signed response verification, approved-only visibility, metadata-only preview, and unapproved install refusal.
-- v0.3.4-alpha release smoke, verifier, checklist, upgrade notes, known issues, and release manifest for plans and sandbox billing integration.
+- v0.3.8-alpha release smoke, verifier, checklist, known limitations, and release manifest for skill evaluations and catalog quality scoring.
 
 ### Changed
 
-- Raised package version to `0.3.4`.
+- Raised package version to `0.3.8`.
 - Extended plan/private-pack denial vocabulary with billing lifecycle reasons: `past_due`, `suspended`, and `expired`.
 - Documented that billing lifecycle diagnostics are `sandbox_only`, with no checkout sessions, live payment providers, card data, bank data, or payment collection in the public client.
 

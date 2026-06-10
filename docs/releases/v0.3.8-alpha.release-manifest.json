@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "release": "v0.3.8-alpha",
+  "package_version": "0.3.8",
+  "generated_at": "2026-06-10T00:00:00Z",
+  "distribution": "github-clone-alpha",
+  "git": {
+    "sha": "438f355e9dc30c7fa6fd4efb786e83f43efbfe7a",
+    "sha_kind": "integration_branch_ancestor",
+    "tag": "v0.3.8-alpha",
+    "tag_status": "not_tagged_integration_gate",
+    "publication_branch": "release/v0.3.8-alpha-skill-evals-integration",
+    "tag_owner_note": "Do not tag from this integration PR. Refresh git.sha if the merge strategy changes the final integration target."
+  },
+  "required_prs": {
+    "public": [
+      {"number": 63, "title": "catalog quality and evaluation status client", "status": "open_mergeable_in_review"},
+      {"number": 0, "title": "v0.3.8-alpha skill evals integration", "status": "this_integration_gate_pr"}
+    ],
+    "private_registry": [
+      {"number": 36, "title": "skill evaluation harness and catalog quality scoring", "status": "open_mergeable_in_review"}
+    ]
+  },
+  "skill_eval_boundary": {
+    "fixture_static_evals": true,
+    "automatic_telemetry": false,
+    "prompts_included": false,
+    "task_text_included": false,
+    "skill_bodies_included": false,
+    "untrusted_script_execution": false,
+    "automatic_skill_rewriting": false,
+    "auto_publish": false,
+    "production_hosted_calls_in_tests": false
+  },
+  "required_test_commands": [
+    "python scripts/run-skill-evals-cross-repo-e2e.py --fixture-mode --temp-home --json",
+    "python -m pytest tests/integration/test_skill_evals_cross_repo_e2e.py -q",
+    "python -m pytest tests -q",
+    "python scripts/run-v0.2x-smoke-tests.py",
+    "python scripts/run-v0.3.8-alpha-skill-evals-smoke.py --fixture-mode --temp-home",
+    "python scripts/verify-v0.3.8-alpha-skill-evals.py --expected-sha <tag-target-sha>",
+    "python -m compileall -q unlimited_skills scripts tests",
+    "git diff --check"
+  ]
+}
