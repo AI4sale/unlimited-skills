@@ -134,10 +134,10 @@ def assert_report(report: dict[str, Any]) -> None:
 
 def assert_manifest(manifest: dict[str, Any], expected_sha: str | None) -> None:
     require(manifest.get("release") == RELEASE, "release manifest has wrong release")
-    require(manifest.get("package_version") == "0.4.0-alpha", "release manifest has wrong package version")
+    require(manifest.get("package_version") == "0.4.0", "release manifest has wrong package version")
     git = manifest.get("git", {})
     require(git.get("tag") == RELEASE, "release manifest has wrong tag")
-    require(git.get("tag_status") == "not_created_by_task2", "Task 2 manifest must not create tag")
+    require(git.get("tag_status") in {"not_created_by_task2", "pending_release_owner_approval"}, "manifest must not mark the final tag as created")
     require(git.get("tag_target_sha_policy"), "tag target SHA policy is missing")
     if expected_sha:
         require(len(expected_sha) == 40, "--expected-sha must be a full 40-character commit SHA")

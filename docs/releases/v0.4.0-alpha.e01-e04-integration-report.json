@@ -60,7 +60,7 @@
       }
     ]
   },
-  "mode": "fixture",
+  "mode": "external-local-registry",
   "public_client": {
     "E01_policy_aware_recommendation_preview": {
       "auto_publish": false,
@@ -121,18 +121,10 @@
       "automatic_remove": false,
       "automatic_rewrite": false,
       "automatic_update": false,
-      "covered_outcomes": [
-        "block_release",
-        "manual_review_required",
-        "pass",
-        "pass_with_warning",
-        "require_override",
-        "rollback_recommended"
-      ],
-      "override_rules_checked": true,
+      "gate_outcome": "pass_with_warning",
       "production_rollout": false,
+      "release_id": "fixture-release-2026-06-10",
       "release_owner_decides": true,
-      "rollback_recommended_checked": true,
       "status": "passed"
     },
     "E03_maintainer_queue_runtime_api": {
@@ -170,18 +162,18 @@
       "mutates_queue": false,
       "production_rollout": false,
       "signed_manifest_types": [
-        "skillops-governance-dashboard-summary",
-        "skillops-governance-queue-health",
-        "skillops-governance-eval-gates",
         "skillops-governance-entitlements",
+        "skillops-governance-eval-gates",
         "skillops-governance-policies",
         "skillops-governance-private-packs",
+        "skillops-governance-queue-health",
+        "skillops-governance-dashboard-summary",
         "skillops-governance-support-diagnostics"
       ],
       "status": "passed",
       "unsigned_rejection": true
     },
-    "mode": "fixture",
+    "mode": "external-local-registry",
     "privacy": {
       "automatic_telemetry": false,
       "customer_data_included": false,
@@ -234,7 +226,7 @@
   "repositories": {
     "private_registry": {
       "repository": "AI4sale/unlimited-skills-registry",
-      "source": "fixture"
+      "source": "external-local-registry"
     },
     "public_client": {
       "base_branch": "main",

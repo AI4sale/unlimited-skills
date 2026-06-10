@@ -1,12 +1,12 @@
 # Known Limitations
 
-`v0.3.9-alpha` is a developer preview, not a stable production SLA.
+`v0.4.0-alpha` is a developer preview, not a stable production SLA.
 
 - v0.4 SkillOps implementation epics are approved to start after the go/no-go package. This does not authorize a v0.4 release/tag, production rollout, live billing, PyPI publication, full catalog distribution, automatic telemetry, automatic hosted query forwarding, automatic skill rewriting, or auto-publish.
 - v0.4 planning must preserve no-prompt/no-skill-body/no-private-data boundaries, signed hosted manifest requirements, and registration-free MIT local core behavior.
 - The v0.4 cross-repo readiness suite is technical readiness evidence only. It can run in public fixture mode or against a local private registry checkout, but it does not approve v0.4 implementation, does not distribute private registry content, and does not allow production hosted calls, production signing keys, live billing, PyPI publication, full catalog distribution, automatic install/update/remove, automatic skill rewriting, or auto-publish.
 - The v0.4 go/no-go package can recommend GO for implementation epics after review and merge, but it does not ship v0.4 runtime code or production rollout by itself. Each epic remains gated by review, security/privacy checks, and release-owner approval.
-- The v0.4.0-alpha E01-E04 integration gate proves the first SkillOps foundation layer across public and private contracts, but it does not create the final release tag, authorize production rollout, enable live billing, publish to PyPI, distribute the full catalog, upload prompts or skill bodies, forward hosted queries automatically, rewrite skills automatically, install/update/remove skills automatically, or auto-publish artifacts.
+- The v0.4.0-alpha E01-E04 integration gate is now packaged as the v0.4.0-alpha SkillOps foundation milestone. It proves the first SkillOps foundation layer across public and private contracts, but it does not let Codex create or push the final release tag, authorize production rollout, enable live billing, publish to PyPI, distribute the full catalog, upload prompts or skill bodies, forward hosted queries automatically, rewrite skills automatically, install/update/remove skills automatically, or auto-publish artifacts. The final tag remains pending release-owner approval.
 - Policy-aware recommendation runtime preview is preview-only. It combines signed catalog metadata with quality, improvement, entitlement, and policy signals, but does not install, update, remove, rewrite, reindex, publish, distribute the full catalog, or upload prompts, skill bodies, task text, local paths, tokens, proofs, private keys, or customer data.
 - Hosted registry access is early-access.
 - The registered hosted catalog exists and is populated, but availability may be limited during alpha.
@@ -21,7 +21,7 @@
 - `billing refresh` requires a registered installation and hosted `/v1/hub/billing-status` support. `billing status` and `billing doctor` remain local/cache-only.
 - Private team pack client commands are implemented and fixture-verified. Production private pack access requires registry-side entitlement or a Business/Enterprise plan plus the private registry distribution, publishing, admin, and entitlement PRs being accepted and deployed.
 - Hosted remote manifests must include valid signed manifest envelopes. SHA256 verification is still enforced for hosted collection archives and enhancement scripts before local installation.
-- PyPI is not the supported v0.3.9-alpha distribution path because router skills, scripts, docs, and bundled packs are repo assets.
+- PyPI is not the supported v0.4.0-alpha distribution path because router skills, scripts, docs, and bundled packs are repo assets.
 - Warm daemon mode is experimental and not the default retrieval path.
 - Team sync is an MVP; server-side enforcement of limits and paid plan behavior may evolve.
 - Local Skill Hub runtime is MVP alpha. The public repo includes docs, schemas, sanitized examples, CLI commands, and an allowlist-backed local FastAPI runtime when `server` extras are installed.
