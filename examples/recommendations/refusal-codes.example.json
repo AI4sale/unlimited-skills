@@ -1,0 +1,114 @@
+{
+  "automatic_install": false,
+  "automatic_remove": false,
+  "automatic_telemetry": false,
+  "automatic_update": false,
+  "customer_data_included": false,
+  "fixture_only": true,
+  "full_catalog_distribution": false,
+  "hosted_query_forwarding": false,
+  "local_paths_included": false,
+  "manifest_type": "recommendation-refusal",
+  "preview_only": true,
+  "private_keys_included": false,
+  "prompts_included": false,
+  "proofs_included": false,
+  "refusal_codes": [
+    {
+      "action": "register this installation before requesting hosted install advice",
+      "code": "registration_required",
+      "fallback": "Use local search/list/view commands without hosted recommendations.",
+      "next_command": "unlimited-skills register",
+      "outcome": "require_registration",
+      "owner": "user",
+      "reason": "Hosted catalog recommendations require a registered client before install advice can be trusted."
+    },
+    {
+      "action": "grant the required team-pack entitlement or select a public item",
+      "code": "entitlement_denied",
+      "fallback": "Keep using public MIT and community-core skills.",
+      "next_command": "unlimited-skills plan status",
+      "outcome": "require_entitlement",
+      "owner": "organization admin",
+      "reason": "The catalog item is limited to an entitled organization or team plan."
+    },
+    {
+      "action": "approve a policy override or choose an allowed replacement",
+      "code": "policy_denied",
+      "fallback": "Use the existing allowed local skill set.",
+      "next_command": "unlimited-skills policy status",
+      "outcome": "require_policy_override",
+      "owner": "policy owner",
+      "reason": "Enterprise policy blocks this item for the current installation."
+    },
+    {
+      "action": "remove the blocker or publish a replacement item",
+      "code": "blocked_item",
+      "fallback": "Do not install; keep the current local skill.",
+      "next_command": "unlimited-skills catalog quality-status <item_id>",
+      "outcome": "deny_install",
+      "owner": "catalog maintainer",
+      "reason": "Signed catalog metadata marks this item as blocked for install."
+    },
+    {
+      "action": "publish a replacement mapping if one exists",
+      "code": "retired_item",
+      "fallback": "Pin the installed version or remove it manually after review.",
+      "next_command": "unlimited-skills catalog deprecation-status <item_id>",
+      "outcome": "deny_update",
+      "owner": "catalog maintainer",
+      "reason": "The installed item is retired and must not receive automated update advice."
+    },
+    {
+      "action": "improve the item and rerun evaluation before recommending install",
+      "code": "low_score",
+      "fallback": "Preview only; do not install from recommendation output.",
+      "next_command": "unlimited-skills catalog quality-status <item_id>",
+      "outcome": "deny_install",
+      "owner": "catalog maintainer",
+      "reason": "The item score is below the public install threshold."
+    },
+    {
+      "action": "retry on a supported channel",
+      "code": "wrong_channel",
+      "fallback": "Use stable-channel metadata only.",
+      "next_command": "unlimited-skills catalog update-recommendations --channel stable",
+      "outcome": "unsupported",
+      "owner": "user",
+      "reason": "The requested recommendation channel is not supported by this client."
+    },
+    {
+      "action": "use an item for the active agent or switch runtimes explicitly",
+      "code": "wrong_agent",
+      "fallback": "Keep the current runtime-specific local skills.",
+      "next_command": "unlimited-skills doctor",
+      "outcome": "unsupported",
+      "owner": "user",
+      "reason": "The item targets a different agent runtime than this installation."
+    },
+    {
+      "action": "publish signed metadata before this item can be recommended",
+      "code": "unsigned_metadata",
+      "fallback": "Treat the item as unavailable for hosted install.",
+      "next_command": "unlimited-skills catalog preview <item_id>",
+      "outcome": "deny_install",
+      "owner": "catalog maintainer",
+      "reason": "Recommendation metadata is unsigned or cannot be verified."
+    },
+    {
+      "action": "inspect and manage the local skill directly",
+      "code": "local_only",
+      "fallback": "No hosted recommendation action is available.",
+      "next_command": "unlimited-skills view <skill-name>",
+      "outcome": "local_only",
+      "owner": "user",
+      "reason": "The item is a local MIT skill and has no hosted install or update action."
+    }
+  ],
+  "repo_paths_included": false,
+  "schema_version": 1,
+  "skill_bodies_included": false,
+  "skill_rewriting": false,
+  "task_text_included": false,
+  "tokens_included": false
+}

@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills recommendation refusal code contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "manifest_type",
+    "fixture_only",
+    "preview_only",
+    "automatic_install",
+    "automatic_update",
+    "automatic_remove",
+    "automatic_telemetry",
+    "hosted_query_forwarding",
+    "skill_rewriting",
+    "full_catalog_distribution",
+    "refusal_codes"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "manifest_type": { "type": "string", "const": "recommendation-refusal" },
+    "fixture_only": { "type": "boolean", "const": true },
+    "preview_only": { "type": "boolean", "const": true },
+    "automatic_install": { "type": "boolean", "const": false },
+    "automatic_update": { "type": "boolean", "const": false },
+    "automatic_remove": { "type": "boolean", "const": false },
+    "automatic_telemetry": { "type": "boolean", "const": false },
+    "hosted_query_forwarding": { "type": "boolean", "const": false },
+    "skill_rewriting": { "type": "boolean", "const": false },
+    "full_catalog_distribution": { "type": "boolean", "const": false },
+    "skill_bodies_included": { "type": "boolean", "const": false },
+    "prompts_included": { "type": "boolean", "const": false },
+    "task_text_included": { "type": "boolean", "const": false },
+    "local_paths_included": { "type": "boolean", "const": false },
+    "repo_paths_included": { "type": "boolean", "const": false },
+    "customer_data_included": { "type": "boolean", "const": false },
+    "tokens_included": { "type": "boolean", "const": false },
+    "proofs_included": { "type": "boolean", "const": false },
+    "private_keys_included": { "type": "boolean", "const": false },
+    "refusal_codes": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "outcome", "reason", "next_command", "owner", "action", "fallback"],
+        "properties": {
+          "code": {
+            "type": "string",
+            "enum": [
+              "registration_required",
+              "entitlement_denied",
+              "policy_denied",
+              "blocked_item",
+              "retired_item",
+              "low_score",
+              "wrong_channel",
+              "wrong_agent",
+              "unsigned_metadata",
+              "local_only"
+            ]
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "deny_install",
+              "deny_update",
+              "require_registration",
+              "require_entitlement",
+              "require_policy_override",
+              "local_only",
+              "unsupported"
+            ]
+          },
+          "reason": { "type": "string", "minLength": 1 },
+          "next_command": { "type": "string", "minLength": 1 },
+          "owner": { "type": "string", "minLength": 1 },
+          "action": { "type": "string", "minLength": 1 },
+          "fallback": { "type": "string", "minLength": 1 }
+        }
+      }
+    }
+  }
+}
