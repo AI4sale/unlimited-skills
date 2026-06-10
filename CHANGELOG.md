@@ -1,5 +1,20 @@
 # Changelog
 
+## v0.3.11
+
+### Fixed
+
+- The Claude Code installer now also writes the Unlimited Skills router block into the global `<claude_home>/CLAUDE.md` memory file, not only the project `CLAUDE.md`. The project file is only loaded when Claude Code runs inside that project, so installs that never started a session from the project directory ended up with no router instructions in context at all.
+
+### Added
+
+- `ClaudeCodeInstallOptions.patch_global_claude` (default on) and the `--no-global-claude-patch` installer flag to opt out of global memory patching.
+- Install report now shows project and global CLAUDE.md patch status separately.
+
+### Changed
+
+- Raised package version to `0.3.11`.
+
 ## v0.3.10
 
 ### Added
