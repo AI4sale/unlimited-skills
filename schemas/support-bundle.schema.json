@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AI4sale/unlimited-skills/schemas/support-bundle.schema.json",
+  "title": "Unlimited Skills support diagnostic bundle manifest",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "client",
+    "bundle_type",
+    "created_at",
+    "dry_run",
+    "would_write",
+    "wrote_bundle",
+    "bundle_path",
+    "files",
+    "privacy",
+    "diagnostics_summary"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "client": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string", "const": "unlimited-skills" },
+        "version": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "bundle_type": { "type": "string", "const": "support-diagnostic-bundle" },
+    "created_at": { "type": "string" },
+    "dry_run": { "type": "boolean" },
+    "would_write": { "type": "string" },
+    "wrote_bundle": { "type": "boolean" },
+    "bundle_path": { "type": "string" },
+    "files": {
+      "type": "array",
+      "items": { "type": "string", "enum": ["manifest.json", "diagnostics.json", "README.txt"] }
+    },
+    "privacy": {
+      "type": "object",
+      "required": [
+        "redacted",
+        "include_paths",
+        "skill_bodies_included",
+        "skill_names_included",
+        "prompts_included",
+        "search_queries_included",
+        "environment_values_included",
+        "tokens_included",
+        "private_keys_included"
+      ],
+      "properties": {
+        "redacted": { "type": "boolean", "const": true },
+        "include_paths": { "type": "boolean" },
+        "skill_bodies_included": { "type": "boolean", "const": false },
+        "skill_names_included": { "type": "boolean", "const": false },
+        "prompts_included": { "type": "boolean", "const": false },
+        "search_queries_included": { "type": "boolean", "const": false },
+        "environment_values_included": { "type": "boolean", "const": false },
+        "tokens_included": { "type": "boolean", "const": false },
+        "private_keys_included": { "type": "boolean", "const": false }
+      },
+      "additionalProperties": true
+    },
+    "diagnostics_summary": {
+      "type": "object",
+      "required": ["registered", "library_present", "physical_skill_files", "index_present"],
+      "properties": {
+        "registered": { "type": "boolean" },
+        "library_present": { "type": "boolean" },
+        "physical_skill_files": { "type": "integer", "minimum": 0 },
+        "index_present": { "type": "boolean" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

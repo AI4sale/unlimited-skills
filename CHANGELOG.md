@@ -59,6 +59,26 @@
 - Raised package version to `0.3.2`.
 - Documented that private team pack hosted access requires registry-side entitlement or a Business/Enterprise plan.
 
+## v0.3.1-alpha (in development)
+
+### Added
+
+- Post-release stabilization docs for the published `v0.3.0-alpha` baseline, including release health, known issues, upgrade notes, and a v0.3.1 stabilization verifier.
+- v0.3.1 post-release smoke runner covering published-release traceability, fresh install, synthetic upgrade, packaging smoke, and managed policy release smoke.
+- Guided first-run setup wizard with local-only, registered, Local Skill Hub, Enterprise, dry-run, and JSON reporting modes.
+- Public setup report schema, sanitized setup examples, and first-run onboarding documentation.
+- Redacted support diagnostic bundle with zip output, dry-run, JSON manifest, optional path inclusion, public schema, sanitized example, and privacy documentation.
+- v0.3.1-alpha publication manifest and verifier covering public PR #34-#38, private registry PR #9/#10/#11/#12/#18, the canonical 315-skill reconciliation counts, production registry signing status, and release-owner tag approval.
+- Shared service diagnostics v2 snapshot across setup reports and support bundles, preserving local-only defaults and redacted support output.
+- Final v0.3.1-alpha release smoke that proves the publication verifier blocks by default without production-signed registry artifacts and passes only with explicit release-owner blocked-signing override.
+
+### Changed
+
+- Raised package version to `0.3.1` for the v0.3.1-alpha stabilization train.
+- README, SECURITY, known limitations, install, upgrade, and release process docs now describe `v0.3.1-alpha` as the current stabilization train while preserving `v0.3.0-alpha` as the published baseline.
+
+## v0.3.0-alpha
+
 ## v0.2.2-alpha
 
 ### Added
