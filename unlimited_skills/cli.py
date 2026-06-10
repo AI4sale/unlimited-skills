@@ -71,8 +71,8 @@ from .service_diagnostics import (
     test_proof as service_test_proof,
     verify_trust as service_verify_trust,
 )
-from .setup_wizard import build_setup_report
-from .support_bundle import build_support_bundle_manifest
+from .setup_wizard import build_setup_report, format_setup_text
+from .support_bundle import build_bundle_report, format_bundle_text
 from .native import DEFAULT_AGENT_ORDER, sync_native_sources
 from .org_status import local_org_status, refresh_org_status
 from .plan_status import doctor as plan_doctor
@@ -993,16 +993,41 @@ def cmd_doctor(args: argparse.Namespace) -> int:
 
 def cmd_setup(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
-    registered = bool(args.registered or args.private_packs)
-    payload = build_setup_report(root, registered=registered, hub=args.hub, private_packs=args.private_packs)
-    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    mode = "overview"
+    if getattr(args, "setup_command", "") == "doctor":
+        mode = "overview"
+    elif args.local_only:
+        mode = "local-only"
+    elif args.registered:
+        mode = "registered"
+    elif args.hub:
+        mode = "hub"
+    elif args.enterprise:
+        mode = "enterprise"
+    elif args.private_packs:
+        mode = "private-packs"
+    payload = build_setup_report(root, mode=mode, dry_run=args.dry_run, agent=getattr(args, "agent", "all"))
+    if args.json:
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(format_setup_text(payload))
     return 0
 
 
 def cmd_support_bundle(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
-    payload = build_support_bundle_manifest(root, include_private_pack_refs=args.include_private_pack_refs)
-    print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    out = Path(args.out).expanduser() if args.out else None
+    report = build_bundle_report(
+        root,
+        out=out,
+        dry_run=args.dry_run,
+        include_paths=args.include_paths,
+        include_private_pack_refs=args.include_private_pack_refs,
+    )
+    if args.json:
+        print(json.dumps(report["manifest"], ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(format_bundle_text(report))
     return 0
 
 
@@ -2283,18 +2308,32 @@ def build_parser() -> argparse.ArgumentParser:
     doctor.add_argument("--agent", choices=["codex", "claude-code", "hermes", "openclaw", "all"], default="all", help="Limit agent diagnostics.")
     doctor.set_defaults(func=cmd_doctor)
 
-    setup = sub.add_parser("setup", help="Run privacy-safe first-run setup checks.")
-    setup.add_argument("--registered", action="store_true", help="Include registered service checks.")
-    setup.add_argument("--hub", action="store_true", help="Include Local Skill Hub setup checks.")
-    setup.add_argument("--private-packs", action="store_true", help="Include private team pack setup checks.")
-    setup.add_argument("--json", action="store_true", help="Accepted for consistency; setup output is JSON.")
+    setup = sub.add_parser("setup", help="Guided first-run onboarding wizard.")
+    setup_modes = setup.add_mutually_exclusive_group()
+    setup_modes.add_argument("--local-only", action="store_true", help="Verify local-only Community Core setup without registration.")
+    setup_modes.add_argument("--registered", action="store_true", help="Verify registered hosted-service setup boundaries.")
+    setup_modes.add_argument("--hub", action="store_true", help="Verify registered Local Skill Hub setup readiness.")
+    setup_modes.add_argument("--enterprise", action="store_true", help="Verify Enterprise Skill Lock policy setup status.")
+    setup_modes.add_argument("--private-packs", action="store_true", help="Verify hosted private team pack readiness.")
+    setup.add_argument("--dry-run", action="store_true", help="Print the setup plan without writing missing local directories.")
+    setup.add_argument("--json", action="store_true")
+    setup.add_argument("--agent", choices=["codex", "claude-code", "hermes", "openclaw", "all"], default="all", help="Limit embedded doctor diagnostics.")
+    setup_sub = setup.add_subparsers(dest="setup_command", required=False)
+    setup_doctor = setup_sub.add_parser("doctor", help="Run setup diagnostics in overview mode.")
+    setup_doctor.add_argument("--dry-run", action="store_true")
+    setup_doctor.add_argument("--json", action="store_true")
+    setup_doctor.add_argument("--agent", choices=["codex", "claude-code", "hermes", "openclaw", "all"], default="all", help="Limit embedded doctor diagnostics.")
+    setup_doctor.set_defaults(func=cmd_setup, local_only=False, registered=False, hub=False, enterprise=False, private_packs=False)
     setup.set_defaults(func=cmd_setup)
 
-    support = sub.add_parser("support", help="Build redacted local support diagnostics.")
+    support = sub.add_parser("support", help="Create redacted support diagnostics.")
     support_sub = support.add_subparsers(dest="support_command", required=True)
-    support_bundle = support_sub.add_parser("bundle", help="Print a redacted support bundle manifest.")
+    support_bundle = support_sub.add_parser("bundle", help="Create a redacted support diagnostic bundle.")
+    support_bundle.add_argument("--out", default="", help="Output zip path. Defaults to a timestamped bundle in the current directory.")
+    support_bundle.add_argument("--json", action="store_true", help="Print the redacted manifest as JSON.")
+    support_bundle.add_argument("--dry-run", action="store_true", help="Build diagnostics without writing a zip file.")
+    support_bundle.add_argument("--include-paths", action="store_true", help="Include local paths in diagnostics. Off by default.")
     support_bundle.add_argument("--include-private-pack-refs", action="store_true", help="Include hashed private pack references. Skill names and bodies are still excluded.")
-    support_bundle.add_argument("--json", action="store_true", help="Accepted for consistency; support bundle output is JSON.")
     support_bundle.set_defaults(func=cmd_support_bundle)
 
     register = sub.add_parser("register", help="Self-register this installation for hosted catalog and adapted collection updates.")
