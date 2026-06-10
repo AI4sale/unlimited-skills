@@ -652,6 +652,7 @@ def build_parser() -> argparse.ArgumentParser:
     from .commands import policy as policy_cmds
     from .commands import private_packs as private_packs_cmds
     from .commands import service as service_cmds
+    from .commands import skillops as skillops_cmds
     from .commands import team as team_cmds
     from .commands import updates as updates_cmds
 
@@ -1059,6 +1060,15 @@ def build_parser() -> argparse.ArgumentParser:
     updates_rollback.add_argument("--yes", action="store_true", help="Confirm rollback in non-interactive mode.")
     updates_rollback.add_argument("--skip-reindex", action="store_true")
     updates_rollback.set_defaults(func=updates_cmds.cmd_updates_rollback)
+
+    skillops = sub.add_parser("skillops", help="Run local SkillOps diagnostics and previews.")
+    skillops_sub = skillops.add_subparsers(dest="skillops_command", required=True)
+    usage_snapshot = skillops_sub.add_parser("usage-snapshot", help="Build a local-only privacy-preserving usage snapshot.")
+    usage_snapshot.add_argument("usage_snapshot_command", nargs="?", choices=["explain"], default=None)
+    usage_snapshot.add_argument("--json", action="store_true")
+    usage_snapshot.add_argument("--out", default="", help="Write the snapshot JSON to a local file. Ignored with --dry-run.")
+    usage_snapshot.add_argument("--dry-run", action="store_true", help="Build and print the snapshot without writing --out.")
+    usage_snapshot.set_defaults(func=skillops_cmds.cmd_skillops_usage_snapshot)
 
     catalog = sub.add_parser("catalog", help="Query the registered hosted adapted-skill catalog and browser.")
     catalog_sub = catalog.add_subparsers(dest="catalog_command", required=True)
@@ -1626,6 +1636,7 @@ from .commands.team import (
     cmd_team_status,
     cmd_team_sync,
 )
+from .commands.skillops import cmd_skillops_usage_snapshot
 from .commands.updates import (
     cmd_release_pin,
     cmd_release_status,

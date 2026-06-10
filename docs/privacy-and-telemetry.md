@@ -80,6 +80,14 @@ Private team pack diagnostics are count-based by default. Setup, service diagnos
 
 Managed Enterprise Skill Lock sync sends install id, client version, and a local policy summary to `/v1/policy/sync`. It must not upload skill bodies, prompts, source code, local paths, repository paths, search queries, environment variable values, tokens, secrets, or device private keys. The response must be a signed `enterprise-policy` assignment manifest before the client applies any local policy change.
 
+## SkillOps usage snapshot
+
+`unlimited-skills skillops usage-snapshot` is local-only by default. It summarizes coarse local state for future SkillOps recommendation context without telemetry, upload, hosted query forwarding, install, update, remove, rewrite, reindex, or publish actions.
+
+The snapshot may include counts and coarse states such as client version, OS bucket, local library counts, release channel, plan feature flags, policy mode, recommendation outcome counts, quality warning counts, maintainer queue counts, and update recommendation counts.
+
+The snapshot must not include prompts, task text, skill bodies, search queries, local paths, repository paths, customer data, environment values, tokens, proofs, private keys, private pack names, or private skill names by default.
+
 ## Catalog feedback
 
 Catalog feedback is explicit only. `catalog feedback` requires registration and user confirmation, and `--dry-run` prints the redacted payload without sending it. The client rejects obvious private keys, hosted tokens, local paths, repo paths, email addresses, prompt fields, and skill body fields before submit. Feedback must not include prompts, task text, skill bodies, local or repo paths, customer data, tokens, device proofs, private keys, archive URLs, checkout URLs, or payment links.

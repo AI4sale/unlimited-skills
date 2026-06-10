@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AI4sale/unlimited-skills/schemas/skillops-usage-snapshot.schema.json",
+  "title": "Unlimited Skills SkillOps usage snapshot",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "snapshot_type",
+    "created_at",
+    "local_only",
+    "network_calls",
+    "hosted_calls",
+    "upload_available",
+    "client",
+    "system",
+    "library",
+    "privacy"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "snapshot_type": { "type": "string", "const": "skillops-usage-snapshot" },
+    "created_at": { "type": "string" },
+    "dry_run": { "type": "boolean" },
+    "local_only": { "type": "boolean", "const": true },
+    "network_calls": { "type": "boolean", "const": false },
+    "hosted_calls": { "type": "boolean", "const": false },
+    "upload_available": { "type": "boolean", "const": false },
+    "client": {
+      "type": "object",
+      "required": ["name", "version"],
+      "properties": {
+        "name": { "type": "string", "const": "unlimited-skills" },
+        "version": { "type": "string" }
+      },
+      "additionalProperties": true
+    },
+    "system": {
+      "type": "object",
+      "required": ["os_bucket"],
+      "properties": {
+        "os_bucket": { "type": "string", "enum": ["windows", "macos", "linux", "other"] }
+      },
+      "additionalProperties": false
+    },
+    "library": {
+      "type": "object",
+      "required": [
+        "physical_skill_files",
+        "official_pack_skill_count",
+        "community_pack_skill_count",
+        "private_pack_skill_count",
+        "local_skill_count",
+        "skill_names_included",
+        "skill_bodies_included",
+        "local_paths_included"
+      ],
+      "properties": {
+        "physical_skill_files": { "type": "integer", "minimum": 0 },
+        "official_pack_skill_count": { "type": "integer", "minimum": 0 },
+        "community_pack_skill_count": { "type": "integer", "minimum": 0 },
+        "private_pack_skill_count": { "type": "integer", "minimum": 0 },
+        "local_skill_count": { "type": "integer", "minimum": 0 },
+        "skill_names_included": { "type": "boolean", "const": false },
+        "skill_bodies_included": { "type": "boolean", "const": false },
+        "local_paths_included": { "type": "boolean", "const": false }
+      },
+      "additionalProperties": true
+    },
+    "privacy": {
+      "type": "object",
+      "required": [
+        "prompts_included",
+        "task_text_included",
+        "skill_bodies_included",
+        "search_queries_included",
+        "private_pack_names_included",
+        "private_skill_names_included",
+        "local_paths_included",
+        "repo_paths_included",
+        "customer_data_included",
+        "environment_values_included",
+        "tokens_included",
+        "proofs_included",
+        "private_keys_included"
+      ],
+      "properties": {
+        "prompts_included": { "type": "boolean", "const": false },
+        "task_text_included": { "type": "boolean", "const": false },
+        "skill_bodies_included": { "type": "boolean", "const": false },
+        "search_queries_included": { "type": "boolean", "const": false },
+        "private_pack_names_included": { "type": "boolean", "const": false },
+        "private_skill_names_included": { "type": "boolean", "const": false },
+        "local_paths_included": { "type": "boolean", "const": false },
+        "repo_paths_included": { "type": "boolean", "const": false },
+        "customer_data_included": { "type": "boolean", "const": false },
+        "environment_values_included": { "type": "boolean", "const": false },
+        "tokens_included": { "type": "boolean", "const": false },
+        "proofs_included": { "type": "boolean", "const": false },
+        "private_keys_included": { "type": "boolean", "const": false }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

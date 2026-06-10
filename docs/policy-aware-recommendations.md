@@ -87,6 +87,12 @@ Live preview mode requires registration because it reads signed hosted catalog m
 
 Runtime previews never include skill bodies, prompts, task text, local paths, repo paths, customer data, tokens, proofs, private keys, or private pack contents. Private team-pack items may appear only by metadata/reference and still require entitlement.
 
+## Local Usage Snapshot
+
+`unlimited-skills skillops usage-snapshot` provides local-only counts and coarse state that future recommendation workflows may consider. It does not change the recommendation engine, does not upload data, does not call hosted services, and does not apply install, update, remove, rewrite, reindex, or publish actions.
+
+The snapshot excludes prompts, task text, skill bodies, search queries, local paths, repo paths, customer data, environment values, tokens, proofs, private keys, private pack names, and private skill names by default.
+
 ## Registry Inputs
 
 The public client consumes existing registered contracts; this preview layer does not require a new registry endpoint:
