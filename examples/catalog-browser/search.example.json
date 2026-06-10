@@ -1,0 +1,35 @@
+{
+  "count": 1,
+  "items": [
+    {
+      "body_included": false,
+      "categories": ["automation"],
+      "channel": "stable",
+      "collection": "official",
+      "compatible_agents": ["codex", "hermes", "openclaw"],
+      "deprecated": false,
+      "description": "Automation workflows for repeatable local skill operations.",
+      "distribution_policy": {
+        "approved_or_published_required": true,
+        "body_included": false,
+        "signed_metadata_required": true,
+        "skill_execution": false
+      },
+      "installable": false,
+      "item_id": "official:automation-workflows:0.3.5",
+      "license": "registered-catalog",
+      "pack_id": "automation-workflows",
+      "plan_requirement": "registered-community",
+      "requires_registration": true,
+      "requirements": ["registered hosted catalog"],
+      "retired": false,
+      "review_status": "published",
+      "skill_count": 8,
+      "skill_kind": "skill-pack",
+      "source": "official",
+      "source_repo": "https://github.com/AI4sale/unlimited-skills",
+      "version": "0.3.5",
+      "warnings": []
+    }
+  ]
+}

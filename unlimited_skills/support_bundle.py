@@ -12,6 +12,7 @@ from typing import Any
 
 from . import __version__
 from .billing_status import redacted_billing_summary
+from .catalog_browser import redacted_catalog_browser_summary
 from .doctor import build_doctor_report
 from .hub import active_hub_token_count, cached_allowlist_summary, load_hub_config, load_remote_config
 from .org_status import local_org_status
@@ -357,6 +358,7 @@ def build_support_diagnostics(root: Path, *, include_paths: bool = False, includ
         "registration": _registration_status(home),
         "plan": _plan_status(home),
         "billing": _billing_status(home),
+        "catalog_browser": redacted_catalog_browser_summary(),
         "service": _service_status(home),
         "hub": _hub_status(home),
         "enterprise": _enterprise_status(home),

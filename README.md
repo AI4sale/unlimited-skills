@@ -68,6 +68,7 @@ Working now:
 - registered-installation state for hosted catalog and adapted collection updates;
 - hosted update client with SHA256-verified collection archives;
 - registered hosted catalog client;
+- registered signed catalog browser for reviewed metadata search, filters, preview, and dry-run install verification;
 - registered community skills client for list/search/preview/install/submit/status/local remove with signed approved/published install enforcement;
 - registered Team Free create/join/members/pending/approve/reject/revoke/collections/sync/leave client;
 - registered private team pack client for list/preview/install/sync/installed/remove under `registry/private/<pack_id>`;
@@ -259,6 +260,18 @@ unlimited-skills updates apply
 ```
 
 Hosted catalog/update access is registration-gated early access. A clean registered install should receive starter catalog metadata and updates for `ecc` and `superpowers`; additional hosted catalog contents are delivered through registered catalog/update commands as they become available.
+
+Browse signed reviewed catalog metadata:
+
+```bash
+unlimited-skills catalog browse --source community --compatible-agent codex
+unlimited-skills catalog search "browser qa" --source community
+unlimited-skills catalog filters
+unlimited-skills catalog preview <catalog-item-id>
+unlimited-skills catalog install <catalog-item-id> --dry-run
+```
+
+Catalog browser responses must be signed, metadata-only, and approved or published before install can proceed. Community-source installs delegate to the Community Skills install flow after the signed browser metadata check. Official and private-visible browser items are metadata/dry-run only until dedicated install-plan capability checks are implemented. See [docs/catalog-browser.md](docs/catalog-browser.md).
 
 Browse, preview, install, and submit registered community skills:
 

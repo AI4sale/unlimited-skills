@@ -30,6 +30,15 @@ For plans and entitlements, the support manifest includes only the redacted plan
 
 For billing lifecycle diagnostics, the support manifest includes only the redacted plan id, entitlement source, subscription lifecycle status, sandbox billing mode, public feature allow/deny codes, and the normalized denial reason. It does not include checkout sessions or live payment provider payloads.
 
+For catalog browser diagnostics, the support manifest includes only a redacted metadata summary:
+
+- registered browser operation flag;
+- metadata-only flag;
+- query inclusion flag, always false;
+- item-name inclusion flag, always false;
+- skill-body inclusion flag, always false;
+- private-path inclusion flag, always false.
+
 The support manifest excludes:
 
 - private pack names by default;
@@ -45,7 +54,9 @@ The support manifest excludes:
 - auth headers;
 - hosted tokens;
 - device proofs;
-- private keys.
+- private keys;
+- catalog browser search queries;
+- catalog browser item names.
 
 The support manifest is a local diagnostic artifact. Users decide whether to share it with support.
 

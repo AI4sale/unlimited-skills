@@ -65,6 +65,11 @@ The public MIT core must remain local-first. Registration gates hosted services 
 - `community install`
 - `community submit`
 - `community submission-status`
+- `catalog browse`
+- `catalog search`
+- `catalog filters`
+- `catalog preview`
+- `catalog install`
 - `hub serve`
 - `hub sync`
 - `hub clients`
@@ -98,6 +103,8 @@ No registration, no official hosted skill updates. Local skills remain usable.
 Hosted metadata calls must not upload skill bodies, prompts, source code, full local paths, repository paths, customer names, environment variables, tokens, secrets, or device private keys. Collection versions, source labels, skill-count buckets, public device keys, key thumbprints, and signed device proof metadata are allowed.
 
 Community submission is the explicit exception: `community submit <path>` uploads only the selected skill or pack after local validation, preview generation, and explicit confirmation. List, search, preview, update checks, install-plan checks, and installed listing must not upload local skill bodies.
+
+Catalog browser discovery is also hosted and registration-gated. `catalog browse`, `catalog search`, `catalog filters`, `catalog preview`, and `catalog install` send only signed device proof metadata, client version, selected filters, search query text for search, and current collection version summaries. They must verify signed metadata, hide unapproved statuses, refuse body-including responses, and must not upload local skill bodies, prompts, source code, full local paths, repository paths, customer names, environment variable values, tokens, secrets, or device private keys.
 
 Public repo self-update remains unregistered because it updates the MIT public core from GitHub. Hosted skill updates require registration.
 
