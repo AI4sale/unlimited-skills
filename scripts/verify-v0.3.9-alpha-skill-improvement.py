@@ -73,7 +73,10 @@ def assert_manifest(payload: dict[str, Any], expected_sha: str | None) -> None:
     git_info = payload.get("git") if isinstance(payload.get("git"), dict) else {}
     sha = str(git_info.get("sha") or "")
     require(re.fullmatch(r"[0-9a-f]{40}", sha) is not None, "manifest git.sha must be 40 lowercase hex")
-    require(git_info.get("tag_status") == "not_tagged_integration_gate", "v0.3.9 must not be tagged by this task")
+    require(
+        git_info.get("tag_status") in {"not_tagged_integration_gate", "pending_release_owner_approval"},
+        "v0.3.9-alpha must remain pre-tag until release-owner approval",
+    )
     if expected_sha:
         require(re.fullmatch(r"[0-9a-f]{40}", expected_sha) is not None, "--expected-sha must be 40 lowercase hex")
         require(git_ok(["merge-base", "--is-ancestor", sha, expected_sha]), "manifest sha is not contained in expected sha")
@@ -84,6 +87,7 @@ def assert_manifest(payload: dict[str, Any], expected_sha: str | None) -> None:
         ".venv\\Scripts\\python.exe -m pytest tests -q",
         ".venv\\Scripts\\python.exe scripts/run-v0.2x-smoke-tests.py",
         ".venv\\Scripts\\python.exe scripts/run-v0.3.9-alpha-skill-improvement-smoke.py --fixture-mode --temp-home",
+        ".venv\\Scripts\\python.exe scripts/run-v0.3.9-alpha-release-smoke.py",
         ".venv\\Scripts\\python.exe scripts/verify-v0.3.9-alpha-skill-improvement.py --expected-sha <tag-target-sha>",
         ".venv\\Scripts\\python.exe -m compileall -q unlimited_skills scripts tests",
         "git diff --check",

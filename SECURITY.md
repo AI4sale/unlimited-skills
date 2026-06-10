@@ -58,7 +58,7 @@ Current `v0.3.9-alpha` limitations:
 - LAN bind requires explicit `--allow-lan` and at least one active hub client token. For serious LAN testing, put the hub behind a reverse proxy or network control that provides TLS, authentication, access logging, and IP allowlisting.
 - Local install plan skills are metadata/resolution only until client capability checks are implemented.
 - Full catalog distribution remains disabled; the hub may serve only allowlisted skills.
-- Release artifacts are checked by the v0.2.2, v0.3.0, v0.3.1, v0.3.2, v0.3.3, v0.3.4, v0.3.5, v0.3.6, v0.3.7, v0.3.8, and v0.3.9 alpha release verifiers for version consistency, unsafe release claims, final publication placeholders, and obvious private key/token material.
+- Release artifacts are checked by the v0.2.2, v0.3.0, v0.3.1, v0.3.2, v0.3.3, v0.3.4, v0.3.5, v0.3.6, v0.3.7, v0.3.8, and v0.3.9 alpha release verifiers for version consistency, unsafe release claims, final publication placeholders, and obvious private key/token material. The `v0.3.9-alpha` tag remains pending release-owner approval until the publication verifier passes on the selected tag target.
 
 ## Catalog Browser Boundary
 
