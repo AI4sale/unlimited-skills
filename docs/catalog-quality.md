@@ -9,6 +9,8 @@ unlimited-skills catalog quality community:browser-qa-pack:0.1.0
 unlimited-skills catalog quality community:browser-qa-pack:0.1.0 --json
 unlimited-skills catalog eval-status community:browser-qa-pack:0.1.0
 unlimited-skills catalog explain-risk community:browser-qa-pack:0.1.0
+unlimited-skills catalog improvement-status community:browser-qa-pack:0.1.0
+unlimited-skills catalog known-issues community:browser-qa-pack:0.1.0
 unlimited-skills catalog browse --show-quality
 unlimited-skills catalog search "browser qa" --show-quality
 ```
@@ -44,3 +46,5 @@ Local and non-hosted overrides are not introduced here. Existing local policy re
 ## Privacy
 
 Quality diagnostics are metadata-only. The support bundle includes quality summary counts only, not item ids, item names, raw feedback, prompts, skill bodies, local paths, repo paths, customer data, tokens, proofs, or private keys.
+
+Skill improvement status builds on the same boundary for signed remediation metadata. It adds open issue counts, severity summaries, fix status, recommended version/channel, stale-installed-version flags, and deprecation/retirement reasons without exposing skill bodies or local data.

@@ -35,6 +35,15 @@ class UpdateError(RuntimeError):
     """Raised when a hosted collection update cannot be checked or applied."""
 
 
+def preview_only_update_recommendation_flags() -> dict[str, bool]:
+    return {
+        "preview_only": True,
+        "automatic_update": False,
+        "automatic_install": False,
+        "automatic_remove": False,
+    }
+
+
 @dataclass(frozen=True)
 class CollectionUpdate:
     collection: str
