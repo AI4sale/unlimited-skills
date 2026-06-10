@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "client": {
+    "name": "unlimited-skills",
+    "version": "0.3.1"
+  },
+  "mode": "registered",
+  "dry_run": true,
+  "writes_performed": false,
+  "hosted_calls_performed": false,
+  "destructive_changes": false,
+  "root": "/tmp/unlimited-skills",
+  "summary": {
+    "status": "blocked",
+    "blocked_count": 1,
+    "needs_action_count": 4
+  },
+  "components": {
+    "library": {
+      "root": "/tmp/unlimited-skills",
+      "exists": false,
+      "local_skills_exists": false,
+      "index_present": false,
+      "created": false
+    },
+    "registration": {
+      "registered": false,
+      "install_id": "",
+      "server_url": "https://unlimited.ai4.sale",
+      "plan": "community-core",
+      "license_token": false,
+      "device_key": "",
+      "telemetry": "off",
+      "proof_required": true
+    }
+  },
+  "steps": [
+    {
+      "name": "registration",
+      "status": "blocked",
+      "message": "Registration is required for hosted catalog, updates, team sync, and managed policy sync. The MIT local core remains available without registration.",
+      "next_commands": [
+        "unlimited-skills service test-registration --dry-run --agent codex",
+        "unlimited-skills register --agent codex"
+      ]
+    }
+  ],
+  "next_commands": [
+    "unlimited-skills service test-registration --dry-run --agent codex",
+    "unlimited-skills register --agent codex"
+  ],
+  "privacy": {
+    "tokens_redacted": true,
+    "private_keys_redacted": true,
+    "hosted_calls_performed": false,
+    "telemetry_collected": false
+  }
+}

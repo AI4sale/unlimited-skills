@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "release": "v0.3.5-alpha",
+  "package_name": "unlimited-skills",
+  "package_version": "0.3.5",
+  "git": {
+    "repository": "https://github.com/AI4sale/unlimited-skills",
+    "sha": "ab2f2119a1bd10c13029ef6c10a1e0b3f595c43d",
+    "tag": "v0.3.5-alpha",
+    "tag_status": "pending_release_owner_approval",
+    "publication_branch": "release/v0.3.5-alpha-final-publication"
+  },
+  "required_prs": {
+    "public": [
+      {
+        "number": 53,
+        "title": "v0.3.4-alpha sandbox billing and entitlement publication gate",
+        "status": "prior_release_dependency"
+      },
+      {
+        "number": 54,
+        "title": "community catalog review-status client and safer submission UX",
+        "status": "open_mergeable_in_review"
+      },
+      {
+        "number": 55,
+        "title": "v0.3.5-alpha community catalog integration gate",
+        "status": "open_mergeable_in_review"
+      },
+      {
+        "number": 0,
+        "title": "v0.3.5-alpha final publication gate",
+        "status": "this_publication_pr"
+      }
+    ],
+    "private_registry": [
+      {
+        "number": 33,
+        "repository": "AI4sale/unlimited-skills-registry",
+        "title": "community catalog submission review workflow",
+        "status": "open_mergeable_in_review"
+      }
+    ]
+  },
+  "feature_scope": [
+    "community submission review workflow",
+    "signed canary community artifacts",
+    "public community status, withdraw, and review-notes commands",
+    "approved-only signed community preview and install",
+    "cross-repo fixture E2E"
+  ],
+  "security_boundary": {
+    "skill_execution": false,
+    "full_catalog_distribution": false,
+    "community_hosted_operations_registration_gated": true,
+    "local_mit_core_registration_gated": false,
+    "stable_promotion_by_default": false,
+    "production_hosted_calls_in_tests": false,
+    "signed_hosted_manifests_required": true,
+    "skill_bodies_in_public_artifacts": false,
+    "payment_or_storefront_features": false,
+    "marketplace_storefront": false,
+    "billing_revenue_share": false
+  },
+  "required_test_commands": [
+    "python scripts/run-community-catalog-cross-repo-e2e.py --fixture-mode --temp-home --json",
+    "python scripts/run-v0.3.5-alpha-community-catalog-smoke.py --fixture-mode --temp-home",
+    "python scripts/run-v0.3.5-alpha-release-smoke.py",
+    "python scripts/verify-v0.3.5-alpha-community-catalog.py --expected-sha <tag-target-sha>",
+    "python scripts/verify-v0.3.5-alpha-publication.py --expected-sha <tag-target-sha>",
+    "python scripts/run-v0.2x-smoke-tests.py",
+    "python -m pytest tests -q",
+    "python -m compileall -q unlimited_skills scripts tests",
+    "git diff --check"
+  ],
+  "release_owner_actions": [
+    "Review and merge private registry PR #33 before public release integration.",
+    "Review and merge public PR #54 before this gate.",
+    "Review and merge public PR #55 before final publication.",
+    "Run the required test commands on the final tag target.",
+    "Create tag v0.3.5-alpha only after human release-owner approval."
+  ]
+}

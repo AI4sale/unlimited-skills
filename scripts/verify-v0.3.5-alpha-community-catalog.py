@@ -10,25 +10,15 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RELEASE = "v0.3.4-alpha"
-VERSION = "0.3.4"
-MANIFEST = ROOT / "docs" / "releases" / "v0.3.4-alpha.release-manifest.json"
+RELEASE = "v0.3.5-alpha"
+VERSION = "0.3.5"
+MANIFEST = ROOT / "docs" / "releases" / "v0.3.5-alpha.release-manifest.json"
 RELEASE_DOCS = [
-    ROOT / "docs" / "releases" / "v0.3.4-alpha.md",
-    ROOT / "docs" / "releases" / "v0.3.4-alpha-checklist.md",
-    ROOT / "docs" / "releases" / "v0.3.4-alpha-upgrade-notes.md",
-    ROOT / "docs" / "releases" / "v0.3.4-alpha-known-issues.md",
-    MANIFEST,
-]
-PUBLIC_DOCS = RELEASE_DOCS + [
-    ROOT / "README.md",
-    ROOT / "SECURITY.md",
-    ROOT / "CHANGELOG.md",
-    ROOT / "docs" / "billing-status.md",
-    ROOT / "docs" / "billing-lifecycle-cross-repo-e2e.md",
-    ROOT / "docs" / "plans-and-entitlements.md",
-    ROOT / "docs" / "support-diagnostic-bundle.md",
-    ROOT / "docs" / "public-core-boundary.md",
+    ROOT / "docs" / "releases" / "v0.3.5-alpha.md",
+    ROOT / "docs" / "releases" / "v0.3.5-alpha-checklist.md",
+    ROOT / "docs" / "releases" / "v0.3.5-alpha.release-manifest.json",
+    ROOT / "docs" / "community-skills.md",
+    ROOT / "docs" / "community-submission-review.md",
 ]
 PRIVATE_MATERIAL_PATTERNS = {
     "pem_private_key": r"-----BEGIN [A-Z ]*PRIVATE KEY-----",
@@ -49,7 +39,7 @@ def read(path: Path) -> str:
 
 
 def fail(message: str) -> None:
-    raise SystemExit(f"{RELEASE} verification failed: {message}")
+    raise SystemExit(f"{RELEASE} community catalog verification failed: {message}")
 
 
 def require(condition: bool, message: str) -> None:
@@ -92,77 +82,48 @@ def assert_manifest(payload: dict[str, Any], expected_sha: str | None) -> str:
     require(re.fullmatch(r"[0-9a-f]{40}", sha) is not None, "manifest git.sha must be 40 lowercase hex")
     require(git_info.get("tag") == RELEASE, "manifest tag mismatch")
     require(git_info.get("tag_status") == "pending_release_owner_approval", "manifest must require human tag approval")
-    require(
-        git_info.get("publication_branch")
-        in {"release/v0.3.4-alpha-plans-billing-integration", "release/v0.3.4-alpha-final-publication"},
-        "manifest publication branch mismatch",
-    )
     if expected_sha is not None:
         require(re.fullmatch(r"[0-9a-f]{40}", expected_sha) is not None, "--expected-sha must be 40 lowercase hex")
-        require(git_ok(["merge-base", "--is-ancestor", sha, expected_sha]), f"manifest release candidate {sha} is not contained in expected tag target {expected_sha}")
+        require(git_ok(["merge-base", "--is-ancestor", sha, expected_sha]), f"manifest candidate {sha} is not contained in expected tag target {expected_sha}")
 
     prs = payload.get("required_prs", {}) if isinstance(payload.get("required_prs"), dict) else {}
     public_numbers = [item.get("number") for item in prs.get("public", []) if isinstance(item, dict)]
     private_numbers = [item.get("number") for item in prs.get("private_registry", []) if isinstance(item, dict)]
-    for number in (50, 51, 52):
-        require(number in public_numbers, f"manifest missing public PR #{number}")
-    for number in (30, 31, 32):
-        require(number in private_numbers, f"manifest missing private registry PR #{number}")
-
-    billing = payload.get("billing_boundary", {}) if isinstance(payload.get("billing_boundary"), dict) else {}
-    require(billing.get("sandbox_only") is True, "billing boundary must be sandbox_only")
-    require(billing.get("live_payment_provider_enabled") is False, "live payment providers must be disabled")
-    require(billing.get("checkout_sessions_created") is False, "checkout sessions must not be created")
-    require(billing.get("payment_data_collected") is False, "payment data must not be collected")
-    require(billing.get("billing_refresh_registration_gated") is True, "billing refresh must require registration")
-    require(billing.get("billing_status_cache_only_unregistered") is True, "billing status must be cache-only without registration")
+    require(54 in public_numbers, "manifest missing public PR #54")
+    require(55 in public_numbers, "manifest missing public PR #55")
+    require(33 in private_numbers, "manifest missing private registry PR #33")
 
     security = payload.get("security_boundary", {}) if isinstance(payload.get("security_boundary"), dict) else {}
+    require(security.get("skill_execution") is False, "release must not execute skills")
+    require(security.get("full_catalog_distribution") is False, "full catalog distribution must remain disabled")
     require(security.get("production_hosted_calls_in_tests") is False, "fixture tests must not call production hosted services")
-    require(security.get("support_bundle_redacted") is True, "support bundle must remain redacted")
-    require(security.get("private_skill_bodies_committed") is False, "private skill bodies must not be committed")
-    require(security.get("raw_tokens_committed") is False, "raw tokens must not be committed")
-    require(security.get("payment_secrets_committed") is False, "payment secrets must not be committed")
-
-    commands = payload.get("required_test_commands", [])
-    for command in (
-        "python -m pytest tests -q",
-        "python scripts/run-billing-lifecycle-cross-repo-e2e.py --fixture-mode --temp-home --json",
-        "python scripts/run-v0.3.4-alpha-plans-billing-smoke.py",
-        "python scripts/run-v0.3.4-alpha-release-smoke.py",
-        "python scripts/verify-v0.3.4-alpha-plans-billing.py --expected-sha <tag-target-sha>",
-        "python -m compileall -q unlimited_skills scripts tests",
-        "git diff --check",
-    ):
-        require(command in commands, f"manifest missing test command: {command}")
+    require(security.get("skill_bodies_in_public_artifacts") is False, "private skill bodies must not be committed")
+    require(security.get("payment_or_storefront_features") is False, "marketplace/payment behavior must remain out of scope")
+    require(security.get("signed_hosted_manifests_required") is True, "signed hosted manifests must remain required")
     return sha
 
 
 def assert_docs() -> None:
     for path in RELEASE_DOCS:
         require(path.is_file(), f"missing release doc: {path.relative_to(ROOT)}")
-    text = "\n".join(read(path) for path in PUBLIC_DOCS if path.exists()).lower()
+    text = "\n".join(read(path) for path in RELEASE_DOCS).lower()
     for required in (
-        "v0.3.4-alpha",
-        "github clone",
-        "billing status",
-        "billing refresh",
-        "sandbox_only",
-        "past_due",
-        "suspended",
+        "v0.3.5-alpha",
+        "approved",
+        "published",
+        "signed",
+        "community submit",
+        "dry-run",
         "no production hosted calls",
-        "does not create checkout sessions",
-        "live payment",
-        "release owner",
+        "no billing",
+        "no full catalog distribution",
     ):
         require(required in text, f"docs missing required wording: {required}")
 
 
 def assert_no_private_material() -> None:
     offenders: list[str] = []
-    for path in PUBLIC_DOCS:
-        if not path.exists() or path.is_dir():
-            continue
+    for path in RELEASE_DOCS:
         text = read(path)
         for name, pattern in PRIVATE_MATERIAL_PATTERNS.items():
             if re.search(pattern, text, re.IGNORECASE):
@@ -171,8 +132,8 @@ def assert_no_private_material() -> None:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="Verify v0.3.4-alpha plans/billing integration before tagging.")
-    parser.add_argument("--expected-sha", help="Final tag target SHA to compare with docs/releases/v0.3.4-alpha.release-manifest.json")
+    parser = argparse.ArgumentParser(description="Verify v0.3.5-alpha community catalog integration gate.")
+    parser.add_argument("--expected-sha", help="Final tag target SHA to compare with docs/releases/v0.3.5-alpha.release-manifest.json")
     args = parser.parse_args()
 
     require(package_version() == VERSION, f"pyproject version must be {VERSION}")
@@ -183,19 +144,13 @@ def main() -> int:
     current_head = run_git(["rev-parse", "HEAD"])
     if args.expected_sha:
         require(current_head == args.expected_sha, f"current checkout {current_head} does not match expected tag target {args.expected_sha}")
-    print(f"{RELEASE} plans/billing verification passed")
+    print(f"{RELEASE} community catalog verification passed")
     print(f"manifest: {MANIFEST.relative_to(ROOT)}")
     print(f"manifest release candidate sha: {manifest_sha}")
     print(f"current checkout sha: {current_head}")
-    print("distribution path: GitHub clone")
-    print("billing mode: sandbox_only")
-    print("live payment provider: disabled")
+    print("community install safety: approved/published signed items only")
     print("production hosted calls: blocked by fixture-mode release commands")
-    print("private key/token/payment-field scan: passed for public release docs")
-    if args.expected_sha:
-        print(f"expected tag target sha: {args.expected_sha}")
-    else:
-        print("tag target sha check: skipped; pass --expected-sha before pushing the release tag")
+    print("private key/token/payment-field scan: passed for public community release docs")
     return 0
 
 

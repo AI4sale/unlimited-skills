@@ -23,11 +23,15 @@ def run(command: list[str]) -> None:
 
 
 def main() -> int:
-    print("Running v0.3.4-alpha release smoke")
-    run([sys.executable, "scripts/run-v0.3.4-alpha-plans-billing-smoke.py"])
-    run([sys.executable, "scripts/verify-v0.3.4-alpha-plans-billing.py"])
-    run([sys.executable, "scripts/verify-v0.3.4-alpha-publication.py"])
-    print("v0.3.4-alpha release smoke passed")
+    # Accept release-runner compatibility flags. The smoke is fixture-only by design.
+    allowed_args = {"--fixture-mode", "--temp-home"}
+    unknown_args = [arg for arg in sys.argv[1:] if arg not in allowed_args]
+    if unknown_args:
+        raise SystemExit("unsupported arguments: " + ", ".join(unknown_args))
+    print("Running v0.3.5-alpha community catalog integration smoke")
+    run([sys.executable, "scripts/run-community-catalog-cross-repo-e2e.py", "--fixture-mode", "--temp-home", "--json"])
+    run([sys.executable, "-m", "pytest", "tests/test_community.py", "-q"])
+    print("v0.3.5-alpha community catalog integration smoke passed")
     return 0
 
 

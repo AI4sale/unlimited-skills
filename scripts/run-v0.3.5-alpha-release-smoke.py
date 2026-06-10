@@ -23,11 +23,11 @@ def run(command: list[str]) -> None:
 
 
 def main() -> int:
-    print("Running v0.3.4-alpha release smoke")
-    run([sys.executable, "scripts/run-v0.3.4-alpha-plans-billing-smoke.py"])
-    run([sys.executable, "scripts/verify-v0.3.4-alpha-plans-billing.py"])
-    run([sys.executable, "scripts/verify-v0.3.4-alpha-publication.py"])
-    print("v0.3.4-alpha release smoke passed")
+    print("Running v0.3.5-alpha final release smoke")
+    run([sys.executable, "scripts/run-v0.3.5-alpha-community-catalog-smoke.py", "--fixture-mode", "--temp-home"])
+    run([sys.executable, "scripts/verify-v0.3.5-alpha-community-catalog.py"])
+    run([sys.executable, "scripts/verify-v0.3.5-alpha-publication.py"])
+    print("v0.3.5-alpha final release smoke passed")
     return 0
 
 
