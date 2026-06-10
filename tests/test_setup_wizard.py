@@ -122,6 +122,20 @@ def test_enterprise_setup_reports_policy_status_without_installing_policy(tmp_pa
     assert "unlimited-skills policy explain" in payload["next_commands"]
 
 
+def test_setup_private_packs_warns_without_registration(tmp_path: Path, monkeypatch) -> None:
+    home = tmp_path / "home"
+    root = tmp_path / "library"
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home))
+
+    payload = build_setup_report(root, mode="private-packs", dry_run=True)
+
+    assert payload["mode"] == "private-packs"
+    assert payload["components"]["private_packs"]["status"] == "warn"
+    assert payload["components"]["private_packs"]["checks"]["registered"] is False
+    assert payload["privacy"]["tokens_redacted"] is True
+    assert payload["hosted_calls_performed"] is False
+
+
 def test_setup_cli_json_and_doctor_modes(tmp_path: Path, monkeypatch, capsys) -> None:
     home = tmp_path / "home"
     root = tmp_path / "library"
@@ -133,6 +147,12 @@ def test_setup_cli_json_and_doctor_modes(tmp_path: Path, monkeypatch, capsys) ->
     assert payload["mode"] == "local-only"
     assert payload["dry_run"] is True
     assert not root.exists()
+
+    assert main(["--root", str(root), "setup", "--private-packs", "--dry-run", "--json"]) == 0
+    private_pack_payload = json.loads(capsys.readouterr().out)
+    assert private_pack_payload["mode"] == "private-packs"
+    assert "private_packs" in private_pack_payload["components"]
+    assert private_pack_payload["hosted_calls_performed"] is False
 
     assert main(["--root", str(root), "setup", "doctor", "--json"]) == 0
     doctor_payload = json.loads(capsys.readouterr().out)

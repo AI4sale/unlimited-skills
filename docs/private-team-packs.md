@@ -14,6 +14,8 @@ unlimited-skills private-packs sync --dry-run
 unlimited-skills private-packs sync --yes
 unlimited-skills private-packs installed
 unlimited-skills private-packs remove <pack_id> --yes
+unlimited-skills setup --private-packs
+unlimited-skills support bundle --json
 ```
 
 `sync` is dry-run by default unless `--yes` is passed.
@@ -46,6 +48,7 @@ The client:
 - uses safe zip extraction to block path traversal;
 - installs only under `registry/private/<pack_id>`;
 - lists installed private packs locally without hosted calls.
+- exposes only redacted private-pack counters in setup, service diagnostics, doctor, and support bundle output.
 
 Metadata responses must not include private skill bodies, tokens, proofs, join codes, or private keys. The downloaded archive may contain the private team skills and is installed locally only after manifest and SHA verification.
 
@@ -60,3 +63,15 @@ export UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS="key-id:base64url-public-key"
 ```
 
 Production deployments should distribute private-pack public keys through the normal trust-store process before enabling private pack install/sync for users.
+
+## Diagnostics and Support
+
+Private-pack-aware diagnostics are local and redacted by default:
+
+- `unlimited-skills setup --private-packs`;
+- `unlimited-skills service status`;
+- `unlimited-skills service doctor`;
+- `unlimited-skills doctor --json`;
+- `unlimited-skills support bundle --json`.
+
+These surfaces include counts and error codes only. They do not include private pack names by default, private skill names, private skill bodies, raw archive URLs, local paths, tokens, device proofs, or private keys. `support bundle --include-private-pack-refs` may include hashed private pack references for support correlation; it still excludes names and contents.

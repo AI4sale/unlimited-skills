@@ -67,7 +67,7 @@ def public_key_manifest() -> tuple[dict, dict[str, str]]:
                     "algorithm": "ed25519",
                     "public_key": public_b64,
                     "status": "active",
-                    "scopes": ["hub-allowlist", "catalog-updates", "enhancement-manifest", "team-sync-manifest", "release-channels"],
+                    "scopes": ["hub-allowlist", "catalog-updates", "enhancement-manifest", "team-sync-manifest", "release-channels", "private-team-pack"],
                     "registry_origins": ["*"],
                 }
             ],

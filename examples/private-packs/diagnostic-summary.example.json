@@ -1,0 +1,23 @@
+{
+  "access_denied_count": 0,
+  "archive_urls_included": false,
+  "authorized_count": "not_refreshed",
+  "failed_signature_count": 1,
+  "installed_count": 1,
+  "last_error_codes": [
+    "failed_signature",
+    "revoked",
+    "stale_version"
+  ],
+  "local_paths_included": false,
+  "missing_target_count": 0,
+  "pack_names_included": false,
+  "pack_refs": [],
+  "revoked_count": 1,
+  "schema_version": 1,
+  "sha_mismatch_count": 0,
+  "skill_bodies_included": false,
+  "skill_names_included": false,
+  "stale_count": 1,
+  "status": "warn"
+}

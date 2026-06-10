@@ -6,8 +6,9 @@ from pathlib import Path
 from unittest.mock import patch
 
 from unlimited_skills.cli import main
+from unlimited_skills.private_packs import write_private_pack_metadata
 from unlimited_skills.registration import RegistrationState, save_registration, with_install_identity
-from unlimited_skills.support_bundle import build_bundle_report, build_support_diagnostics
+from unlimited_skills.support_bundle import assert_support_bundle_safe, build_bundle_report, build_support_diagnostics
 
 
 def registered_state() -> RegistrationState:
@@ -121,6 +122,59 @@ def test_support_bundle_include_paths_is_explicit(tmp_path: Path, monkeypatch) -
     assert str(root) not in json.dumps(redacted, ensure_ascii=False)
     assert with_paths["library"]["root"] == str(root)
     assert "private-customer-skill" not in json.dumps(with_paths, ensure_ascii=False)
+
+
+def test_support_bundle_private_pack_summary_is_redacted(tmp_path: Path, monkeypatch) -> None:
+    home = tmp_path / "home"
+    root = tmp_path / "library"
+    target = root / "registry" / "private" / "team_pack_secret"
+    target.mkdir(parents=True)
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home))
+    save_registration(registered_state(), home=home)
+    write_private_pack_metadata(
+        root,
+        {
+            "schema_version": 1,
+            "items": {
+                "team_pack_secret": {
+                    "team_id": "team_secret",
+                    "name": "secret private skills",
+                    "version": "1.0.0",
+                    "sha256": "b" * 64,
+                    "target": "registry/private/team_pack_secret",
+                    "source": "private-team-pack",
+                    "last_error_code": "sha_mismatch",
+                }
+            },
+        },
+    )
+
+    report = build_bundle_report(root, dry_run=True)
+    serialized = json.dumps(report, ensure_ascii=False, sort_keys=True)
+
+    assert report["diagnostics"]["private_packs"]["local"]["installed_count"] == 1
+    assert report["diagnostics"]["private_packs"]["local"]["sha_mismatch_count"] == 1
+    assert report["manifest"]["diagnostics_summary"]["private_pack_installed_count"] == 1
+    assert report["diagnostics"]["privacy"]["skill_bodies_included"] is False
+    assert "secret private skills" not in serialized
+    assert "team_pack_secret" not in serialized
+    assert "uls_secret_support_token" not in serialized
+    assert "SKILL.md" not in serialized
+    assert_support_bundle_safe(report)
+
+
+def test_support_bundle_can_include_hashed_private_pack_refs(tmp_path: Path, monkeypatch) -> None:
+    home = tmp_path / "home"
+    root = tmp_path / "library"
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(home))
+    save_registration(registered_state(), home=home)
+    write_private_pack_metadata(root, {"schema_version": 1, "items": {"team_pack_secret": {"target": "", "source": "private-team-pack"}}})
+
+    report = build_bundle_report(root, dry_run=True, include_private_pack_refs=True)
+
+    assert report["diagnostics"]["private_packs"]["local"]["pack_refs"] == ["pack:e5376a07f257"]
+    assert "team_pack_secret" not in json.dumps(report, ensure_ascii=False, sort_keys=True)
+    assert_support_bundle_safe(report)
 
 
 def test_support_bundle_cli_json_and_zip(tmp_path: Path, monkeypatch, capsys) -> None:

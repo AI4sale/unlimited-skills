@@ -997,6 +997,8 @@ def cmd_setup(args: argparse.Namespace) -> int:
         mode = "hub"
     elif args.enterprise:
         mode = "enterprise"
+    elif args.private_packs:
+        mode = "private-packs"
     payload = build_setup_report(root, mode=mode, dry_run=args.dry_run, agent=getattr(args, "agent", "all"))
     if args.json:
         print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
@@ -1008,7 +1010,13 @@ def cmd_setup(args: argparse.Namespace) -> int:
 def cmd_support_bundle(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     out = Path(args.out).expanduser() if args.out else None
-    report = build_bundle_report(root, out=out, dry_run=args.dry_run, include_paths=args.include_paths)
+    report = build_bundle_report(
+        root,
+        out=out,
+        dry_run=args.dry_run,
+        include_paths=args.include_paths,
+        include_private_pack_refs=args.include_private_pack_refs,
+    )
     if args.json:
         print(json.dumps(report["manifest"], ensure_ascii=False, indent=2, sort_keys=True))
     else:
@@ -2035,6 +2043,7 @@ def build_parser() -> argparse.ArgumentParser:
     setup_modes.add_argument("--registered", action="store_true", help="Verify registered hosted-service setup boundaries.")
     setup_modes.add_argument("--hub", action="store_true", help="Verify registered Local Skill Hub setup readiness.")
     setup_modes.add_argument("--enterprise", action="store_true", help="Verify Enterprise Skill Lock policy setup status.")
+    setup_modes.add_argument("--private-packs", action="store_true", help="Verify hosted private team pack readiness.")
     setup.add_argument("--dry-run", action="store_true", help="Print the setup plan without writing missing local directories.")
     setup.add_argument("--json", action="store_true")
     setup.add_argument("--agent", choices=["codex", "claude-code", "hermes", "openclaw", "all"], default="all", help="Limit embedded doctor diagnostics.")
@@ -2043,7 +2052,7 @@ def build_parser() -> argparse.ArgumentParser:
     setup_doctor.add_argument("--dry-run", action="store_true")
     setup_doctor.add_argument("--json", action="store_true")
     setup_doctor.add_argument("--agent", choices=["codex", "claude-code", "hermes", "openclaw", "all"], default="all", help="Limit embedded doctor diagnostics.")
-    setup_doctor.set_defaults(func=cmd_setup, local_only=False, registered=False, hub=False, enterprise=False)
+    setup_doctor.set_defaults(func=cmd_setup, local_only=False, registered=False, hub=False, enterprise=False, private_packs=False)
     setup.set_defaults(func=cmd_setup)
 
     support = sub.add_parser("support", help="Create redacted support diagnostics.")
@@ -2053,6 +2062,7 @@ def build_parser() -> argparse.ArgumentParser:
     support_bundle.add_argument("--json", action="store_true", help="Print the redacted manifest as JSON.")
     support_bundle.add_argument("--dry-run", action="store_true", help="Build diagnostics without writing a zip file.")
     support_bundle.add_argument("--include-paths", action="store_true", help="Include local paths in diagnostics. Off by default.")
+    support_bundle.add_argument("--include-private-pack-refs", action="store_true", help="Include hashed private pack references. Skill names and bodies are still excluded.")
     support_bundle.set_defaults(func=cmd_support_bundle)
 
     register = sub.add_parser("register", help="Self-register this installation for hosted catalog and adapted collection updates.")

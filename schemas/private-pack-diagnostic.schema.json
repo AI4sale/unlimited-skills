@@ -1,0 +1,99 @@
+{
+  "$id": "https://unlimited.ai4.sale/schemas/private-pack-diagnostic.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "access_denied_count": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "archive_urls_included": {
+      "const": false
+    },
+    "authorized_count": {
+      "oneOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "const": "not_refreshed"
+        }
+      ]
+    },
+    "failed_signature_count": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "installed_count": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "last_error_codes": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "local_paths_included": {
+      "const": false
+    },
+    "missing_target_count": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "pack_names_included": {
+      "const": false
+    },
+    "pack_refs": {
+      "items": {
+        "pattern": "^pack:[a-f0-9]{12}$",
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "revoked_count": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": 1
+    },
+    "sha_mismatch_count": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "skill_bodies_included": {
+      "const": false
+    },
+    "skill_names_included": {
+      "const": false
+    },
+    "stale_count": {
+      "minimum": 0,
+      "type": "integer"
+    },
+    "status": {
+      "enum": [
+        "ok",
+        "warn"
+      ],
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "status",
+    "installed_count",
+    "authorized_count",
+    "revoked_count",
+    "stale_count",
+    "last_error_codes",
+    "skill_names_included",
+    "skill_bodies_included",
+    "archive_urls_included",
+    "local_paths_included"
+  ],
+  "type": "object"
+}

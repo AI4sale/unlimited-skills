@@ -48,6 +48,13 @@ unlimited-skills setup --enterprise
 unlimited-skills setup --enterprise --dry-run --json
 ```
 
+Hosted private team pack readiness:
+
+```bash
+unlimited-skills setup --private-packs
+unlimited-skills setup --private-packs --dry-run --json
+```
+
 ## Modes
 
 ### Local-Only
@@ -92,6 +99,23 @@ unlimited-skills policy explain
 unlimited-skills policy managed-status --json
 unlimited-skills policy sync --dry-run --json
 ```
+
+### Private Packs
+
+`--private-packs` checks hosted private team pack readiness without downloading,
+installing, syncing, or uploading anything. It reports:
+
+- registration state;
+- hosted credential presence marker;
+- trusted manifest key availability for `private-team-pack`;
+- installed private-pack count;
+- revoked count;
+- stale count;
+- last private-pack error codes.
+
+The setup report does not include private pack names, private skill names, skill
+bodies, archive URLs, device proofs, raw tokens, private keys, or local
+filesystem paths.
 
 ## JSON Contract
 

@@ -15,7 +15,8 @@ from .doctor import build_doctor_report
 from .hub import active_hub_token_count, cached_allowlist_summary, load_hub_config, load_remote_config
 from .policy import load_policy, policy_summary
 from .policy_sync import managed_policy_status
-from .registration import RegistrationError, load_registration, redacted_status, redact_sensitive_text, unlimited_skills_home
+from .private_pack_diagnostics import assert_private_pack_diagnostics_safe, private_pack_local_summary, private_pack_setup_summary
+from .registration import DEFAULT_SERVICE_URL, RegistrationError, RegistrationState, load_registration, redacted_status, redact_sensitive_text, unlimited_skills_home
 from .service_diagnostics import load_service_config, service_health_snapshot
 
 
@@ -136,6 +137,29 @@ def _enterprise_status(home: Path) -> dict[str, Any]:
     }
 
 
+def _private_pack_status(root: Path, home: Path, *, include_pack_ids: bool) -> dict[str, Any]:
+    try:
+        state = load_registration(home)
+    except RegistrationError:
+        state = RegistrationState(server_url=DEFAULT_SERVICE_URL)
+    service_url = state.server_url if state else ""
+    setup = private_pack_setup_summary(root, state=state, service_url=service_url)
+    return {
+        "local": private_pack_local_summary(root, include_pack_ids=include_pack_ids),
+        "setup": {
+            "status": setup["status"],
+            "checks": setup["checks"],
+            "recommendation_count": len(setup.get("recommendations") or []),
+        },
+        "pack_refs_included": include_pack_ids,
+        "pack_names_included": False,
+        "skill_names_included": False,
+        "skill_bodies_included": False,
+        "archive_urls_included": False,
+        "local_paths_included": False,
+    }
+
+
 def _doctor_status(root: Path) -> dict[str, Any]:
     try:
         return build_doctor_report(root)
@@ -182,6 +206,12 @@ def sanitize_support_payload(value: Any, *, root: Path, home: Path, include_path
 
 
 def assert_support_bundle_safe(payload: dict[str, Any]) -> None:
+    private_pack_payload = payload.get("private_packs")
+    diagnostics = payload.get("diagnostics")
+    if private_pack_payload is None and isinstance(diagnostics, dict):
+        private_pack_payload = diagnostics.get("private_packs")
+    if isinstance(private_pack_payload, dict):
+        assert_private_pack_diagnostics_safe(private_pack_payload)
     serialized = json.dumps(payload, ensure_ascii=False).lower()
     forbidden = (
         "authorization: bearer",
@@ -197,7 +227,7 @@ def assert_support_bundle_safe(payload: dict[str, Any]) -> None:
             raise RuntimeError(f"Support bundle payload contains forbidden marker: {marker}")
 
 
-def build_support_diagnostics(root: Path, *, include_paths: bool = False) -> dict[str, Any]:
+def build_support_diagnostics(root: Path, *, include_paths: bool = False, include_private_pack_refs: bool = False) -> dict[str, Any]:
     root = root.expanduser()
     home = unlimited_skills_home()
     payload = {
@@ -231,6 +261,7 @@ def build_support_diagnostics(root: Path, *, include_paths: bool = False) -> dic
         "service": _service_status(home),
         "hub": _hub_status(home),
         "enterprise": _enterprise_status(home),
+        "private_packs": _private_pack_status(root, home, include_pack_ids=include_private_pack_refs),
         "doctor": _doctor_status(root),
     }
     sanitized = sanitize_support_payload(payload, root=root, home=home, include_paths=include_paths)
@@ -244,9 +275,10 @@ def build_bundle_report(
     out: Path | None = None,
     dry_run: bool = False,
     include_paths: bool = False,
+    include_private_pack_refs: bool = False,
     cwd: Path | None = None,
 ) -> dict[str, Any]:
-    diagnostics = build_support_diagnostics(root, include_paths=include_paths)
+    diagnostics = build_support_diagnostics(root, include_paths=include_paths, include_private_pack_refs=include_private_pack_refs)
     resolved_out = (out.expanduser() if out else default_bundle_path(cwd)).resolve()
     manifest = {
         "schema_version": SUPPORT_SCHEMA_VERSION,
@@ -264,6 +296,9 @@ def build_bundle_report(
             "library_present": bool(diagnostics.get("library", {}).get("root_present")),
             "physical_skill_files": int(diagnostics.get("library", {}).get("physical_skill_files") or 0),
             "index_present": bool(diagnostics.get("library", {}).get("index_present")),
+            "private_pack_installed_count": int(diagnostics.get("private_packs", {}).get("local", {}).get("installed_count") or 0),
+            "private_pack_revoked_count": int(diagnostics.get("private_packs", {}).get("local", {}).get("revoked_count") or 0),
+            "private_pack_stale_count": int(diagnostics.get("private_packs", {}).get("local", {}).get("stale_count") or 0),
         },
     }
     report = {"manifest": manifest, "diagnostics": diagnostics}
@@ -305,5 +340,6 @@ def format_bundle_text(report: dict[str, Any]) -> str:
         f"Library present: {'yes' if summary['library_present'] else 'no'}",
         f"Physical skill files counted: {summary['physical_skill_files']}",
         f"Index present: {'yes' if summary['index_present'] else 'no'}",
+        f"Private packs installed: {summary['private_pack_installed_count']}",
     ]
     return "\n".join(lines)

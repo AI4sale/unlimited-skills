@@ -9,11 +9,12 @@ from .doctor import build_doctor_report
 from .hub import active_hub_token_count, cached_allowlist_summary, load_hub_config, load_remote_config
 from .policy import load_policy, policy_summary
 from .policy_sync import managed_policy_status
-from .registration import DEFAULT_SERVICE_URL, RegistrationError, load_registration, redacted_status, redact_sensitive_text, unlimited_skills_home
+from .private_pack_diagnostics import private_pack_setup_summary
+from .registration import DEFAULT_SERVICE_URL, RegistrationError, RegistrationState, load_registration, redacted_status, redact_sensitive_text, unlimited_skills_home
 from .service_diagnostics import load_service_config, service_health_snapshot
 
 
-SETUP_MODES = {"overview", "local-only", "registered", "hub", "enterprise"}
+SETUP_MODES = {"overview", "local-only", "registered", "hub", "enterprise", "private-packs"}
 
 
 def _step(name: str, status: str, message: str, *, next_commands: list[str] | None = None) -> dict[str, Any]:
@@ -176,6 +177,32 @@ def _enterprise_status(home: Path | None = None) -> tuple[dict[str, Any], list[d
     return status, steps
 
 
+def _private_pack_status(root: Path, home: Path | None = None) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    try:
+        state = load_registration(home)
+    except RegistrationError:
+        state = RegistrationState(server_url=DEFAULT_SERVICE_URL)
+    service_url = state.server_url if state else DEFAULT_SERVICE_URL
+    status = private_pack_setup_summary(root, state=state, service_url=service_url)
+    steps = [
+        _step(
+            "private_pack_registration",
+            "ok" if status["checks"]["registered"] else "blocked",
+            "Registration is ready for hosted private team packs." if status["checks"]["registered"] else "Registration is required before hosted private team packs can be installed or synced.",
+            next_commands=["unlimited-skills service test-registration --dry-run --agent codex", "unlimited-skills register --agent codex"],
+        ),
+        _step(
+            "private_pack_trust",
+            "ok" if status["checks"]["trust_key"] == "ok" else "needs_action",
+            "A trusted manifest key is available for private team packs." if status["checks"]["trust_key"] == "ok" else "A trusted manifest key with private-team-pack scope is required.",
+            next_commands=["unlimited-skills trust status", "unlimited-skills service verify-trust"],
+        ),
+    ]
+    for recommendation in status.get("recommendations") or []:
+        steps.append(_step("private_pack_recommendation", "needs_action", str(recommendation)))
+    return status, steps
+
+
 def build_setup_report(root: Path, *, mode: str = "overview", dry_run: bool = False, agent: str = "all") -> dict[str, Any]:
     if mode not in SETUP_MODES:
         raise ValueError(f"Unsupported setup mode: {mode}")
@@ -206,6 +233,11 @@ def build_setup_report(root: Path, *, mode: str = "overview", dry_run: bool = Fa
         enterprise, enterprise_steps = _enterprise_status(home)
         components["enterprise"] = enterprise
         steps.extend(enterprise_steps)
+
+    if mode in {"overview", "private-packs"}:
+        private_packs, private_pack_steps = _private_pack_status(root, home)
+        components["private_packs"] = private_packs
+        steps.extend(private_pack_steps)
 
     if mode == "overview":
         components["doctor"] = build_doctor_report(root, agent=agent)
