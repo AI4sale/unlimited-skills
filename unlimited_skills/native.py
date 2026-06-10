@@ -34,6 +34,7 @@ class NativeSyncResult:
     imported_count: int
     skipped: bool = False
     reason: str = ""
+    duplicate_count: int = 0
 
 
 def _home_path(*parts: str) -> Path:
@@ -293,13 +294,16 @@ def sync_native_source(
     existing = existing_skill_names(library_root, exclude_root=target_root) if skip_existing_names else set()
     excluded = {ROUTER_NAME, "skill-library", *(exclude_names or set())}
     imported = 0
+    duplicates = 0
     for skill_dir in iter_skill_dirs(source_root, exclude_names=excluded):
         relative = skill_dir.relative_to(source_root)
         is_duplicate = skip_existing_names and skill_dir.name in existing
         destination = (target_duplicates if is_duplicate else target_skills) / relative
         if apply:
             overlay_skill_tree(skill_dir, destination)
-        if not is_duplicate:
+        if is_duplicate:
+            duplicates += 1
+        else:
             existing.add(skill_dir.name)
             imported += 1
     return NativeSyncResult(
@@ -307,6 +311,7 @@ def sync_native_source(
         collection=source.collection,
         source_root=str(source_root),
         imported_count=imported,
+        duplicate_count=duplicates,
     )
 
 

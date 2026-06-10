@@ -10,6 +10,8 @@ import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
+from .frontmatter import split_frontmatter as _shared_split_frontmatter
+
 
 ADAPTER_VERSION = "odysseus-action-schema-v1"
 AGENT_ADAPTER_VERSION = "action-schema-agent-v1"
@@ -139,29 +141,7 @@ def slugify(text: str, fallback: str = "skill") -> str:
 
 
 def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
-    text = text.lstrip("\ufeff")
-    if not text.startswith("---"):
-        return {}, text
-    lines = text.splitlines()
-    if not lines or lines[0].strip() != "---":
-        return {}, text
-    end = None
-    for idx in range(1, len(lines)):
-        if lines[idx].strip() == "---":
-            end = idx
-            break
-    if end is None:
-        return {}, text
-    meta = {}
-    for line in lines[1:end]:
-        if ":" not in line:
-            continue
-        key, value = line.split(":", 1)
-        key = key.strip()
-        value = value.strip().strip('"').strip("'")
-        if key:
-            meta[key] = value
-    return meta, "\n".join(lines[end + 1 :]).lstrip("\n")
+    return _shared_split_frontmatter(text)
 
 
 def extract_section(body: str, heading: str) -> str:
@@ -558,6 +538,206 @@ def copy_skill_dirs(source_root: Path, target_root: Path, collection: str, sourc
     }
     (manifest_dir / f"{collection}-pack-import-{int(time.time())}.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
     return copied
+
+
+@dataclass
+class ImportConflict:
+    name: str
+    source_path: str
+    existing_path: str
+    reason: str
+
+
+@dataclass
+class ImportReport:
+    collection: str
+    source: str
+    target_root: str
+    imported: list[str]
+    skipped_identical: list[str]
+    conflicts: list[ImportConflict]
+    dry_run: bool
+
+    @property
+    def imported_count(self) -> int:
+        return len(self.imported)
+
+
+def _library_source_shas(root: Path, exclude_collection_root: Path | None = None) -> dict[str, tuple[str, Path]]:
+    """Map skill name -> (source content sha, skill path) across the whole library.
+
+    The sha is the skill's recorded ``source_sha256`` when present (so a re-import of
+    the same upstream content matches even though the stored copy was adapted), else
+    the sha of the stored SKILL.md.
+    """
+    index: dict[str, tuple[str, Path]] = {}
+    if not root.is_dir():
+        return index
+    exclude_resolved = exclude_collection_root.resolve() if exclude_collection_root else None
+    for skill_file in root.rglob(SKILL_FILE):
+        rel_parts = skill_file.relative_to(root).parts
+        if any(part in IGNORED_PARTS for part in rel_parts) or "duplicates" in rel_parts:
+            continue
+        if exclude_resolved is not None:
+            try:
+                resolved = skill_file.resolve()
+            except OSError:
+                resolved = skill_file
+            if exclude_resolved in resolved.parents:
+                continue
+        text = read_text(skill_file)
+        meta, _ = split_frontmatter(text)
+        sha = meta.get("source_sha256") or sha256_text(text)
+        index.setdefault(skill_file.parent.name, (sha, skill_file))
+    return index
+
+
+def import_skill_dirs(
+    source_root: Path,
+    target_root: Path,
+    collection: str,
+    *,
+    source_pack: str = "",
+    source_repo: str = "",
+    dry_run: bool = False,
+) -> ImportReport:
+    """Import every skill directory under *source_root* into the library *collection*.
+
+    Three-way dedup against the whole library:
+    - same name + same source content -> skipped as identical;
+    - same name + different content -> diverted to ``duplicates/`` and reported as a conflict;
+    - new name -> imported and adapted.
+    """
+    source_root = Path(source_root).expanduser()
+    target_skills = target_root / "local" / collection / "skills"
+    target_duplicates = target_root / "local" / collection / "duplicates"
+    existing = _library_source_shas(target_root)
+
+    imported: list[str] = []
+    skipped_identical: list[str] = []
+    conflicts: list[ImportConflict] = []
+
+    candidates = sorted(source_root.rglob(SKILL_FILE), key=lambda item: (len(item.parts), str(item).lower()))
+    seen_names: set[str] = set()
+    for skill_file in candidates:
+        if any(part in IGNORED_PARTS for part in skill_file.parts):
+            continue
+        skill_dir = skill_file.parent
+        name = slugify(skill_dir.name)
+        if name in seen_names:
+            continue
+        seen_names.add(name)
+        rel_source = str(skill_file.relative_to(source_root))
+        source_sha = sha256_text(read_text(skill_file))
+
+        prior = existing.get(name)
+        if prior is not None and prior[0] == source_sha:
+            skipped_identical.append(name)
+            continue
+        if prior is not None:
+            conflicts.append(
+                ImportConflict(
+                    name=name,
+                    source_path=rel_source,
+                    existing_path=str(prior[1]),
+                    reason="name exists with different content",
+                )
+            )
+            if not dry_run:
+                destination = target_duplicates / name
+                if destination.exists():
+                    shutil.rmtree(destination)
+                shutil.copytree(skill_dir, destination, ignore=shutil.ignore_patterns(*IGNORED_PARTS))
+            continue
+
+        imported.append(name)
+        existing[name] = (source_sha, target_skills / name / SKILL_FILE)
+        if not dry_run:
+            destination = target_skills / name
+            if destination.exists():
+                shutil.rmtree(destination)
+            shutil.copytree(skill_dir, destination, ignore=shutil.ignore_patterns(*IGNORED_PARTS))
+            adapt_skill_file(
+                destination / SKILL_FILE,
+                source_pack=source_pack or collection,
+                source_repo=source_repo,
+                source_path=rel_source,
+            )
+
+    if not dry_run and imported:
+        manifest_dir = target_root / "manifests"
+        manifest_dir.mkdir(parents=True, exist_ok=True)
+        manifest = {
+            "collection": collection,
+            "source": str(source_root),
+            "source_repo": source_repo,
+            "imported_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "adapter": ADAPTER_VERSION,
+            "imported": imported,
+            "skipped_identical": skipped_identical,
+            "conflicts": [asdict(item) for item in conflicts],
+        }
+        (manifest_dir / f"{collection}-import-{int(time.time())}.json").write_text(
+            json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+
+    return ImportReport(
+        collection=collection,
+        source=str(source_root),
+        target_root=str(target_root),
+        imported=imported,
+        skipped_identical=skipped_identical,
+        conflicts=conflicts,
+        dry_run=dry_run,
+    )
+
+
+def import_github_repo(
+    target_root: Path,
+    repo: str,
+    collection: str,
+    *,
+    ref: str = "",
+    subdir: str = "",
+    dry_run: bool = False,
+) -> ImportReport:
+    """Shallow-clone *repo* and import its skills into the library."""
+    repo_url = _normalize_github_repo(repo)
+    safe_ref = validate_pack_ref(ref) if ref else ""
+    safe_subdir = _validate_subdir(subdir) if subdir else ""
+    with tempfile.TemporaryDirectory(prefix="unlimited-skills-import-") as tmp:
+        clone_dir = Path(tmp) / "repo"
+        subprocess.run(["git", "clone", "--depth", "1", repo_url, str(clone_dir)], check=True)
+        if safe_ref:
+            subprocess.run(["git", "-C", str(clone_dir), "fetch", "--depth", "1", "origin", safe_ref], check=True)
+            subprocess.run(["git", "-C", str(clone_dir), "checkout", "FETCH_HEAD"], check=True)
+        source_root = clone_dir / safe_subdir if safe_subdir else clone_dir
+        if not source_root.is_dir():
+            raise RuntimeError(f"Subdirectory not found in repo: {subdir}")
+        return import_skill_dirs(
+            source_root,
+            target_root,
+            collection,
+            source_pack=collection,
+            source_repo=repo_url,
+            dry_run=dry_run,
+        )
+
+
+def _normalize_github_repo(repo: str) -> str:
+    value = repo.strip()
+    if value.startswith("http://") or value.startswith("https://") or value.startswith("git@"):
+        return value
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", value):
+        raise RuntimeError(f"Unsafe repo spec: {repo}. Use 'org/name' or a full git URL.")
+    return f"https://github.com/{value}.git"
+
+
+def _validate_subdir(subdir: str) -> str:
+    value = subdir.strip().strip("/")
+    if not value or value.startswith("/") or ".." in value.split("/"):
+        raise RuntimeError(f"Unsafe subdirectory: {subdir}")
+    return value
 
 
 def install_pack(root: Path, pack: str, ref: str = "", keep_clone: Path | None = None) -> list[AdaptedSkill]:
