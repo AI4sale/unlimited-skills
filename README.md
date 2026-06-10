@@ -12,7 +12,7 @@
 
 Keep thousands of `SKILL.md` files out of the always-loaded context. Ask one tiny router skill what the task needs. Load only the selected skill.
 
-**v0.3.6-alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, catalog browser discovery is signed metadata-only alpha, Local Skill Hub is allowlist-only alpha, Enterprise Skill Lock is a local policy MVP with registered managed sync, private team packs plus org/team governance diagnostics are registered/entitled alpha paths, plan/billing diagnostics are sandbox-only with no live payment provider, and community catalog install is limited to signed approved/published items.
+**v0.3.7-alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, catalog browser discovery is signed metadata-only alpha, catalog feedback is explicit and registration-gated, Local Skill Hub is allowlist-only alpha, Enterprise Skill Lock is a local policy MVP with registered managed sync, private team packs plus org/team governance diagnostics are registered/entitled alpha paths, plan/billing diagnostics are sandbox-only with no live payment provider, and community catalog install is limited to signed approved/published items.
 
 [Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
 
@@ -69,6 +69,7 @@ Working now:
 - hosted update client with SHA256-verified collection archives;
 - registered hosted catalog client;
 - registered signed catalog browser for reviewed metadata search, filters, preview, and dry-run install verification;
+- explicit registered catalog feedback for redacted catalog quality signals;
 - registered community skills client for list/search/preview/install/submit/status/local remove with signed approved/published install enforcement;
 - registered Team Free create/join/members/pending/approve/reject/revoke/collections/sync/leave client;
 - registered private team pack client for list/preview/install/sync/installed/remove under `registry/private/<pack_id>`;
@@ -124,7 +125,7 @@ For minimal lexical-only usage:
 python -m pip install -e .
 ```
 
-PyPI packaging is not the supported v0.3.6-alpha distribution path. Install from a GitHub clone for now, because the router skills, scripts, docs, and bundled packs are repo assets. A PyPI package should wait until wheel/sdist asset inclusion and installer behavior are tested in CI.
+PyPI packaging is not the supported v0.3.7-alpha distribution path. Install from a GitHub clone for now, because the router skills, scripts, docs, and bundled packs are repo assets. A PyPI package should wait until wheel/sdist asset inclusion and installer behavior are tested in CI.
 
 Run the first-run wizard:
 
@@ -144,7 +145,7 @@ unlimited-skills support bundle --out support-bundle.zip
 
 See [docs/support-bundle.md](docs/support-bundle.md) for the privacy boundary.
 
-For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md), [docs/packaging.md](docs/packaging.md), [docs/install-upgrade-uninstall.md](docs/install-upgrade-uninstall.md), and [SECURITY.md](SECURITY.md). For the v0.3.6 alpha publication gate, see [docs/releases/v0.3.6-alpha.md](docs/releases/v0.3.6-alpha.md) and [docs/releases/v0.3.6-alpha-checklist.md](docs/releases/v0.3.6-alpha-checklist.md).
+For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md), [docs/packaging.md](docs/packaging.md), [docs/install-upgrade-uninstall.md](docs/install-upgrade-uninstall.md), and [SECURITY.md](SECURITY.md). For the v0.3.7 alpha publication gate, see [docs/releases/v0.3.7-alpha.md](docs/releases/v0.3.7-alpha.md) and [docs/releases/v0.3.7-alpha-checklist.md](docs/releases/v0.3.7-alpha-checklist.md).
 
 ## Product Editions
 
@@ -272,6 +273,8 @@ unlimited-skills catalog install <catalog-item-id> --dry-run
 ```
 
 Catalog browser responses must be signed, metadata-only, and approved or published before install can proceed. Community-source installs delegate to the Community Skills install flow after the signed browser metadata check. Official and private-visible browser items are metadata/dry-run only until dedicated install-plan capability checks are implemented. The v0.3.6 release gate verifies public fixture mode without a private checkout and local registry mode when `D:\git\unlimited-skills-registry` is available. See [docs/catalog-browser.md](docs/catalog-browser.md) and [docs/releases/v0.3.6-alpha.md](docs/releases/v0.3.6-alpha.md).
+
+Catalog feedback is explicit only. `catalog feedback` requires registration and confirmation, `--dry-run` sends nothing, and feedback payloads are redacted before submit. See [docs/catalog-feedback.md](docs/catalog-feedback.md).
 
 Browse, preview, install, and submit registered community skills:
 
