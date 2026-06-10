@@ -69,6 +69,7 @@ from .service_diagnostics import (
     verify_trust as service_verify_trust,
 )
 from .setup_wizard import build_setup_report, format_setup_text
+from .support_bundle import build_bundle_report, format_bundle_text
 from .native import DEFAULT_AGENT_ORDER, sync_native_sources
 from .policy import explain_policy, install_policy, load_policy, policy_summary, read_policy_file, remove_policy, verify_policy_payload
 from .policy_enforcement import enforce_local_root
@@ -1003,6 +1004,17 @@ def cmd_setup(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_support_bundle(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    out = Path(args.out).expanduser() if args.out else None
+    report = build_bundle_report(root, out=out, dry_run=args.dry_run, include_paths=args.include_paths)
+    if args.json:
+        print(json.dumps(report["manifest"], ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(format_bundle_text(report))
+    return 0
+
+
 def cmd_register(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     state = load_registration()
@@ -1929,6 +1941,15 @@ def build_parser() -> argparse.ArgumentParser:
     setup_doctor.add_argument("--agent", choices=["codex", "claude-code", "hermes", "openclaw", "all"], default="all", help="Limit embedded doctor diagnostics.")
     setup_doctor.set_defaults(func=cmd_setup, local_only=False, registered=False, hub=False, enterprise=False)
     setup.set_defaults(func=cmd_setup)
+
+    support = sub.add_parser("support", help="Create redacted support diagnostics.")
+    support_sub = support.add_subparsers(dest="support_command", required=True)
+    support_bundle = support_sub.add_parser("bundle", help="Create a redacted support diagnostic bundle.")
+    support_bundle.add_argument("--out", default="", help="Output zip path. Defaults to a timestamped bundle in the current directory.")
+    support_bundle.add_argument("--json", action="store_true", help="Print the redacted manifest as JSON.")
+    support_bundle.add_argument("--dry-run", action="store_true", help="Build diagnostics without writing a zip file.")
+    support_bundle.add_argument("--include-paths", action="store_true", help="Include local paths in diagnostics. Off by default.")
+    support_bundle.set_defaults(func=cmd_support_bundle)
 
     register = sub.add_parser("register", help="Self-register this installation for hosted catalog and adapted collection updates.")
     register.add_argument("--server-url", default=DEFAULT_SERVICE_URL, help="Registration and update service URL.")

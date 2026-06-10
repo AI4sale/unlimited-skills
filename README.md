@@ -74,6 +74,7 @@ Working now:
 - public repo self-update checks and applies latest releases/tags;
 - production service onboarding diagnostics for configured service URL, health, trust, redacted registration dry run, and local proof generation;
 - guided first-run setup wizard for local-only, registered, Local Skill Hub, and Enterprise onboarding paths;
+- redacted support diagnostic bundle for support handoff without skill bodies, prompts, search queries, env values, tokens, private keys, or local paths by default;
 - Enterprise Skill Lock policy MVP for governed registries, channels, signing keys, local roots, community install/submit, hub allowlists, and remote fallback;
 - managed Enterprise Skill Lock policy sync from a registered registry with signed `enterprise-policy` assignment verification and dry-run support;
 - allowlist-backed Local Skill Hub runtime MVP for local/controlled LAN testing when `server` extras are installed;
@@ -123,6 +124,15 @@ unlimited-skills setup --local-only
 ```
 
 For registered, hub, and Enterprise paths, see [docs/first-run-setup.md](docs/first-run-setup.md).
+
+Create a redacted support bundle:
+
+```powershell
+unlimited-skills support bundle --dry-run
+unlimited-skills support bundle --out support-bundle.zip
+```
+
+See [docs/support-bundle.md](docs/support-bundle.md) for the privacy boundary.
 
 For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md), [docs/packaging.md](docs/packaging.md), [docs/install-upgrade-uninstall.md](docs/install-upgrade-uninstall.md), and [SECURITY.md](SECURITY.md). For the previous v0.2.2-alpha gate, see [docs/releases/v0.2.2-alpha.md](docs/releases/v0.2.2-alpha.md).
 
