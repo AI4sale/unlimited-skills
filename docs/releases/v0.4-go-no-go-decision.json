@@ -1,0 +1,183 @@
+{
+  "schema_version": 1,
+  "document": "v0.4-go-no-go-decision",
+  "generated_at": "2026-06-10T00:00:00Z",
+  "decision": "GO",
+  "decision_scope": "Approve starting v0.4 implementation epics after this decision package is reviewed and merged; this package itself does not implement v0.4 runtime features.",
+  "approved_v04_vfp": "Governed SkillOps delivery: signed metadata, quality gates, maintainer-controlled improvements, policy-aware recommendations, redacted support/governance diagnostics, and optional self-hosted registry contracts without automatic mutation.",
+  "repositories": [
+    {
+      "repository": "AI4sale/unlimited-skills",
+      "role": "public client, local MIT core, public docs, readiness and go/no-go gates",
+      "main_sha": "e21fc51f0891a04a370b69f47d2953d3653c4cbe"
+    },
+    {
+      "repository": "AI4sale/unlimited-skills-registry",
+      "role": "private registry contracts, signed SkillOps metadata, eval gates, maintainer queue lifecycle",
+      "main_sha": "f3cacdb5bd211e190dbc88cd5f39f3ad56e14ac8"
+    }
+  ],
+  "evidence": {
+    "B-01": {
+      "status": "closed",
+      "source": "docs/releases/v0.4-registry-blocker-closure-ledger.json",
+      "pr": 38,
+      "merge_sha": "5ea40f18ac44aa61de755f09dac1cc398ec77610"
+    },
+    "B-02": {
+      "status": "closed",
+      "source": "docs/releases/v0.4-public-blocker-closure-ledger.json",
+      "pr": 69,
+      "merge_sha": "ff518157916d9312f5ca51217b6088ae97ae661e"
+    },
+    "B-03": {
+      "status": "closed",
+      "source": "docs/releases/v0.4-registry-blocker-closure-ledger.json",
+      "pr": 40,
+      "merge_sha": "d1b1e094094d26c1be7ef69739ce379abb65874f"
+    },
+    "B-04": {
+      "status": "closed",
+      "source": "docs/releases/v0.4-registry-blocker-closure-ledger.json",
+      "pr": 39,
+      "merge_sha": "5da707dac62a3cb9393fae301c48c5167e0840c0"
+    },
+    "cross_repo_readiness": {
+      "status": "passed",
+      "source": "docs/releases/v0.4-cross-repo-readiness-report.json",
+      "mode": "fixture",
+      "external_local_registry_checked": true
+    },
+    "public_main_verification": {
+      "status": "passed",
+      "evidence": [
+        "python -m pytest tests -q -> 294 passed, 3 skipped",
+        "python scripts/run-v0.2x-smoke-tests.py -> 12 passed",
+        "python scripts/run-v0.3.9-alpha-release-smoke.py -> passed",
+        "python scripts/run-v04-cross-repo-readiness-suite.py --fixture-mode --temp-home --json -> passed",
+        "python scripts/verify-v04-cross-repo-readiness.py -> passed",
+        "python -m compileall -q unlimited_skills scripts tests -> passed",
+        "git diff --check -> passed"
+      ]
+    },
+    "private_registry_verification": {
+      "status": "accepted",
+      "evidence": [
+        "registry operator gates passed on blocker closure and ledger PRs",
+        "private registry focused blocker verifier passed",
+        "private registry full tests passed before ledger merge",
+        "external local-registry mode passed against the current local checkout"
+      ]
+    }
+  },
+  "open_pr_debt": {
+    "public_open_pr_count": 0,
+    "private_registry_open_pr_count": 0,
+    "checked_at": "2026-06-10T00:00:00Z",
+    "status": "clean"
+  },
+  "branch_cleanup": {
+    "merged_release_branches_deleted": true,
+    "remaining_release_branch": "release/v04-go-no-go-decision",
+    "delete_after_merge": true
+  },
+  "first_four_implementation_epics": [
+    {
+      "id": "V04-E01",
+      "title": "Policy-aware recommendation runtime preview",
+      "repositories": [
+        "AI4sale/unlimited-skills",
+        "AI4sale/unlimited-skills-registry"
+      ],
+      "vfp": "Users can ask for recommendation previews that combine signed catalog metadata, quality status, improvement status, team/private-pack entitlement, and enterprise policy without applying changes automatically.",
+      "review_gates": [
+        "runtime review",
+        "privacy review",
+        "security review",
+        "release owner approval"
+      ]
+    },
+    {
+      "id": "V04-E02",
+      "title": "Eval-driven release gate operator workflow",
+      "repositories": [
+        "AI4sale/unlimited-skills-registry"
+      ],
+      "vfp": "Registry operators can run signed eval gates, inspect pass/warning/block/override/rollback recommendations, and prepare human release decisions without auto-promotion or rollback.",
+      "review_gates": [
+        "registry operator review",
+        "security review",
+        "release owner approval"
+      ]
+    },
+    {
+      "id": "V04-E03",
+      "title": "Maintainer improvement queue runtime lifecycle",
+      "repositories": [
+        "AI4sale/unlimited-skills-registry",
+        "AI4sale/unlimited-skills"
+      ],
+      "vfp": "Maintainers can expose redacted queue status and fixed-pending-eval evidence to public clients while keeping all queue mutations human-reviewed.",
+      "review_gates": [
+        "maintainer review",
+        "privacy review",
+        "security review"
+      ]
+    },
+    {
+      "id": "V04-E04",
+      "title": "Governance dashboard and support diagnostics contract",
+      "repositories": [
+        "AI4sale/unlimited-skills",
+        "AI4sale/unlimited-skills-registry"
+      ],
+      "vfp": "Operators can see signed, redacted governance status, entitlement/policy summaries, queue health, eval gate state, and support diagnostics without uploading prompts, skill bodies, private paths, tokens, or secrets.",
+      "review_gates": [
+        "product review",
+        "privacy review",
+        "security review",
+        "enterprise review"
+      ]
+    }
+  ],
+  "non_negotiable_boundaries": {
+    "automatic_telemetry": false,
+    "prompt_upload": false,
+    "skill_body_upload": false,
+    "automatic_rewriting": false,
+    "auto_publish": false,
+    "live_billing": false,
+    "pypi_publication": false,
+    "full_catalog_distribution": false,
+    "mit_local_core_registration_required": false,
+    "signed_hosted_manifests_required": true,
+    "automatic_install_update_remove": false,
+    "production_hosted_calls_in_tests": false
+  },
+  "required_review_gates": [
+    "release owner approves this GO decision",
+    "runtime review before any public client mutation-adjacent UX",
+    "registry operator review before any private registry production flow",
+    "security and privacy review before hosted metadata expansion",
+    "PR hygiene cleanup before each release layer"
+  ],
+  "no_go_blockers": [],
+  "residual_risks": [
+    {
+      "id": "GNG-R01",
+      "severity": "P1",
+      "summary": "GO only authorizes implementation epics, not production rollout.",
+      "owner": "release-owner",
+      "action": "Require release gates and security/privacy review for each implementation PR.",
+      "fallback": "Revert to NO_GO for any epic that weakens a non-negotiable boundary."
+    },
+    {
+      "id": "GNG-R02",
+      "severity": "P1",
+      "summary": "Public fixture mode can diverge from private registry production behavior.",
+      "owner": "registry-owner",
+      "action": "Keep external local-registry mode and private registry gates mandatory before release.",
+      "fallback": "Keep affected v0.4 feature fixture-only."
+    }
+  ]
+}

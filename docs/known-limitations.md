@@ -5,6 +5,7 @@
 - v0.4 SkillOps is planning-only. The readiness audit recommends NO-GO for runtime implementation until P0 blockers are closed, and the RFC does not authorize live billing, PyPI publication, full catalog distribution, automatic telemetry, automatic hosted query forwarding, automatic skill rewriting, or auto-publish.
 - v0.4 planning must preserve no-prompt/no-skill-body/no-private-data boundaries, signed hosted manifest requirements, and registration-free MIT local core behavior.
 - The v0.4 cross-repo readiness suite is technical readiness evidence only. It can run in public fixture mode or against a local private registry checkout, but it does not approve v0.4 implementation, does not distribute private registry content, and does not allow production hosted calls, production signing keys, live billing, PyPI publication, full catalog distribution, automatic install/update/remove, automatic skill rewriting, or auto-publish.
+- The v0.4 go/no-go package can recommend GO for implementation epics after review and merge, but it does not ship v0.4 runtime code or production rollout by itself. Each epic remains gated by review, security/privacy checks, and release-owner approval.
 - Hosted registry access is early-access.
 - The registered hosted catalog exists and is populated, but availability may be limited during alpha.
 - Exact registered catalog contents are delivered through registered hosted catalog/update commands, not published in the MIT repo.
