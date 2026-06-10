@@ -1,0 +1,37 @@
+{
+  "schema_version": 1,
+  "manifest_type": "maintainer-queue-runtime-status",
+  "runtime": {
+    "endpoint": "POST /v1/skillops/maintainer-queue/status",
+    "item_id": "community:browser-qa-pack:0.1.0",
+    "item_count": 1,
+    "items": [
+      {
+        "item_id": "community:browser-qa-pack:0.1.0",
+        "catalog_item_id": "browser-qa-pack",
+        "version": "0.1.0",
+        "channel": "community",
+        "status": "fixed_pending_eval",
+        "severity": "critical",
+        "category": "evaluation_warning",
+        "fixed_pending_eval_evidence_ref": "evidence://maintainer-queue/mq-123/fixed-pending-eval",
+        "eval_gate_ref": "eval-gate://maintainer-queue/mq-123",
+        "maintainer_action_state": "eval_required",
+        "last_updated": "2026-06-10T08:00:00Z"
+      }
+    ],
+    "severity_summary": {
+      "critical": 1
+    },
+    "recommended_user_action": "wait_for_eval_gate_result",
+    "metadata_only": true,
+    "mutates_queue": false
+  },
+  "manifest_signature": {
+    "schema_version": 1,
+    "algorithm": "ed25519",
+    "key_id": "fixture-key",
+    "signed_payload_sha256": "fixture",
+    "signature": "fixture"
+  }
+}

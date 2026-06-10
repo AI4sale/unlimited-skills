@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills signed maintainer queue runtime status",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "manifest_type", "runtime", "manifest_signature"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "manifest_type": {
+      "type": "string",
+      "enum": ["maintainer-queue-runtime-status", "maintainer-queue-runtime-summary"]
+    },
+    "runtime": {
+      "type": "object",
+      "required": ["metadata_only", "mutates_queue"],
+      "properties": {
+        "endpoint": { "type": "string" },
+        "item_id": { "type": "string" },
+        "item_count": { "type": "integer", "minimum": 0 },
+        "items": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/runtimeItem" }
+        },
+        "counts_by_state": { "$ref": "#/$defs/countMap" },
+        "severity_summary": { "$ref": "#/$defs/countMap" },
+        "fixed_pending_eval_count": { "type": "integer", "minimum": 0 },
+        "security_escalated_count": { "type": "integer", "minimum": 0 },
+        "maintainer_action_state": { "type": "string" },
+        "recommended_user_action": { "type": "string" },
+        "metadata_only": { "type": "boolean", "const": true },
+        "mutates_queue": { "type": "boolean", "const": false }
+      }
+    },
+    "manifest_signature": { "type": "object" }
+  },
+  "$defs": {
+    "countMap": {
+      "type": "object",
+      "additionalProperties": { "type": "integer", "minimum": 0 }
+    },
+    "runtimeItem": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["item_id", "status", "severity", "maintainer_action_state"],
+      "properties": {
+        "item_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,191}$" },
+        "catalog_item_id": { "type": "string" },
+        "version": { "type": "string" },
+        "channel": { "type": "string" },
+        "status": { "type": "string" },
+        "severity": { "type": "string" },
+        "category": { "type": "string" },
+        "fixed_pending_eval_evidence_ref": { "type": "string" },
+        "eval_gate_ref": { "type": "string" },
+        "maintainer_action_state": { "type": "string" },
+        "last_updated": { "type": "string" }
+      }
+    }
+  }
+}

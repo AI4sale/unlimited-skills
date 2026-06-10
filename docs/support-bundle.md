@@ -37,6 +37,7 @@ The zip contains:
 - registration status with credentials reduced to presence markers;
 - local service/trust status without hosted calls;
 - service diagnostics v2 snapshot shared with the setup wizard;
+- catalog quality, skill improvement, and maintainer queue summary counts only;
 - Local Skill Hub allowlist/token count/remote config metadata;
 - Enterprise Skill Lock policy summary and managed policy status;
 - existing `doctor` diagnostics after redaction.
@@ -56,6 +57,7 @@ The bundle must not include:
 - private local skill names;
 - raw device proofs;
 - local paths unless `--include-paths` is passed.
+- raw maintainer queue records, maintainer private notes, task text, or catalog item ids.
 
 The command does not contact hosted services. It reads local files only and does not run skills.
 

@@ -19,15 +19,18 @@ unlimited-skills catalog quality community:browser-qa-pack:0.1.0
 unlimited-skills catalog eval-status community:browser-qa-pack:0.1.0
 unlimited-skills catalog explain-risk community:browser-qa-pack:0.1.0
 unlimited-skills catalog improvement-status community:browser-qa-pack:0.1.0
+unlimited-skills catalog maintainer-status community:browser-qa-pack:0.1.0
+unlimited-skills catalog maintainer-queue-summary
+unlimited-skills catalog fixed-pending-eval community:browser-qa-pack:0.1.0
 unlimited-skills catalog known-issues community:browser-qa-pack:0.1.0
-unlimited-skills catalog update-recommendations
+unlimited-skills catalog update-recommendations --include-queue
 unlimited-skills catalog update-preview community:browser-qa-pack:0.1.0
 unlimited-skills catalog deprecation-status community:browser-qa-pack:0.1.0
 unlimited-skills catalog browse --show-quality
 unlimited-skills catalog search "browser qa" --show-quality
 ```
 
-`catalog list` remains the official collection/update metadata command. `catalog browse`, `catalog search`, `catalog filters`, `catalog preview`, `catalog install`, `catalog feedback`, `catalog feedback-status`, `catalog quality`, `catalog eval-status`, `catalog explain-risk`, `catalog improvement-status`, `catalog known-issues`, `catalog update-recommendations`, `catalog update-preview`, and `catalog deprecation-status` are the user-facing discovery and quality-signal commands.
+`catalog list` remains the official collection/update metadata command. `catalog browse`, `catalog search`, `catalog filters`, `catalog preview`, `catalog install`, `catalog feedback`, `catalog feedback-status`, `catalog quality`, `catalog eval-status`, `catalog explain-risk`, `catalog improvement-status`, `catalog maintainer-status`, `catalog maintainer-queue-summary`, `catalog fixed-pending-eval`, `catalog known-issues`, `catalog update-recommendations`, `catalog update-preview`, and `catalog deprecation-status` are the user-facing discovery and quality-signal commands.
 
 ## Registration Boundary
 
@@ -88,6 +91,12 @@ Quality status is metadata-only and registration-gated. It includes grade, score
 
 Improvement output includes open issue count, severity summary, fix status, recommended version/channel, stale installed-version status, compatibility notes, and deprecation or retirement reason. Recommendation payloads must be preview-only and must set automatic write flags to false.
 
+## Maintainer Queue Status
+
+`catalog maintainer-status <item_id>`, `catalog maintainer-queue-summary`, and `catalog fixed-pending-eval <item_id>` fetch signed maintainer queue metadata. `catalog improvement-status <item_id> --include-queue` and `catalog update-recommendations --include-queue` compose that signed queue metadata into remediation output without changing preview-only behavior.
+
+Queue output includes queue status, severity summary, public-safe maintainer state, fixed-pending-eval evidence reference, eval gate reference, issue categories, and recommended user action. It must not include prompts, task text, skill bodies, maintainer private notes, local paths, repo paths, customer data, tokens, proofs, or private keys.
+
 ## Support Bundle Redaction
 
 `unlimited-skills support bundle` reports only a redacted catalog browser summary:
@@ -100,5 +109,6 @@ Improvement output includes open issue count, severity summary, fix status, reco
 - no private paths.
 - quality diagnostics in support bundles are summary counts only.
 - skill improvement diagnostics in support bundles are summary counts only.
+- maintainer queue diagnostics in support bundles are queue status counts and issue categories only.
 
 See `schemas/catalog-browser-client-state.schema.json` and `examples/catalog-browser/*.example.json` for the public contract shape.

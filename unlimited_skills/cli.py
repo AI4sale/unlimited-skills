@@ -56,6 +56,7 @@ from .hub import (
     cmd_trust_verify,
     redacted_runtime_error,
 )
+from .maintainer_queue_status import MaintainerQueueStatusClient, dumps_queue
 from .registration import (
     DEFAULT_SERVICE_URL,
     load_registration,
@@ -1284,6 +1285,10 @@ def _skill_improvement_client(args: argparse.Namespace) -> SkillImprovementClien
     return SkillImprovementClient(load_registration(), timeout=args.timeout)
 
 
+def _maintainer_queue_client(args: argparse.Namespace) -> MaintainerQueueStatusClient:
+    return MaintainerQueueStatusClient(load_registration(), timeout=args.timeout)
+
+
 def cmd_catalog_browse(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     items = _catalog_client(args).browse(
@@ -1565,8 +1570,12 @@ def cmd_catalog_explain_risk(args: argparse.Namespace) -> int:
 def cmd_catalog_improvement_status(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     status = _skill_improvement_client(args).improvement_status(root, args.item_id)
+    queue_status = _maintainer_queue_client(args).status(root, args.item_id) if getattr(args, "include_queue", False) else None
     if args.json:
-        print(dumps_improvement(status))
+        payload = status.to_json()
+        if queue_status is not None:
+            payload["maintainer_queue"] = queue_status.to_json()
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
         return 0
     print(f"Item: {status.item_id}")
     print(f"Installed version: {status.installed_version or '(unknown)'}")
@@ -1585,6 +1594,82 @@ def cmd_catalog_improvement_status(args: argparse.Namespace) -> int:
         print(f"Retirement reason: {status.retirement_reason}")
     if status.compatibility_notes:
         print("Compatibility: " + ", ".join(status.compatibility_notes))
+    if queue_status is not None:
+        print(f"Queue status: {queue_status.queue_status}")
+        print(f"Maintainer state: {queue_status.maintainer_state}")
+        if queue_status.severity_summary:
+            print("Queue severity: " + ", ".join(f"{key}={value}" for key, value in sorted(queue_status.severity_summary.items())))
+        if queue_status.fixed_pending_eval_evidence_ref:
+            print(f"Fixed pending eval evidence: {queue_status.fixed_pending_eval_evidence_ref}")
+        if queue_status.eval_gate_ref:
+            print(f"Eval gate: {queue_status.eval_gate_ref}")
+        print(f"Queue recommended action: {queue_status.recommended_user_action}")
+    return 0
+
+
+def cmd_catalog_maintainer_status(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    status = _maintainer_queue_client(args).status(root, args.item_id)
+    if args.json:
+        print(dumps_queue(status))
+        return 0
+    print(f"Item: {status.item_id}")
+    print(f"Queue status: {status.queue_status}")
+    print(f"Maintainer state: {status.maintainer_state}")
+    if status.severity_summary:
+        print("Severity: " + ", ".join(f"{key}={value}" for key, value in sorted(status.severity_summary.items())))
+    if status.issue_categories:
+        print("Issue categories: " + ", ".join(status.issue_categories))
+    if status.fixed_pending_eval_evidence_ref:
+        print(f"Fixed pending eval evidence: {status.fixed_pending_eval_evidence_ref}")
+    if status.eval_gate_ref:
+        print(f"Eval gate: {status.eval_gate_ref}")
+    print(f"Recommended action: {status.recommended_user_action}")
+    if status.updated_at:
+        print(f"Updated: {status.updated_at}")
+    return 0
+
+
+def cmd_catalog_maintainer_queue_summary(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    summary = _maintainer_queue_client(args).summary(root)
+    if args.json:
+        print(dumps_queue(summary))
+        return 0
+    print("Maintainer queue summary")
+    print(f"Total: {summary.total_count}")
+    if summary.queue_status_counts:
+        print("Queue statuses: " + ", ".join(f"{key}={value}" for key, value in sorted(summary.queue_status_counts.items())))
+    if summary.severity_summary:
+        print("Severity: " + ", ".join(f"{key}={value}" for key, value in sorted(summary.severity_summary.items())))
+    if summary.maintainer_state_counts:
+        print("Maintainer states: " + ", ".join(f"{key}={value}" for key, value in sorted(summary.maintainer_state_counts.items())))
+    if summary.issue_categories:
+        print("Issue categories: " + ", ".join(summary.issue_categories))
+    print(f"Fixed pending eval: {summary.fixed_pending_eval_count}")
+    print(f"Blocked eval gates: {summary.blocked_eval_gate_count}")
+    return 0
+
+
+def cmd_catalog_fixed_pending_eval(args: argparse.Namespace) -> int:
+    root = Path(args.root).expanduser()
+    status = _maintainer_queue_client(args).fixed_pending_eval(root, args.item_id)
+    if args.json:
+        print(dumps_queue(status))
+        return 0
+    print(f"Item: {status.item_id}")
+    print("Fixed pending eval: " + ("yes" if status.fixed_pending_eval else "no"))
+    print(f"Queue status: {status.queue_status}")
+    print(f"Maintainer state: {status.maintainer_state}")
+    if status.severity_summary:
+        print("Severity: " + ", ".join(f"{key}={value}" for key, value in sorted(status.severity_summary.items())))
+    if status.issue_categories:
+        print("Issue categories: " + ", ".join(status.issue_categories))
+    if status.evidence_ref:
+        print(f"Evidence: {status.evidence_ref}")
+    if status.eval_gate_ref:
+        print(f"Eval gate: {status.eval_gate_ref}")
+    print(f"Recommended action: {status.recommended_user_action}")
     return 0
 
 
@@ -1615,6 +1700,18 @@ def cmd_catalog_known_issues(args: argparse.Namespace) -> int:
 def cmd_catalog_update_recommendations(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     recommendations = _skill_improvement_client(args).update_recommendations(root)
+    queue_summary = _maintainer_queue_client(args).summary(root) if getattr(args, "include_queue", False) else None
+    queue_by_item = {}
+    if getattr(args, "include_queue", False):
+        queue_client = _maintainer_queue_client(args)
+        for recommendation in recommendations:
+            queue_by_item[recommendation.item_id] = queue_client.status(root, recommendation.item_id).to_json()
+    recommendation_payloads = []
+    for item in recommendations:
+        item_payload = item.to_json()
+        if item.item_id in queue_by_item:
+            item_payload["maintainer_queue_status"] = queue_by_item[item.item_id]
+        recommendation_payloads.append(item_payload)
     payload = {
         "schema_version": 1,
         "count": len(recommendations),
@@ -1622,8 +1719,11 @@ def cmd_catalog_update_recommendations(args: argparse.Namespace) -> int:
         "automatic_update": False,
         "automatic_install": False,
         "automatic_remove": False,
-        "recommendations": [item.to_json() for item in recommendations],
+        "include_queue": bool(getattr(args, "include_queue", False)),
+        "recommendations": recommendation_payloads,
     }
+    if queue_summary is not None:
+        payload["maintainer_queue_summary"] = queue_summary.to_json()
     if args.json:
         print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
         return 0
@@ -1642,6 +1742,16 @@ def cmd_catalog_update_recommendations(args: argparse.Namespace) -> int:
             print(f"  reason: {item.reason}")
         if item.compatibility_notes:
             print("  compatibility: " + ", ".join(item.compatibility_notes))
+        if item.item_id in queue_by_item:
+            queue = queue_by_item[item.item_id]
+            print(
+                "  queue: "
+                f"{queue.get('queue_status', 'unknown')}; "
+                f"maintainer state: {queue.get('maintainer_state', 'unknown')}; "
+                f"recommended action: {queue.get('recommended_user_action', 'none')}"
+            )
+    if queue_summary is not None:
+        print(f"Maintainer queue total: {queue_summary.total_count}")
     return 0
 
 
@@ -2886,15 +2996,31 @@ def build_parser() -> argparse.ArgumentParser:
     catalog_explain_risk.set_defaults(func=cmd_catalog_explain_risk)
     catalog_improvement_status = catalog_sub.add_parser("improvement-status", help="Show signed skill improvement and remediation status.")
     catalog_improvement_status.add_argument("item_id")
+    catalog_improvement_status.add_argument("--include-queue", action="store_true", help="Include signed maintainer queue status context.")
     catalog_improvement_status.add_argument("--json", action="store_true")
     catalog_improvement_status.add_argument("--timeout", type=float, default=30.0)
     catalog_improvement_status.set_defaults(func=cmd_catalog_improvement_status)
+    catalog_maintainer_status = catalog_sub.add_parser("maintainer-status", help="Show signed maintainer queue status for one catalog item.")
+    catalog_maintainer_status.add_argument("item_id")
+    catalog_maintainer_status.add_argument("--json", action="store_true")
+    catalog_maintainer_status.add_argument("--timeout", type=float, default=30.0)
+    catalog_maintainer_status.set_defaults(func=cmd_catalog_maintainer_status)
+    catalog_maintainer_queue_summary = catalog_sub.add_parser("maintainer-queue-summary", help="Show signed maintainer queue summary counts.")
+    catalog_maintainer_queue_summary.add_argument("--json", action="store_true")
+    catalog_maintainer_queue_summary.add_argument("--timeout", type=float, default=30.0)
+    catalog_maintainer_queue_summary.set_defaults(func=cmd_catalog_maintainer_queue_summary)
+    catalog_fixed_pending_eval = catalog_sub.add_parser("fixed-pending-eval", help="Show signed fixed-pending-eval evidence status for one catalog item.")
+    catalog_fixed_pending_eval.add_argument("item_id")
+    catalog_fixed_pending_eval.add_argument("--json", action="store_true")
+    catalog_fixed_pending_eval.add_argument("--timeout", type=float, default=30.0)
+    catalog_fixed_pending_eval.set_defaults(func=cmd_catalog_fixed_pending_eval)
     catalog_known_issues = catalog_sub.add_parser("known-issues", help="Show signed known-issue metadata for one catalog item.")
     catalog_known_issues.add_argument("item_id")
     catalog_known_issues.add_argument("--json", action="store_true")
     catalog_known_issues.add_argument("--timeout", type=float, default=30.0)
     catalog_known_issues.set_defaults(func=cmd_catalog_known_issues)
     catalog_update_recommendations = catalog_sub.add_parser("update-recommendations", help="Show preview-only signed update/remove recommendations.")
+    catalog_update_recommendations.add_argument("--include-queue", action="store_true", help="Include signed maintainer queue summary and per-item queue status.")
     catalog_update_recommendations.add_argument("--json", action="store_true")
     catalog_update_recommendations.add_argument("--timeout", type=float, default=30.0)
     catalog_update_recommendations.set_defaults(func=cmd_catalog_update_recommendations)

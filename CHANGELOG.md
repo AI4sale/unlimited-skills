@@ -11,6 +11,7 @@
 - v0.4 cross-repo readiness suite, verifier, and fixture report proving the public client plus private registry contracts satisfy signed SkillOps metadata, eval gate, maintainer queue, recommendation refusal, skill improvement, support redaction, and no-mutation boundaries before the final go/no-go decision.
 - v0.4 go/no-go decision package with a GO recommendation to start the first four implementation epics after review and merge, plus verifier coverage for closed B-01..B-04 blockers, clean PR debt, cross-repo readiness evidence, and non-negotiable safety boundaries.
 - v0.4 E01 policy-aware recommendation runtime preview module, CLI command, schema, example, and tests. The preview combines signed catalog metadata with quality, improvement, entitlement, and policy signals while keeping all write flags false.
+- v0.4 E03 maintainer queue status client commands, schemas, examples, docs, and tests for signed queue status, queue summary, fixed-pending-eval evidence refs, and explicit `--include-queue` recommendation context.
 
 ### Security
 
@@ -19,6 +20,7 @@
 - Added v0.4 cross-repo readiness checks that require no production hosted calls, no production signing key, no live billing, no PyPI, no full catalog distribution, no automatic install/update/remove, no automatic skill rewriting, and no auto-publish.
 - The v0.4 go/no-go package approves implementation planning only; production rollout remains blocked behind per-epic review, security/privacy gates, and release-owner approval.
 - The v0.4 E01 runtime preview remains decision-only: no automatic install, update, remove, rewrite, reindex, telemetry, full catalog distribution, prompt upload, skill-body upload, token/proof exposure, or private-key exposure.
+- The v0.4 E03 maintainer queue client is read-only and metadata-only: no automatic install, update, remove, rewrite, reindex, publish, prompt upload, task text exposure, skill-body exposure, maintainer private-note exposure, token/proof exposure, or private-key exposure.
 
 ## v0.3.9-alpha (publication candidate)
 

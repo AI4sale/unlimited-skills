@@ -10,6 +10,9 @@ unlimited-skills catalog quality community:browser-qa-pack:0.1.0 --json
 unlimited-skills catalog eval-status community:browser-qa-pack:0.1.0
 unlimited-skills catalog explain-risk community:browser-qa-pack:0.1.0
 unlimited-skills catalog improvement-status community:browser-qa-pack:0.1.0
+unlimited-skills catalog maintainer-status community:browser-qa-pack:0.1.0
+unlimited-skills catalog maintainer-queue-summary
+unlimited-skills catalog fixed-pending-eval community:browser-qa-pack:0.1.0
 unlimited-skills catalog known-issues community:browser-qa-pack:0.1.0
 unlimited-skills catalog browse --show-quality
 unlimited-skills catalog search "browser qa" --show-quality
@@ -47,6 +50,6 @@ Local and non-hosted overrides are not introduced here. Existing local policy re
 
 Quality diagnostics are metadata-only. The support bundle includes quality summary counts only, not item ids, item names, raw feedback, prompts, skill bodies, local paths, repo paths, customer data, tokens, proofs, or private keys.
 
-Skill improvement status builds on the same boundary for signed remediation metadata. It adds open issue counts, severity summaries, fix status, recommended version/channel, stale-installed-version flags, and deprecation/retirement reasons without exposing skill bodies or local data.
+Skill improvement and maintainer queue status build on the same boundary for signed remediation metadata. They add open issue counts, severity summaries, fix status, recommended version/channel, stale-installed-version flags, public-safe maintainer state, fixed-pending-eval evidence refs, eval gate refs, and deprecation/retirement reasons without exposing skill bodies or local data.
 
-The improvement section is summary metadata only: improvement backlog counts, fixed pending eval status, top issue categories, and maintainer triage state. It does not contain prompts, search queries, private skill bodies, local paths, repo paths, tokens, private keys, or device proofs.
+The improvement and maintainer queue sections are summary metadata only in support bundles: improvement backlog counts, queue status counts, fixed pending eval counts, top issue categories, and public maintainer state counts. They do not contain prompts, search queries, task text, maintainer private notes, private skill bodies, local paths, repo paths, tokens, private keys, or device proofs.
