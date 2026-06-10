@@ -63,6 +63,18 @@ def require_phrase(text: str, phrase: str, source: str) -> None:
     require(phrase.lower() in text.lower(), f"{source} missing phrase: {phrase}")
 
 
+def git_is_shallow_checkout() -> bool:
+    result = subprocess.run(
+        ["git", "rev-parse", "--is-shallow-repository"],
+        cwd=ROOT,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        capture_output=True,
+    )
+    return result.returncode == 0 and result.stdout.strip().lower() == "true"
+
+
 def assert_git_commit_present(sha: str) -> None:
     result = subprocess.run(
         ["git", "cat-file", "-t", sha],
@@ -72,6 +84,9 @@ def assert_git_commit_present(sha: str) -> None:
         errors="replace",
         capture_output=True,
     )
+    if result.returncode != 0 and git_is_shallow_checkout():
+        print(f"warning: shallow checkout cannot prove historical merge SHA locally: {sha}")
+        return
     require(result.returncode == 0 and result.stdout.strip() == "commit", f"merge SHA is not present locally: {sha}")
 
 
