@@ -126,7 +126,7 @@ def write_gateway_config(tmp_path: Path, script: Path, marker: Path) -> Path:
                 "name": "fake",
                 "command": sys.executable,
                 "args": [str(script), str(marker)],
-                "env": {"FAKE_UPSTREAM_TOKEN": f"%{TOKEN_MARKER}%"},
+                "env_allowlist": ["FAKE_UPSTREAM_TOKEN"],
                 "tools": [
                     {"name": "echo", "description": "Echo text back"},
                     {"name": "add", "description": "Add two integers"},
@@ -134,7 +134,10 @@ def write_gateway_config(tmp_path: Path, script: Path, marker: Path) -> Path:
             },
             {
                 "name": "ghost",
-                "command": str(tmp_path / "missing-upstream-executable"),
+                # An absolute non-temp path: the upstream security model refuses
+                # temp-dir commands with command_not_allowed before spawning, but
+                # this fixture must exercise the spawn-failure refusal instead.
+                "command": str(Path(sys.executable).parent / "missing-upstream-executable"),
                 "tools": [{"name": "missing", "description": "Unavailable upstream tool"}],
             },
         ],

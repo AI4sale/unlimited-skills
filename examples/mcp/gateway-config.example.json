@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
+  "comment": "Minimal gateway config in the upstream security model format (schemas/mcp-upstream-config.schema.json). The v1 'env' literal map is rejected at load; forward secrets by NAME via env_allowlist. See examples/mcp/upstreams.example.json for a fully annotated example.",
   "upstreams": [
     {
       "name": "github",
+      "trust_level": "local-trusted",
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-github"],
-      "env": {
-        "GITHUB_PERSONAL_ACCESS_TOKEN": "%GITHUB_PERSONAL_ACCESS_TOKEN%"
-      },
+      "env_allowlist": ["GITHUB_PERSONAL_ACCESS_TOKEN"],
       "tools": [
         { "name": "create_issue", "description": "Create a GitHub issue in a repository" },
         { "name": "search_repositories", "description": "Search GitHub repositories" }
@@ -15,8 +15,10 @@
     },
     {
       "name": "filesystem",
-      "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
+      "comment": "Default trust level local-restricted: absolute command path required, nothing forwarded beyond the base environment.",
+      "command": "/usr/bin/node",
+      "args": ["/opt/mcp/server-filesystem/index.js", "/home/user/projects"],
+      "env_allowlist": []
     }
   ]
 }

@@ -65,7 +65,7 @@ execution). See [mcp-server.md](mcp-server.md) and [mcp-gateway.md](mcp-gateway.
 - Every upstream interaction has a hard deadline (startup 20 s, request 30 s
   by default; configurable globally or per upstream). A timed-out or
   garbage-talking upstream is terminated and the call is refused with a
-  structured JSON-RPC error (`-32001`…`-32004`, see
+  structured JSON-RPC error (`-32001`…`-32010`, see
   [mcp-gateway.md](mcp-gateway.md)) — garbage is never relayed.
 - All upstreams are terminated when the gateway shuts down (terminate, then
   kill after 5 s).
@@ -82,18 +82,19 @@ execution). See [mcp-server.md](mcp-server.md) and [mcp-gateway.md](mcp-gateway.
 - **No automatic telemetry**: the gateway writes only the local redacted
   audit log you configure; it does not send usage, prompts, queries, tool
   inputs, or results to hosted services.
-- **Env hygiene**: upstream `env` values may reference `%VAR%` / `$VAR`; they
-  are expanded from your local environment at spawn time and are never written
-  to any log.
-- **E07 security model contract**: the next upstream config generation is
-  reviewed in [mcp-upstream-security-model.md](mcp-upstream-security-model.md)
-  and `schemas/mcp-upstream-config.schema.json`. It makes `local-restricted`
-  the default, forbids shell execution, uses names-only `env_allowlist`
-  forwarding, makes wildcard env forwarding impossible, refuses over-limit
-  schema/response payloads instead of truncating them, caps startup/request
-  timeouts, and keeps OAuth, remote upstreams, MCP resources, and MCP prompts
-  out of scope. MCP v1 schemas/configs are alpha and may break before v0.6;
-  runtime enforcement lands after the v0.4.2 integration gate.
+- **Env hygiene**: upstreams get a from-scratch environment — a fixed minimal
+  base set plus only the variable **names** in `env_allowlist`, copied from
+  your local environment at spawn time and never written to any log. There is
+  no literal env value map (the v1 `env` map is rejected at config load).
+- **E07 security model contract**: the upstream config format is specified in
+  [mcp-upstream-security-model.md](mcp-upstream-security-model.md) and
+  `schemas/mcp-upstream-config.schema.json` and enforced by the gateway:
+  `local-restricted` by default, no shell execution, names-only
+  `env_allowlist` forwarding (wildcards impossible), over-limit
+  schema/response payloads refused instead of truncated, startup/request
+  timeouts capped, and OAuth, remote upstreams, MCP resources, and MCP
+  prompts out of scope. MCP v1 schemas/configs are alpha and may break before
+  v0.6.
 - **Audit with redaction**: every meta-tool call — success or refusal — is
   appended to a local JSONL audit log
   (`<library>/.learning/mcp-audit.jsonl` by default) with `ts`, `tool`,
@@ -107,13 +108,16 @@ execution). See [mcp-server.md](mcp-server.md) and [mcp-gateway.md](mcp-gateway.
   (`redact()` is a pure, testable function) and the leak-grep test
   `tests/test_mcp_gateway.py::test_audit_file_never_leaks_secrets`.
 
-## Upstream security model (E07 design)
+## Upstream security model
 
-The forward-looking contract for upstream trust levels, command and
-environment allowlisting, size/timeout bounds, audit retention, extended
-refusal codes, the threat model, and the OAuth / resources+prompts gates is
-specified in [mcp-upstream-security-model.md](mcp-upstream-security-model.md).
-It strictly tightens the v1 boundaries above and never weakens them.
+The contract for upstream trust levels, command and environment
+allowlisting, size/timeout bounds, audit retention, extended refusal codes
+(`-32005`…`-32010`), the threat model, and the OAuth / resources+prompts
+gates is specified in
+[mcp-upstream-security-model.md](mcp-upstream-security-model.md) and
+enforced by the gateway (see the "Config enforcement" section of
+[mcp-gateway.md](mcp-gateway.md)). It strictly tightens the v1 boundaries
+above and never weakens them.
 
 ## Quick start
 
