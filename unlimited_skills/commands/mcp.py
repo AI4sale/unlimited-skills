@@ -300,6 +300,86 @@ def cmd_mcp_trust_doctor(args: argparse.Namespace) -> int:
 
 
 # ---------------------------------------------------------------------------
+# E19: local bundle publisher and signing ceremony (`unlimited-skills mcp
+# bundle keygen|publish|verify`). DEV/FIXTURE keys only -- production
+# signing keys are never generated or handled; everything is offline (no
+# network, no registry sync, no hosted calls). Verification is the REAL
+# E14 path (resolve_bundle_state), reused by the verify step and by the
+# automatic post-package self-check inside publish. Key material is never
+# printed: paths, fingerprints, and hashes only.
+
+
+def cmd_mcp_bundle_keygen(args: argparse.Namespace) -> int:
+    import json
+
+    from ..mcp.bundle_publisher import PublisherError, format_keygen, generate_keypair
+
+    try:
+        result = generate_keypair(
+            Path(args.out).expanduser(),
+            key_id=args.key_id or "dev-signing-key",
+            display=args.display or "",
+            force=bool(getattr(args, "force", False)),
+        )
+    except PublisherError as exc:
+        print(f"bundle keygen refused: {exc}", file=sys.stderr)
+        return 1
+    if getattr(args, "json", False):
+        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(format_keygen(result))
+    return 0
+
+
+def cmd_mcp_bundle_publish(args: argparse.Namespace) -> int:
+    import json
+
+    from ..mcp.bundle_publisher import PublisherError, format_publish, publish_bundle
+
+    try:
+        result = publish_bundle(
+            Path(args.profiles).expanduser(),
+            Path(args.signing_key).expanduser(),
+            issuer_key_id=args.issuer_key_id or "",
+            audience=list(getattr(args, "audience", None) or []),
+            expires_days=args.expires_days,
+            namespaces=list(getattr(args, "namespaces", None) or []),
+            out_dir=args.out or ".",
+            name=args.name or "",
+            display=args.display or "",
+            previous=args.previous or "",
+            crl_path=args.crl_path or "",
+            dry_run=bool(getattr(args, "dry_run", False)),
+            force=bool(getattr(args, "force", False)),
+        )
+    except PublisherError as exc:
+        print(f"bundle publish refused: {exc}", file=sys.stderr)
+        return 1
+    if getattr(args, "json", False):
+        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(format_publish(result))
+    return 0
+
+
+def cmd_mcp_bundle_verify(args: argparse.Namespace) -> int:
+    import json
+
+    from ..mcp.bundle_publisher import format_verify, verify_report
+
+    report = verify_report(
+        Path(args.bundle).expanduser(),
+        Path(args.trusted_keys).expanduser(),
+        audience_ids=list(getattr(args, "audience_id", None) or []),
+    )
+    if getattr(args, "json", False):
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(format_verify(report))
+    return 0 if report["ok"] else 1
+
+
+# ---------------------------------------------------------------------------
 # E16: rollout simulator and policy doctor (`unlimited-skills mcp profiles
 # rollout-plan|doctor`). A read-only DRY-RUN over the same artifacts the
 # gateway loads at startup -- never spawns upstreams, never writes audit

@@ -1187,6 +1187,49 @@ def build_parser() -> argparse.ArgumentParser:
         help="Limit the plain-text report to one section. JSON output is always the full document.",
     )
     mcp_audit_report.set_defaults(func=mcp_cmds.cmd_mcp_audit_report)
+    mcp_bundle = mcp_sub.add_parser(
+        "bundle",
+        help="Local signing/publishing ceremony for MCP profile bundles: DEV/FIXTURE keygen, validate-sign-package-verify publish, and a verify wrapper over the real E14 verification. Offline only -- no production keys, no hosted calls, no registry sync; private key material is never printed.",
+    )
+    mcp_bundle_sub = mcp_bundle.add_subparsers(dest="bundle_command", required=True)
+    bundle_keygen = mcp_bundle_sub.add_parser(
+        "keygen",
+        help="Generate a DEV/FIXTURE Ed25519 keypair (requires the optional 'cryptography' package). The PRIVATE key is written ONLY to --out with a loud 'DEV KEY -- do not use in production' header; the PUBLIC key is emitted in the 'mcp trust import --key-file' format. Production signing keys are out of scope and never generated.",
+    )
+    bundle_keygen.add_argument("--out", required=True, help="Directory to write the keypair into -- the ONLY place the private key will exist.")
+    bundle_keygen.add_argument("--key-id", default="dev-signing-key", help="Key identifier (E09 key_id grammar). Default: dev-signing-key.")
+    bundle_keygen.add_argument("--display", default="", help="Human-readable owner name stored on the PUBLIC key file (max 128 chars).")
+    bundle_keygen.add_argument("--force", action="store_true", help="Overwrite existing key files in --out.")
+    bundle_keygen.add_argument("--json", action="store_true", help="Print the result as JSON (paths and fingerprint only -- never key material).")
+    bundle_keygen.set_defaults(func=mcp_cmds.cmd_mcp_bundle_keygen)
+    bundle_publish = mcp_bundle_sub.add_parser(
+        "publish",
+        help="Run the local ceremony: validate the raw profile (real E09/E10 loader), build and sign the bundle (canonical JSON, detached Ed25519), package <out>/<name>.bundle.json + MANIFEST + VALIDATION-REPORT + ROLLBACK atomically, and self-check through the REAL E14 verification -- any failure leaves no signed bundle behind.",
+    )
+    bundle_publish.add_argument("--profiles", required=True, help="Raw permissioned tool-profile JSON file (schemas/mcp-tool-profile.schema.json) to embed.")
+    bundle_publish.add_argument("--signing-key", required=True, help="PRIVATE dev signing-key file from 'mcp bundle keygen'. PUBLIC-only files are refused.")
+    bundle_publish.add_argument("--issuer-key-id", default="", help="Issuer key_id; must match the signing key file's key_id (defaults to it).")
+    bundle_publish.add_argument("--audience", action="append", default=None, metavar="ID", help="Bundle audience identifier ('team:NAME', 'org:NAME', or 'host:NAME'). Repeatable; REQUIRED non-empty.")
+    bundle_publish.add_argument("--expires-days", type=int, default=30, help="Validity window length in days from now (>= 1). Default 30.")
+    bundle_publish.add_argument("--namespaces", action="append", default=None, metavar="NS", help="allowed_upstream_namespaces rule (E09 rule grammar). Repeatable. Omitted: derived whole-upstream rules from the profile map. Every profile rule must stay inside the ceiling.")
+    bundle_publish.add_argument("--out", default=".", help="Output directory for the bundle package. Default: current directory.")
+    bundle_publish.add_argument("--name", default="", help="Package name (<name>.bundle.json). Default: the profiles file stem.")
+    bundle_publish.add_argument("--display", default="", help="Issuer display name embedded in the bundle (max 128 chars).")
+    bundle_publish.add_argument("--previous", default="", help="Previous bundle: a 64-hex SHA-256 or a path to the previous bundle file. Recorded in the ROLLBACK metadata.")
+    bundle_publish.add_argument("--crl-path", default="", help="Optional absolute local CRL path embedded as the bundle's revocation pointer (revocation.crl_path).")
+    bundle_publish.add_argument("--dry-run", action="store_true", help="Run every step including the E14 self-check against a private temp copy, but write NOTHING to --out; report what WOULD be produced.")
+    bundle_publish.add_argument("--force", action="store_true", help="Overwrite existing package files in --out.")
+    bundle_publish.add_argument("--json", action="store_true", help="Print the ceremony result as JSON.")
+    bundle_publish.set_defaults(func=mcp_cmds.cmd_mcp_bundle_publish)
+    bundle_verify = mcp_bundle_sub.add_parser(
+        "verify",
+        help="Verify a bundle through the REAL E14 verification (resolve_bundle_state) and report ok or the exact refusal code/name. Exit 0 verified / 1 refused. This is the ceremony's self-check step, also run automatically by publish.",
+    )
+    bundle_verify.add_argument("--bundle", required=True, help="Signed bundle JSON file to verify.")
+    bundle_verify.add_argument("--trusted-keys", required=True, help="Trusted-keys JSON file (E14 format; e.g. the managed store's trusted-keys.json).")
+    bundle_verify.add_argument("--audience-id", action="append", default=None, metavar="ID", help="This consumer's audience identifier. Repeatable; beats UNLIMITED_SKILLS_MCP_AUDIENCE.")
+    bundle_verify.add_argument("--json", action="store_true", help="Print the verification report as JSON.")
+    bundle_verify.set_defaults(func=mcp_cmds.cmd_mcp_bundle_verify)
 
     catalog = sub.add_parser("catalog", help="Query the registered hosted adapted-skill catalog and browser.")
     catalog_sub = catalog.add_subparsers(dest="catalog_command", required=True)
@@ -1756,6 +1799,9 @@ from .commands.team import (
 )
 from .commands.mcp import (
     cmd_mcp_audit_report,
+    cmd_mcp_bundle_keygen,
+    cmd_mcp_bundle_publish,
+    cmd_mcp_bundle_verify,
     cmd_mcp_gateway,
     cmd_mcp_profiles_doctor,
     cmd_mcp_profiles_replay_audit,
