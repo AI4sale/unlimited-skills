@@ -35,6 +35,15 @@ from typing import Any, BinaryIO, Iterable
 
 from .. import __version__
 from .audit import AuditLog
+from .profiles import (
+    PROFILE_INVALID,
+    PROFILE_NOT_FOUND,
+    TOOL_NOT_CALLABLE,
+    TOOL_NOT_VISIBLE,
+    ActiveProfile,
+    FailClosedProfile,
+    ProfileState,
+)
 from .protocol import PROTOCOL_VERSION, RefusalError, StdioServer, ToolError
 
 GATEWAY_NAME = "unlimited-tools-gateway"
@@ -125,6 +134,10 @@ ENV_FORWARDING_DENIED = -32007  # forwarding beyond the names-only allowlist was
 SCHEMA_TOO_LARGE = -32008  # one tool's inputSchema exceeds max_schema_bytes
 RESPONSE_TOO_LARGE = -32009  # one tools/call result exceeds max_response_bytes
 TRUST_LEVEL_VIOLATION = -32010  # operation not permitted at the upstream's trust level
+# Profile refusal codes -32011..-32014 (tool_not_visible, tool_not_callable,
+# profile_not_found, profile_invalid) are defined in profiles.py and
+# re-exported above, contiguous with this family
+# (docs/mcp-permissioned-tool-profiles.md "Refusal codes").
 
 
 class GatewayConfigError(RuntimeError):
@@ -710,10 +723,35 @@ class UpstreamClient:
 
 
 class Gateway:
-    """In-memory tool index plus lazy upstream lifecycle for the meta-tools."""
+    """In-memory tool index plus lazy upstream lifecycle for the meta-tools.
 
-    def __init__(self, config: dict, audit: AuditLog) -> None:
+    ``profile`` selects one of the three enforcement modes of
+    docs/mcp-permissioned-tool-profiles.md, fixed for the process lifetime:
+
+    - ``None`` -- no-profiles mode: the open behavior documented in
+      docs/mcp-gateway.md, byte-for-byte unchanged (the default until v0.6);
+    - :class:`~unlimited_skills.mcp.profiles.ActiveProfile` -- default-deny
+      visibility/callability enforcement on every meta-tool;
+    - :class:`~unlimited_skills.mcp.profiles.FailClosedProfile` -- refuse-all:
+      the meta-tools are served but every call is refused with -32013/-32014.
+    """
+
+    def __init__(self, config: dict, audit: AuditLog, profile: ProfileState = None) -> None:
         self.audit = audit
+        self.profile = profile
+        if isinstance(profile, ActiveProfile):
+            # One startup row pinning WHICH version of the profile governs
+            # this session (file SHA-256 plus rule counts -- numbers only).
+            audit.record(
+                tool="profile_loaded",
+                ok=True,
+                profile=profile.name,
+                extra={
+                    "profile_sha256": profile.file_sha256,
+                    "visible_rules": profile.visible_rule_count,
+                    "callable_rules": profile.callable_rule_count,
+                },
+            )
         if "audit_max_bytes" in config:
             audit.max_bytes = int(config["audit_max_bytes"])
         if "audit_max_files" in config:
@@ -754,18 +792,79 @@ class Gateway:
             for tool_name, description in entries.items():
                 yield upstream_name, tool_name, description
 
-    def _split_fq(self, arguments: dict) -> tuple[UpstreamClient, str]:
+    @property
+    def active_profile(self) -> ActiveProfile | None:
+        return self.profile if isinstance(self.profile, ActiveProfile) else None
+
+    def profile_audit_name(self) -> str | None:
+        """Profile name stamped on every audit row; ``None`` (field absent)
+        is itself the unambiguous marker of no-profiles open mode."""
+        if isinstance(self.profile, ActiveProfile):
+            return self.profile.name
+        if isinstance(self.profile, FailClosedProfile):
+            return self.profile.requested
+        return None
+
+    def _profile_gate(self) -> None:
+        """Fail-closed refuse-all: in a broken-profile state EVERY meta-tool
+        call is refused with the corresponding code, before anything else."""
+        if isinstance(self.profile, FailClosedProfile):
+            raise UpstreamError(self.profile.message, code=self.profile.code)
+
+    def _check_visible(self, upstream_name: str, tool_name: str) -> None:
+        """Visibility before existence: an invisible tool is refused with an
+        existence-neutral message BEFORE any upstream lookup or spawn, so it
+        is byte-identical to (and indistinguishable from) a nonexistent one."""
+        profile = self.active_profile
+        if profile is not None and not profile.is_visible(upstream_name, tool_name):
+            raise UpstreamError(
+                f"Tool '{upstream_name}.{tool_name}' is not visible under profile "
+                f"'{profile.name}' or does not exist (tool_not_visible).",
+                code=TOOL_NOT_VISIBLE,
+            )
+
+    def _check_callable(self, upstream_name: str, tool_name: str) -> None:
+        """Callability, checked only after visibility passed: discloses
+        nothing the profile's tools_search output did not already disclose."""
+        profile = self.active_profile
+        if profile is not None and not profile.is_callable(upstream_name, tool_name):
+            raise UpstreamError(
+                f"Tool '{upstream_name}.{tool_name}' is visible under profile "
+                f"'{profile.name}' but not callable (tool_not_callable); select a "
+                "wider profile to call it.",
+                code=TOOL_NOT_CALLABLE,
+            )
+
+    def _parse_fq(self, arguments: dict) -> tuple[str, str]:
         fq = str(arguments.get("tool") or "").strip()
         upstream_name, _, tool_name = fq.partition(".")
         if not upstream_name or not tool_name:
             raise ToolError("tool must be fully qualified as 'upstream.tool'.")
+        return upstream_name, tool_name
+
+    def _lookup_upstream(self, upstream_name: str) -> UpstreamClient:
         client = self.upstreams.get(upstream_name)
         if client is None:
-            known = ", ".join(sorted(self.upstreams)) or "<none>"
+            profile = self.active_profile
+            if profile is None:
+                names = sorted(self.upstreams)
+            else:
+                # Leak plug: with a profile active the hint never enumerates
+                # upstreams that have no visible tools under that profile.
+                names = sorted(
+                    name for name in self.upstreams if profile.upstream_has_visible_tools(name)
+                )
+            known = ", ".join(names) or "<none>"
             raise ToolError(f"Unknown upstream: {upstream_name}. Configured upstreams: {known}")
-        return client, tool_name
+        return client
+
+    def _split_fq(self, arguments: dict) -> tuple[UpstreamClient, str]:
+        upstream_name, tool_name = self._parse_fq(arguments)
+        return self._lookup_upstream(upstream_name), tool_name
 
     def tools_search(self, arguments: dict) -> dict:
+        self._profile_gate()
+        profile = self.active_profile
         query = str(arguments.get("query") or "").strip()
         if not query:
             raise ToolError("query is required.")
@@ -776,22 +875,33 @@ class Gateway:
         limit = max(1, min(limit, MAX_SEARCH_LIMIT))
         if bool(arguments.get("refresh")):
             for client in self.upstreams.values():
-                if client.spawnable:  # disabled/placeholder upstreams are never spawned
-                    client.ensure_indexed()
+                if not client.spawnable:  # disabled/placeholder upstreams are never spawned
+                    continue
+                # Refresh never spawns an upstream that cannot contribute a
+                # visible tool under the active profile.
+                if profile is not None and not profile.upstream_has_visible_tools(client.name):
+                    continue
+                client.ensure_indexed()
         hits = []
         for upstream_name, tool_name, description in self.iter_indexed_tools():
+            # Hidden tools are simply absent from results -- both pre-declared
+            # and live-indexed entries pass through the same filter.
+            if profile is not None and not profile.is_visible(upstream_name, tool_name):
+                continue
             score = score_tool(query, tool_name, description)
             if score <= 0.0:
                 continue
-            hits.append(
-                {
-                    "tool": f"{upstream_name}.{tool_name}",
-                    "upstream": upstream_name,
-                    "name": tool_name,
-                    "description": description,
-                    "score": round(score, 3),
-                }
-            )
+            hit = {
+                "tool": f"{upstream_name}.{tool_name}",
+                "upstream": upstream_name,
+                "name": tool_name,
+                "description": description,
+                "score": round(score, 3),
+            }
+            if profile is not None:
+                # So an agent never wastes a schema fetch on a view-only tool.
+                hit["callable"] = profile.is_callable(upstream_name, tool_name)
+            hits.append(hit)
         hits.sort(key=lambda item: (-item["score"], item["tool"]))
         return {
             "query": query,
@@ -800,7 +910,14 @@ class Gateway:
         }
 
     def tools_schema(self, arguments: dict) -> dict:
-        client, tool_name = self._split_fq(arguments)
+        self._profile_gate()
+        upstream_name, tool_name = self._parse_fq(arguments)
+        # Visibility is checked BEFORE any existence check or spawn: a hidden
+        # tool never triggers a lazy spawn and is refused exactly like a
+        # nonexistent one. tools_schema is visibility-gated, not
+        # callability-gated -- a visible view-only tool's schema is readable.
+        self._check_visible(upstream_name, tool_name)
+        client = self._lookup_upstream(upstream_name)
         client.ensure_available()
         client.ensure_indexed()
         info = client.tools.get(tool_name)
@@ -830,7 +947,15 @@ class Gateway:
         }
 
     def tools_call(self, arguments: dict) -> dict:
-        client, tool_name = self._split_fq(arguments)
+        self._profile_gate()
+        upstream_name, tool_name = self._parse_fq(arguments)
+        # Visibility before existence (existence-neutral -32011), then
+        # callability (-32012, only ever for tools the agent can already see),
+        # both BEFORE any upstream lookup or lazy spawn: a request that fails
+        # a profile check never spawns anything.
+        self._check_visible(upstream_name, tool_name)
+        self._check_callable(upstream_name, tool_name)
+        client = self._lookup_upstream(upstream_name)
         call_arguments = arguments.get("arguments")
         if call_arguments is None:
             call_arguments = {}
@@ -884,6 +1009,11 @@ def _audited(gateway: Gateway, meta_tool: str, func) -> Any:
             # error string are dropped: ts/tool/upstream/duration_ms/ok only.
             upstream = _upstream_of(arguments)
             minimal = gateway.audit_level_for(upstream) == "minimal"
+            # When profiles are active every row -- success or refusal, at
+            # both audit levels -- carries the non-sensitive profile name;
+            # in no-profiles mode the field is absent (the marker of open
+            # mode). Rule evaluation never sees argument values, so the
+            # profile machinery cannot add anything else to this row.
             gateway.audit.record(
                 tool=meta_tool,
                 upstream=upstream,
@@ -891,6 +1021,7 @@ def _audited(gateway: Gateway, meta_tool: str, func) -> Any:
                 ok=ok,
                 arguments=None if minimal else arguments,
                 error="" if minimal else error,
+                profile=gateway.profile_audit_name(),
             )
 
     return handler
@@ -962,9 +1093,10 @@ def run_gateway(
     audit: AuditLog,
     reader: BinaryIO | None = None,
     writer: BinaryIO | None = None,
+    profile: ProfileState = None,
 ) -> None:
     """Run the gateway MCP server loop over stdio (blocking until EOF)."""
-    gateway = Gateway(config, audit)
+    gateway = Gateway(config, audit, profile=profile)
     server = StdioServer(
         build_gateway_registry(gateway),
         server_name=GATEWAY_NAME,

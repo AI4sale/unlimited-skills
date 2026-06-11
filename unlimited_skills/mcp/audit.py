@@ -153,7 +153,19 @@ class AuditLog:
         ok: bool = True,
         arguments: dict | None = None,
         error: str = "",
+        profile: str | None = None,
+        extra: dict[str, Any] | None = None,
     ) -> dict:
+        """Append one redacted row.
+
+        ``profile`` is the active tool-profile name (non-sensitive by grammar
+        -- docs/mcp-permissioned-tool-profiles.md "Redaction"); ``None``
+        omits the field entirely, which marks no-profiles open mode.
+        ``extra`` is reserved for non-sensitive bookkeeping fields the caller
+        guarantees safe (e.g. the ``profile_loaded`` row's file SHA-256 and
+        rule counts -- numbers and hashes only, never values or rule text
+        evaluated against arguments).
+        """
         row: dict[str, Any] = {
             "ts": time.time(),
             "tool": str(tool),
@@ -161,6 +173,10 @@ class AuditLog:
             "duration_ms": round(float(duration_ms), 3),
             "ok": bool(ok),
         }
+        if profile is not None:
+            row["profile"] = str(profile)
+        for key, value in (extra or {}).items():
+            row.setdefault(str(key), value)
         if arguments is not None:
             row["args"] = redact(arguments)
         if error:
