@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AI4sale/unlimited-skills/schemas/mcp-profile-bundle.schema.json",
+  "title": "Unlimited Tools MCP signed profile bundle (E13 design)",
+  "description": "DESIGN (E13, Gate C of E09): a signed, self-contained distribution envelope for permissioned tool profiles (docs/mcp-signed-profile-bundles.md). A bundle wraps the E09 profile map with issuer, audience, validity window, an upstream-namespace ceiling, an optional revocation pointer, and a MANDATORY detached Ed25519 signature computed over the canonical JSON (UTF-8, sorted keys, no insignificant whitespace) of this document with the 'signature' member removed. Verification is local against a trusted-keys file (no PKI, no network fetch in v1); every verification failure is fail-closed refuse-all with a reserved code (-32015 bundle_signature_invalid, -32016 bundle_expired, -32017 bundle_revoked, -32018 bundle_audience_mismatch, -32019 bundle_key_missing; malformed bundles reuse -32014 profile_invalid). The embedded 'profiles' map duplicates the E09 shape and constraints from schemas/mcp-tool-profile.schema.json verbatim (self-contained schema, no cross-file $ref, matching repo style); the E09 semantic load checks (extends exists, no self-reference, no cycles, chain depth <= 8, callable covered by visible, default_profile exists) plus the bundle-level checks (issued_at strictly before expires_at, signature.key_id equals issuer.key_id, every profile rule covered by allowed_upstream_namespaces) are enforced by the gateway at load time; this schema enforces the structural format. NOTHING in E13 verifies signatures at runtime; enforcement is E14.",
+  "type": "object",
+  "required": ["bundle_version", "issuer", "audience", "issued_at", "expires_at", "allowed_upstream_namespaces", "profiles", "signature"],
+  "additionalProperties": false,
+  "properties": {
+    "bundle_version": { "const": 1 },
+    "comment": { "type": "string", "description": "Annotation only; carries no semantics." },
+    "issuer": {
+      "type": "object",
+      "required": ["key_id", "display"],
+      "additionalProperties": false,
+      "description": "Who issued the bundle. Trust decisions use key_id plus the local trusted-keys file ONLY; display is for audit rows and refusal messages and grants nothing.",
+      "properties": {
+        "comment": { "type": "string", "description": "Annotation only; carries no semantics." },
+        "key_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "description": "Opaque identifier of the signing key; must equal signature.key_id (semantic load check). Never a key value."
+        },
+        "display": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Human-readable issuer name for audit and messages. Never used for trust decisions."
+        }
+      }
+    },
+    "audience": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "maxLength": 128,
+        "pattern": "^(team|org|host):[A-Za-z0-9][A-Za-z0-9_.-]*$"
+      },
+      "description": "Who the bundle was issued FOR: '<scheme>:<name>' identifiers with exactly three schemes (team:, org:, host:). The consumer presents its own identifiers (--audience-id / UNLIMITED_SKILLS_MCP_AUDIENCE); an empty intersection is refused fail-closed with bundle_audience_mismatch (-32018). An empty audience is unrepresentable — there is deliberately no 'anyone' bundle."
+    },
+    "issued_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+      "description": "Start of the validity window, RFC 3339 UTC ('Z' only). Must be strictly before expires_at (semantic load check). Outside the window (with 300 s skew tolerance) is refused fail-closed with bundle_expired (-32016)."
+    },
+    "expires_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+      "description": "End of the validity window, RFC 3339 UTC ('Z' only). Expiry is mandatory — an immortal bundle would make revocation the only freshness mechanism. Recommended validity <= 90 days."
+    },
+    "allowed_upstream_namespaces": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 3,
+        "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*\\.(\\*|[A-Za-z0-9_][A-Za-z0-9_.-]*)$"
+      },
+      "description": "The bundle's upstream ceiling, in the same two-form E09 rule grammar (exact '<upstream>.<tool>' or '<upstream>.*'; no regex, no partial globs, no wildcard upstream segment). Every visible/callable rule in every embedded profile must be covered by this list (semantic load check); an uncovered rule is refused fail-closed with bundle_audience_mismatch (-32018)."
+    },
+    "default_profile": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+      "description": "Same meaning as the E09 top-level default_profile, scoped to this bundle's 'profiles' map. Selection precedence is unchanged: --profile > UNLIMITED_SKILLS_MCP_PROFILE > this default; nothing resolved is refused fail-closed with profile_not_found (-32013)."
+    },
+    "revocation": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "Optional revocation pointer, design-only in v1. crl_path names a local CRL file (revoked bundle SHA-256s and revoked key_ids); a declared-but-unreadable CRL is fail-closed bundle_revoked (-32017) — 'cannot prove not-revoked' never degrades to 'trusted'. registry_endpoint is reserved for the future registry gate and is NEVER fetched in v1.",
+      "properties": {
+        "comment": { "type": "string", "description": "Annotation only; carries no semantics." },
+        "crl_path": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 512,
+          "description": "Local CRL file path ('~' expansion allowed; relative paths are a load error)."
+        },
+        "registry_endpoint": {
+          "type": "string",
+          "minLength": 9,
+          "maxLength": 512,
+          "pattern": "^https://",
+          "description": "Reserved https URL for future online revocation. Carried, never dereferenced in v1."
+        }
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 64,
+      "description": "The E09 profile map, embedded verbatim (shape and constraints duplicated from schemas/mcp-tool-profile.schema.json). Bundles are self-contained: 'extends' resolves only within this map; no cross-file parents exist in either direction.",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[A-Za-z0-9][A-Za-z0-9_-]*$": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "comment": { "type": "string", "description": "Annotation only; carries no semantics." },
+            "extends": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+              "description": "Single parent profile in THIS bundle (no multiple inheritance, no cross-file parents). Inheritance is restriction-only: the child's effective sets are intersected with the parent's — a child can narrow but never widen. Self-reference, cycles, dangling names, and chains deeper than 8 are load errors (profile_invalid, -32014)."
+            },
+            "visible": {
+              "type": "array",
+              "uniqueItems": true,
+              "maxItems": 256,
+              "items": {
+                "type": "string",
+                "minLength": 3,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*\\.(\\*|[A-Za-z0-9_][A-Za-z0-9_.-]*)$"
+              },
+              "description": "Visibility rules: exact '<upstream>.<tool>' or '<upstream>.*' (whole upstream). Filters tools_search and gates tools_schema; an invisible tool is refused with tool_not_visible (-32011), indistinguishable from a nonexistent one. Absent: a child inherits the parent's set; a root profile denies everything. Every rule must additionally be covered by the bundle's allowed_upstream_namespaces."
+            },
+            "callable": {
+              "type": "array",
+              "uniqueItems": true,
+              "maxItems": 256,
+              "items": {
+                "type": "string",
+                "minLength": 3,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*\\.(\\*|[A-Za-z0-9_][A-Za-z0-9_.-]*)$"
+              },
+              "description": "Callability rules, same grammar; gates tools_call. Always a subset of visible: every rule here must be covered by this profile's visible rules (load check), and evaluation additionally requires visibility. A visible-but-not-callable tool is refused with tool_not_callable (-32012). Absent: a child inherits the parent's set; a root profile denies everything. Every rule must additionally be covered by the bundle's allowed_upstream_namespaces."
+            }
+          }
+        }
+      }
+    },
+    "signature": {
+      "type": "object",
+      "required": ["algorithm", "key_id", "value"],
+      "additionalProperties": false,
+      "description": "MANDATORY detached-signature block (a bundle without a signature is not a bundle), same envelope shape as the optional E09 profile-file slot. Computed over the canonical JSON (UTF-8, sorted keys, no insignificant whitespace) of this document with the 'signature' member removed. A signature that does not verify — or is absent where the signed-required policy demands one — is refused fail-closed with bundle_signature_invalid (-32015); an unknown key_id with bundle_key_missing (-32019).",
+      "properties": {
+        "comment": { "type": "string", "description": "Annotation only; carries no semantics." },
+        "algorithm": {
+          "enum": ["ed25519"],
+          "description": "Signature algorithm. Gate C fixes ed25519; widening the enum requires a new reviewed design."
+        },
+        "key_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "description": "Identifier of the verification key in the local trusted-keys file; must equal issuer.key_id (semantic load check). Never a key value."
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "pattern": "^[A-Za-z0-9+/]+={0,2}$",
+          "description": "Base64-encoded detached Ed25519 signature bytes."
+        }
+      }
+    }
+  }
+}
