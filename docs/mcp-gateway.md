@@ -227,3 +227,11 @@ model, and the future OAuth/remote and resources/prompts gates are specified
 in [mcp-upstream-security-model.md](mcp-upstream-security-model.md). The
 gateway enforces that model; the "Config enforcement" section above is the
 summary.
+
+## Inspecting the audit log
+
+`unlimited-skills mcp audit-report` turns this audit log (including rotated
+generations) into local read-only reports: call summary with duration
+percentiles, refusal breakdown by named code, per-upstream health, profile
+usage (when profile fields are present), and a redaction self-check. See
+[mcp-audit-inspector.md](mcp-audit-inspector.md).
