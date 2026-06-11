@@ -4,6 +4,13 @@
 
 ### Added
 
+- Unlimited Tools MCP core (`unlimited_skills/mcp/`): a zero-dependency JSON-RPC 2.0 / MCP stdio implementation (no external MCP SDK) with auto-detected framing (newline-delimited JSON and LSP-style `Content-Length`), MCP lifecycle (`initialize`, `notifications/initialized`, `tools/list`, `tools/call`, `ping`), and a reusable `StdioServer` loop over a tool registry.
+- `unlimited-skills mcp serve`: a skills MCP server exposing `skills_search` (metadata-only hits — never bodies or absolute paths), `skills_view` (one skill body capped at 16K chars with truncation marker), and `skills_use` (view plus a local learning event; reads SKILL.md text only, never executes scripts).
+- `unlimited-skills mcp gateway --config ... [--audit-log ...]`: the Unlimited Tools gateway fronting upstream stdio MCP servers with 3 meta-tools — `tools_search` (names + descriptions only, never schemas), `tools_schema` (exactly one tool's `inputSchema`, lazily), `tools_call` (routed and relayed). Upstreams spawn lazily on first need, are reused, and are terminated on shutdown; the tool index is cached in-memory per process.
+- Redacted append-only MCP audit log (`<library>/.learning/mcp-audit.jsonl` by default) recording `ts`, `tool`, `upstream`, `duration_ms`, `ok` for every meta-tool call.
+- Schemas `mcp-server-config`, `mcp-gateway-config`, `mcp-tool-index` (draft-07); examples `examples/mcp/gateway-config.example.json` and `tools-call-request.example.json`; docs `docs/unlimited-tools.md`, `docs/mcp-server.md`, `docs/mcp-gateway.md`.
+- Fixture-only MCP tests: protocol framing/lifecycle/error codes, skills server metadata boundaries and caps, gateway lazy spawn + routing against a fake subprocess upstream, audit redaction.
+
 - Local-only `skillops usage-snapshot` command with JSON, `--out`, `--dry-run`, and `explain` modes for privacy-preserving SkillOps recommendation context.
 - Usage snapshot schema, example payload, and documentation covering included counts, excluded sensitive data, and no-hosted-call behavior.
 - Support bundle counts-only usage snapshot summary.
@@ -12,6 +19,9 @@
 
 ### Security
 
+- MCP servers are stdio-only and local-only: no network listeners, no OAuth upstreams, no MCP resources/prompts in v1.
+- Gateway upstream `env` values may reference `%VAR%`/`$VAR`; they are expanded from the local environment at spawn time and never logged.
+- MCP audit redaction: argument values for keys matching token/secret/key/password/proof/authorization are never written; env values, skill bodies, and tool results are never written (only shapes/counts); local paths are scrubbed from error strings; `redact()` is a pure tested function.
 - Usage snapshots exclude prompts, task text, skill bodies, search queries, local paths, repo paths, customer data, environment values, tokens, proofs, private keys, private pack names, and private skill names by default.
 - Usage snapshot tests block hosted calls and grep fixture secrets/private names/paths from CLI, file output, and support bundle summary.
 - The v0.4.1-alpha publication gate keeps production hosted calls, live billing, PyPI publication, full catalog distribution, automatic telemetry, automatic rewriting, and auto-publish disabled.

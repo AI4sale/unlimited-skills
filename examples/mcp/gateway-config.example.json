@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "upstreams": [
+    {
+      "name": "github",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "%GITHUB_PERSONAL_ACCESS_TOKEN%"
+      },
+      "tools": [
+        { "name": "create_issue", "description": "Create a GitHub issue in a repository" },
+        { "name": "search_repositories", "description": "Search GitHub repositories" }
+      ]
+    },
+    {
+      "name": "filesystem",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "."]
+    }
+  ]
+}
