@@ -98,6 +98,14 @@ execution). See [mcp-server.md](mcp-server.md) and [mcp-gateway.md](mcp-gateway.
   (`redact()` is a pure, testable function) and the leak-grep test
   `tests/test_mcp_gateway.py::test_audit_file_never_leaks_secrets`.
 
+## Upstream security model (E07 design)
+
+The forward-looking contract for upstream trust levels, command and
+environment allowlisting, size/timeout bounds, audit retention, extended
+refusal codes, the threat model, and the OAuth / resources+prompts gates is
+specified in [mcp-upstream-security-model.md](mcp-upstream-security-model.md).
+It strictly tightens the v1 boundaries above and never weakens them.
+
 ## Quick start
 
 ```bash

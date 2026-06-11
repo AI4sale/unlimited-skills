@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "comment": "E07 upstream security model example (docs/mcp-upstream-security-model.md). Three upstreams at three trust levels. 'comment' fields are annotations only.",
+  "startup_timeout_seconds": 20,
+  "request_timeout_seconds": 30,
+  "audit_max_bytes": 10485760,
+  "audit_max_files": 5,
+  "upstreams": [
+    {
+      "name": "github",
+      "comment": "Reviewed first-party server launched via the known runner npx -> local-trusted. Forwards exactly one secret by NAME from the local environment; the value never appears in this file or any log.",
+      "trust_level": "local-trusted",
+      "enabled": true,
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-github"],
+      "env_allowlist": ["GITHUB_PERSONAL_ACCESS_TOKEN"],
+      "request_timeout_seconds": 60,
+      "max_schema_bytes": 131072,
+      "max_response_bytes": 2097152,
+      "audit_level": "standard",
+      "tools": [
+        { "name": "create_issue", "description": "Create a GitHub issue in a repository" },
+        { "name": "search_repositories", "description": "Search GitHub repositories" }
+      ]
+    },
+    {
+      "name": "filesystem",
+      "comment": "Third-party server at the default trust level local-restricted: absolute command path required, nothing forwarded beyond the base environment, explicit absolute cwd, tight response cap (within the restricted ceiling of 1048576).",
+      "trust_level": "local-restricted",
+      "enabled": true,
+      "command": "/usr/bin/node",
+      "args": ["/opt/mcp/server-filesystem/index.js", "/home/user/projects"],
+      "cwd": "/home/user/projects",
+      "env_allowlist": [],
+      "max_schema_bytes": 65536,
+      "max_response_bytes": 524288,
+      "audit_level": "standard"
+    },
+    {
+      "name": "hosted-search",
+      "comment": "Reserved slot for a future remote upstream. Every operation on it is refused with trust_level_violation (-32010) until the OAuth/remote gate opens; enabled:false keeps it inert either way. The command is a placeholder that is never executed.",
+      "trust_level": "future-remote-placeholder",
+      "enabled": false,
+      "command": "/usr/bin/false",
+      "audit_level": "minimal"
+    }
+  ]
+}
