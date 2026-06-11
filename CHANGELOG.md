@@ -4,6 +4,10 @@
 
 ### Added
 
+- v0.4.4-alpha MCP permissioned tool profile enforcement integration gate: default-deny selected profiles, CLI/env profile precedence, visible-only search, hidden schema refusal, non-callable call refusal, restriction-only inheritance, fail-closed missing/invalid profiles, `profile_loaded` audit rows, profile SHA-256 evidence, and no OAuth/remote/resources/prompts/hosted-gateway/production-hosted-calls boundaries are covered by fixture-mode smoke and verifier evidence.
+- Added `scripts/run-v044-alpha-mcp-tool-profiles-smoke.py`, `scripts/verify-v044-alpha-mcp-tool-profiles.py`, `tests/integration/test_v044_alpha_mcp_tool_profiles.py`, and v0.4.4-alpha release docs/manifest.
+- Raised package, Claude plugin, and marketplace metadata versions to `0.4.4`.
+- Updated the v0.4.3 release smoke/publication verifier so later release branches can verify the already-published `v0.4.3-alpha` tag while package/plugin versions move forward.
 - v0.4.3-alpha MCP upstream enforcement integration gate: disabled upstream refusal, future-remote-placeholder refusal, command allowlist refusal, names-only `env_allowlist` enforcement, schema/response size refusals, startup timeout and request timeout hard bounds, audit rotation, and audit redaction are covered by fixture-mode smoke and verifier evidence.
 - Added `scripts/run-v043-alpha-mcp-enforcement-smoke.py`, `scripts/verify-v043-alpha-mcp-enforcement.py`, `tests/integration/test_v043_alpha_mcp_enforcement.py`, and v0.4.3-alpha release docs/manifest.
 - v0.4.3-alpha final publication package: upgrade notes, release smoke runner, publication verifier, final manifest, profile-design documentation proof, no-private-material scan, and exact Codex tag command for `v0.4.3-alpha`.
