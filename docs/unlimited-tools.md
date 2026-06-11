@@ -78,7 +78,7 @@ execution). See [mcp-server.md](mcp-server.md) and [mcp-gateway.md](mcp-gateway.
   stdin/stdout. No sockets, no HTTP listeners.
 - **Local-only**: upstreams are local subprocesses from your own config file.
   No hosted calls, no hosted gateway, no OAuth upstreams in v1.
-- **Tools capability only**: no MCP `resources` or `prompts` in v1.
+- **Tools capability only**: no MCP resources or prompts in v1.
 - **No automatic telemetry**: the gateway writes only the local redacted
   audit log you configure; it does not send usage, prompts, queries, tool
   inputs, or results to hosted services.

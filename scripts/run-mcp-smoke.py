@@ -58,7 +58,11 @@ def run_smoke(repo: Path) -> dict[str, Any]:
                 str(audit_path),
             ],
             cwd=repo,
-            env={TOKEN_MARKER: TOKEN_MARKER, "PYTHONPATH": str(repo)},
+            env={
+                TOKEN_MARKER: TOKEN_MARKER,
+                "FAKE_UPSTREAM_TOKEN": TOKEN_MARKER,
+                "PYTHONPATH": str(repo),
+            },
         )
         try:
             skills_init = skills.request("initialize", {"capabilities": {}})
