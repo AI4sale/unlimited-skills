@@ -298,6 +298,13 @@ against one local trusted-keys file (no PKI, no network fetch). Bundle file
 format: `schemas/mcp-profile-bundle.schema.json`, annotated example
 `examples/mcp/profile-bundle.example.json`.
 
+The v0.4.7-alpha signed MCP profile bundle gate is alpha and may break before
+v0.6. The local MIT core may still allow unsigned profiles by policy.
+Registered/business signed-required behavior is future-gated unless explicitly
+implemented in a later gate. There is no hosted trust fetch, no registry sync,
+no OAuth, no MCP resources, no MCP prompts, and no production signing keys in
+this integration gate.
+
 ```bash
 unlimited-skills mcp gateway --config cfg.json \
   --profile-bundle bundle.json --trusted-keys trusted-keys.json \
