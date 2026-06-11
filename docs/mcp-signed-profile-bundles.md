@@ -704,3 +704,19 @@ ceremony rather than emit a bundle that would not verify, and strict
 private-key hygiene (the private key exists only in the keygen out
 directory and never appears in any output). See
 [mcp-bundle-publishing.md](mcp-bundle-publishing.md).
+
+## Local bundle library and activation manager (E20)
+
+Bundles in this format are installed, activated, and rolled back through a
+LOCAL library: `unlimited-skills mcp profiles library
+status|list|add|inspect|activate|deactivate|rollback|pin|unpin|remove|doctor`
+(`unlimited_skills/mcp/bundle_library.py`) stores bundle files immutable
+and content-addressed under `<library root>/.unlimited-skills-bundles/`,
+tracks the single ACTIVE bundle and an append-only activation history, and
+runs THIS document's verification algorithm (`resolve_bundle_state`, never
+a reimplementation) at add time, again at activation/rollback time (keys
+and the CRL may have changed), and over every entry in `doctor`. The
+gateway is started against the library's `active.bundle.json` pointer copy
+and re-verifies it itself at startup -- no hot reload, and the pointer
+grants nothing by itself. No registry sync, no hosted calls, no production
+signing keys. See [mcp-bundle-library.md](mcp-bundle-library.md).

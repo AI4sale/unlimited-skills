@@ -187,3 +187,15 @@ telemetry, no hot reload. The publisher writes only into the operator's
 `--out` directories; it never touches the library root, the managed trust
 store (except through the documented `trust import`/`revoke` commands the
 operator runs), or the audit log.
+
+## Installing and activating published bundles (E20)
+
+The package this ceremony emits is what the local bundle library consumes:
+`unlimited-skills mcp profiles library add dist/<name>.bundle.json`
+installs the signed bundle (verified through the same real E14 path before
+anything is stored), `library activate <name>` re-verifies and writes the
+`active.bundle.json` activation pointer the gateway is started against,
+and `library rollback` walks the activation history back to the previous
+known-good bundle -- the operational answer to "which of my published
+bundles is installed, which is active, and how do I roll back". See
+[mcp-bundle-library.md](mcp-bundle-library.md).

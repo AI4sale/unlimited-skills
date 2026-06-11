@@ -1174,6 +1174,59 @@ def build_parser() -> argparse.ArgumentParser:
     replay_audit.add_argument("--require-signed-profiles", action="store_true", help="Simulate the signed-required policy: unsigned profile sources fail closed with -32015.")
     replay_audit.add_argument("--json", action="store_true", help="Print the full report as one JSON document (schemas/mcp-audit-replay-report.schema.json).")
     replay_audit.set_defaults(func=mcp_cmds.cmd_mcp_profiles_replay_audit)
+    mcp_library = mcp_profiles_sub.add_parser(
+        "library",
+        help="Local library and activation manager for SIGNED profile bundles: install (add), list, status, inspect, pin/unpin, activate/deactivate, rollback, remove, doctor. Bundles are stored immutable and content-addressed; verification is the REAL E14 path at add time and re-run at activation/rollback/doctor time. Offline only -- no registry sync, no hosted calls, no production signing keys; no hot reload (the gateway reads the active bundle at startup).",
+    )
+    mcp_library_sub = mcp_library.add_subparsers(dest="library_command", required=True)
+
+    def add_library_common(command: argparse.ArgumentParser) -> None:
+        command.add_argument("--library-dir", default="", help="Bundle library directory. Defaults to <root>/.unlimited-skills-bundles.")
+        command.add_argument("--trusted-keys", default="", help="Trusted-keys JSON file for verification. Omitted: defaults to the managed trust store's trusted-keys.json under <root>/.unlimited-skills-trust when it exists (E15); with neither, verification refuses with -32019 bundle_key_missing.")
+        command.add_argument("--audience-id", action="append", default=None, metavar="ID", help="This consumer's audience identifier ('team:NAME', 'org:NAME', or 'host:NAME'). Repeatable; beats UNLIMITED_SKILLS_MCP_AUDIENCE. Omitted entirely: the bundle's own first audience is used (signature/expiry/revocation/key still fully checked; audience BINDING stays enforced by the gateway).")
+        command.add_argument("--json", action="store_true", help="Print a machine-readable JSON report.")
+
+    library_status = mcp_library_sub.add_parser("status", help="Show the active bundle (sha, name, issuer, expiry, days left, current re-verification), pinned count, total entries, library dir, and the trust store in use.")
+    add_library_common(library_status)
+    library_status.set_defaults(func=mcp_cmds.cmd_mcp_library_status)
+    library_list = mcp_library_sub.add_parser("list", help="List installed bundles with their CURRENT re-verification state (ok/expired/revoked/key-missing/...), active and pinned flags, issuer, expiry, added_at, and source basename.")
+    add_library_common(library_list)
+    library_list.set_defaults(func=mcp_cmds.cmd_mcp_library_list)
+    library_add = mcp_library_sub.add_parser("add", help="Install one signed bundle file: verified through the REAL E14 path BEFORE anything is stored (invalid/expired/revoked bundles are refused outright with the exact code -- no quarantine mode), then copied immutable and content-addressed. Duplicate sha256 = idempotent no-op.")
+    add_library_common(library_add)
+    library_add.add_argument("file", help="The signed bundle JSON file to install.")
+    library_add.add_argument("--name", default="", help="Library name for the entry. Default: the file name minus its .bundle.json/.json suffix.")
+    library_add.set_defaults(func=mcp_cmds.cmd_mcp_library_add)
+    library_inspect = mcp_library_sub.add_parser("inspect", help="Manifest-level detail for one entry (issuer, audience, validity window, namespace ceiling, per-profile rule counts, source, pinned/active flags) plus its CURRENT re-verification result.")
+    add_library_common(library_inspect)
+    library_inspect.add_argument("ref", help="Bundle reference: full sha256, an 8+ char sha prefix, or the entry name.")
+    library_inspect.set_defaults(func=mcp_cmds.cmd_mcp_library_inspect)
+    library_activate = mcp_library_sub.add_parser("activate", help="Activate one installed bundle (at most one active): RE-verifies through the real E14 path at activation time (keys/CRL may have changed), then atomically copies the verified bytes to <library>/active.bundle.json -- start the gateway with --profile-bundle pointing there. NO hot reload: the gateway reads it at startup.")
+    add_library_common(library_activate)
+    library_activate.add_argument("ref", help="Bundle reference: full sha256, an 8+ char sha prefix, or the entry name.")
+    library_activate.set_defaults(func=mcp_cmds.cmd_mcp_library_activate)
+    library_deactivate = mcp_library_sub.add_parser("deactivate", help="Clear the active bundle and remove active.bundle.json (idempotent). A gateway restarted without --profile-bundle runs in OPEN no-profiles mode -- said loudly.")
+    add_library_common(library_deactivate)
+    library_deactivate.set_defaults(func=mcp_cmds.cmd_mcp_library_deactivate)
+    library_rollback = mcp_library_sub.add_parser("rollback", help="Re-activate the previous known-good bundle from the append-only activation history, RE-verifying each candidate and LOUDLY skipping any that is now revoked/expired/refused until one verifies. Exit 1 when none does.")
+    add_library_common(library_rollback)
+    library_rollback.set_defaults(func=mcp_cmds.cmd_mcp_library_rollback)
+    library_pin = mcp_library_sub.add_parser("pin", help="Pin one entry: pinned entries refuse 'remove' (even with --force) until unpinned. Idempotent.")
+    add_library_common(library_pin)
+    library_pin.add_argument("ref", help="Bundle reference: full sha256, an 8+ char sha prefix, or the entry name.")
+    library_pin.set_defaults(func=mcp_cmds.cmd_mcp_library_pin)
+    library_unpin = mcp_library_sub.add_parser("unpin", help="Remove the pin from one entry. Idempotent.")
+    add_library_common(library_unpin)
+    library_unpin.add_argument("ref", help="Bundle reference: full sha256, an 8+ char sha prefix, or the entry name.")
+    library_unpin.set_defaults(func=mcp_cmds.cmd_mcp_library_pin)
+    library_remove = mcp_library_sub.add_parser("remove", help="Remove one installed bundle. PINNED entries always refuse (unpin first; --force does not override a pin). The ACTIVE entry refuses without --force; with --force it is deactivated first (recorded in history), then removed.")
+    add_library_common(library_remove)
+    library_remove.add_argument("ref", help="Bundle reference: full sha256, an 8+ char sha prefix, or the entry name.")
+    library_remove.add_argument("--force", action="store_true", help="Allow removing the ACTIVE bundle by deactivating it first. Never overrides a pin.")
+    library_remove.set_defaults(func=mcp_cmds.cmd_mcp_library_remove)
+    library_doctor = mcp_library_sub.add_parser("doctor", help="Re-verify EVERY entry against the current trust store/CRL and check the library invariants: per-entry problems (expired/revoked/key-missing -- warnings unless ACTIVE), active-bundle-invalid (problem, exit 1), corrupt state file (rebuild guidance), missing/corrupt stored files, stale active pointer, orphan files, history consistency. Exit 0 ok / 1 problems.")
+    add_library_common(library_doctor)
+    library_doctor.set_defaults(func=mcp_cmds.cmd_mcp_library_doctor)
     mcp_audit_report = mcp_sub.add_parser(
         "audit-report",
         help="Inspect the local redacted MCP audit JSONL log (including rotated generations): summary, refusals, upstream health, profile usage, redaction self-check.",
@@ -1803,6 +1856,16 @@ from .commands.mcp import (
     cmd_mcp_bundle_publish,
     cmd_mcp_bundle_verify,
     cmd_mcp_gateway,
+    cmd_mcp_library_activate,
+    cmd_mcp_library_add,
+    cmd_mcp_library_deactivate,
+    cmd_mcp_library_doctor,
+    cmd_mcp_library_inspect,
+    cmd_mcp_library_list,
+    cmd_mcp_library_pin,
+    cmd_mcp_library_remove,
+    cmd_mcp_library_rollback,
+    cmd_mcp_library_status,
     cmd_mcp_profiles_doctor,
     cmd_mcp_profiles_replay_audit,
     cmd_mcp_profiles_rollout_plan,

@@ -418,6 +418,208 @@ def cmd_mcp_profiles_doctor(args: argparse.Namespace) -> int:
     return int(report["exit_code"])
 
 
+# ---------------------------------------------------------------------------
+# E20: local bundle library and activation manager (`unlimited-skills mcp
+# profiles library ...`). A LOCAL library of signed profile bundles --
+# install, list, status, pin/unpin, activate/deactivate, rollback. No
+# registry sync, no hosted calls, no production signing keys. Verification
+# is the REAL E14 path (resolve_bundle_state via the E19 verify wrapper),
+# run at add time AND re-run at activation/rollback/doctor time; semantics
+# are never changed or bypassed here. The gateway reads the activation
+# pointer (<library>/active.bundle.json) once at startup -- no hot reload.
+
+
+def _bundle_library_from_args(args: argparse.Namespace):
+    from ..mcp.bundle_library import BundleLibrary, default_library_dir
+
+    library_dir = getattr(args, "library_dir", "") or ""
+    if library_dir:
+        return BundleLibrary(Path(library_dir).expanduser())
+    return BundleLibrary(default_library_dir(Path(args.root).expanduser()))
+
+
+def _library_trusted_keys(args: argparse.Namespace) -> str:
+    """Explicit --trusted-keys wins; else the E15 managed store's file under
+    the library root when it exists; else '' (verification refuses with
+    -32019 bundle_key_missing -- never a silent pass)."""
+    trusted = getattr(args, "trusted_keys", "") or ""
+    if trusted:
+        return str(Path(trusted).expanduser())
+    from ..mcp.trust_store import managed_trusted_keys_path
+
+    managed = managed_trusted_keys_path(Path(args.root).expanduser())
+    return str(managed) if managed.is_file() else ""
+
+
+def _library_common(args: argparse.Namespace) -> dict:
+    return {
+        "trusted_keys_path": _library_trusted_keys(args),
+        "audience_ids": list(getattr(args, "audience_id", None) or []),
+    }
+
+
+def _print_library_result(args: argparse.Namespace, result: dict, text: str) -> None:
+    import json
+
+    if getattr(args, "json", False):
+        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(text)
+
+
+def cmd_mcp_library_status(args: argparse.Namespace) -> int:
+    from ..mcp.bundle_library import format_status, status_report
+
+    report = status_report(_bundle_library_from_args(args), **_library_common(args))
+    _print_report(args, report, format_status)
+    return 0
+
+
+def cmd_mcp_library_list(args: argparse.Namespace) -> int:
+    from ..mcp.bundle_library import format_list, list_report
+
+    report = list_report(_bundle_library_from_args(args), **_library_common(args))
+    _print_report(args, report, format_list)
+    return 0
+
+
+def cmd_mcp_library_add(args: argparse.Namespace) -> int:
+    from ..mcp.bundle_library import BundleLibraryError, add_bundle
+
+    try:
+        result = add_bundle(
+            _bundle_library_from_args(args),
+            Path(args.file).expanduser(),
+            name=getattr(args, "name", "") or "",
+            **_library_common(args),
+        )
+    except BundleLibraryError as exc:
+        print(f"bundle library refused: {exc}", file=sys.stderr)
+        return 1
+    if result["already_present"]:
+        text = (
+            f"bundle {result['sha256'][:12]} ({result['name']}) is already installed; "
+            "nothing changed"
+        )
+    else:
+        text = (
+            f"added bundle {result['sha256'][:12]} ({result['name']}) as {result['file']} "
+            "(verified through the real E14 path at add time)"
+        )
+    _print_library_result(args, result, text)
+    return 0
+
+
+def cmd_mcp_library_inspect(args: argparse.Namespace) -> int:
+    from ..mcp.bundle_library import BundleLibraryError, format_inspect, inspect_report
+
+    try:
+        report = inspect_report(
+            _bundle_library_from_args(args), args.ref, **_library_common(args)
+        )
+    except BundleLibraryError as exc:
+        print(f"bundle library refused: {exc}", file=sys.stderr)
+        return 1
+    _print_report(args, report, format_inspect)
+    return 0
+
+
+def cmd_mcp_library_activate(args: argparse.Namespace) -> int:
+    from ..mcp.bundle_library import BundleLibraryError, activate_bundle
+
+    try:
+        result = activate_bundle(
+            _bundle_library_from_args(args), args.ref, **_library_common(args)
+        )
+    except BundleLibraryError as exc:
+        print(f"bundle library refused: {exc}", file=sys.stderr)
+        return 1
+    text = (
+        f"activated bundle {result['sha256'][:12]} ({result['name']}); {result['note']}"
+    )
+    _print_library_result(args, result, text)
+    return 0
+
+
+def cmd_mcp_library_deactivate(args: argparse.Namespace) -> int:
+    from ..mcp.bundle_library import BundleLibraryError, deactivate_bundle
+
+    try:
+        result = deactivate_bundle(_bundle_library_from_args(args))
+    except BundleLibraryError as exc:
+        print(f"bundle library refused: {exc}", file=sys.stderr)
+        return 1
+    if result["already_inactive"]:
+        text = "no bundle is active; nothing changed"
+    else:
+        text = f"deactivated bundle {result['sha256'][:12]}; {result['note']}"
+    _print_library_result(args, result, text)
+    return 0
+
+
+def cmd_mcp_library_rollback(args: argparse.Namespace) -> int:
+    from ..mcp.bundle_library import BundleLibraryError, rollback_bundle
+
+    try:
+        result = rollback_bundle(_bundle_library_from_args(args), **_library_common(args))
+    except BundleLibraryError as exc:
+        print(f"bundle library refused: {exc}", file=sys.stderr)
+        return 1
+    lines = [
+        f"rolled back to bundle {result['sha256'][:12]} ({result['name']}); {result['note']}"
+    ]
+    for item in result["skipped"]:
+        lines.append(
+            f"  skipped {item['sha256'][:12]} ({item['name'] or '?'}): {item['refusal']}"
+            + (f" ({item['code']})" if item["code"] else "")
+        )
+    _print_library_result(args, result, "\n".join(lines))
+    return 0
+
+
+def cmd_mcp_library_pin(args: argparse.Namespace) -> int:
+    from ..mcp.bundle_library import BundleLibraryError, set_pinned
+
+    pinned = args.library_command == "pin"
+    try:
+        result = set_pinned(_bundle_library_from_args(args), args.ref, pinned)
+    except BundleLibraryError as exc:
+        print(f"bundle library refused: {exc}", file=sys.stderr)
+        return 1
+    verb = "pinned" if pinned else "unpinned"
+    if result["changed"]:
+        text = f"{verb} bundle {result['sha256'][:12]} ({result['name']})"
+    else:
+        text = f"bundle {result['sha256'][:12]} ({result['name']}) was already {verb}; nothing changed"
+    _print_library_result(args, result, text)
+    return 0
+
+
+def cmd_mcp_library_remove(args: argparse.Namespace) -> int:
+    from ..mcp.bundle_library import BundleLibraryError, remove_bundle
+
+    try:
+        result = remove_bundle(
+            _bundle_library_from_args(args), args.ref, force=bool(getattr(args, "force", False))
+        )
+    except BundleLibraryError as exc:
+        print(f"bundle library refused: {exc}", file=sys.stderr)
+        return 1
+    text = f"removed bundle {result['sha256'][:12]} ({result['name']})"
+    if result["deactivated"]:
+        text += " (it was ACTIVE and was deactivated first; open-mode note: a gateway restarted without --profile-bundle runs unenforced)"
+    _print_library_result(args, result, text)
+    return 0
+
+
+def cmd_mcp_library_doctor(args: argparse.Namespace) -> int:
+    from ..mcp.bundle_library import doctor_report, format_doctor
+
+    report = doctor_report(_bundle_library_from_args(args), **_library_common(args))
+    _print_report(args, report, format_doctor)
+    return int(report["exit_code"])
+
+
 def cmd_mcp_profiles_replay_audit(args: argparse.Namespace) -> int:
     """E17: replay the historical audit log against a PROPOSED policy.
 
