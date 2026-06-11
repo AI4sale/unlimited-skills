@@ -68,6 +68,20 @@ def _resolve_gateway_profile_state(args: argparse.Namespace):
     trusted_keys = getattr(args, "trusted_keys", "") or ""
     audience_ids = list(getattr(args, "audience_id", None) or [])
     require_signed = bool(getattr(args, "require_signed_profiles", False))
+    if bundle_path and not trusted_keys:
+        # E15: when --trusted-keys is omitted but the managed trust store
+        # (unlimited-skills mcp trust) has a trusted-keys file under the
+        # library root, default to it. When no managed store exists, the
+        # behavior is byte-for-byte unchanged (the verifier refuses with
+        # -32019 bundle_key_missing, exactly as before). Verification
+        # semantics are untouched -- this only resolves WHICH file is read.
+        from ..mcp.trust_store import managed_trusted_keys_path
+
+        root_value = getattr(args, "root", "") or ""
+        if root_value:
+            managed = managed_trusted_keys_path(Path(root_value).expanduser())
+            if managed.is_file():
+                trusted_keys = str(managed)
     if not bundle_path:
         if trusted_keys:
             raise GatewayConfigError(
@@ -152,3 +166,134 @@ def cmd_mcp_gateway(args: argparse.Namespace) -> int:
     )
     run_gateway(config, AuditLog(audit_path), profile=profile)
     return 0
+
+
+# ---------------------------------------------------------------------------
+# E15: managed trust store CLI (`unlimited-skills mcp trust ...`). All
+# operations are OFFLINE management of the local E14 trust artifacts
+# (trusted-keys file + CRL); verification semantics live in mcp/bundles.py
+# and are never changed here.
+
+
+def _trust_store_from_args(args: argparse.Namespace):
+    from ..mcp.trust_store import TrustStore, default_store_dir
+
+    store_dir = getattr(args, "store_dir", "") or ""
+    if store_dir:
+        return TrustStore(Path(store_dir).expanduser())
+    return TrustStore(default_store_dir(Path(args.root).expanduser()))
+
+
+def _print_report(args: argparse.Namespace, report: dict, render) -> None:
+    import json
+
+    if getattr(args, "json", False):
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(render(report))
+
+
+def cmd_mcp_trust_status(args: argparse.Namespace) -> int:
+    from ..mcp.trust_store import format_status, status_report
+
+    store = _trust_store_from_args(args)
+    report = status_report(store, expiring_days=args.expiring_days)
+    _print_report(args, report, format_status)
+    return 0
+
+
+def cmd_mcp_trust_list(args: argparse.Namespace) -> int:
+    from ..mcp.trust_store import format_key_list, list_keys_report
+
+    store = _trust_store_from_args(args)
+    report = list_keys_report(store, expiring_days=args.expiring_days)
+    _print_report(args, report, format_key_list)
+    return 0
+
+
+def cmd_mcp_trust_import(args: argparse.Namespace) -> int:
+    import json
+
+    from ..mcp.trust_store import TrustStoreError, import_key, load_key_file
+
+    store = _trust_store_from_args(args)
+    try:
+        key_id = args.key_id or ""
+        public_key = args.public_key or ""
+        display = args.display or ""
+        scopes = list(args.scope or [])
+        not_before = args.not_before or ""
+        not_after = args.not_after or ""
+        comment = args.comment or ""
+        if args.key_file:
+            document = load_key_file(Path(args.key_file).expanduser())
+            key_id = key_id or str(document.get("key_id", ""))
+            public_key = public_key or str(document.get("public_key", ""))
+            display = display or str(document.get("display", ""))
+            if not scopes and isinstance(document.get("scopes"), list):
+                scopes = [str(scope) for scope in document["scopes"]]
+            not_before = not_before or str(document.get("not_before", ""))
+            not_after = not_after or str(document.get("not_after", ""))
+            comment = comment or str(document.get("comment", ""))
+        if not key_id or not public_key:
+            raise TrustStoreError(
+                "import needs a key_id and a base64 PUBLIC key (inline flags or --key-file)"
+            )
+        result = import_key(
+            store,
+            key_id=key_id,
+            public_key_b64=public_key,
+            display=display,
+            scopes=scopes,
+            not_before=not_before,
+            not_after=not_after,
+            comment=comment,
+        )
+    except TrustStoreError as exc:
+        print(f"trust import refused: {exc}", file=sys.stderr)
+        return 1
+    if getattr(args, "json", False):
+        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+    elif result["already_present"]:
+        print(
+            f"key '{result['key_id']}' already trusted with the same material "
+            f"(fingerprint {result['fingerprint']}); nothing changed"
+        )
+    else:
+        print(f"imported PUBLIC key '{result['key_id']}' (fingerprint {result['fingerprint']})")
+    return 0
+
+
+def cmd_mcp_trust_revoke(args: argparse.Namespace) -> int:
+    import json
+
+    from ..mcp.trust_store import TrustStoreError, revoke
+
+    store = _trust_store_from_args(args)
+    try:
+        result = revoke(
+            store,
+            key_id=args.key_id or "",
+            bundle_sha256=args.bundle_sha256 or "",
+            reason=args.reason or "",
+        )
+    except TrustStoreError as exc:
+        print(f"trust revoke refused: {exc}", file=sys.stderr)
+        return 1
+    target = result["key_id"] or result["bundle_sha256"]
+    if getattr(args, "json", False):
+        print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
+    elif result["already_revoked"]:
+        print(f"'{target}' is already in the local CRL; nothing changed")
+    else:
+        print(f"revoked '{target}' in the local CRL ({result['crl_path']})")
+    return 0
+
+
+def cmd_mcp_trust_doctor(args: argparse.Namespace) -> int:
+    from ..mcp.trust_store import doctor_report, format_doctor
+
+    store = _trust_store_from_args(args)
+    report = doctor_report(store, expiring_days=args.expiring_days)
+    _print_report(args, report, format_doctor)
+    return int(report["exit_code"])

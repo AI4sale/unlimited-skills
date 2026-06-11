@@ -152,6 +152,13 @@ future-gated unless explicitly implemented in a later gate. No hosted trust
 fetch, registry sync, OAuth, resources, prompts, or production signing keys are
 included.
 
+Signed profile bundles for team distribution are designed in
+[mcp-signed-profile-bundles.md](mcp-signed-profile-bundles.md) (E13, design
+only — not yet enforced): Ed25519-signed, self-contained bundles with
+issuer, audience, expiry, and revocation, verified against a local
+trusted-keys file. Unsigned local profiles stay allowed; signing is opt-in
+until a signed-required policy is configured.
+
 ## Quick start
 
 ```bash
