@@ -127,15 +127,22 @@ enforced by the gateway (see the "Config enforcement" section of
 [mcp-gateway.md](mcp-gateway.md)). It strictly tightens the v1 boundaries
 above and never weakens them.
 
-## Permissioned tool profiles (design)
+## Permissioned tool profiles (enforced)
 
-[mcp-permissioned-tool-profiles.md](mcp-permissioned-tool-profiles.md) (E09,
-design only — not yet enforced) adds named per-agent / per-team / per-runtime
-tool profiles on top of the upstream security model: a profile controls which
-upstream tools an agent can see (`tools_search` / `tools_schema`) and which
-it can call (`tools_call`), default-deny when active, fail-closed when
-missing or invalid. The open behavior above remains the default (no-profiles
-mode) until v0.6.
+[mcp-permissioned-tool-profiles.md](mcp-permissioned-tool-profiles.md) (E09
+design, enforced since E10 / v0.4.4-alpha) adds named per-agent / per-team /
+per-runtime tool profiles on top of the upstream security model: a profile
+controls which upstream tools an agent can see (`tools_search` /
+`tools_schema`) and which it can call (`tools_call`), default-deny when
+active, fail-closed when missing or invalid. The open behavior above remains
+the default no-profiles mode.
+
+Signed profile bundles for team distribution are designed in
+[mcp-signed-profile-bundles.md](mcp-signed-profile-bundles.md) (E13, design
+only — not yet enforced): Ed25519-signed, self-contained bundles with
+issuer, audience, expiry, and revocation, verified against a local
+trusted-keys file. Unsigned local profiles stay allowed; signing is opt-in
+until a signed-required policy is configured.
 
 Signed profile bundles for team distribution are designed in
 [mcp-signed-profile-bundles.md](mcp-signed-profile-bundles.md) (E13, design
@@ -174,3 +181,30 @@ Claude Code registration example (`.mcp.json`):
 ## Performance and rewrite path
 
 The v1 server and gateway are intentionally Python: MCP traffic is I/O-bound JSON-RPC glue, per-call overhead is microseconds against seconds of upstream/tool work, and the search core they reuse lives in this package. The protocol boundary is pinned by JSON schemas (`schemas/mcp-*.schema.json`) and fixture tests (`tests/test_mcp_protocol.py` and friends), so if a hosted multi-tenant gateway or single-binary distribution ever justifies it, the protocol/gateway layer can be rewritten in a compiled language (e.g. Rust) as a drop-in behind the same contracts without touching the library/search core. Revisit when (a) the gateway becomes a hosted product or (b) no-Python single-file install becomes a distribution goal.
+
+## Auditing what the gateway did
+
+The redacted local audit log the gateway writes can be inspected with
+`unlimited-skills mcp audit-report` — a read-only local report (summary,
+refusal codes, upstream health, profile usage, redaction self-check) over
+the active file and its rotated generations. The v0.4.5-alpha integration gate
+verifies that recent refusals include no argument values and no error text,
+JSON output validates against the report schema, and the inspector never
+writes audit logs. See
+[mcp-audit-inspector.md](mcp-audit-inspector.md).
+## Measured performance and warm-start plan
+
+A reproducible, fixture-only benchmark pack measures cold/warm gateway
+latency, upstream spawn vs reuse cost, schema indexing time, `tools_search`
+latency, audit write overhead, and the context-bytes table above at
+40/200/1000 indexed tools:
+
+```bash
+python scripts/run-mcp-performance-benchmarks.py --fixture-mode --json --sizes 40,200,1000
+```
+
+Reports (JSON per `schemas/mcp-perf-report.schema.json`, plus Markdown) land
+in `build/perf/`. The reference numbers, what each metric means, and the
+warm-start optimization plan (persistent tool-index cache, opt-in pre-spawn —
+design only, everything default-off) live in
+[mcp-performance.md](mcp-performance.md).

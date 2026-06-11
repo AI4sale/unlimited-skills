@@ -1,0 +1,197 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AI4sale/unlimited-skills/schemas/mcp-perf-report.schema.json",
+  "title": "Unlimited Tools MCP performance benchmark report (E12)",
+  "description": "Machine-readable output of scripts/run-mcp-performance-benchmarks.py. Fixture-only: every measurement runs against generated fake stdio upstreams under a temp directory -- no network, no real upstreams, no telemetry. Every latency metric carries the raw millisecond samples (warmup discarded) plus min/median/mean so reference tables are reproducible. The report never contains local absolute paths or secret-shaped values.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "status",
+    "fixture_mode",
+    "generated_at",
+    "duration_seconds",
+    "python_version",
+    "platform",
+    "repeats",
+    "warmup",
+    "sizes"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "status": { "enum": ["passed"] },
+    "fixture_mode": {
+      "const": true,
+      "description": "Always true: the benchmarks refuse to run without --fixture-mode."
+    },
+    "generated_at": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Unix epoch seconds when the run started."
+    },
+    "duration_seconds": { "type": "number", "minimum": 0 },
+    "python_version": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$" },
+    "platform": {
+      "type": "string",
+      "minLength": 1,
+      "description": "sys.platform only (e.g. win32, linux, darwin); never a hostname or path."
+    },
+    "repeats": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Samples kept per measurement (K)."
+    },
+    "warmup": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Discarded warmup iterations before the K kept samples."
+    },
+    "sizes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/sizeReport" },
+      "description": "One entry per fixture size (total tools spread across the fake upstreams)."
+    }
+  },
+  "$defs": {
+    "statMs": {
+      "type": "object",
+      "required": ["unit", "samples", "min", "median", "mean"],
+      "additionalProperties": false,
+      "properties": {
+        "unit": { "const": "ms" },
+        "samples": {
+          "type": "array",
+          "items": { "type": "number", "minimum": 0 },
+          "description": "Raw millisecond samples, warmup already removed."
+        },
+        "min": { "type": "number", "minimum": 0 },
+        "median": { "type": "number", "minimum": 0 },
+        "mean": { "type": "number", "minimum": 0 }
+      }
+    },
+    "sizeReport": {
+      "type": "object",
+      "required": [
+        "tools_total",
+        "upstreams",
+        "tools_per_upstream",
+        "cold_start",
+        "warm",
+        "search",
+        "indexing",
+        "audit_overhead",
+        "context_bytes",
+        "memory"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "tools_total": { "type": "integer", "minimum": 4 },
+        "upstreams": { "type": "integer", "minimum": 1 },
+        "tools_per_upstream": { "type": "integer", "minimum": 1 },
+        "cold_start": {
+          "type": "object",
+          "required": ["total", "initialize", "tools_list"],
+          "additionalProperties": false,
+          "description": "Fresh gateway process per sample: spawn -> initialize handshake -> tools/list (3 meta-tools).",
+          "properties": {
+            "total": { "$ref": "#/$defs/statMs" },
+            "initialize": { "$ref": "#/$defs/statMs" },
+            "tools_list": { "$ref": "#/$defs/statMs" }
+          }
+        },
+        "warm": {
+          "type": "object",
+          "required": ["first_schema", "reuse_schema", "reuse_call", "spawn_vs_reuse_ratio"],
+          "additionalProperties": false,
+          "description": "First tools_schema (lazy upstream spawn + index) vs repeated tools_schema/tools_call against the same kept-alive upstream.",
+          "properties": {
+            "first_schema": { "$ref": "#/$defs/statMs" },
+            "reuse_schema": { "$ref": "#/$defs/statMs" },
+            "reuse_call": { "$ref": "#/$defs/statMs" },
+            "spawn_vs_reuse_ratio": {
+              "type": "number",
+              "minimum": 0,
+              "description": "median(first_schema) / median(reuse_schema)."
+            }
+          }
+        },
+        "search": {
+          "type": "object",
+          "required": ["indexed_no_spawn", "refresh_all_upstreams"],
+          "additionalProperties": false,
+          "properties": {
+            "indexed_no_spawn": { "$ref": "#/$defs/statMs" },
+            "refresh_all_upstreams": { "$ref": "#/$defs/statMs" }
+          }
+        },
+        "indexing": {
+          "type": "object",
+          "required": ["tools_indexed", "upstream_spawn_and_handshake", "tools_list_and_index"],
+          "additionalProperties": false,
+          "description": "In-process split of one upstream's lazy-start cost: subprocess spawn + initialize handshake vs tools/list retrieval + in-memory indexing of its N tools.",
+          "properties": {
+            "tools_indexed": { "type": "integer", "minimum": 1 },
+            "upstream_spawn_and_handshake": { "$ref": "#/$defs/statMs" },
+            "tools_list_and_index": { "$ref": "#/$defs/statMs" }
+          }
+        },
+        "audit_overhead": {
+          "type": "object",
+          "required": [
+            "calls_per_sample",
+            "no_audit",
+            "audit_minimal",
+            "audit_standard",
+            "minimal_overhead_ms_per_call",
+            "standard_overhead_ms_per_call"
+          ],
+          "additionalProperties": false,
+          "description": "Per-call cost of the audited tools_schema handler vs the raw call, at audit_level minimal and standard. Overheads are median deltas and may be slightly negative under timer noise.",
+          "properties": {
+            "calls_per_sample": { "type": "integer", "minimum": 1 },
+            "no_audit": { "$ref": "#/$defs/statMs" },
+            "audit_minimal": { "$ref": "#/$defs/statMs" },
+            "audit_standard": { "$ref": "#/$defs/statMs" },
+            "minimal_overhead_ms_per_call": { "type": "number" },
+            "standard_overhead_ms_per_call": { "type": "number" }
+          }
+        },
+        "context_bytes": {
+          "type": "object",
+          "required": [
+            "full_all_schemas_dump",
+            "gateway_tools_list",
+            "tools_search_response",
+            "tools_schema_response",
+            "standing_cost_share",
+            "search_share",
+            "schema_share"
+          ],
+          "additionalProperties": false,
+          "description": "The tests/test_mcp_context_budget.py methodology at this fixture size: deterministic JSON payload bytes.",
+          "properties": {
+            "full_all_schemas_dump": { "type": "integer", "minimum": 1 },
+            "gateway_tools_list": { "type": "integer", "minimum": 1 },
+            "tools_search_response": { "type": "integer", "minimum": 1 },
+            "tools_schema_response": { "type": "integer", "minimum": 1 },
+            "standing_cost_share": { "type": "number", "minimum": 0, "maximum": 1 },
+            "search_share": { "type": "number", "minimum": 0, "maximum": 1 },
+            "schema_share": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "memory": {
+          "type": "object",
+          "required": ["available", "gateway_peak_rss_bytes", "source", "note"],
+          "additionalProperties": false,
+          "description": "Best-effort gateway process peak RSS without psutil; cleanly marked unavailable when the OS facility is missing.",
+          "properties": {
+            "available": { "type": "boolean" },
+            "gateway_peak_rss_bytes": { "type": ["integer", "null"], "minimum": 0 },
+            "source": { "enum": ["GetProcessMemoryInfo", "proc-status", "unavailable"] },
+            "note": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

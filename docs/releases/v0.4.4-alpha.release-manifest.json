@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "release": "v0.4.4-alpha",
+  "package_version": "0.4.4",
+  "generated_at": "2026-06-11T00:00:00Z",
+  "distribution": "github-clone-alpha",
+  "git": {
+    "base_branch": "main",
+    "publication_branch": "release/v0.4.4-alpha-final-publication",
+    "tag": "v0.4.4-alpha",
+    "tag_status": "pending_codex_publication_after_verifier",
+    "tag_target_sha_policy": "Codex may create and push v0.4.4-alpha only after the final publication verifier passes on the selected main SHA."
+  },
+  "required_prs": {
+    "public": [
+      {
+        "number": 91,
+        "epic": "v0.4.3",
+        "title": "MCP upstream enforcement integration gate",
+        "status": "merged"
+      },
+      {
+        "number": 92,
+        "epic": "E09",
+        "title": "MCP permissioned tool profile design",
+        "status": "merged"
+      },
+      {
+        "number": 94,
+        "epic": "v0.4.3",
+        "title": "v0.4.3-alpha final publication",
+        "status": "merged"
+      },
+      {
+        "number": 93,
+        "epic": "E10",
+        "title": "MCP permissioned tool profile runtime enforcement",
+        "status": "merged"
+      },
+      {
+        "number": 96,
+        "epic": "v0.4.4",
+        "title": "v0.4.4-alpha MCP permissioned tool profile integration gate",
+        "status": "merged"
+      }
+    ]
+  },
+  "safety_boundary": {
+    "alpha_only": true,
+    "fixture_mode": true,
+    "mcp_tool_profile_integration": true,
+    "profile_runtime_enforcement": true,
+    "production_rollout": false,
+    "production_hosted_calls": false,
+    "hosted_gateway": false,
+    "automatic_telemetry": false,
+    "oauth_upstreams": false,
+    "remote_upstreams": false,
+    "mcp_resources": false,
+    "mcp_prompts": false,
+    "arbitrary_shell_execution": false,
+    "auto_publish": false,
+    "live_billing": false,
+    "pypi": false,
+    "full_catalog_distribution": false,
+    "codex_pushes_tag": true
+  },
+  "publication_evidence": {
+    "release_manifest": "docs/releases/v0.4.4-alpha.release-manifest.json",
+    "release_notes": "docs/releases/v0.4.4-alpha.md",
+    "upgrade_notes": "docs/releases/v0.4.4-alpha-upgrade-notes.md",
+    "known_issues": "docs/releases/v0.4.4-alpha-known-issues.md",
+    "profile_smoke_runner": "scripts/run-v044-alpha-mcp-tool-profiles-smoke.py",
+    "profile_verifier": "scripts/verify-v044-alpha-mcp-tool-profiles.py",
+    "publication_smoke_runner": "scripts/run-v044-alpha-release-smoke.py",
+    "publication_verifier": "scripts/verify-v044-alpha-publication.py",
+    "integration_test": "tests/integration/test_v044_alpha_mcp_tool_profiles.py"
+  }
+}
