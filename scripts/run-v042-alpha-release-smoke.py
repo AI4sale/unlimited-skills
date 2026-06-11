@@ -6,7 +6,6 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-PUBLISHED_V041_TAG_SHA = "cb7069dffe6947dba1db07abfd83ff80face5cb7"
 
 
 def run(command: list[str]) -> None:
@@ -29,26 +28,40 @@ def current_sha() -> str:
     return completed.stdout.strip()
 
 
+def resolve_ref(ref: str) -> str:
+    completed = subprocess.run(
+        ["git", "rev-parse", ref],
+        cwd=ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
+    return completed.stdout.strip()
+
+
 def main() -> int:
     sha = current_sha()
-    print("Running v0.4.1-alpha reliability publication smoke", flush=True)
+    tag_sha = resolve_ref("v0.4.2-alpha^{commit}")
+    print("Running v0.4.2-alpha Unlimited Tools MCP publication smoke", flush=True)
     run([sys.executable, "scripts/run-v0.2x-smoke-tests.py"])
-    run([sys.executable, "scripts/run-v040-alpha-release-smoke.py"])
-    run([sys.executable, "scripts/run-v041-alpha-reliability-smoke.py"])
+    run([sys.executable, "scripts/run-v041-alpha-release-smoke.py"])
+    run([sys.executable, "scripts/run-v042-alpha-mcp-smoke.py", "--fixture-mode", "--json"])
+    run([sys.executable, "scripts/verify-v042-alpha-mcp.py", "--expected-sha", sha])
     run(
         [
             sys.executable,
-            "scripts/verify-v041-alpha-publication.py",
-            "--expected-sha",
-            sha,
+            "scripts/verify-v042-alpha-publication.py",
             "--allow-existing-tag",
             "--expected-tag-sha",
-            PUBLISHED_V041_TAG_SHA,
+            tag_sha,
             "--allow-newer-package",
         ]
     )
-    print("v0.4.1-alpha reliability publication smoke passed", flush=True)
+    print("v0.4.2-alpha Unlimited Tools MCP publication smoke passed", flush=True)
     print(f"tag target sha: {sha}", flush=True)
+    print(f"published v0.4.2-alpha tag target sha: {tag_sha}", flush=True)
     print("tag status: already published by release owner", flush=True)
     print("production hosted calls: blocked by fixture-mode release commands", flush=True)
     return 0

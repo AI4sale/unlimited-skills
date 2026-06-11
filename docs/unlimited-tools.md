@@ -86,6 +86,15 @@ execution). See [mcp-server.md](mcp-server.md) and [mcp-gateway.md](mcp-gateway.
   base set plus only the variable **names** in `env_allowlist`, copied from
   your local environment at spawn time and never written to any log. There is
   no literal env value map (the v1 `env` map is rejected at config load).
+- **E07 security model contract**: the upstream config format is specified in
+  [mcp-upstream-security-model.md](mcp-upstream-security-model.md) and
+  `schemas/mcp-upstream-config.schema.json` and enforced by the gateway:
+  `local-restricted` by default, no shell execution, names-only
+  `env_allowlist` forwarding (wildcards impossible), over-limit
+  schema/response payloads refused instead of truncated, startup/request
+  timeouts capped, and OAuth, remote upstreams, MCP resources, and MCP
+  prompts out of scope. MCP v1 schemas/configs are alpha and may break before
+  v0.6.
 - **Audit with redaction**: every meta-tool call — success or refusal — is
   appended to a local JSONL audit log
   (`<library>/.learning/mcp-audit.jsonl` by default) with `ts`, `tool`,
@@ -100,6 +109,14 @@ execution). See [mcp-server.md](mcp-server.md) and [mcp-gateway.md](mcp-gateway.
   `tests/test_mcp_gateway.py::test_audit_file_never_leaks_secrets`.
 
 ## Upstream security model
+
+`v0.4.3-alpha` is the MCP upstream enforcement integration gate. It verifies
+disabled and future remote upstream refusals before spawn, command allowlists,
+names-only environment forwarding, schema/response size refusals, startup
+timeout and request timeout bounds, audit rotation, audit redaction, and the
+continued absence of OAuth, remote upstreams, resources, prompts, hosted
+gateway mode, production hosted calls, automatic telemetry, and shell
+execution.
 
 The contract for upstream trust levels, command and environment
 allowlisting, size/timeout bounds, audit retention, extended refusal codes

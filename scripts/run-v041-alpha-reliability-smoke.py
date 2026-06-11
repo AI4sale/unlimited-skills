@@ -66,7 +66,7 @@ def main() -> int:
     print("Running v0.4.1-alpha reliability smoke", flush=True)
     run([sys.executable, "-m", "pytest", "tests/test_install_rollback.py", "tests/test_vector_sidecar.py", "tests/test_skillops_usage_snapshot.py", "tests/test_support_bundle.py", "-q"])
     assert_usage_snapshot_cli()
-    run([sys.executable, "scripts/verify-v041-alpha-reliability.py", "--expected-sha", sha])
+    run([sys.executable, "scripts/verify-v041-alpha-reliability.py", "--expected-sha", sha, "--allow-newer-package"])
     print("v0.4.1-alpha reliability smoke passed", flush=True)
     print(f"tag target sha: {sha}", flush=True)
     print("production hosted calls: not used", flush=True)

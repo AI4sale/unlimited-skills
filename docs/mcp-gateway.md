@@ -74,6 +74,9 @@ is the full specification); annotated samples are at
 
 ## Config enforcement (upstream security model)
 
+`v0.4.3-alpha` verifies this MCP upstream enforcement with fixture-mode
+tests and release evidence.
+
 The gateway enforces [mcp-upstream-security-model.md](mcp-upstream-security-model.md)
 — that document is the authoritative contract; in short:
 
@@ -98,6 +101,8 @@ The gateway enforces [mcp-upstream-security-model.md](mcp-upstream-security-mode
   result is dropped and refused with `-32009`. Nothing is ever truncated.
 - **Bounded timeouts and ceilings** are rejected at config load time
   (`GatewayConfigError`) before any process is spawned.
+
+MCP v1 schemas/configs are alpha and may break before v0.6.
 
 ## Meta-tools
 
