@@ -75,6 +75,10 @@ def git_head() -> str:
     return run_git(["rev-parse", "HEAD"]).stdout.strip()
 
 
+def resolve_ref(ref: str) -> str:
+    return run_git(["rev-parse", ref]).stdout.strip()
+
+
 def tag_exists(tag: str) -> bool:
     return run_git(["rev-parse", "--verify", "--quiet", f"refs/tags/{tag}"], check=False).returncode == 0
 
@@ -152,13 +156,27 @@ def assert_no_private_material() -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Verify v0.4.1-alpha publication before release-owner tagging.")
     parser.add_argument("--expected-sha", help="Final tag target SHA to compare with the current checkout")
+    parser.add_argument(
+        "--allow-existing-tag",
+        action="store_true",
+        help="Post-publication mode: allow the release tag when it already points to --expected-tag-sha.",
+    )
+    parser.add_argument("--expected-tag-sha", help="Expected commit for the existing release tag in post-publication mode")
     args = parser.parse_args(argv)
 
     assert_clean_worktree()
     require(package_version() == VERSION, f"pyproject version must be {VERSION}")
     require(init_version() == VERSION, f"__version__ must be {VERSION}")
     require(plugin_versions() == (VERSION, VERSION), "Claude plugin and marketplace versions must match package version")
-    require(not tag_exists(RELEASE), f"tag {RELEASE} already exists locally; Codex must not create the final tag")
+    existing_tag = tag_exists(RELEASE)
+    if args.allow_existing_tag:
+        require(args.expected_tag_sha is not None, "--expected-tag-sha is required with --allow-existing-tag")
+        require(re.fullmatch(r"[0-9a-f]{40}", args.expected_tag_sha) is not None, "--expected-tag-sha must be 40 lowercase hex")
+        require(existing_tag, f"tag {RELEASE} must exist in post-publication mode")
+        tag_target = resolve_ref(f"{RELEASE}^{{commit}}")
+        require(tag_target == args.expected_tag_sha, f"tag {RELEASE} points to {tag_target}, expected {args.expected_tag_sha}")
+    else:
+        require(not existing_tag, f"tag {RELEASE} already exists locally; Codex must not create the final tag")
     assert_manifest()
     assert_docs()
     assert_no_private_material()
@@ -169,8 +187,10 @@ def main(argv: list[str] | None = None) -> int:
     print(f"{RELEASE} publication verification passed")
     print(f"manifest: {MANIFEST.relative_to(ROOT)}")
     print(f"current checkout sha: {current_head}")
+    if args.allow_existing_tag:
+        print(f"existing tag target verified: {args.expected_tag_sha}")
     print("distribution path: GitHub clone")
-    print("tag status: pending release-owner approval")
+    print("tag status: already published by release owner" if args.allow_existing_tag else "tag status: pending release-owner approval")
     print("production hosted calls: blocked by fixture-mode release commands")
     print("private key/token/payment-field scan: passed for public release docs")
     print("human tag command:")

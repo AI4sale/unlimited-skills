@@ -22,6 +22,7 @@
 - Private team pack client commands are implemented and fixture-verified. Production private pack access requires registry-side entitlement or a Business/Enterprise plan plus the private registry distribution, publishing, admin, and entitlement PRs being accepted and deployed.
 - Hosted remote manifests must include valid signed manifest envelopes. SHA256 verification is still enforced for hosted collection archives and enhancement scripts before local installation.
 - PyPI is not the supported v0.4.0-alpha distribution path because router skills, scripts, docs, and bundled packs are repo assets.
+- Unlimited Tools MCP is alpha and local-only in v1. It supports stdio tools only: no OAuth upstreams, no MCP resources, no MCP prompts, no hosted gateway mode, no automatic telemetry, and no production hosted calls.
 - Warm daemon mode is experimental and not the default retrieval path.
 - Team sync is an MVP; server-side enforcement of limits and paid plan behavior may evolve.
 - Local Skill Hub runtime is MVP alpha. The public repo includes docs, schemas, sanitized examples, CLI commands, and an allowlist-backed local FastAPI runtime when `server` extras are installed.

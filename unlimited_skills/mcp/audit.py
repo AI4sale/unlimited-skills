@@ -7,7 +7,8 @@ Redaction rules (enforced by :func:`redact`, :func:`looks_secret`, and
 :func:`scrub_paths`):
 
 - argument values for keys matching token/secret/key/password/proof/auth/
-  credential/cookie/session/signature/cert/private/prompt/env/body/content
+  credential/cookie/session/signature/cert/private/prompt/env/body/content/
+  query/text
   (case-insensitive) are never written, recursively into nested dicts/lists;
 - string VALUES that look like secrets are redacted even under harmless
   keys: ``Bearer ...``/``Basic ...`` headers, JWTs, PEM blocks, long hex
@@ -43,7 +44,7 @@ DEFAULT_AUDIT_MAX_FILES = 5
 
 SENSITIVE_KEY_PATTERN = re.compile(
     r"token|secret|key|password|passwd|proof|auth|credential|bearer|cookie|"
-    r"session|signature|cert|private|prompt|env\b|environ|body|content",
+    r"session|signature|cert|private|prompt|env\b|environ|body|content|query|text",
     re.IGNORECASE,
 )
 _PATH_PATTERN = re.compile(
