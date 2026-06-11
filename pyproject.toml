@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "unlimited-skills"
-version = "0.4.4"
+version = "0.4.5"
 description = "A local skill retrieval library for coding agents: lexical search, vector sidecar search, warm daemon mode, and learning-loop logs."
 readme = "README.md"
 requires-python = ">=3.10"
