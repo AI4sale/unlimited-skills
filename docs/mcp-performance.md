@@ -1,10 +1,12 @@
 # MCP performance: benchmarks and the warm-start plan
 
 This page covers the E12 performance benchmark pack for the Unlimited Tools
-gateway (`unlimited-skills mcp gateway`) and the **design-only** warm-start
-optimization plan derived from its measurements. Nothing here changes any
-runtime default: the gateway stays lazy, stdio-only, local-only, and
-telemetry-free exactly as specified in
+gateway (`unlimited-skills mcp gateway`) and the warm-start optimization
+plan derived from its measurements. Candidate 1 (the persistent tool-index
+cache) is now implemented as the strictly opt-in `--index-cache` flag;
+candidates 2 and 3 remain design-only. Nothing here changes any runtime
+default: without the flag the gateway stays lazy, stdio-only, local-only,
+and telemetry-free, byte-for-byte as specified in
 [unlimited-tools.md](unlimited-tools.md) and
 [mcp-upstream-security-model.md](mcp-upstream-security-model.md).
 
@@ -103,7 +105,7 @@ Reading the table:
 - **Audit costs under 1 ms per call** at either level; `minimal` vs
   `standard` is a wash because the cost is the file append, not redaction.
 
-## Warm-start optimization plan (design only — nothing implemented, nothing default-on)
+## Warm-start optimization plan (candidate 1 implemented opt-in; nothing default-on)
 
 The measurements above identify three latency pools: gateway process cold
 start (~700 ms, interpreter-bound), first-touch upstream spawn (~150 ms per
@@ -114,6 +116,29 @@ explicit opt-in and gated on the evidence listed.
 
 ### 1. Persistent tool-index cache (opt-in flag, e.g. `--index-cache`)
 
+- **Status: IMPLEMENTED (E12B)** as `unlimited-skills mcp gateway
+  --index-cache [DIR]`, exactly per this plan and strictly default-off
+  (without the flag the gateway behaves byte-for-byte as before). One JSON
+  document (`schema_version` 1, map of config-hash → `{server_info,
+  indexed_at, tools}`) at `<library>/.learning/mcp-tool-index-cache.json`
+  (or `<DIR>/mcp-tool-index-cache.json`), written atomically (temp file +
+  `os.replace`). At startup valid entries are loaded into the in-memory
+  index without spawning anything; the first live spawn (a `tools_call`, an
+  uncached `tools_schema`, or `tools_search` `refresh: true`) re-indexes
+  from the real `tools/list` and overwrites the entry — which also resolves
+  `serverInfo` version changes. Cached schemas are re-validated against the
+  upstream's `max_schema_bytes` ceiling at load (oversized → name-only
+  marker, refused, never truncated); corrupt/expired/unknown-version
+  entries are ignored and counted, never a crash. Audit rows `cache_loaded`
+  / `cache_refresh` record counts, upstream names, and the cache file
+  SHA-256 only — never schema contents, never local paths. Implementation:
+  `unlimited_skills/mcp/index_cache.py`; flag docs:
+  [mcp-gateway.md](mcp-gateway.md); tests: `tests/test_mcp_warm_cache.py`.
+  Measured after (same fixture shape, in-process gateway calls, Windows 11):
+  cache-hit `tools_schema` median **0.02 ms** vs ~160 ms for the cold first
+  call on a restarted gateway — below even the ~1.2 ms stdio reuse cost,
+  because a cache hit is a pure in-memory lookup with no upstream
+  round-trip. The spawn cost is fully deferred to the first `tools_call`.
 - **What**: serialize each upstream's indexed tool entries (name,
   description, `inputSchema`, recorded byte sizes, oversized markers) to a
   local cache file under the library runtime dir (next to the audit log,
@@ -184,7 +209,7 @@ explicit opt-in and gated on the evidence listed.
 
 | Candidate | Stays default-off because | Evidence to flip it on (per machine class, from this benchmark pack) |
 | --- | --- | --- |
-| Index cache | Current behavior is correct and simple; cache adds staleness surface | First-schema latency matters in real traces AND cache-hit `tools_schema` reproducibly lands near reuse cost with zero stale-schema test failures |
+| Index cache (implemented opt-in in E12B) | Current behavior is correct and simple; cache adds staleness surface | First-schema latency matters in real traces AND cache-hit `tools_schema` reproducibly lands near reuse cost with zero stale-schema test failures |
 | Pre-spawn | Violates "spawn nothing unasked" unless the operator explicitly opts in | Measured first-call latency on the operator's real upstreams exceeds their interactivity budget; resource cost of idle upstreams measured and accepted |
 | Entry-path slimming | Needs no flag, but ships only with proof | Cold-start median drops materially in this benchmark with the full suite green and the smoke (`scripts/run-mcp-smoke.py`) unchanged |
 

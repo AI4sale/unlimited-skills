@@ -35,6 +35,7 @@ from typing import Any, BinaryIO, Iterable
 
 from .. import __version__
 from .audit import AuditLog
+from .index_cache import IndexCache, upstream_config_hash
 from .profiles import (
     PROFILE_INVALID,
     PROFILE_NOT_FOUND,
@@ -393,6 +394,15 @@ class UpstreamClient:
         self.process: subprocess.Popen | None = None
         self.tools: dict[str, dict] = {}
         self.indexed = False
+        # Warm-cache state (docs/mcp-performance.md candidate 1). All three
+        # stay inert unless the gateway was started with --index-cache:
+        # indexed_from_cache marks an index loaded from disk (no process),
+        # server_info is the upstream serverInfo captured at initialize,
+        # on_indexed is the gateway's write-back hook after a LIVE index.
+        self.indexed_from_cache = False
+        self.server_info: dict[str, str] = {}
+        self.config_hash = ""
+        self.on_indexed = None
         self.spawn_count = 0
         self._next_id = 0
         self._lines: queue.Queue | None = None
@@ -586,7 +596,7 @@ class UpstreamClient:
             daemon=True,
         ).start()
         try:
-            self.request(
+            init_result = self.request(
                 "initialize",
                 {
                     "protocolVersion": PROTOCOL_VERSION,
@@ -594,6 +604,12 @@ class UpstreamClient:
                     "clientInfo": {"name": GATEWAY_NAME, "version": __version__},
                 },
                 timeout=self.startup_timeout,
+            )
+            info = init_result.get("serverInfo")
+            self.server_info = (
+                {"name": str(info.get("name") or ""), "version": str(info.get("version") or "")}
+                if isinstance(info, dict)
+                else {}
             )
             self.notify("notifications/initialized")
         except UpstreamError as exc:
@@ -605,8 +621,12 @@ class UpstreamClient:
 
     def ensure_indexed(self) -> None:
         self.start()
-        if self.indexed:
+        if self.indexed and not self.indexed_from_cache:
             return
+        if self.indexed_from_cache:
+            # A live spawn always re-indexes: the real tools/list replaces
+            # the cache-loaded entries (and refreshes the cache via the hook).
+            self.tools = {}
         result = self.request("tools/list", {})
         listing = result.get("tools") if isinstance(result, dict) else None
         for tool in listing if isinstance(listing, list) else []:
@@ -627,6 +647,11 @@ class UpstreamClient:
                 entry["inputSchema"] = schema
             self.tools[name] = entry
         self.indexed = True
+        self.indexed_from_cache = False
+        if self.on_indexed is not None:
+            # Set only when --index-cache is active: refresh/overwrite the
+            # persistent entry from this real tools/list result.
+            self.on_indexed(self)
 
     def _send(self, message: dict) -> None:
         if self.process is None or self.process.stdin is None:
@@ -705,6 +730,8 @@ class UpstreamClient:
         self._lines = None
         self.tools = {}
         self.indexed = False
+        self.indexed_from_cache = False
+        self.server_info = {}
         if process is None:
             return
         for stream in (process.stdin, process.stdout):
@@ -736,9 +763,16 @@ class Gateway:
       the meta-tools are served but every call is refused with -32013/-32014.
     """
 
-    def __init__(self, config: dict, audit: AuditLog, profile: ProfileState = None) -> None:
+    def __init__(
+        self,
+        config: dict,
+        audit: AuditLog,
+        profile: ProfileState = None,
+        index_cache: IndexCache | None = None,
+    ) -> None:
         self.audit = audit
         self.profile = profile
+        self.index_cache = index_cache
         if isinstance(profile, ActiveProfile):
             # One startup row pinning WHICH version of the profile governs
             # this session (file SHA-256 plus rule counts -- numbers only).
@@ -766,6 +800,98 @@ class Gateway:
         self.upstreams: dict[str, UpstreamClient] = {
             spec["name"]: UpstreamClient(spec, defaults) for spec in config.get("upstreams", [])
         }
+        if index_cache is not None:
+            # Opt-in only (--index-cache). Without the flag none of this runs
+            # and the gateway behaves byte-for-byte as before.
+            self._load_index_cache()
+
+    def _load_index_cache(self) -> None:
+        """Load valid cache entries into the in-memory index without spawning.
+
+        Cached schemas are untrusted input: each one is re-validated against
+        the upstream's max_schema_bytes ceiling exactly like a live index --
+        an oversized cached schema is dropped to a name-only oversized marker
+        (refused, never truncated). Disabled and future-remote-placeholder
+        upstreams never receive cached tools.
+        """
+        cache = self.index_cache
+        loaded_upstreams: list[str] = []
+        tools_loaded = 0
+        oversized_dropped = 0
+        for client in self.upstreams.values():
+            if not client.spawnable:
+                continue
+            client.config_hash = upstream_config_hash(client.spec)
+            client.on_indexed = self._refresh_cache_entry
+            entry = cache.get(client.config_hash)
+            if entry is None:
+                continue  # miss, hash mismatch, expired, or discarded: ignored
+            tools: dict[str, dict] = {}
+            for tool_name, info in entry["tools"].items():
+                if not isinstance(info, dict):
+                    continue
+                description = str(info.get("description") or "")
+                schema = info.get("inputSchema")
+                if isinstance(schema, dict):
+                    schema_bytes = _payload_bytes(schema)
+                    if schema_bytes > client.max_schema_bytes:
+                        # Refuse-not-truncate semantics preserved at load.
+                        tools[tool_name] = {
+                            "description": description,
+                            "schema_oversized": True,
+                            "schema_bytes": schema_bytes,
+                        }
+                        oversized_dropped += 1
+                    else:
+                        tools[tool_name] = {"description": description, "inputSchema": schema}
+                elif info.get("schema_oversized"):
+                    tools[tool_name] = {
+                        "description": description,
+                        "schema_oversized": True,
+                        "schema_bytes": info.get("schema_bytes", 0),
+                    }
+            if not tools:
+                continue
+            client.tools = tools
+            client.indexed = True
+            client.indexed_from_cache = True
+            loaded_upstreams.append(client.name)
+            tools_loaded += len(tools)
+        # One startup row: counts, upstream names, and the cache file SHA-256
+        # only -- never schema contents, never local paths (basename only).
+        self.audit.record(
+            tool="cache_loaded",
+            ok=True,
+            profile=self.profile_audit_name(),
+            extra={
+                "cache_file": cache.path.name,
+                "cache_sha256": cache.file_sha256(),
+                "upstreams_loaded": loaded_upstreams,
+                "tools_loaded": tools_loaded,
+                "entries_corrupt": cache.corrupt_discarded,
+                "entries_expired": cache.expired_discarded,
+                "oversized_dropped": oversized_dropped,
+            },
+        )
+
+    def _refresh_cache_entry(self, client: UpstreamClient) -> None:
+        """Overwrite one upstream's cache entry after a LIVE tools/list index."""
+        cache = self.index_cache
+        if cache is None:
+            return
+        written = cache.store(client.config_hash, client.server_info, client.tools)
+        self.audit.record(
+            tool="cache_refresh",
+            upstream=client.name,
+            ok=written,
+            profile=self.profile_audit_name(),
+            extra={
+                "cache_file": cache.path.name,
+                "cache_sha256": cache.file_sha256(),
+                "tool_count": len(client.tools),
+                "server_version": str(client.server_info.get("version") or ""),
+            },
+        )
 
     def audit_level_for(self, upstream_name: str) -> str:
         client = self.upstreams.get(upstream_name)
@@ -919,7 +1045,12 @@ class Gateway:
         self._check_visible(upstream_name, tool_name)
         client = self._lookup_upstream(upstream_name)
         client.ensure_available()
-        client.ensure_indexed()
+        # Warm-cache hit (--index-cache only): a cache-loaded index serves this
+        # schema without spawning. Anything else -- cache disabled, upstream
+        # already live, or a tool the cached entry does not know -- takes the
+        # normal lazy spawn + live index path (which refreshes the cache).
+        if not (client.indexed_from_cache and not client.started and tool_name in client.tools):
+            client.ensure_indexed()
         info = client.tools.get(tool_name)
         if info is None:
             raise ToolError(f"Upstream '{client.name}' has no tool named '{tool_name}'.")
@@ -1094,9 +1225,10 @@ def run_gateway(
     reader: BinaryIO | None = None,
     writer: BinaryIO | None = None,
     profile: ProfileState = None,
+    index_cache: IndexCache | None = None,
 ) -> None:
     """Run the gateway MCP server loop over stdio (blocking until EOF)."""
-    gateway = Gateway(config, audit, profile=profile)
+    gateway = Gateway(config, audit, profile=profile, index_cache=index_cache)
     server = StdioServer(
         build_gateway_registry(gateway),
         server_name=GATEWAY_NAME,

@@ -1086,6 +1086,14 @@ def build_parser() -> argparse.ArgumentParser:
     mcp_gateway.add_argument("--audit-log", default="", help="Override the redacted JSONL audit log path. Defaults to <root>/.learning/mcp-audit.jsonl.")
     mcp_gateway.add_argument("--profiles", default="", help="Path to a permissioned tool-profile JSON file (schemas/mcp-tool-profile.schema.json). Absent = open no-profiles mode; configured = default-deny enforcement that fails closed on errors.")
     mcp_gateway.add_argument("--profile", default="", help="Profile name to enforce from --profiles. Precedence: this flag > UNLIMITED_SKILLS_MCP_PROFILE > the file's default_profile.")
+    mcp_gateway.add_argument(
+        "--index-cache",
+        nargs="?",
+        const="",
+        default=None,
+        metavar="DIR",
+        help="Opt-in persistent tool-index cache (default OFF; without this flag behavior is unchanged). Caches each upstream's indexed tool names/descriptions/schemas keyed by config hash so a restarted gateway answers tools_schema/tools_search without spawning; tools_call still spawns lazily. Without a value the cache file is <root>/.learning/mcp-tool-index-cache.json; with DIR it is <DIR>/mcp-tool-index-cache.json.",
+    )
     mcp_gateway.set_defaults(func=mcp_cmds.cmd_mcp_gateway)
     mcp_audit_report = mcp_sub.add_parser(
         "audit-report",
