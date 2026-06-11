@@ -2,7 +2,7 @@
 
 ## Supported Version
 
-`v0.4.3-alpha` is a developer preview. Security fixes should target the current `main` branch first.
+`v0.4.4-alpha` is a developer preview. Security fixes should target the current `main` branch first.
 
 The older `v0.3.7-alpha` security boundary remains documented for compatibility with the v0.2.x smoke claims that protect release-history wording.
 
@@ -34,7 +34,7 @@ The hosted clients must not upload:
 
 ## Hosted Archives And Enhancers
 
-Current `v0.4.3-alpha` behavior:
+Current `v0.4.4-alpha` behavior:
 
 - hosted remote manifests must include valid signed manifest envelopes;
 - signatures verify hosted manifest authenticity;
@@ -51,7 +51,7 @@ Use "signed hosted manifests plus SHA256-verified hosted collection archives" fo
 
 Local Skill Hub is an alpha MVP. The runtime is allowlist-only, does not execute skills, and does not forward local search queries to the hosted registry. It is intended for local or controlled LAN testing.
 
-Current `v0.4.3-alpha` limitations:
+Current `v0.4.4-alpha` limitations:
 
 - Hub client token creation, revocation, and request enforcement are implemented for Local Skill Hub `/v1/...` APIs. `GET /health` remains unauthenticated for liveness checks.
 - Use the default `127.0.0.1` bind address unless you are testing on a trusted LAN.
@@ -127,6 +127,12 @@ The gate must not call production hosted services, require production signing ke
 The v0.4.3-alpha MCP milestone integrates E08 runtime enforcement for local stdio upstreams. It proves disabled upstream refusal, future-remote-placeholder refusal, command allowlist enforcement, names-only `env_allowlist` enforcement, `schema_too_large` and `response_too_large` refusal paths, startup timeout and request timeout hard bounds, audit rotation, and audit redaction. It also includes E09 permissioned MCP tool profile design/schema/docs for visibility-vs-callability boundaries; profile runtime enforcement is not part of this release.
 
 The gate remains alpha and local stdio only. It must not call production hosted services, require production signing keys, upload prompts, upload task text, upload skill bodies, upload search queries, include private pack bodies, include local or repository paths, enable live billing, publish to PyPI, distribute the full catalog, rewrite skills automatically, enable automatic telemetry, expose a hosted gateway, implement OAuth or remote upstreams, enable MCP resources or prompts, allow shell execution, or auto-publish. Codex may create and push the final `v0.4.3-alpha` tag only after the final publication verifier passes on the selected `main` SHA.
+
+## v0.4.4-alpha MCP Tool Profile Enforcement Boundary
+
+The v0.4.4-alpha MCP milestone integrates E10 runtime enforcement for permissioned MCP tool profiles. It proves default-deny selected profiles, CLI/env-selected profile precedence, visible-only `tools_search`, hidden `tools_schema` refusal with `TOOL_NOT_VISIBLE` / `-32011`, visible-but-not-callable `tools_call` refusal with `TOOL_NOT_CALLABLE` / `-32012`, restriction-only inheritance, fail-closed missing/invalid profile handling with `PROFILE_NOT_FOUND` / `-32013` and `PROFILE_INVALID` / `-32014`, `profile_loaded` audit rows, and profile SHA-256 evidence.
+
+The gate remains alpha, fixture-mode, and local stdio only. It must not call production hosted services, require production signing keys, upload prompts, upload task text, upload skill bodies, upload search queries, include private pack bodies, include local or repository paths, enable live billing, publish to PyPI, distribute the full catalog, rewrite skills automatically, enable automatic telemetry, expose a hosted gateway, implement OAuth or remote upstreams, enable MCP resources or prompts, allow arbitrary shell execution, or auto-publish. Codex must not create or push the final `v0.4.4-alpha` tag from this integration gate.
 
 ## Known Security Limitations In v0.3.9-alpha
 
