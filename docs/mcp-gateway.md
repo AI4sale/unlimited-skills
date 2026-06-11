@@ -225,3 +225,15 @@ model, and the future OAuth/remote and resources/prompts gates are specified
 in [mcp-upstream-security-model.md](mcp-upstream-security-model.md). The
 gateway enforces that model; the "Config enforcement" section above is the
 summary.
+
+## Permissioned tool profiles (design)
+
+[mcp-permissioned-tool-profiles.md](mcp-permissioned-tool-profiles.md) (E09,
+design only — nothing is enforced yet) specifies named tool profiles on top
+of the model above: default-deny visibility rules filtering
+`tools_search`/`tools_schema` and callability rules gating `tools_call`
+(callable is always a subset of visible), restriction-only `extends`
+inheritance, profile selection via `--profile` /
+`UNLIMITED_SKILLS_MCP_PROFILE` / `default_profile`, and the reserved refusal
+codes `-32011`…`-32014`. Without a profile file the gateway keeps the open
+behavior documented above (no-profiles mode, the default until v0.6).

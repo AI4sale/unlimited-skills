@@ -110,6 +110,16 @@ enforced by the gateway (see the "Config enforcement" section of
 [mcp-gateway.md](mcp-gateway.md)). It strictly tightens the v1 boundaries
 above and never weakens them.
 
+## Permissioned tool profiles (design)
+
+[mcp-permissioned-tool-profiles.md](mcp-permissioned-tool-profiles.md) (E09,
+design only — not yet enforced) adds named per-agent / per-team / per-runtime
+tool profiles on top of the upstream security model: a profile controls which
+upstream tools an agent can see (`tools_search` / `tools_schema`) and which
+it can call (`tools_call`), default-deny when active, fail-closed when
+missing or invalid. The open behavior above remains the default (no-profiles
+mode) until v0.6.
+
 ## Quick start
 
 ```bash
