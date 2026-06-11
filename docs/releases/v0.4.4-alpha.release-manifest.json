@@ -6,10 +6,10 @@
   "distribution": "github-clone-alpha",
   "git": {
     "base_branch": "main",
-    "publication_branch": "release/v0.4.4-alpha-mcp-tool-profile-integration",
+    "publication_branch": "release/v0.4.4-alpha-final-publication",
     "tag": "v0.4.4-alpha",
-    "tag_status": "not_created_by_codex",
-    "tag_target_sha_policy": "This integration PR does not create the final tag. A later publication gate must verify the selected main SHA before tagging."
+    "tag_status": "pending_codex_publication_after_verifier",
+    "tag_target_sha_policy": "Codex may create and push v0.4.4-alpha only after the final publication verifier passes on the selected main SHA."
   },
   "required_prs": {
     "public": [
@@ -36,6 +36,12 @@
         "epic": "E10",
         "title": "MCP permissioned tool profile runtime enforcement",
         "status": "merged"
+      },
+      {
+        "number": 96,
+        "epic": "v0.4.4",
+        "title": "v0.4.4-alpha MCP permissioned tool profile integration gate",
+        "status": "merged"
       }
     ]
   },
@@ -57,14 +63,17 @@
     "live_billing": false,
     "pypi": false,
     "full_catalog_distribution": false,
-    "codex_pushes_tag": false
+    "codex_pushes_tag": true
   },
   "publication_evidence": {
     "release_manifest": "docs/releases/v0.4.4-alpha.release-manifest.json",
     "release_notes": "docs/releases/v0.4.4-alpha.md",
+    "upgrade_notes": "docs/releases/v0.4.4-alpha-upgrade-notes.md",
     "known_issues": "docs/releases/v0.4.4-alpha-known-issues.md",
     "profile_smoke_runner": "scripts/run-v044-alpha-mcp-tool-profiles-smoke.py",
     "profile_verifier": "scripts/verify-v044-alpha-mcp-tool-profiles.py",
+    "publication_smoke_runner": "scripts/run-v044-alpha-release-smoke.py",
+    "publication_verifier": "scripts/verify-v044-alpha-publication.py",
     "integration_test": "tests/integration/test_v044_alpha_mcp_tool_profiles.py"
   }
 }

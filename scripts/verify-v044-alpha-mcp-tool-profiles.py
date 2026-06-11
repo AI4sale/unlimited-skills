@@ -96,8 +96,21 @@ def assert_manifest() -> dict[str, Any]:
     require(payload.get("release") == RELEASE, "manifest release mismatch")
     require(payload.get("package_version") == VERSION, "manifest package version mismatch")
     git = payload.get("git") if isinstance(payload.get("git"), dict) else {}
-    require(git.get("publication_branch") == "release/v0.4.4-alpha-mcp-tool-profile-integration", "publication branch mismatch")
-    require(git.get("tag_status") == "not_created_by_codex", "Codex must not create v0.4.4-alpha tag")
+    publication_branch = git.get("publication_branch")
+    require(
+        publication_branch
+        in {
+            "release/v0.4.4-alpha-mcp-tool-profile-integration",
+            "release/v0.4.4-alpha-final-publication",
+        },
+        "publication branch mismatch",
+    )
+    expected_tag_status = (
+        "pending_codex_publication_after_verifier"
+        if publication_branch == "release/v0.4.4-alpha-final-publication"
+        else "not_created_by_codex"
+    )
+    require(git.get("tag_status") == expected_tag_status, "v0.4.4-alpha tag status mismatch")
     prs = payload.get("required_prs") if isinstance(payload.get("required_prs"), dict) else {}
     public_numbers = [item.get("number") for item in prs.get("public", []) if isinstance(item, dict)]
     for number in (91, 92, 93, 94):
@@ -119,9 +132,10 @@ def assert_manifest() -> dict[str, Any]:
         "live_billing",
         "pypi",
         "full_catalog_distribution",
-        "codex_pushes_tag",
     ):
         require(boundary.get(key) is False, f"safety boundary must disable {key}")
+    expected_codex_pushes_tag = publication_branch == "release/v0.4.4-alpha-final-publication"
+    require(boundary.get("codex_pushes_tag") is expected_codex_pushes_tag, "Codex tag publication policy mismatch")
     return payload
 
 
@@ -211,7 +225,7 @@ def main(argv: list[str] | None = None) -> int:
         "required_prs": manifest.get("required_prs", {}),
         "smoke": smoke,
         "production_hosted_calls": False,
-        "codex_pushes_tag": False,
+        "codex_pushes_tag": manifest.get("safety_boundary", {}).get("codex_pushes_tag"),
     }
     if args.json:
         print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
@@ -223,7 +237,10 @@ def main(argv: list[str] | None = None) -> int:
         print("profile audit row and SHA proof: passed")
         print("no OAuth/resources/prompts/hosted gateway: passed")
         print("private material scan: passed")
-        print("tag status: Codex must not create or push v0.4.4-alpha")
+        if report["codex_pushes_tag"] is True:
+            print("tag status: pending Codex publication after final verifier")
+        else:
+            print("tag status: Codex must not create or push v0.4.4-alpha")
     return 0
 
 
