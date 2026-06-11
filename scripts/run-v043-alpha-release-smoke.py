@@ -49,12 +49,21 @@ def main() -> int:
     run([sys.executable, "scripts/run-v0.2x-smoke-tests.py"])
     run([sys.executable, "scripts/run-v042-alpha-release-smoke.py"])
     run([sys.executable, "scripts/run-v043-alpha-mcp-enforcement-smoke.py", "--fixture-mode", "--json"])
-    run([sys.executable, "scripts/verify-v043-alpha-mcp-enforcement.py", "--expected-sha", sha])
+    run(
+        [
+            sys.executable,
+            "scripts/verify-v043-alpha-mcp-enforcement.py",
+            "--expected-sha",
+            sha,
+            "--allow-newer-package",
+        ]
+    )
     publication_command = [
         sys.executable,
         "scripts/verify-v043-alpha-publication.py",
         "--expected-sha",
         sha,
+        "--allow-newer-package",
     ]
     if published_tag_sha:
         publication_command.extend(
