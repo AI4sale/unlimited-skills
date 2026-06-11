@@ -1,0 +1,16 @@
+{
+  "jsonrpc": "2.0",
+  "id": 7,
+  "method": "tools/call",
+  "params": {
+    "name": "tools_call",
+    "arguments": {
+      "tool": "github.create_issue",
+      "arguments": {
+        "owner": "AI4sale",
+        "repo": "unlimited-skills",
+        "title": "Example issue created through the Unlimited Tools gateway"
+      }
+    }
+  }
+}

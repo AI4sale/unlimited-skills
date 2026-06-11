@@ -1,0 +1,28 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://github.com/AI4sale/unlimited-skills/schemas/mcp-server-config.schema.json",
+  "title": "Unlimited Skills MCP skills server config",
+  "description": "Optional configuration for `unlimited-skills mcp serve`. The server is stdio-only and local-only; it exposes skills_search (metadata only), skills_view (one capped body), and skills_use (view plus a local learning event, never script execution).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "root": {
+      "type": "string",
+      "description": "Skill library root. Defaults to UNLIMITED_SKILLS_ROOT or ~/.unlimited-skills/library."
+    },
+    "view_char_cap": {
+      "type": "integer",
+      "minimum": 1000,
+      "default": 16000,
+      "description": "Maximum characters of one skill body returned by skills_view/skills_use before the truncation marker."
+    },
+    "search_limit_max": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 20,
+      "default": 20,
+      "description": "Hard cap on skills_search hit counts."
+    }
+  }
+}

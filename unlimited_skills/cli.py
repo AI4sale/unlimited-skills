@@ -649,6 +649,7 @@ def build_parser() -> argparse.ArgumentParser:
     from .commands import catalog as catalog_cmds
     from .commands import community as community_cmds
     from .commands import library as library_cmds
+    from .commands import mcp as mcp_cmds
     from .commands import policy as policy_cmds
     from .commands import private_packs as private_packs_cmds
     from .commands import service as service_cmds
@@ -1069,6 +1070,21 @@ def build_parser() -> argparse.ArgumentParser:
     usage_snapshot.add_argument("--out", default="", help="Write the snapshot JSON to a local file. Ignored with --dry-run.")
     usage_snapshot.add_argument("--dry-run", action="store_true", help="Build and print the snapshot without writing --out.")
     usage_snapshot.set_defaults(func=skillops_cmds.cmd_skillops_usage_snapshot)
+
+    mcp = sub.add_parser("mcp", help="Run local stdio MCP servers: the skills server and the Unlimited Tools gateway.")
+    mcp_sub = mcp.add_subparsers(dest="mcp_command", required=True)
+    mcp_serve = mcp_sub.add_parser(
+        "serve",
+        help="Run the skills MCP server over stdio: skills_search, skills_view, skills_use on the --root library.",
+    )
+    mcp_serve.set_defaults(func=mcp_cmds.cmd_mcp_serve)
+    mcp_gateway = mcp_sub.add_parser(
+        "gateway",
+        help="Run the Unlimited Tools MCP gateway over stdio: tools_search, tools_schema, tools_call over configured upstream MCP servers.",
+    )
+    mcp_gateway.add_argument("--config", required=True, help="Path to a gateway JSON config listing upstream stdio MCP servers.")
+    mcp_gateway.add_argument("--audit-log", default="", help="Override the redacted JSONL audit log path. Defaults to <root>/.learning/mcp-audit.jsonl.")
+    mcp_gateway.set_defaults(func=mcp_cmds.cmd_mcp_gateway)
 
     catalog = sub.add_parser("catalog", help="Query the registered hosted adapted-skill catalog and browser.")
     catalog_sub = catalog.add_subparsers(dest="catalog_command", required=True)
@@ -1636,6 +1652,7 @@ from .commands.team import (
     cmd_team_status,
     cmd_team_sync,
 )
+from .commands.mcp import cmd_mcp_gateway, cmd_mcp_serve
 from .commands.skillops import cmd_skillops_usage_snapshot
 from .commands.updates import (
     cmd_release_pin,
