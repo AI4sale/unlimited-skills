@@ -231,6 +231,14 @@ in [mcp-upstream-security-model.md](mcp-upstream-security-model.md). The
 gateway enforces that model; the "Config enforcement" section above is the
 summary.
 
+## Inspecting the audit log
+
+`unlimited-skills mcp audit-report` turns this audit log (including rotated
+generations) into local read-only reports: call summary with duration
+percentiles, refusal breakdown by named code, per-upstream health, profile
+usage (when profile fields are present), and a redaction self-check. See
+[mcp-audit-inspector.md](mcp-audit-inspector.md).
+
 ## Permissioned tool profiles (enforced)
 
 [mcp-permissioned-tool-profiles.md](mcp-permissioned-tool-profiles.md)
@@ -289,6 +297,13 @@ pointer, and a mandatory detached Ed25519 signature verified at startup
 against one local trusted-keys file (no PKI, no network fetch). Bundle file
 format: `schemas/mcp-profile-bundle.schema.json`, annotated example
 `examples/mcp/profile-bundle.example.json`.
+
+The v0.4.7-alpha signed MCP profile bundle gate is alpha and may break before
+v0.6. The local MIT core may still allow unsigned profiles by policy.
+Registered/business signed-required behavior is future-gated unless explicitly
+implemented in a later gate. There is no hosted trust fetch, no registry sync,
+no OAuth, no MCP resources, no MCP prompts, and no production signing keys in
+this integration gate.
 
 ```bash
 unlimited-skills mcp gateway --config cfg.json \

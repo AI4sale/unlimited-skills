@@ -1,0 +1,219 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AI4sale/unlimited-skills/schemas/mcp-audit-report.schema.json",
+  "title": "MCP audit inspector report",
+  "description": "The single JSON document produced by `unlimited-skills mcp audit-report --json` from the local redacted MCP audit JSONL log (active file plus rotated generations). Read-only analysis of E08 audit fields; the optional `profiles` section appears only when the log carries E10 tool-profile fields. The report never contains argument values, error text bodies, secret values, or local filesystem paths -- file references are basenames only and redaction suspects are reported as locations plus reasons, never values.",
+  "type": "object",
+  "required": ["report_type", "schema_version", "generated_at", "log", "summary", "refusals", "upstreams", "redaction"],
+  "additionalProperties": false,
+  "properties": {
+    "report_type": { "const": "mcp-audit-report" },
+    "schema_version": { "const": 1 },
+    "generated_at": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "description": "UTC timestamp of report generation."
+    },
+    "log": {
+      "type": "object",
+      "required": ["files_read", "rotated_files_read", "rows_total", "malformed_lines"],
+      "additionalProperties": false,
+      "properties": {
+        "files_read": {
+          "type": "array",
+          "description": "Basenames of the audit files read, oldest rotated generation first, active file last. Never full paths.",
+          "items": { "type": "string", "minLength": 1, "pattern": "^[^\\\\/]+$" }
+        },
+        "rotated_files_read": { "type": "integer", "minimum": 0 },
+        "rows_total": { "type": "integer", "minimum": 0 },
+        "malformed_lines": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "JSONL lines that failed to parse and were skipped (never a crash)."
+        }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["total_calls", "ok_calls", "refused_calls", "per_tool", "per_upstream", "durations_ms", "first_ts", "last_ts"],
+      "additionalProperties": false,
+      "properties": {
+        "total_calls": { "type": "integer", "minimum": 0, "description": "Meta-tool call rows; profile_loaded event rows are excluded." },
+        "ok_calls": { "type": "integer", "minimum": 0 },
+        "refused_calls": { "type": "integer", "minimum": 0 },
+        "per_tool": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/$defs/callCounts" }
+        },
+        "per_upstream": {
+          "type": "object",
+          "description": "Keyed by upstream name; the empty-string key collects calls without an upstream (e.g. tools_search).",
+          "additionalProperties": { "$ref": "#/$defs/callCounts" }
+        },
+        "durations_ms": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["count", "min_ms", "median_ms", "p95_ms", "max_ms"],
+            "additionalProperties": false,
+            "properties": {
+              "count": { "type": "integer", "minimum": 1 },
+              "min_ms": { "type": "number", "minimum": 0 },
+              "median_ms": { "type": "number", "minimum": 0 },
+              "p95_ms": { "type": "number", "minimum": 0, "description": "Nearest-rank 95th percentile." },
+              "max_ms": { "type": "number", "minimum": 0 }
+            }
+          }
+        },
+        "first_ts": { "type": ["number", "null"], "description": "Earliest row timestamp (epoch seconds), null on an empty log." },
+        "last_ts": { "type": ["number", "null"] }
+      }
+    },
+    "refusals": {
+      "type": "object",
+      "required": ["total", "by_code", "per_upstream", "recent"],
+      "additionalProperties": false,
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "by_code": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/codeCount" }
+        },
+        "per_upstream": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 1 }
+        },
+        "recent": {
+          "type": "array",
+          "description": "Most recent refusals, newest first: timestamp + tool + upstream + code only. Argument values and error text are structurally impossible here.",
+          "items": {
+            "type": "object",
+            "required": ["ts", "tool", "upstream", "code", "name"],
+            "additionalProperties": false,
+            "properties": {
+              "ts": { "type": ["number", "null"] },
+              "tool": { "type": "string" },
+              "upstream": { "type": "string" },
+              "code": { "type": ["integer", "null"] },
+              "name": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      }
+    },
+    "upstreams": {
+      "type": "object",
+      "required": ["refusal_rate_threshold", "entries"],
+      "additionalProperties": false,
+      "properties": {
+        "refusal_rate_threshold": { "type": "number", "minimum": 0, "maximum": 1 },
+        "entries": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["upstream", "calls", "refusals", "refusal_rate", "timeouts", "protocol_errors", "spawn_failures", "avg_duration_ms", "flagged"],
+            "additionalProperties": false,
+            "properties": {
+              "upstream": { "type": "string" },
+              "calls": { "type": "integer", "minimum": 0 },
+              "refusals": { "type": "integer", "minimum": 0 },
+              "refusal_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+              "timeouts": { "type": "integer", "minimum": 0, "description": "Refusals classified as -32002 UPSTREAM_TIMEOUT." },
+              "protocol_errors": { "type": "integer", "minimum": 0, "description": "Refusals classified as -32003 UPSTREAM_PROTOCOL_ERROR." },
+              "spawn_failures": { "type": "integer", "minimum": 0, "description": "Refusals classified as -32001 UPSTREAM_START_FAILED." },
+              "avg_duration_ms": { "type": ["number", "null"], "minimum": 0 },
+              "flagged": { "type": "boolean", "description": "True when refusal_rate >= refusal_rate_threshold." }
+            }
+          }
+        }
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "description": "Present only when the log carries E10 tool-profile fields (a `profile` field on call rows or a `profile_loaded` event row). Pre-E10 logs and no-profiles open mode omit this key entirely.",
+      "required": ["present", "per_profile", "profile_loaded_events", "profile_refusals"],
+      "additionalProperties": false,
+      "properties": {
+        "present": { "const": true },
+        "per_profile": {
+          "type": "object",
+          "additionalProperties": { "type": "integer", "minimum": 1 }
+        },
+        "profile_loaded_events": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["ts", "profile", "profile_sha256", "visible_rules", "callable_rules"],
+            "additionalProperties": false,
+            "properties": {
+              "ts": { "type": ["number", "null"] },
+              "profile": { "type": "string" },
+              "profile_sha256": {
+                "type": ["string", "null"],
+                "description": "SHA-256 of the loaded profile file -- a documented non-sensitive hash, exempt from the redaction self-check."
+              },
+              "visible_rules": { "type": ["integer", "null"], "minimum": 0 },
+              "callable_rules": { "type": ["integer", "null"], "minimum": 0 }
+            }
+          }
+        },
+        "profile_refusals": {
+          "type": "array",
+          "description": "Counts for the profile refusal family -32011..-32014, zero counts included.",
+          "items": { "$ref": "#/$defs/codeCount" }
+        }
+      }
+    },
+    "redaction": {
+      "type": "object",
+      "required": ["status", "strings_scanned", "suspects"],
+      "additionalProperties": false,
+      "properties": {
+        "status": { "enum": ["PASS", "FAIL"] },
+        "strings_scanned": { "type": "integer", "minimum": 0 },
+        "suspects": {
+          "type": "array",
+          "description": "Locations of secret-looking or path-looking strings that survived redaction. The suspect VALUE is never included -- only file basename, line, field path, and reason.",
+          "items": {
+            "type": "object",
+            "required": ["file", "line", "field", "reason"],
+            "additionalProperties": false,
+            "properties": {
+              "file": { "type": "string", "minLength": 1, "pattern": "^[^\\\\/]+$" },
+              "line": { "type": "integer", "minimum": 1 },
+              "field": { "type": "string" },
+              "reason": { "enum": ["secret-looking value", "home-dir-like path"] }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "callCounts": {
+      "type": "object",
+      "required": ["calls", "ok", "refused"],
+      "additionalProperties": false,
+      "properties": {
+        "calls": { "type": "integer", "minimum": 0 },
+        "ok": { "type": "integer", "minimum": 0 },
+        "refused": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "codeCount": {
+      "type": "object",
+      "required": ["code", "name", "meaning", "count"],
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": ["integer", "null"],
+          "description": "JSON-RPC refusal code; null when the row could not be attributed to a known code (reported under name 'unknown')."
+        },
+        "name": { "type": "string", "minLength": 1 },
+        "meaning": { "type": "string", "minLength": 1 },
+        "count": { "type": "integer", "minimum": 0 }
+      }
+    }
+  }
+}

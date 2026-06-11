@@ -18,6 +18,30 @@ def cmd_mcp_serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_mcp_audit_report(args: argparse.Namespace) -> int:
+    import json
+
+    from ..mcp import audit_inspector
+    from ..mcp.audit import default_audit_path
+
+    root = Path(args.root).expanduser()
+    audit_path = Path(args.audit_log).expanduser() if args.audit_log else default_audit_path(root)
+    try:
+        report = audit_inspector.build_report(audit_path)
+    except FileNotFoundError:
+        print(
+            f"Audit log not found: {audit_path} (no active file, no rotated generations). "
+            "Run the gateway first, or pass --audit-log.",
+            file=sys.stderr,
+        )
+        return 1
+    if args.json:
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(audit_inspector.render_text(report, section=args.section))
+    return 0
+
+
 def _resolve_gateway_profile_state(args: argparse.Namespace):
     """Resolve the gateway's profile state from CLI flags, exactly once at
     startup (no hot reload). Returns ``(profile_state, note)``.

@@ -1130,6 +1130,19 @@ def build_parser() -> argparse.ArgumentParser:
     add_trust_common(trust_doctor)
     trust_doctor.add_argument("--expiring-days", type=int, default=30, help="Days before not_after at which a key warns as 'expiring soon'. Default 30.")
     trust_doctor.set_defaults(func=mcp_cmds.cmd_mcp_trust_doctor)
+    mcp_audit_report = mcp_sub.add_parser(
+        "audit-report",
+        help="Inspect the local redacted MCP audit JSONL log (including rotated generations): summary, refusals, upstream health, profile usage, redaction self-check.",
+    )
+    mcp_audit_report.add_argument("--audit-log", default="", help="Audit log path to inspect. Defaults to <root>/.learning/mcp-audit.jsonl.")
+    mcp_audit_report.add_argument("--json", action="store_true", help="Print the full report as one JSON document (schemas/mcp-audit-report.schema.json).")
+    mcp_audit_report.add_argument(
+        "--section",
+        choices=["summary", "refusals", "upstreams", "profiles", "redaction", "all"],
+        default="all",
+        help="Limit the plain-text report to one section. JSON output is always the full document.",
+    )
+    mcp_audit_report.set_defaults(func=mcp_cmds.cmd_mcp_audit_report)
 
     catalog = sub.add_parser("catalog", help="Query the registered hosted adapted-skill catalog and browser.")
     catalog_sub = catalog.add_subparsers(dest="catalog_command", required=True)
@@ -1698,6 +1711,7 @@ from .commands.team import (
     cmd_team_sync,
 )
 from .commands.mcp import (
+    cmd_mcp_audit_report,
     cmd_mcp_gateway,
     cmd_mcp_serve,
     cmd_mcp_trust_doctor,
