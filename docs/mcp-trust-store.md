@@ -149,3 +149,17 @@ stays outside the consumer core), no PKI, no network fetch, no registry
 sync (the future `policy_sync` gate is transport only), no hosted calls,
 no hot reload (the gateway reads trust files once at startup; restart is
 the re-verification procedure).
+
+## Incident drill and recovery runbook (E18)
+
+The store's failure modes are rehearsed end to end by the fixture-mode
+incident drill (`scripts/run-mcp-bundle-incident-drill.py`): unknown and
+expired signing keys recovered via `trust import` rotation, bundle and key
+revocation via `trust revoke` (append-only; corrected bundles get new
+hashes), CRL outage detected by `trust doctor` and repaired by restoring
+the CRL file, and a corrupted `trusted-keys.json` detected by `trust
+doctor` and rebuilt through the real import path. Operator procedures,
+symptoms, and prevention notes live in
+[mcp-incident-runbook.md](mcp-incident-runbook.md). The drill never touches
+a real managed store -- it builds its own under a private temp directory
+with these exact functions.

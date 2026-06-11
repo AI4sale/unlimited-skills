@@ -1,0 +1,169 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unlimited.ai4.sale/schemas/mcp-incident-drill-report.schema.json",
+  "title": "Unlimited Skills MCP signed-bundle incident drill report",
+  "description": "Machine report of scripts/run-mcp-bundle-incident-drill.py: per documented incident scenario, the expected fail-closed refusal code, the observed code, whether the refusal and the documented recovery both succeeded, plus the audit-inspector evidence over the drill's own redacted audit log. Fixture mode only: ephemeral keys, private temp directories, no network, no telemetry; the report never contains key material, signature values, hashes, argument values, or local paths.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "report_type",
+    "schema_version",
+    "generated_at",
+    "mode",
+    "backend",
+    "drill_clock",
+    "scenarios",
+    "audit",
+    "summary",
+    "exit_code"
+  ],
+  "properties": {
+    "report_type": { "const": "mcp-incident-drill-report" },
+    "schema_version": { "const": 1 },
+    "generated_at": {
+      "type": "string",
+      "description": "UTC generation timestamp; the only wall-clock-dependent field.",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "mode": {
+      "const": "fixture",
+      "description": "The drill has exactly one mode: fixture (never the real library root, trust store, or audit log)."
+    },
+    "backend": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "real_ed25519", "note"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "enum": ["cryptography-ed25519", "test-only-hmac"],
+          "description": "Real Ed25519 via the optional cryptography package, or the clearly-marked TEST-ONLY fake."
+        },
+        "real_ed25519": { "type": "boolean" },
+        "note": { "type": "string", "minLength": 1, "maxLength": 256 }
+      }
+    },
+    "drill_clock": {
+      "type": "string",
+      "description": "The injected verification clock (deterministic; independent of the host clock).",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "scenarios": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 9,
+      "items": { "$ref": "#/$defs/scenario" }
+    },
+    "audit": {
+      "type": "object",
+      "description": "E11 audit-inspector evidence over the drill's own redacted audit log.",
+      "additionalProperties": false,
+      "required": [
+        "rows_total",
+        "refusal_rows",
+        "refusal_codes_observed",
+        "expected_codes_present",
+        "redaction_self_check"
+      ],
+      "properties": {
+        "rows_total": { "type": "integer", "minimum": 0 },
+        "refusal_rows": { "type": "integer", "minimum": 0 },
+        "refusal_codes_observed": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "integer", "minimum": -32019, "maximum": -32015 }
+        },
+        "expected_codes_present": { "type": "boolean" },
+        "redaction_self_check": { "type": "string", "enum": ["PASS", "FAIL"] }
+      }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scenarios_total", "refusals_ok", "recoveries_ok", "all_ok"],
+      "properties": {
+        "scenarios_total": { "type": "integer", "minimum": 1, "maximum": 9 },
+        "refusals_ok": { "type": "integer", "minimum": 0, "maximum": 9 },
+        "recoveries_ok": { "type": "integer", "minimum": 0, "maximum": 9 },
+        "all_ok": { "type": "boolean" }
+      }
+    },
+    "exit_code": {
+      "type": "integer",
+      "description": "0 only when every scenario refused with the expected code AND recovered, the audit report shows the expected codes, and the redaction self-check passed.",
+      "minimum": 0,
+      "maximum": 1
+    }
+  },
+  "$defs": {
+    "scenario": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scenario",
+        "incident",
+        "expected_code",
+        "expected_name",
+        "observed_code",
+        "refusal_ok",
+        "fail_closed",
+        "recovery_steps",
+        "recovered_ok",
+        "duration_ms"
+      ],
+      "properties": {
+        "scenario": {
+          "type": "string",
+          "enum": [
+            "bad_signature",
+            "unknown_key",
+            "expired_key",
+            "expired_bundle",
+            "revoked_bundle",
+            "crl_outage",
+            "wrong_audience",
+            "operator_rollback",
+            "trust_store_recovery"
+          ]
+        },
+        "incident": { "type": "string", "minLength": 1, "maxLength": 256 },
+        "expected_code": {
+          "type": "integer",
+          "description": "The reserved E13/E14 bundle refusal code this incident must produce.",
+          "minimum": -32019,
+          "maximum": -32015
+        },
+        "expected_name": {
+          "type": "string",
+          "enum": [
+            "bundle_signature_invalid",
+            "bundle_expired",
+            "bundle_revoked",
+            "bundle_audience_mismatch",
+            "bundle_key_missing"
+          ]
+        },
+        "observed_code": {
+          "type": "integer",
+          "description": "The refusal code the REAL verification produced; 0 when (unexpectedly) no fail-closed refusal was observed.",
+          "minimum": -32019,
+          "maximum": 0
+        },
+        "refusal_ok": { "type": "boolean" },
+        "fail_closed": {
+          "type": "boolean",
+          "description": "True when the incident produced a fail-closed refuse-all state (never open or unsigned fallback)."
+        },
+        "recovery_steps": {
+          "type": "array",
+          "description": "The documented operator recovery steps the drill executed (docs/mcp-incident-runbook.md); descriptions and commands only, never key material or paths.",
+          "minItems": 1,
+          "maxItems": 8,
+          "items": { "type": "string", "minLength": 1, "maxLength": 512 }
+        },
+        "recovered_ok": { "type": "boolean" },
+        "duration_ms": { "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}

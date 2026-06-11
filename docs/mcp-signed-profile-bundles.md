@@ -675,3 +675,17 @@ hides-all profiles, inert callable rules, shadowed tool names, over-deep
 chains, unsigned-under-signed-policy; exit 0 clean / 1 problems). The
 simulator is read-only: verification semantics here are reused, never
 changed or bypassed. See [mcp-profile-rollout.md](mcp-profile-rollout.md).
+
+## Incident drill and recovery runbook (E18)
+
+Every fail-closed incident class of this document (`-32015`..`-32019`:
+tampering, unknown/expired keys, expired windows, revocation, CRL outage,
+audience mismatch) plus operator rollback and trust-store recovery has a
+documented recovery procedure in
+[mcp-incident-runbook.md](mcp-incident-runbook.md), and a fixture-mode
+drill (`scripts/run-mcp-bundle-incident-drill.py`) that injects each
+incident against the REAL verification in a private temp directory, asserts
+the exact refusal code, executes the documented recovery, and proves
+verification works again -- with the E11 audit inspector run over the
+drill's own log as evidence. Verification semantics here are exercised,
+never changed or bypassed.
