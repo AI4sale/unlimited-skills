@@ -10,9 +10,18 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
-from unlimited_skills.cli import save_index
+from unlimited_skills.cli import index_path, save_index
+from unlimited_skills.hub import remote_config_path
 
-from .common import copy_skill_tree, count_skill_files, iter_skill_dirs, move_skill_tree, prune_empty_parents
+from .common import (
+    InstallTransaction,
+    copy_skill_tree,
+    count_skill_files,
+    iter_skill_dirs,
+    move_skill_tree,
+    prune_empty_parents,
+    rollback_install,
+)
 from .remote import RemoteHubInstallOptions, configure_remote_if_enabled, remote_messages, remote_report_lines, render_remote_router_block, validate_remote_options
 
 INSTALL_MODES = {"router-only", "evacuate-visible-skills"}
@@ -140,10 +149,6 @@ def _timestamp() -> str:
     return datetime.now().strftime("%Y%m%d-%H%M%S")
 
 
-def _iso_now() -> str:
-    return datetime.now(timezone.utc).isoformat()
-
-
 def _router_source(repo_root: Path) -> Path:
     hermes_router = repo_root / "skills" / "router-hermes"
     if hermes_router.is_dir():
@@ -205,30 +210,6 @@ def _visible_skill_names(visible_root: Path) -> list[str]:
     return sorted({path.parent.name for path in visible_root.rglob("SKILL.md")}) if visible_root.is_dir() else []
 
 
-def _write_manifest(
-    manifest_path: Path,
-    *,
-    visible_root: Path,
-    library_root: Path,
-    backup_root: Path,
-    before_visible_count: int,
-    items: list[dict[str, str]],
-    router_target: Path,
-) -> None:
-    payload = {
-        "agent": "hermes",
-        "created_at": _iso_now(),
-        "visible_root": str(visible_root),
-        "library_root": str(library_root),
-        "backup_root": str(backup_root),
-        "before_visible_count": before_visible_count,
-        "router_target": str(router_target),
-        "items": items,
-    }
-    manifest_path.parent.mkdir(parents=True, exist_ok=True)
-    manifest_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-
-
 def install_hermes(options: HermesInstallOptions) -> HermesInstallReport:
     if options.mode not in INSTALL_MODES:
         raise ValueError(f"Invalid Hermes install mode: {options.mode}")
@@ -284,52 +265,63 @@ def install_hermes(options: HermesInstallOptions) -> HermesInstallReport:
         raise FileNotFoundError(f"Router skill not found: {router_source}")
 
     backup_root = install_root / "backups" / f"hermes-visible-skills-{_timestamp()}"
-    backup_visible_root = backup_root / "visible-skills"
-    manifest_path = backup_root / "manifest.json"
     manifest_items: list[dict[str, str]] = []
-
-    for skill_dir in sorted(skill_dirs, key=lambda path: len(path.relative_to(visible_root).parts), reverse=True):
-        relative = skill_dir.relative_to(visible_root)
-        library_destination = library_skills / relative
-        copy_skill_tree(skill_dir, library_destination)
-        if options.mode == "evacuate-visible-skills":
-            backup_destination = backup_visible_root / relative
-            move_skill_tree(skill_dir, backup_destination)
-            prune_empty_parents(skill_dir.parent, visible_root)
-            manifest_items.append(
-                {
-                    "name": skill_dir.name,
-                    "relative": str(relative),
-                    "library_destination": str(library_destination),
-                    "backup_destination": str(backup_destination),
-                }
-            )
-
-    if router_target.exists():
-        shutil.rmtree(router_target)
-    router_target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(router_source, router_target)
-    _write_launchers(sh_launcher, ps_launcher, repo_root, library_root, options.python_executable)
-    remote_config = configure_remote_if_enabled(options.remote, install_root)
-    _render_router_skill(router_target / "SKILL.md", sh_launcher, ps_launcher, library_root, options.remote)
-
-    rollback_manifest: str | None = None
-    if options.mode == "evacuate-visible-skills":
-        _write_manifest(
-            manifest_path,
-            visible_root=visible_root,
-            library_root=library_root,
-            backup_root=backup_root,
-            before_visible_count=before_count,
-            items=manifest_items,
-            router_target=router_target,
-        )
-        rollback_manifest = str(manifest_path)
+    transaction = InstallTransaction("hermes", install_root, backup_root=backup_root)
+    backup_visible_root = transaction.backup_root / "visible-skills"
 
     lexical_index = "skipped"
-    if not options.skip_reindex:
-        save_index(library_root)
-        lexical_index = "rebuilt"
+    try:
+        for skill_dir in sorted(skill_dirs, key=lambda path: len(path.relative_to(visible_root).parts), reverse=True):
+            relative = skill_dir.relative_to(visible_root)
+            library_destination = library_skills / relative
+            transaction.stage_dir_replace(library_destination)
+            copy_skill_tree(skill_dir, library_destination)
+            if options.mode == "evacuate-visible-skills":
+                backup_destination = backup_visible_root / relative
+                move_skill_tree(skill_dir, backup_destination)
+                prune_empty_parents(skill_dir.parent, visible_root)
+                transaction.record_skill_moved(
+                    name=skill_dir.name,
+                    relative=str(relative),
+                    visible_path=visible_root / relative,
+                    backup_destination=backup_destination,
+                    library_destination=library_destination,
+                )
+                manifest_items.append(
+                    {
+                        "name": skill_dir.name,
+                        "relative": str(relative),
+                        "library_destination": str(library_destination),
+                        "backup_destination": str(backup_destination),
+                    }
+                )
+
+        transaction.stage_dir_replace(router_target)
+        router_target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(router_source, router_target)
+        _write_launchers(sh_launcher, ps_launcher, repo_root, library_root, options.python_executable)
+        transaction.snapshot_file(remote_config_path(install_root))
+        remote_config = configure_remote_if_enabled(options.remote, install_root)
+        _render_router_skill(router_target / "SKILL.md", sh_launcher, ps_launcher, library_root, options.remote)
+
+        if not options.skip_reindex:
+            transaction.snapshot_file(index_path(library_root))
+            save_index(library_root)
+            lexical_index = "rebuilt"
+    except BaseException:
+        transaction.rollback_now()
+        raise
+
+    manifest_path = transaction.write_manifest(
+        extra={
+            "visible_root": str(visible_root),
+            "library_root": str(library_root),
+            "before_visible_count": before_count,
+            "router_target": str(router_target),
+            "items": manifest_items,
+        }
+    )
+    rollback_manifest = str(manifest_path)
 
     return HermesInstallReport(
         visible_root=str(visible_root),
@@ -359,6 +351,18 @@ def rollback_hermes(manifest: Path, apply: bool = False) -> HermesRollbackReport
     payload = json.loads(manifest.read_text(encoding="utf-8"))
     visible_root = Path(payload["visible_root"])
     router_target = Path(payload.get("router_target") or visible_root / ROUTER_NAME)
+
+    if payload.get("actions"):
+        report = rollback_install(manifest, apply=apply)
+        return HermesRollbackReport(
+            manifest=report.manifest,
+            visible_root=str(visible_root),
+            dry_run=report.dry_run,
+            restored_count=report.restored_count,
+            removed_router=router_target.exists() is False if apply else router_target.exists(),
+            messages=report.messages,
+        )
+
     items = payload.get("items") or []
     messages = [] if apply else ["Dry run. No files were changed."]
 
