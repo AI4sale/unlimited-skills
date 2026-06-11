@@ -79,6 +79,14 @@ def plugin_versions() -> tuple[str, str]:
     return str(plugin["version"]), str(marketplace["plugins"][0]["version"])
 
 
+def version_tuple(value: str) -> tuple[int, ...]:
+    try:
+        return tuple(int(part) for part in value.split("."))
+    except ValueError as exc:
+        fail(f"invalid version: {value}")
+        raise AssertionError from exc
+
+
 def git_head() -> str:
     return run_git(["rev-parse", "HEAD"]).stdout.strip()
 
@@ -183,12 +191,25 @@ def main(argv: list[str] | None = None) -> int:
         help="Post-publication mode: allow the release tag when it already points to --expected-tag-sha.",
     )
     parser.add_argument("--expected-tag-sha", help="Expected commit for the existing release tag in post-publication mode")
+    parser.add_argument(
+        "--allow-newer-package",
+        action="store_true",
+        help="Compatibility mode for later release branches: require package/plugin versions to match each other and be >= 0.4.2.",
+    )
     args = parser.parse_args(argv)
 
     assert_clean_worktree()
-    require(package_version() == VERSION, f"pyproject version must be {VERSION}")
-    require(init_version() == VERSION, f"__version__ must be {VERSION}")
-    require(plugin_versions() == (VERSION, VERSION), "Claude plugin and marketplace versions must match package version")
+    pkg_version = package_version()
+    init_ver = init_version()
+    plugin_ver, marketplace_ver = plugin_versions()
+    if args.allow_newer_package:
+        require(version_tuple(pkg_version) >= version_tuple(VERSION), f"pyproject version must be >= {VERSION}")
+        require(init_ver == pkg_version, "__version__ must match pyproject version")
+        require((plugin_ver, marketplace_ver) == (pkg_version, pkg_version), "Claude plugin and marketplace versions must match package version")
+    else:
+        require(pkg_version == VERSION, f"pyproject version must be {VERSION}")
+        require(init_ver == VERSION, f"__version__ must be {VERSION}")
+        require((plugin_ver, marketplace_ver) == (VERSION, VERSION), "Claude plugin and marketplace versions must match package version")
     existing_tag = tag_exists(RELEASE)
     if args.allow_existing_tag:
         require(args.expected_tag_sha is not None, "--expected-tag-sha is required with --allow-existing-tag")
