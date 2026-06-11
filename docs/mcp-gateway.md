@@ -325,3 +325,15 @@ unlimited-skills mcp gateway --config cfg.json \
   key ids and hashes only, never key material or signature values. Failed
   verifications append a `profile_loaded` row naming the failing step's
   code, and every per-call refusal is audited as usual.
+
+## Managed trust store (E15)
+
+`unlimited-skills mcp trust status|list|import|revoke|doctor` manages the
+local trusted-keys file and CRL used by `--profile-bundle` verification,
+under `<library root>/.unlimited-skills-trust/` (public keys only, offline
+only — no registry sync, no hosted calls, never private keys). When
+`--profile-bundle` is set and `--trusted-keys` is omitted, the gateway
+defaults to the managed store's `trusted-keys.json` if it exists; with no
+managed store, behavior is unchanged (`-32019` `bundle_key_missing`). An
+explicit `--trusted-keys` always wins, and verification semantics are
+untouched. See [mcp-trust-store.md](mcp-trust-store.md).

@@ -645,3 +645,18 @@ two more:
   bundle content govern enforcement: every path that cannot complete
   verification ends in a named, audited, fail-closed refuse-all — never in
   open behavior, never in unsigned fallback.
+
+## Managed trust store (E15)
+
+The trusted-keys file and the local CRL described above can be managed by
+CLI instead of hand-editing: `unlimited-skills mcp trust
+status|list|import|revoke|doctor` operates a canonical store directory
+(`<library root>/.unlimited-skills-trust/`) whose `trusted-keys.json` and
+`crl.json` are these exact E14 formats, plus a store-only metadata sidecar
+that verification never reads. The store is a management layer, never a
+bypass: every verification step, refusal code, and fail-closed rule in this
+document is unchanged, and explicit `--trusted-keys` / `crl_path` paths
+keep working. When `--profile-bundle` is given without `--trusted-keys` and
+the managed store exists, the gateway defaults to the managed
+trusted-keys file (no managed store = behavior unchanged). See
+[mcp-trust-store.md](mcp-trust-store.md).

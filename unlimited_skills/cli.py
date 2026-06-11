@@ -1091,6 +1091,45 @@ def build_parser() -> argparse.ArgumentParser:
     mcp_gateway.add_argument("--audience-id", action="append", default=None, metavar="ID", help="This consumer's audience identifier ('team:NAME', 'org:NAME', or 'host:NAME') matched against the bundle's audience. Repeatable; beats the comma-separated UNLIMITED_SKILLS_MCP_AUDIENCE env var.")
     mcp_gateway.add_argument("--require-signed-profiles", action="store_true", help="Signed-required policy: refuse unsigned profile sources fail-closed with -32015 bundle_signature_invalid (a raw --profiles file alone, or no bundle at all). Default off pre-v0.6.")
     mcp_gateway.set_defaults(func=mcp_cmds.cmd_mcp_gateway)
+    mcp_trust = mcp_sub.add_parser(
+        "trust",
+        help="Manage the local trust store for signed MCP profile bundles: PUBLIC keys and the local CRL. Offline only -- no registry sync, no hosted calls, never private keys.",
+    )
+    mcp_trust_sub = mcp_trust.add_subparsers(dest="trust_command", required=True)
+
+    def add_trust_common(command: argparse.ArgumentParser) -> None:
+        command.add_argument("--store-dir", default="", help="Trust store directory. Defaults to <root>/.unlimited-skills-trust.")
+        command.add_argument("--json", action="store_true", help="Print a machine-readable JSON report.")
+
+    trust_status = mcp_trust_sub.add_parser("status", help="Show the store location, key counts by state (active/expiring/expired/revoked), CRL presence, and problems.")
+    add_trust_common(trust_status)
+    trust_status.add_argument("--expiring-days", type=int, default=30, help="Days before not_after at which a key counts as 'expiring soon'. Default 30.")
+    trust_status.set_defaults(func=mcp_cmds.cmd_mcp_trust_status)
+    trust_list = mcp_trust_sub.add_parser("list", help="List trusted keys: key_id, display, scopes, validity window, state, abbreviated fingerprint (never full key bytes).")
+    add_trust_common(trust_list)
+    trust_list.add_argument("--expiring-days", type=int, default=30, help="Days before not_after at which a key counts as 'expiring soon'. Default 30.")
+    trust_list.set_defaults(func=mcp_cmds.cmd_mcp_trust_list)
+    trust_import = mcp_trust_sub.add_parser("import", help="Add one PUBLIC Ed25519 key to the managed trusted-keys file. Refuses private key material and key_id collisions with different material.")
+    add_trust_common(trust_import)
+    trust_import.add_argument("--key-file", default="", help="JSON key file with key_id/public_key and optional display/scopes/not_before/not_after/comment. Inline flags win over file fields.")
+    trust_import.add_argument("--key-id", default="", help="The key identifier (E09 key_id grammar).")
+    trust_import.add_argument("--public-key", default="", help="Base64 raw 32-byte Ed25519 PUBLIC key. Anything that looks private (PEM PRIVATE markers, 48/64-byte material) is refused.")
+    trust_import.add_argument("--display", default="", help="Human-readable key owner name (metadata sidecar only; max 128 chars).")
+    trust_import.add_argument("--scope", action="append", default=None, metavar="SCOPE", help="Informational key scope label (repeatable). Default: profile-bundles. Never parsed by verification.")
+    trust_import.add_argument("--not-before", default="", help="Informational RFC 3339 UTC validity start (metadata sidecar only; not enforced by verification).")
+    trust_import.add_argument("--not-after", default="", help="RFC 3339 UTC per-key trust deadline written into the trusted-keys file (enforced by E14 verification).")
+    trust_import.add_argument("--comment", default="", help="Free-text comment stored on the trusted-keys entry.")
+    trust_import.set_defaults(func=mcp_cmds.cmd_mcp_trust_import)
+    trust_revoke = mcp_trust_sub.add_parser("revoke", help="Add a key_id or bundle SHA-256 to the managed local CRL. Idempotent; append-only -- revocation history is never deleted.")
+    add_trust_common(trust_revoke)
+    trust_revoke.add_argument("--key-id", default="", help="Revoke a signing key: kills every bundle the key ever signed (E14 semantics).")
+    trust_revoke.add_argument("--bundle-sha256", default="", help="Revoke one specific bundle by the SHA-256 hex of its file bytes.")
+    trust_revoke.add_argument("--reason", default="", help="Optional reason recorded in the metadata sidecar (the E14 CRL format has no reason field).")
+    trust_revoke.set_defaults(func=mcp_cmds.cmd_mcp_trust_revoke)
+    trust_doctor = mcp_trust_sub.add_parser("doctor", help="Offline store self-check: file shapes, duplicate key_ids, rotation/expiry, CRL readability, revocation explanations, permissions (best-effort). Exit 0 ok / 1 problems.")
+    add_trust_common(trust_doctor)
+    trust_doctor.add_argument("--expiring-days", type=int, default=30, help="Days before not_after at which a key warns as 'expiring soon'. Default 30.")
+    trust_doctor.set_defaults(func=mcp_cmds.cmd_mcp_trust_doctor)
 
     catalog = sub.add_parser("catalog", help="Query the registered hosted adapted-skill catalog and browser.")
     catalog_sub = catalog.add_subparsers(dest="catalog_command", required=True)
@@ -1658,7 +1697,15 @@ from .commands.team import (
     cmd_team_status,
     cmd_team_sync,
 )
-from .commands.mcp import cmd_mcp_gateway, cmd_mcp_serve
+from .commands.mcp import (
+    cmd_mcp_gateway,
+    cmd_mcp_serve,
+    cmd_mcp_trust_doctor,
+    cmd_mcp_trust_import,
+    cmd_mcp_trust_list,
+    cmd_mcp_trust_revoke,
+    cmd_mcp_trust_status,
+)
 from .commands.skillops import cmd_skillops_usage_snapshot
 from .commands.updates import (
     cmd_release_pin,
