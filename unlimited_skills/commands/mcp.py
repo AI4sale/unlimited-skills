@@ -273,3 +273,42 @@ def cmd_mcp_trust_doctor(args: argparse.Namespace) -> int:
     report = doctor_report(store, expiring_days=args.expiring_days)
     _print_report(args, report, format_doctor)
     return int(report["exit_code"])
+
+
+# ---------------------------------------------------------------------------
+# E16: rollout simulator and policy doctor (`unlimited-skills mcp profiles
+# rollout-plan|doctor`). A read-only DRY-RUN over the same artifacts the
+# gateway loads at startup -- never spawns upstreams, never writes audit
+# rows or store files, no network, no telemetry. The real E10/E14/E15
+# loading and verification logic runs in unlimited_skills/mcp/
+# profile_rollout.py; these wrappers only collect flags and print.
+
+
+def _rollout_kwargs(args: argparse.Namespace) -> dict:
+    return {
+        "root": Path(args.root).expanduser(),
+        "config_path": getattr(args, "config", "") or "",
+        "profiles_path": getattr(args, "profiles", "") or "",
+        "bundle_path": getattr(args, "bundle", "") or "",
+        "trusted_keys_path": getattr(args, "trusted_keys", "") or "",
+        "audience_ids": list(getattr(args, "audience_id", None) or []),
+        "profile_name": getattr(args, "profile", "") or "",
+        "tools_fixture_path": getattr(args, "tools_fixture", "") or "",
+        "require_signed": bool(getattr(args, "require_signed_profiles", False)),
+    }
+
+
+def cmd_mcp_profiles_rollout_plan(args: argparse.Namespace) -> int:
+    from ..mcp.profile_rollout import format_rollout_plan, plan_rollout
+
+    plan = plan_rollout(**_rollout_kwargs(args))
+    _print_report(args, plan, format_rollout_plan)
+    return 0
+
+
+def cmd_mcp_profiles_doctor(args: argparse.Namespace) -> int:
+    from ..mcp.profile_rollout import doctor_rollout, format_rollout_doctor
+
+    report = doctor_rollout(**_rollout_kwargs(args))
+    _print_report(args, report, format_rollout_doctor)
+    return int(report["exit_code"])

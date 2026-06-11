@@ -337,3 +337,15 @@ defaults to the managed store's `trusted-keys.json` if it exists; with no
 managed store, behavior is unchanged (`-32019` `bundle_key_missing`). An
 explicit `--trusted-keys` always wins, and verification semantics are
 untouched. See [mcp-trust-store.md](mcp-trust-store.md).
+
+## Rollout simulator and policy doctor (E16)
+
+`unlimited-skills mcp profiles rollout-plan|doctor` shows what WOULD happen
+under a given combination of `--profiles` / `--profile-bundle` /
+`--trusted-keys` / config before starting the gateway: visible, hidden,
+callable, and refused tool counts, which upstreams would never spawn, the
+inheritance narrowing, the exact E14 verification outcome (the real
+verification runs in dry-run), and the `profile_loaded` audit impact. Both
+commands are read-only and offline: they never spawn an upstream, never
+write audit rows, and change no runtime state. See
+[mcp-profile-rollout.md](mcp-profile-rollout.md).

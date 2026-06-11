@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "inputs": {
+    "config_path": "examples/mcp/gateway-config.example.json",
+    "profiles_path": "examples/mcp/tool-profile.example.json",
+    "bundle_path": "",
+    "trusted_keys_path": "",
+    "trusted_keys_source": "none",
+    "profile": "reviewer",
+    "audience_ids": [],
+    "tools_source": "config",
+    "require_signed_profiles": false
+  },
+  "profile_state": {
+    "mode": "enforced",
+    "profile": "reviewer",
+    "source": "raw_file",
+    "refusal_code": 0,
+    "refusal_name": "",
+    "message": "profile 'reviewer' would be enforced (default deny outside its rules)"
+  },
+  "tools": {
+    "total": 2,
+    "visible": 2,
+    "hidden": 0,
+    "callable": 1,
+    "view_only": 1,
+    "refused_by_policy": 1,
+    "visible_tools": [
+      "github.create_issue",
+      "github.search_repositories"
+    ],
+    "hidden_tools": []
+  },
+  "upstreams": [
+    {
+      "name": "github",
+      "trust_level": "local-trusted",
+      "spawnable": true,
+      "configured": true,
+      "declared_tools": 2,
+      "visible_tools": 2,
+      "would_spawn": true,
+      "loses_all_visibility": false,
+      "note": ""
+    },
+    {
+      "name": "filesystem",
+      "trust_level": "local-restricted",
+      "spawnable": true,
+      "configured": true,
+      "declared_tools": 0,
+      "visible_tools": 0,
+      "would_spawn": true,
+      "loses_all_visibility": false,
+      "note": ""
+    }
+  ],
+  "inheritance": {
+    "available": true,
+    "chain": [
+      "reviewer",
+      "dev-default"
+    ],
+    "depth": 2,
+    "narrowed_by_local_file": false,
+    "steps": [
+      {
+        "profile": "dev-default",
+        "declared_visible_rules": 2,
+        "declared_callable_rules": 2,
+        "visible_tools_after_step": 2,
+        "callable_tools_after_step": 2
+      },
+      {
+        "profile": "reviewer",
+        "declared_visible_rules": 2,
+        "declared_callable_rules": 2,
+        "visible_tools_after_step": 2,
+        "callable_tools_after_step": 1
+      }
+    ]
+  },
+  "verification": {
+    "attempted": false,
+    "ok": false,
+    "refusal_code": 0,
+    "refusal_name": "",
+    "failed_step": "",
+    "detail": "no signed bundle configured; E14 verification would not run (raw-file or open mode)",
+    "bundle_sha256": "",
+    "issuer_key_id": "",
+    "issuer_display": "",
+    "audience": [],
+    "expires_at": ""
+  },
+  "audit_impact": {
+    "profile_loaded_row_recorded": true,
+    "profile_loaded_row": {
+      "tool": "profile_loaded",
+      "ok": true,
+      "profile": "reviewer",
+      "profile_sha256": "4b0820614a94a85762db1fa2598a8dcc3e9ce2e33959bafbafb25b689483e7cc",
+      "visible_rules": 4,
+      "callable_rules": 4,
+      "profile_source": "raw_file"
+    },
+    "note": "one profile_loaded startup row pins this profile version; every per-call row carries the profile name at both audit levels",
+    "audit_levels": {
+      "standard": 2,
+      "minimal": 0
+    },
+    "per_call_rows_carry_profile": true
+  },
+  "warnings": [],
+  "blockers": []
+}
