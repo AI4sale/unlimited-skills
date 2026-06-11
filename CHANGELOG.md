@@ -4,6 +4,9 @@
 
 ### Added
 
+- v0.4.2-alpha MCP integration gate: release notes, checklist, known issues, manifest, fixture-mode smoke JSON report, verifier, and integration test proving E06 MCP server/gateway core and E07 upstream security model evidence together without production hosted calls.
+- `scripts/verify-v042-alpha-mcp.py` verifies MCP fixture transcripts, compact `tools_search`, single-tool `tools_schema`, fixture `tools_call`, no full schema dump, lazy spawn/reuse, audit redaction, no sensitive-marker leakage, and E07 security model requirements (`local-restricted` default, no shell contract, names-only `env_allowlist`, impossible wildcard forwarding, size/timeout caps, no OAuth/remote/resources/prompts).
+
 - E07 design (docs/schema only, no implementation): MCP upstream configuration and security model (`docs/mcp-upstream-security-model.md`) — per-upstream trust levels (`disabled` / `local-restricted` default / `local-trusted` / `future-remote-placeholder`), command allowlisting (no shell, absolute-path-or-known-binary), forward-nothing environment policy with a names-only `env_allowlist` (wildcards unrepresentable), bounded timeouts and schema/response size caps with refusal-not-truncation, audit levels and JSONL rotation/retention, extended refusal codes `-32005`…`-32010` (`upstream_disabled`, `command_not_allowed`, `env_forwarding_denied`, `schema_too_large`, `response_too_large`, `trust_level_violation`), a 9-vector threat model, and explicit future gates for OAuth/remote upstreams and MCP resources/prompts.
 - `schemas/mcp-upstream-config.schema.json` (draft 2020-12) and validated annotated example `examples/mcp/upstreams.example.json`; `tests/test_mcp_upstream_config_schema.py` validates the example against the schema with a minimal self-contained validator (positive plus negative cases: unknown trust level, env wildcard, v1 `env` literal map, oversize/zero limits).
 
@@ -27,6 +30,7 @@
 - Gateway upstream `env` values may reference `%VAR%`/`$VAR`; they are expanded from the local environment at spawn time and never logged.
 - MCP audit redaction: argument values for keys matching token/secret/key/password/proof/authorization are never written; env values, skill bodies, and tool results are never written (only shapes/counts); local paths are scrubbed from error strings; `redact()` is a pure tested function.
 - MCP audit now also redacts search queries and free-form text inputs, so local audit rows prove no prompt/query/tool-input plaintext leakage while preserving call shape, timing, upstream, and success/refusal status.
+- The v0.4.2-alpha MCP integration gate keeps OAuth, remote upstreams, MCP resources/prompts, hosted gateway, production hosted calls, automatic telemetry, full schema dumps, arbitrary shell execution, live billing, PyPI publication, and auto-publish disabled. E07 runtime enforcement remains a later gate.
 - Usage snapshots exclude prompts, task text, skill bodies, search queries, local paths, repo paths, customer data, environment values, tokens, proofs, private keys, private pack names, and private skill names by default.
 - Usage snapshot tests block hosted calls and grep fixture secrets/private names/paths from CLI, file output, and support bundle summary.
 - The v0.4.1-alpha publication gate keeps production hosted calls, live billing, PyPI publication, full catalog distribution, automatic telemetry, automatic rewriting, and auto-publish disabled.

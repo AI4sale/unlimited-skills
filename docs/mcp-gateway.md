@@ -17,8 +17,9 @@ unlimited-skills mcp gateway --config cfg.json --audit-log D:\logs\mcp-audit.jso
 
 ## Config file
 
-Validated against `schemas/mcp-gateway-config.schema.json`; a working sample
-is at `examples/mcp/gateway-config.example.json`:
+The currently implemented gateway config is validated against
+`schemas/mcp-gateway-config.schema.json`; a working sample is at
+`examples/mcp/gateway-config.example.json`:
 
 ```json
 {
@@ -54,6 +55,15 @@ is at `examples/mcp/gateway-config.example.json`:
   deadlines (positive numbers). May also be set at the top level as defaults
   for all upstreams. Built-in defaults: **20 s** for spawn + `initialize`
   handshake, **30 s** per request.
+
+The E07 upstream security model adds the reviewed alpha contract for the next
+config generation in `schemas/mcp-upstream-config.schema.json` and
+`docs/mcp-upstream-security-model.md`: default `local-restricted`, no shell,
+names-only `env_allowlist`, wildcard env forwarding impossible, size limits
+refuse instead of truncate, timeout caps, no OAuth or remote upstreams, no MCP
+resources or prompts, and MCP v1 schemas/configs are alpha and may break before
+v0.6. Runtime enforcement of that stricter contract is tracked by the E08
+implementation gate.
 
 ## Meta-tools
 
