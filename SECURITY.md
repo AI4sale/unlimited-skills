@@ -2,7 +2,7 @@
 
 ## Supported Version
 
-`v0.4.1-alpha` is a developer preview. Security fixes should target the current `main` branch first.
+`v0.4.2-alpha` is a developer preview. Security fixes should target the current `main` branch first.
 
 The older `v0.3.7-alpha` security boundary remains documented for compatibility with the v0.2.x smoke claims that protect release-history wording.
 
@@ -34,7 +34,7 @@ The hosted clients must not upload:
 
 ## Hosted Archives And Enhancers
 
-Current `v0.4.1-alpha` behavior:
+Current `v0.4.2-alpha` behavior:
 
 - hosted remote manifests must include valid signed manifest envelopes;
 - signatures verify hosted manifest authenticity;
@@ -51,7 +51,7 @@ Use "signed hosted manifests plus SHA256-verified hosted collection archives" fo
 
 Local Skill Hub is an alpha MVP. The runtime is allowlist-only, does not execute skills, and does not forward local search queries to the hosted registry. It is intended for local or controlled LAN testing.
 
-Current `v0.4.1-alpha` limitations:
+Current `v0.4.2-alpha` limitations:
 
 - Hub client token creation, revocation, and request enforcement are implemented for Local Skill Hub `/v1/...` APIs. `GET /health` remains unauthenticated for liveness checks.
 - Use the default `127.0.0.1` bind address unless you are testing on a trusted LAN.
@@ -115,6 +115,12 @@ The gate must not call production hosted services, require production signing ke
 The v0.4.1-alpha Reliability milestone is an alpha verification and publication layer for transactional installs, rollback manifest schema v2, same-second reinstall backup collision protection, `VectorModelMismatch`, hybrid lexical fallback on stale vector indexes, modular CLI command routing, and `skillops usage-snapshot` compatibility after the CLI split. It is not a production SLA.
 
 The gate must not call production hosted services, require production signing keys, upload prompts, upload task text, upload skill bodies, upload search queries, include private pack bodies, include local or repository paths, enable live billing, publish to PyPI, distribute the full catalog, rewrite skills automatically, enable automatic telemetry, or auto-publish. Codex must not create or push the final `v0.4.1-alpha` tag; the release owner verifies the selected `main` SHA and runs the human tag command.
+
+## v0.4.2-alpha MCP Integration Boundary
+
+The v0.4.2-alpha MCP integration gate is an alpha verification layer for `unlimited-skills mcp serve`, `unlimited-skills mcp gateway`, the fixture-only Unlimited Tools smoke harness, and the E07 upstream security model contract. It proves local stdio JSON-RPC handshake, `skills_search`, `skills_view`, `skills_use`, `tools_search`, `tools_schema`, `tools_call`, lazy upstream spawn/reuse, structured refusals, compact schema retrieval, audit redaction, and security-model documentation/schema evidence. It is not a production SLA.
+
+The gate must not call production hosted services, require production signing keys, upload prompts, upload task text, upload skill bodies, upload search queries, include private pack bodies, include local or repository paths, enable live billing, publish to PyPI, distribute the full catalog, rewrite skills automatically, enable automatic telemetry, expose a hosted gateway, implement OAuth or remote upstreams, enable MCP resources or prompts, or auto-publish. E07 runtime enforcement is intentionally tracked as later implementation work; v0.4.2-alpha verifies the contract and fixture behavior. Codex must not create or push the final `v0.4.2-alpha` tag; the release owner verifies the selected `main` SHA and runs the human tag command.
 
 ## Known Security Limitations In v0.3.9-alpha
 

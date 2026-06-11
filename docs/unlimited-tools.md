@@ -86,6 +86,15 @@ execution). See [mcp-server.md](mcp-server.md) and [mcp-gateway.md](mcp-gateway.
   base set plus only the variable **names** in `env_allowlist`, copied from
   your local environment at spawn time and never written to any log. There is
   no literal env value map (the v1 `env` map is rejected at config load).
+- **E07 security model contract**: the upstream config format is specified in
+  [mcp-upstream-security-model.md](mcp-upstream-security-model.md) and
+  `schemas/mcp-upstream-config.schema.json` and enforced by the gateway:
+  `local-restricted` by default, no shell execution, names-only
+  `env_allowlist` forwarding (wildcards impossible), over-limit
+  schema/response payloads refused instead of truncated, startup/request
+  timeouts capped, and OAuth, remote upstreams, MCP resources, and MCP
+  prompts out of scope. MCP v1 schemas/configs are alpha and may break before
+  v0.6.
 - **Audit with redaction**: every meta-tool call — success or refusal — is
   appended to a local JSONL audit log
   (`<library>/.learning/mcp-audit.jsonl` by default) with `ts`, `tool`,
