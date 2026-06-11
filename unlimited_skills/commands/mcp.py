@@ -120,6 +120,30 @@ def _resolve_gateway_profile_state(args: argparse.Namespace):
     return None, "no tool profiles (open mode)"
 
 
+def cmd_mcp_audit_report(args: argparse.Namespace) -> int:
+    import json
+
+    from ..mcp import audit_inspector
+    from ..mcp.audit import default_audit_path
+
+    root = Path(args.root).expanduser()
+    audit_path = Path(args.audit_log).expanduser() if args.audit_log else default_audit_path(root)
+    try:
+        report = audit_inspector.build_report(audit_path)
+    except FileNotFoundError:
+        print(
+            f"Audit log not found: {audit_path} (no active file, no rotated generations). "
+            "Run the gateway first, or pass --audit-log.",
+            file=sys.stderr,
+        )
+        return 1
+    if args.json:
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(audit_inspector.render_text(report, section=args.section))
+    return 0
+
+
 def cmd_mcp_gateway(args: argparse.Namespace) -> int:
     from ..mcp.audit import AuditLog, default_audit_path
     from ..mcp.gateway import load_gateway_config, run_gateway
@@ -312,3 +336,42 @@ def cmd_mcp_profiles_doctor(args: argparse.Namespace) -> int:
     report = doctor_rollout(**_rollout_kwargs(args))
     _print_report(args, report, format_rollout_doctor)
     return int(report["exit_code"])
+
+
+def cmd_mcp_profiles_replay_audit(args: argparse.Namespace) -> int:
+    """E17: replay the historical audit log against a PROPOSED policy.
+
+    Read-only and offline like the rest of the `mcp profiles` subgroup: no
+    tool execution, no upstream spawn, no profile activation, no audit
+    writes. Exit 0 for safe / safe_with_warnings, 1 for blocked or a
+    missing audit log.
+    """
+    from ..mcp.audit import default_audit_path
+    from ..mcp.audit_replay import format_replay_report, replay_audit
+
+    root = Path(args.root).expanduser()
+    audit_path = (
+        Path(args.audit_log).expanduser() if args.audit_log else default_audit_path(root)
+    )
+    try:
+        report = replay_audit(
+            audit_path,
+            root=root,
+            config_path=getattr(args, "config", "") or "",
+            profiles_path=getattr(args, "profiles", "") or "",
+            bundle_path=getattr(args, "bundle", "") or "",
+            trusted_keys_path=getattr(args, "trusted_keys", "") or "",
+            trust_store_dir=getattr(args, "trust_store", "") or "",
+            audience_ids=list(getattr(args, "audience_id", None) or []),
+            profile_name=getattr(args, "profile", "") or "",
+            require_signed=bool(getattr(args, "require_signed_profiles", False)),
+        )
+    except FileNotFoundError:
+        print(
+            f"Audit log not found: {audit_path} (no active file, no rotated "
+            "generations). Run the gateway first, or pass --audit-log.",
+            file=sys.stderr,
+        )
+        return 1
+    _print_report(args, report, format_replay_report)
+    return 1 if report["recommendation"]["status"] == "blocked" else 0

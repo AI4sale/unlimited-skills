@@ -105,4 +105,7 @@ condition it can see:
 See also: [mcp-gateway.md](mcp-gateway.md),
 [mcp-permissioned-tool-profiles.md](mcp-permissioned-tool-profiles.md),
 [mcp-signed-profile-bundles.md](mcp-signed-profile-bundles.md),
-[mcp-trust-store.md](mcp-trust-store.md).
+[mcp-trust-store.md](mcp-trust-store.md),
+[mcp-audit-replay.md](mcp-audit-replay.md) -- the E17
+`mcp profiles replay-audit` companion replays the HISTORICAL audit log
+against the same proposed artifacts this simulator plans over.

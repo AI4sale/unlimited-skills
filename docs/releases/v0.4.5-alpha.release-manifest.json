@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "release": "v0.4.5-alpha",
+  "package_version": "0.4.5",
+  "generated_at": "2026-06-11T00:00:00Z",
+  "distribution": "github-clone-alpha",
+  "git": {
+    "base_branch": "main",
+    "publication_branch": "release/v0.4.5-alpha-mcp-audit-inspector-integration",
+    "tag": "v0.4.5-alpha",
+    "tag_status": "not_created_by_codex",
+    "tag_target_sha_policy": "This is an integration gate. Codex must not create or push v0.4.5-alpha until a later final publication verifier selects the main SHA."
+  },
+  "required_prs": {
+    "public": [
+      {
+        "number": 97,
+        "epic": "v0.4.4",
+        "title": "v0.4.4-alpha final publication",
+        "status": "merged"
+      },
+      {
+        "number": 95,
+        "epic": "E11",
+        "title": "MCP audit inspector v1",
+        "status": "merged"
+      }
+    ]
+  },
+  "safety_boundary": {
+    "alpha_only": true,
+    "fixture_mode": true,
+    "mcp_audit_inspector_integration": true,
+    "read_only_audit_inspection": true,
+    "redaction_self_check": true,
+    "schema_locked_report": true,
+    "profile_runtime_enforcement": true,
+    "production_rollout": false,
+    "production_hosted_calls": false,
+    "hosted_gateway": false,
+    "automatic_telemetry": false,
+    "oauth_upstreams": false,
+    "remote_upstreams": false,
+    "mcp_resources": false,
+    "mcp_prompts": false,
+    "arbitrary_shell_execution": false,
+    "audit_log_writes": false,
+    "auto_publish": false,
+    "live_billing": false,
+    "pypi": false,
+    "full_catalog_distribution": false,
+    "codex_pushes_tag": false
+  },
+  "integration_evidence": {
+    "release_manifest": "docs/releases/v0.4.5-alpha.release-manifest.json",
+    "release_notes": "docs/releases/v0.4.5-alpha.md",
+    "known_issues": "docs/releases/v0.4.5-alpha-known-issues.md",
+    "audit_inspector_docs": "docs/mcp-audit-inspector.md",
+    "report_schema": "schemas/mcp-audit-report.schema.json",
+    "audit_inspector_smoke_runner": "scripts/run-v045-alpha-mcp-audit-inspector-smoke.py",
+    "audit_inspector_verifier": "scripts/verify-v045-alpha-mcp-audit-inspector.py",
+    "integration_test": "tests/integration/test_v045_alpha_mcp_audit_inspector.py"
+  }
+}

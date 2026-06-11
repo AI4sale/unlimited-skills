@@ -1,0 +1,272 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unlimited.ai4.sale/schemas/mcp-audit-replay-report.schema.json",
+  "title": "MCP audit replay and policy impact report (E17 simulator output)",
+  "description": "The --json output of 'unlimited-skills mcp profiles replay-audit': historical redacted audit rows replayed against a PROPOSED policy (profile file / signed bundle / trust store / gateway config) in a read-only dry-run. No tool is executed, no upstream spawned, no profile activated, nothing written, fetched, or telemetered to produce this document. It carries tool names, upstream names, profile names, counts, refusal codes, timestamps, and documented non-sensitive hashes only -- never argument values, results, error text from audit rows, key material, or local paths (inputs are basenames).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "report_type",
+    "schema_version",
+    "generated_at",
+    "inputs",
+    "log",
+    "policy",
+    "verification",
+    "events",
+    "impact",
+    "breakdowns",
+    "findings",
+    "recommendation"
+  ],
+  "properties": {
+    "report_type": { "const": "mcp-audit-replay-report" },
+    "schema_version": { "const": 1 },
+    "generated_at": {
+      "type": "string",
+      "description": "The only wall-clock field in the document; comparisons of two reports over the same inputs ignore it.",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$"
+    },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "audit_log",
+        "config",
+        "profiles",
+        "bundle",
+        "trusted_keys",
+        "trusted_keys_source",
+        "profile",
+        "audience_ids",
+        "require_signed_profiles"
+      ],
+      "properties": {
+        "audit_log": { "type": "string", "pattern": "^[^\\\\/]*$" },
+        "config": { "type": "string", "pattern": "^[^\\\\/]*$" },
+        "profiles": { "type": "string", "pattern": "^[^\\\\/]*$" },
+        "bundle": { "type": "string", "pattern": "^[^\\\\/]*$" },
+        "trusted_keys": { "type": "string", "pattern": "^[^\\\\/]*$" },
+        "trusted_keys_source": { "enum": ["explicit", "store_dir", "managed", "none"] },
+        "profile": { "type": "string" },
+        "audience_ids": { "type": "array", "items": { "type": "string" } },
+        "require_signed_profiles": { "type": "boolean" }
+      }
+    },
+    "log": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files_read", "rotated_files_read", "rows_total", "malformed_lines"],
+      "properties": {
+        "files_read": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[^\\\\/]+$" }
+        },
+        "rotated_files_read": { "type": "integer", "minimum": 0 },
+        "rows_total": { "type": "integer", "minimum": 0 },
+        "malformed_lines": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "profile", "source", "refusal_code", "refusal_name", "message"],
+      "properties": {
+        "mode": { "enum": ["open", "enforced", "fail_closed", "blocked"] },
+        "profile": { "type": "string" },
+        "source": {
+          "enum": ["none", "raw_file", "signed_bundle", "signed_bundle_narrowed", "policy_refusal"]
+        },
+        "refusal_code": { "type": "integer", "maximum": 0 },
+        "refusal_name": { "type": "string" },
+        "message": { "type": "string" }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attempted",
+        "ok",
+        "refusal_code",
+        "refusal_name",
+        "failed_step",
+        "bundle_sha256",
+        "issuer_key_id",
+        "audience",
+        "expires_at"
+      ],
+      "properties": {
+        "attempted": { "type": "boolean" },
+        "ok": { "type": "boolean" },
+        "refusal_code": { "type": "integer", "maximum": 0 },
+        "refusal_name": { "type": "string" },
+        "failed_step": {
+          "enum": [
+            "",
+            "shape_or_static_checks",
+            "key_lookup",
+            "signature",
+            "validity_window",
+            "revocation",
+            "audience",
+            "namespace_ceiling",
+            "selection",
+            "policy"
+          ]
+        },
+        "bundle_sha256": { "type": "string", "pattern": "^$|^[0-9a-f]{64}$" },
+        "issuer_key_id": { "type": "string" },
+        "audience": { "type": "array", "items": { "type": "string" } },
+        "expires_at": { "type": "string" }
+      }
+    },
+    "events": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "calls_total",
+        "by_call_type",
+        "profile_loaded_events",
+        "missing_tool_identity",
+        "replayed"
+      ],
+      "properties": {
+        "calls_total": { "type": "integer", "minimum": 0 },
+        "by_call_type": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["tools_search", "tools_schema", "tools_call", "skills", "other"],
+          "properties": {
+            "tools_search": { "type": "integer", "minimum": 0 },
+            "tools_schema": { "type": "integer", "minimum": 0 },
+            "tools_call": { "type": "integer", "minimum": 0 },
+            "skills": { "type": "integer", "minimum": 0 },
+            "other": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "profile_loaded_events": { "type": "integer", "minimum": 0 },
+        "missing_tool_identity": { "type": "integer", "minimum": 0 },
+        "replayed": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "impact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "replayed",
+        "would_allow",
+        "would_deny",
+        "newly_denied",
+        "newly_allowed",
+        "unchanged_allowed",
+        "unchanged_denied",
+        "newly_denied_tools",
+        "newly_allowed_tools"
+      ],
+      "properties": {
+        "replayed": { "type": "integer", "minimum": 0 },
+        "would_allow": { "type": "integer", "minimum": 0 },
+        "would_deny": { "type": "integer", "minimum": 0 },
+        "newly_denied": { "type": "integer", "minimum": 0 },
+        "newly_allowed": { "type": "integer", "minimum": 0 },
+        "unchanged_allowed": { "type": "integer", "minimum": 0 },
+        "unchanged_denied": { "type": "integer", "minimum": 0 },
+        "newly_denied_tools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["tool", "calls", "would_be_code", "would_be_name"],
+            "properties": {
+              "tool": { "type": "string" },
+              "calls": { "type": "integer", "minimum": 1 },
+              "would_be_code": { "type": "integer", "maximum": 0 },
+              "would_be_name": { "type": "string" }
+            }
+          }
+        },
+        "newly_allowed_tools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["tool", "calls"],
+            "properties": {
+              "tool": { "type": "string" },
+              "calls": { "type": "integer", "minimum": 1 }
+            }
+          }
+        }
+      }
+    },
+    "breakdowns": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "by_tool",
+        "by_upstream",
+        "by_profile",
+        "by_refusal_code",
+        "by_time_bucket",
+        "by_call_type"
+      ],
+      "properties": {
+        "by_tool": { "$ref": "#/$defs/tallyMap" },
+        "by_upstream": { "$ref": "#/$defs/tallyMap" },
+        "by_profile": { "$ref": "#/$defs/tallyMap" },
+        "by_refusal_code": { "$ref": "#/$defs/tallyMap" },
+        "by_time_bucket": { "$ref": "#/$defs/tallyMap" },
+        "by_call_type": { "$ref": "#/$defs/tallyMap" }
+      }
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["finding", "severity", "detail"],
+        "properties": {
+          "finding": { "type": "string" },
+          "severity": { "enum": ["problem", "warning"] },
+          "detail": { "type": "string" }
+        }
+      }
+    },
+    "recommendation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["status", "reasons", "thresholds"],
+      "properties": {
+        "status": { "enum": ["safe", "safe_with_warnings", "blocked"] },
+        "reasons": { "type": "array", "items": { "type": "string" } },
+        "thresholds": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["block_breakage_ratio"],
+          "properties": {
+            "block_breakage_ratio": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "tallyMap": {
+      "type": "object",
+      "description": "Breakdown bucket keyed by tool / upstream / profile / would-be refusal name / UTC hour bucket / call type. Values are replay counters only.",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["replayed", "would_allow", "would_deny", "newly_denied", "newly_allowed"],
+        "properties": {
+          "replayed": { "type": "integer", "minimum": 0 },
+          "would_allow": { "type": "integer", "minimum": 0 },
+          "would_deny": { "type": "integer", "minimum": 0 },
+          "newly_denied": { "type": "integer", "minimum": 0 },
+          "newly_allowed": { "type": "integer", "minimum": 0 }
+        }
+      }
+    }
+  }
+}
