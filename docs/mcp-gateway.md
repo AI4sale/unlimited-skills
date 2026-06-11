@@ -74,6 +74,9 @@ is the full specification); annotated samples are at
 
 ## Config enforcement (upstream security model)
 
+`v0.4.3-alpha` verifies this MCP upstream enforcement with fixture-mode
+tests and release evidence.
+
 The gateway enforces [mcp-upstream-security-model.md](mcp-upstream-security-model.md)
 — that document is the authoritative contract; in short:
 

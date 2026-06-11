@@ -110,6 +110,14 @@ execution). See [mcp-server.md](mcp-server.md) and [mcp-gateway.md](mcp-gateway.
 
 ## Upstream security model
 
+`v0.4.3-alpha` is the MCP upstream enforcement integration gate. It verifies
+disabled and future remote upstream refusals before spawn, command allowlists,
+names-only environment forwarding, schema/response size refusals, startup
+timeout and request timeout bounds, audit rotation, audit redaction, and the
+continued absence of OAuth, remote upstreams, resources, prompts, hosted
+gateway mode, production hosted calls, automatic telemetry, and shell
+execution.
+
 The contract for upstream trust levels, command and environment
 allowlisting, size/timeout bounds, audit retention, extended refusal codes
 (`-32005`…`-32010`), the threat model, and the OAuth / resources+prompts

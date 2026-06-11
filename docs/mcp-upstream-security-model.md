@@ -1,5 +1,9 @@
 # MCP upstream configuration and security model
 
+`v0.4.3-alpha` verifies that this E07 design is runtime enforced for local
+stdio upstreams by E08. OAuth, remote upstreams, resources, and prompts remain
+closed gates.
+
 **Status: DESIGN (E07).** This document specifies how Unlimited Tools
 configures, allowlists, isolates, limits, and audits upstream MCP servers.
 Nothing in this document is implemented by the E07 change itself — it is the
