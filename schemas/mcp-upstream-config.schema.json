@@ -1,0 +1,137 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AI4sale/unlimited-skills/schemas/mcp-upstream-config.schema.json",
+  "title": "Unlimited Tools MCP upstream config (E07 security model)",
+  "description": "DESIGN (E07): upstream list for the Unlimited Tools gateway under the upstream security model (docs/mcp-upstream-security-model.md). Upstreams are stdio subprocesses only; every upstream carries a trust level; environment forwarding is allowlist-of-names only (never wildcards, never literal values); size and timeout limits are bounded and exceeding them is a structured refusal, never silent truncation. Trust-level ceilings (e.g. local-restricted max_response_bytes <= 1048576) are enforced semantically by the gateway at config load time; this schema enforces the hard bounds.",
+  "type": "object",
+  "required": ["schema_version", "upstreams"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "comment": { "type": "string", "description": "Annotation only; carries no semantics." },
+    "startup_timeout_seconds": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 120,
+      "default": 20,
+      "description": "Default per-upstream spawn+initialize deadline in seconds. Overridable per upstream within the same hard bound."
+    },
+    "request_timeout_seconds": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "maximum": 300,
+      "default": 30,
+      "description": "Default per-upstream request deadline in seconds. Overridable per upstream within the same hard bound. On timeout the upstream is terminated and the call is refused with JSON-RPC error -32002."
+    },
+    "audit_max_bytes": {
+      "type": "integer",
+      "minimum": 65536,
+      "maximum": 104857600,
+      "default": 10485760,
+      "description": "Rotate the JSONL audit log when the active file exceeds this many bytes."
+    },
+    "audit_max_files": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 20,
+      "default": 5,
+      "description": "Number of rotated audit log generations to keep."
+    },
+    "upstreams": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "command"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+            "description": "Unique upstream id. Tools are addressed as '<name>.<tool>'."
+          },
+          "comment": { "type": "string", "description": "Annotation only; carries no semantics." },
+          "enabled": {
+            "type": "boolean",
+            "default": true,
+            "description": "false forces 'disabled' semantics regardless of trust_level: never spawned, never indexed, addressed calls refused with upstream_disabled (-32005)."
+          },
+          "trust_level": {
+            "enum": ["disabled", "local-trusted", "local-restricted", "future-remote-placeholder"],
+            "default": "local-restricted",
+            "description": "Trust level governing command form, environment forwarding, and size ceilings. 'future-remote-placeholder' is reserved: any operation on it is refused with trust_level_violation (-32010) until the OAuth/remote gate opens."
+          },
+          "command": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Executable to spawn, passed as argv[0] with no shell interpretation. Must be an absolute path at local-restricted; may be a known-runner bare name (node, npx, bunx, deno, python, python3, uv, uvx) at local-trusted. Violations are refused with command_not_allowed (-32006)."
+          },
+          "args": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Command-line arguments, passed verbatim as an argv vector. No shell expansion, no %VAR%/$VAR templating."
+          },
+          "cwd": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Absolute path to an existing working directory for the upstream process. Default: a gateway-managed per-upstream scratch directory (the gateway's own cwd is never inherited). Relative paths are refused at config load time."
+          },
+          "env_allowlist": {
+            "type": "array",
+            "default": [],
+            "uniqueItems": true,
+            "maxItems": 32,
+            "items": {
+              "type": "string",
+              "pattern": "^[A-Za-z_][A-Za-z0-9_]*$"
+            },
+            "description": "Names of environment variables copied from the gateway's environment into the upstream process, in addition to the fixed minimal base set. Names only — never values, never wildcards (the item pattern makes '*' unrepresentable). Empty or absent forwards nothing beyond the base set. Broader forwarding is refused with env_forwarding_denied (-32007). Values are never written to any log."
+          },
+          "startup_timeout_seconds": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 120,
+            "description": "Spawn+initialize deadline override for this upstream, in seconds, bounded."
+          },
+          "request_timeout_seconds": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "maximum": 300,
+            "description": "Per-request deadline override for this upstream, in seconds, bounded."
+          },
+          "max_schema_bytes": {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 1048576,
+            "default": 65536,
+            "description": "Cap on one tool's serialized inputSchema as returned by tools_schema. Exceeding it is refused with schema_too_large (-32008) — never truncated. Trust-level ceiling at local-restricted: 262144."
+          },
+          "max_response_bytes": {
+            "type": "integer",
+            "minimum": 1024,
+            "maximum": 8388608,
+            "default": 262144,
+            "description": "Cap on one serialized tools/call result before relay. Exceeding it is refused with response_too_large (-32009) — the result is dropped, never trimmed. Trust-level ceiling at local-restricted: 1048576."
+          },
+          "audit_level": {
+            "enum": ["minimal", "standard"],
+            "default": "standard",
+            "description": "minimal: ts/tool/upstream/duration_ms/ok only. standard: minimal plus redacted args shape and path-scrubbed error. There is deliberately no 'off'. Env values, tool results, prompts, skill bodies, raw schemas, and unscrubbed paths are never written at any level."
+          },
+          "tools": {
+            "type": "array",
+            "description": "Optional pre-declared tool index (names and descriptions only) so tools_search can match this upstream before it is ever spawned. Ignored for disabled and future-remote-placeholder upstreams.",
+            "items": {
+              "type": "object",
+              "required": ["name"],
+              "additionalProperties": false,
+              "properties": {
+                "name": { "type": "string", "minLength": 1 },
+                "description": { "type": "string" }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

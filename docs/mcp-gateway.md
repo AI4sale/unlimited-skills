@@ -152,3 +152,14 @@ path-scrubbed `error` on failure. Redaction (pure functions `redact()` /
 Proven by `tests/test_mcp_gateway.py::test_audit_file_never_leaks_secrets`,
 which greps a generated audit file for token/bearer/password/proof/prompt/
 skill-body/env/local-path plaintext after a representative call.
+
+## Upstream security model (E07 design)
+
+How upstreams *should* be configured, allowlisted, isolated, limited, and
+audited going forward — trust levels (`disabled` / `local-restricted` /
+`local-trusted` / `future-remote-placeholder`), a names-only env allowlist
+replacing the `env` value map above, command allowlisting, size caps with
+refusal-not-truncation, audit rotation, the extended refusal codes
+`-32005`…`-32010`, and the 9-vector threat model — is specified in
+[mcp-upstream-security-model.md](mcp-upstream-security-model.md)
+(design only; this page documents the implemented v1 behavior).
