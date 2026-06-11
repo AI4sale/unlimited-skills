@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "comment": "E09 permissioned tool profiles example (docs/mcp-permissioned-tool-profiles.md). Pairs with the upstreams in examples/mcp/upstreams.example.json ('github', 'filesystem'). Select a profile with --profile, UNLIMITED_SKILLS_MCP_PROFILE, or default_profile (that precedence order); with a profile active, anything not matched below is invisible and uncallable. The optional top-level 'signature' envelope is omitted: v1 never verifies signatures (shape-only slot reserved for the future signing gate).",
+  "default_profile": "dev-default",
+  "profiles": {
+    "dev-default": {
+      "comment": "Team baseline and ceiling: sees every tool on both local upstreams and may call everything it sees. Note there is no 'allow everything' rule — each upstream is opened by name, so adding a new upstream to the gateway config never silently widens this profile.",
+      "visible": ["github.*", "filesystem.*"],
+      "callable": ["github.*", "filesystem.*"]
+    },
+    "reviewer": {
+      "comment": "Read-only reviewer: inherits the dev-default ceiling, keeps the same visibility, but may call only two read tools. Visible-but-not-callable tools still appear in tools_search (marked callable:false) and their schemas can be fetched; tools_call on them is refused with tool_not_callable (-32012). Every callable rule is covered by a visible rule — callable is always a subset of visible.",
+      "extends": "dev-default",
+      "visible": ["github.*", "filesystem.*"],
+      "callable": ["github.search_repositories", "filesystem.read_file"]
+    },
+    "ci-minimal": {
+      "comment": "CI runtime profile, typically selected via UNLIMITED_SKILLS_MCP_PROFILE: inherits the reviewer ceiling and narrows to a single visible, callable tool. Inheritance is restriction-only — this child could never widen beyond reviewer, only narrow it.",
+      "extends": "reviewer",
+      "visible": ["github.search_repositories"],
+      "callable": ["github.search_repositories"]
+    }
+  }
+}

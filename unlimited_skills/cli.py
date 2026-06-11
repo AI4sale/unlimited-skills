@@ -1084,6 +1084,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     mcp_gateway.add_argument("--config", required=True, help="Path to a gateway JSON config listing upstream stdio MCP servers.")
     mcp_gateway.add_argument("--audit-log", default="", help="Override the redacted JSONL audit log path. Defaults to <root>/.learning/mcp-audit.jsonl.")
+    mcp_gateway.add_argument("--profiles", default="", help="Path to a permissioned tool-profile JSON file (schemas/mcp-tool-profile.schema.json). Absent = open no-profiles mode; configured = default-deny enforcement that fails closed on errors.")
+    mcp_gateway.add_argument("--profile", default="", help="Profile name to enforce from --profiles. Precedence: this flag > UNLIMITED_SKILLS_MCP_PROFILE > the file's default_profile.")
     mcp_gateway.set_defaults(func=mcp_cmds.cmd_mcp_gateway)
     mcp_audit_report = mcp_sub.add_parser(
         "audit-report",

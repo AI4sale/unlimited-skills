@@ -110,6 +110,14 @@ execution). See [mcp-server.md](mcp-server.md) and [mcp-gateway.md](mcp-gateway.
 
 ## Upstream security model
 
+`v0.4.3-alpha` is the MCP upstream enforcement integration gate. It verifies
+disabled and future remote upstream refusals before spawn, command allowlists,
+names-only environment forwarding, schema/response size refusals, startup
+timeout and request timeout bounds, audit rotation, audit redaction, and the
+continued absence of OAuth, remote upstreams, resources, prompts, hosted
+gateway mode, production hosted calls, automatic telemetry, and shell
+execution.
+
 The contract for upstream trust levels, command and environment
 allowlisting, size/timeout bounds, audit retention, extended refusal codes
 (`-32005`…`-32010`), the threat model, and the OAuth / resources+prompts
@@ -118,6 +126,16 @@ gates is specified in
 enforced by the gateway (see the "Config enforcement" section of
 [mcp-gateway.md](mcp-gateway.md)). It strictly tightens the v1 boundaries
 above and never weakens them.
+
+## Permissioned tool profiles (design)
+
+[mcp-permissioned-tool-profiles.md](mcp-permissioned-tool-profiles.md) (E09,
+design only — not yet enforced) adds named per-agent / per-team / per-runtime
+tool profiles on top of the upstream security model: a profile controls which
+upstream tools an agent can see (`tools_search` / `tools_schema`) and which
+it can call (`tools_call`), default-deny when active, fail-closed when
+missing or invalid. The open behavior above remains the default (no-profiles
+mode) until v0.6.
 
 ## Quick start
 

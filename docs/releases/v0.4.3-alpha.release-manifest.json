@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "release": "v0.4.3-alpha",
+  "package_version": "0.4.3",
+  "generated_at": "2026-06-11T00:00:00Z",
+  "distribution": "github-clone-alpha",
+  "git": {
+    "base_branch": "main",
+    "publication_branch": "release/v0.4.3-alpha-final-publication",
+    "tag": "v0.4.3-alpha",
+    "tag_status": "pending_codex_publication_after_verifier",
+    "tag_target_sha_policy": "Codex may create and push this tag only after the final publication PR is merged to main and verify-v043-alpha-publication.py passes against the selected main SHA."
+  },
+  "required_prs": {
+    "public": [
+      {
+        "number": 90,
+        "epic": "v0.4.2",
+        "title": "v0.4.2-alpha final publication gate",
+        "status": "merged"
+      },
+      {
+        "number": 89,
+        "epic": "E08",
+        "title": "MCP upstream config enforcement",
+        "status": "merged"
+      },
+      {
+        "number": 91,
+        "epic": "v0.4.3",
+        "title": "MCP upstream enforcement integration gate",
+        "status": "merged"
+      },
+      {
+        "number": 92,
+        "epic": "E09",
+        "title": "MCP permissioned tool profile design",
+        "status": "merged"
+      }
+    ]
+  },
+  "safety_boundary": {
+    "alpha_only": true,
+    "fixture_mode": true,
+    "mcp_upstream_runtime_enforcement": true,
+    "production_rollout": false,
+    "production_hosted_calls": false,
+    "hosted_gateway": false,
+    "automatic_telemetry": false,
+    "oauth_upstreams": false,
+    "remote_upstreams": false,
+    "mcp_resources": false,
+    "mcp_prompts": false,
+    "arbitrary_shell_execution": false,
+    "automatic_hosted_query_forwarding": false,
+    "automatic_rewriting": false,
+    "automatic_install_update_remove": false,
+    "auto_publish": false,
+    "live_billing": false,
+    "pypi": false,
+    "full_catalog_distribution": false,
+    "full_schema_dump": false,
+    "prompt_upload": false,
+    "skill_body_upload": false,
+    "search_query_upload": false,
+    "private_pack_body_upload": false,
+    "private_registry_content_committed": false,
+    "codex_pushes_tag": true,
+    "profile_design_docs_included": true,
+    "profile_runtime_enforcement": false
+  },
+  "required_test_commands": [
+    ".venv\\Scripts\\python.exe scripts\\run-v043-alpha-mcp-enforcement-smoke.py --fixture-mode --json",
+    ".venv\\Scripts\\python.exe scripts\\verify-v043-alpha-mcp-enforcement.py --expected-sha <current-sha>",
+    ".venv\\Scripts\\python.exe -m pytest tests\\integration\\test_v043_alpha_mcp_enforcement.py -q",
+    ".venv\\Scripts\\python.exe -m pytest tests\\test_mcp_upstream_config.py tests\\test_mcp_gateway.py tests\\integration\\test_mcp_gateway_fixture.py -q",
+    ".venv\\Scripts\\python.exe -m pytest tests -q",
+    ".venv\\Scripts\\python.exe scripts\\run-v0.2x-smoke-tests.py",
+    ".venv\\Scripts\\python.exe scripts\\run-v042-alpha-release-smoke.py",
+    ".venv\\Scripts\\python.exe scripts\\run-v043-alpha-release-smoke.py",
+    ".venv\\Scripts\\python.exe -m compileall -q unlimited_skills scripts tests",
+    "git diff --check"
+  ],
+  "publication_evidence": {
+    "release_manifest": "docs/releases/v0.4.3-alpha.release-manifest.json",
+    "release_notes": "docs/releases/v0.4.3-alpha.md",
+    "known_issues": "docs/releases/v0.4.3-alpha-known-issues.md",
+    "upgrade_notes": "docs/releases/v0.4.3-alpha-upgrade-notes.md",
+    "enforcement_smoke_runner": "scripts/run-v043-alpha-mcp-enforcement-smoke.py",
+    "release_smoke_runner": "scripts/run-v043-alpha-release-smoke.py",
+    "enforcement_verifier": "scripts/verify-v043-alpha-mcp-enforcement.py",
+    "publication_verifier": "scripts/verify-v043-alpha-publication.py",
+    "integration_test": "tests/integration/test_v043_alpha_mcp_enforcement.py",
+    "profile_design": "docs/mcp-permissioned-tool-profiles.md",
+    "tag_command_owner": "codex_after_verifier",
+    "codex_may_push_tag": true
+  }
+}
