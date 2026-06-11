@@ -42,7 +42,7 @@ is at `examples/mcp/gateway-config.example.json`:
 
 - `name` — unique id; tools are addressed as `<name>.<tool>`.
 - `command` / `args` — the upstream stdio MCP server process. stdio only:
-  no URLs, no OAuth upstreams in v1.
+  no URLs, no OAuth upstreams in v1. This is not a hosted gateway.
 - `env` — extra environment for the upstream. Values may reference local
   environment variables (`%VAR%` or `$VAR`); they are expanded from
   `os.environ` at spawn time and **never logged**.
@@ -136,7 +136,8 @@ path-scrubbed `error` on failure. Redaction (pure functions `redact()` /
 `looks_secret()` / `scrub_paths()` in `unlimited_skills/mcp/audit.py`):
 
 - values of argument keys matching token/secret/key/password/proof/auth/
-  credential/cookie/session/signature/cert/private/prompt/env/body/content
+  credential/cookie/session/signature/cert/private/prompt/env/body/content/
+  query/text
   (case-insensitive) are replaced with `[redacted]`, recursively through
   nested dicts and lists;
 - string **values** that look like secrets are redacted even under harmless
@@ -144,10 +145,13 @@ path-scrubbed `error` on failure. Redaction (pure functions `redact()` /
   blocks, long hex or base64-like blobs;
 - env values are never passed to the audit layer at all (and env-shaped keys
   are redacted as defense in depth);
-- prompts, skill bodies, and upstream tool results are never written — only
-  call shape, timing, and status;
+- prompts, search queries, free-form text inputs, skill bodies, and upstream
+  tool results are never written — only call shape, timing, and status;
 - local filesystem paths (drive, UNC, `~/…`, POSIX home/tmp) are scrubbed
   from every audited string, including error strings.
+
+The gateway does not expose resources or prompts, does not send telemetry,
+and does not provide a hosted gateway mode in v1.
 
 Proven by `tests/test_mcp_gateway.py::test_audit_file_never_leaks_secrets`,
 which greps a generated audit file for token/bearer/password/proof/prompt/

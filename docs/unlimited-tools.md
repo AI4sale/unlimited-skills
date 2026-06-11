@@ -77,8 +77,11 @@ execution). See [mcp-server.md](mcp-server.md) and [mcp-gateway.md](mcp-gateway.
   JSON-RPC 2.0 (or LSP-style `Content-Length` framing, auto-detected) on
   stdin/stdout. No sockets, no HTTP listeners.
 - **Local-only**: upstreams are local subprocesses from your own config file.
-  No hosted calls, no OAuth upstreams in v1.
-- **Tools capability only**: no MCP `resources` or `prompts` in v1.
+  No hosted calls, no hosted gateway, no OAuth upstreams in v1.
+- **Tools capability only**: no MCP resources or prompts in v1.
+- **No automatic telemetry**: the gateway writes only the local redacted
+  audit log you configure; it does not send usage, prompts, queries, tool
+  inputs, or results to hosted services.
 - **Env hygiene**: upstream `env` values may reference `%VAR%` / `$VAR`; they
   are expanded from your local environment at spawn time and are never written
   to any log.
@@ -87,7 +90,7 @@ execution). See [mcp-server.md](mcp-server.md) and [mcp-gateway.md](mcp-gateway.
   (`<library>/.learning/mcp-audit.jsonl` by default) with `ts`, `tool`,
   `upstream`, `duration_ms`, `ok`. Argument values under sensitive keys
   (token/secret/key/password/proof/auth/credential/cookie/session/signature/
-  cert/private/prompt/env/body/content) are redacted recursively; string
+  cert/private/prompt/env/body/content/query/text) are redacted recursively; string
   values that *look* like secrets (`Bearer …`, JWTs, PEM blocks, long
   hex/base64 blobs) are redacted even under harmless keys; env values, skill
   bodies, prompts, and tool results are never written; local paths are
@@ -125,4 +128,3 @@ Claude Code registration example (`.mcp.json`):
 ## Performance and rewrite path
 
 The v1 server and gateway are intentionally Python: MCP traffic is I/O-bound JSON-RPC glue, per-call overhead is microseconds against seconds of upstream/tool work, and the search core they reuse lives in this package. The protocol boundary is pinned by JSON schemas (`schemas/mcp-*.schema.json`) and fixture tests (`tests/test_mcp_protocol.py` and friends), so if a hosted multi-tenant gateway or single-binary distribution ever justifies it, the protocol/gateway layer can be rewritten in a compiled language (e.g. Rust) as a drop-in behind the same contracts without touching the library/search core. Revisit when (a) the gateway becomes a hosted product or (b) no-Python single-file install becomes a distribution goal.
-

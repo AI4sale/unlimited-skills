@@ -200,6 +200,9 @@ def test_tools_call_routes_and_audit_redacts(fixture_paths: dict) -> None:
     call_row = next(row for row in rows if row["tool"] == "tools_call")
     assert call_row["upstream"] == "fake"
     assert call_row["args"]["arguments"]["api_token"] == "[redacted]"
+    assert call_row["args"]["arguments"]["text"] == "[redacted]"
+    search_row = next(row for row in rows if row["tool"] == "tools_search")
+    assert search_row["args"]["query"] == "[redacted]"
     # Results must never be audited.
     assert "echo:hello" not in audit_text
 
@@ -437,6 +440,7 @@ def test_redact_and_scrub_paths(tmp_path: Path) -> None:
         "proof_of_work": "x",
         "private_key": "k",
         "client_secret": "s",
+        "query": "private search query",
         "text": "ok " + "y" * 500,
         "nested": [{"session_token": "t2", "count": 3}],
     }
@@ -445,7 +449,8 @@ def test_redact_and_scrub_paths(tmp_path: Path) -> None:
     for secret in ("secretvalue", "Bearer abc", '"p"', '"x"', '"k"', '"s"', '"t2"'):
         assert secret not in dumped
     assert redacted["nested"][0]["count"] == 3
-    assert len(redacted["text"]) <= 120
+    assert redacted["query"] == "[redacted]"
+    assert redacted["text"] == "[redacted]"
     scrubbed = scrub_paths(r"failed at C:\Users\tedja\secret\file.txt and /home/user/x.txt")
     assert "tedja" not in scrubbed and "/home/user" not in scrubbed
     assert "[path]" in scrubbed

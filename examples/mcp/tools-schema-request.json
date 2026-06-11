@@ -1,0 +1,11 @@
+{
+  "jsonrpc": "2.0",
+  "id": 3,
+  "method": "tools/call",
+  "params": {
+    "name": "tools_schema",
+    "arguments": {
+      "tool": "fake.echo"
+    }
+  }
+}
