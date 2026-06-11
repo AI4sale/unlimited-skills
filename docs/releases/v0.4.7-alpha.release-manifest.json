@@ -6,10 +6,10 @@
   "distribution": "github-clone-alpha",
   "git": {
     "base_branch": "main",
-    "publication_branch": "release/v0.4.7-alpha-signed-profile-bundles-integration",
+    "publication_branch": "release/v0.4.7-alpha-final-publication",
     "tag": "v0.4.7-alpha",
-    "tag_status": "not_created_by_codex",
-    "tag_target_sha_policy": "This integration gate records signed profile bundle evidence only. A later final publication gate must verify the selected main SHA before tagging."
+    "tag_status": "pending_codex_publication_after_verifier",
+    "tag_target_sha_policy": "Codex may create and push v0.4.7-alpha only after the final publication verifier passes on the selected main SHA."
   },
   "required_prs": {
     "public": [
@@ -23,6 +23,12 @@
         "number": 103,
         "epic": "E14",
         "title": "Signed MCP profile bundle verification",
+        "status": "merged"
+      },
+      {
+        "number": 105,
+        "epic": "v0.4.7",
+        "title": "v0.4.7-alpha signed profile bundle integration gate",
         "status": "merged"
       }
     ],
@@ -41,7 +47,7 @@
     "signed_profile_bundle_integration": true,
     "raw_local_profiles_still_allowed_by_default": true,
     "registered_business_signed_required_future_gated": true,
-    "codex_must_not_push_tag": true,
+    "codex_pushes_tag": true,
     "production_rollout": false,
     "production_hosted_calls": false,
     "hosted_trust_fetch": false,
@@ -66,6 +72,8 @@
     "signed_bundle_runtime": "unlimited_skills/mcp/bundles.py",
     "signed_bundle_smoke_runner": "scripts/run-v047-alpha-signed-profile-bundles-smoke.py",
     "signed_bundle_verifier": "scripts/verify-v047-alpha-signed-profile-bundles.py",
+    "publication_smoke_runner": "scripts/run-v047-alpha-release-smoke.py",
+    "publication_verifier": "scripts/verify-v047-alpha-publication.py",
     "integration_test": "tests/integration/test_v047_alpha_signed_profile_bundles.py"
   }
 }
