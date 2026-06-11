@@ -21,15 +21,17 @@ from __future__ import annotations
 
 import json
 import os
+import queue
 import re
 import subprocess
+import threading
 import time
 from pathlib import Path
 from typing import Any, BinaryIO, Iterable
 
 from .. import __version__
 from .audit import AuditLog
-from .protocol import PROTOCOL_VERSION, StdioServer, ToolError
+from .protocol import PROTOCOL_VERSION, RefusalError, StdioServer, ToolError
 
 GATEWAY_NAME = "unlimited-tools-gateway"
 MAX_SEARCH_LIMIT = 20
@@ -37,13 +39,31 @@ DEFAULT_SEARCH_LIMIT = 8
 UPSTREAM_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
 _WORD_RE = re.compile(r"[a-zA-Z0-9][a-zA-Z0-9_+.#/-]*")
 
+# Per-upstream timeouts (seconds). Overridable per upstream or globally in
+# the gateway config via startup_timeout_seconds / request_timeout_seconds.
+DEFAULT_STARTUP_TIMEOUT = 20.0
+DEFAULT_REQUEST_TIMEOUT = 30.0
+
+# Gateway refusal codes (JSON-RPC error.code values; see docs/mcp-gateway.md).
+UPSTREAM_START_FAILED = -32001  # upstream could not be spawned or failed its handshake
+UPSTREAM_TIMEOUT = -32002  # upstream did not answer within the deadline
+UPSTREAM_PROTOCOL_ERROR = -32003  # upstream returned malformed/garbage output
+UPSTREAM_FAILED = -32004  # upstream returned a JSON-RPC error or died mid-call
+
 
 class GatewayConfigError(RuntimeError):
     """The gateway config file is missing or malformed."""
 
 
-class UpstreamError(RuntimeError):
-    """An upstream MCP server failed to start, answer, or stay alive."""
+class UpstreamError(RefusalError):
+    """An upstream MCP server failed to start, answer, or stay alive.
+
+    Carries one of the ``UPSTREAM_*`` refusal codes; surfaced to the host as
+    a structured JSON-RPC error response, never as garbage relay or a crash.
+    """
+
+    def __init__(self, message: str, code: int = UPSTREAM_FAILED) -> None:
+        super().__init__(code, message)
 
 
 def _tokens(text: str) -> set[str]:
@@ -85,6 +105,7 @@ def load_gateway_config(path: Path) -> dict:
         raise GatewayConfigError(f"Gateway config is not valid JSON: {path}") from exc
     if not isinstance(data, dict) or not isinstance(data.get("upstreams"), list):
         raise GatewayConfigError("Gateway config must be an object with an 'upstreams' list.")
+    _validate_timeouts(data, "config")
     seen: set[str] = set()
     for index, spec in enumerate(data["upstreams"]):
         if not isinstance(spec, dict):
@@ -112,23 +133,63 @@ def load_gateway_config(path: Path) -> dict:
         for t_index, tool in enumerate(tools):
             if not isinstance(tool, dict) or not isinstance(tool.get("name"), str) or not tool["name"]:
                 raise GatewayConfigError(f"upstreams[{index}].tools[{t_index}] needs a string 'name'.")
+        _validate_timeouts(spec, f"upstreams[{index}]")
     return data
 
 
-class UpstreamClient:
-    """One lazily-spawned upstream MCP server over subprocess stdio."""
+def _validate_timeouts(spec: dict, label: str) -> None:
+    for key in ("startup_timeout_seconds", "request_timeout_seconds"):
+        if key not in spec:
+            continue
+        value = spec[key]
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+            raise GatewayConfigError(f"{label}.{key} must be a positive number of seconds.")
 
-    def __init__(self, spec: dict) -> None:
+
+class UpstreamClient:
+    """One lazily-spawned upstream MCP server over subprocess stdio.
+
+    Lifecycle: not spawned until first needed; reused while alive; answers
+    are read by a background thread so every request has a hard deadline;
+    terminated (then killed) on gateway shutdown or after a refusal that
+    leaves the stream out of sync (timeout, garbage output).
+    """
+
+    def __init__(self, spec: dict, defaults: dict | None = None) -> None:
+        defaults = defaults or {}
         self.spec = spec
         self.name = str(spec["name"])
         self.process: subprocess.Popen | None = None
         self.tools: dict[str, dict] = {}
         self.indexed = False
+        self.spawn_count = 0
         self._next_id = 0
+        self._lines: queue.Queue | None = None
+        self.startup_timeout = float(
+            spec.get(
+                "startup_timeout_seconds",
+                defaults.get("startup_timeout_seconds", DEFAULT_STARTUP_TIMEOUT),
+            )
+        )
+        self.request_timeout = float(
+            spec.get(
+                "request_timeout_seconds",
+                defaults.get("request_timeout_seconds", DEFAULT_REQUEST_TIMEOUT),
+            )
+        )
 
     @property
     def started(self) -> bool:
         return self.process is not None and self.process.poll() is None
+
+    @staticmethod
+    def _reader_loop(stdout: Any, lines: queue.Queue) -> None:
+        try:
+            for line in iter(stdout.readline, b""):
+                lines.put(line)
+        except (OSError, ValueError):
+            pass
+        lines.put(None)  # EOF sentinel
 
     def start(self) -> None:
         if self.started:
@@ -146,16 +207,36 @@ class UpstreamClient:
                 env=env,
             )
         except OSError as exc:
-            raise UpstreamError(f"Failed to spawn upstream '{self.name}': {type(exc).__name__}") from exc
-        self.request(
-            "initialize",
-            {
-                "protocolVersion": PROTOCOL_VERSION,
-                "capabilities": {},
-                "clientInfo": {"name": GATEWAY_NAME, "version": __version__},
-            },
-        )
-        self.notify("notifications/initialized")
+            self.process = None
+            raise UpstreamError(
+                f"Failed to spawn upstream '{self.name}': {type(exc).__name__}",
+                code=UPSTREAM_START_FAILED,
+            ) from exc
+        self.spawn_count += 1
+        self._lines = queue.Queue()
+        threading.Thread(
+            target=self._reader_loop,
+            args=(self.process.stdout, self._lines),
+            name=f"upstream-{self.name}-reader",
+            daemon=True,
+        ).start()
+        try:
+            self.request(
+                "initialize",
+                {
+                    "protocolVersion": PROTOCOL_VERSION,
+                    "capabilities": {},
+                    "clientInfo": {"name": GATEWAY_NAME, "version": __version__},
+                },
+                timeout=self.startup_timeout,
+            )
+            self.notify("notifications/initialized")
+        except UpstreamError as exc:
+            self.terminate()
+            raise UpstreamError(
+                f"Upstream '{self.name}' failed to start: {exc}",
+                code=UPSTREAM_START_FAILED,
+            ) from exc
 
     def ensure_indexed(self) -> None:
         self.start()
@@ -191,15 +272,27 @@ class UpstreamClient:
             message["params"] = params
         self._send(message)
 
-    def request(self, method: str, params: dict) -> dict:
+    def request(self, method: str, params: dict, timeout: float | None = None) -> dict:
         self._next_id += 1
         request_id = self._next_id
         self._send({"jsonrpc": "2.0", "id": request_id, "method": method, "params": params})
-        if self.process is None or self.process.stdout is None:
+        lines = self._lines
+        if self.process is None or lines is None:
             raise UpstreamError(f"Upstream '{self.name}' is not running.")
+        deadline = time.monotonic() + (timeout if timeout is not None else self.request_timeout)
         while True:
-            line = self.process.stdout.readline()
-            if not line:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                self.terminate()  # response stream is out of sync; do not reuse
+                raise UpstreamError(
+                    f"Upstream '{self.name}' timed out on '{method}'.",
+                    code=UPSTREAM_TIMEOUT,
+                )
+            try:
+                line = lines.get(timeout=remaining)
+            except queue.Empty:
+                continue
+            if line is None:
                 raise UpstreamError(f"Upstream '{self.name}' closed its stdio stream.")
             stripped = line.strip()
             if not stripped:
@@ -207,20 +300,37 @@ class UpstreamClient:
             try:
                 message = json.loads(stripped.decode("utf-8", errors="replace"))
             except json.JSONDecodeError:
-                continue
-            if not isinstance(message, dict) or message.get("id") != request_id:
+                self.terminate()  # garbage on the protocol stream; never relay it
+                raise UpstreamError(
+                    f"Upstream '{self.name}' returned a malformed (non-JSON) response.",
+                    code=UPSTREAM_PROTOCOL_ERROR,
+                )
+            if not isinstance(message, dict):
+                self.terminate()
+                raise UpstreamError(
+                    f"Upstream '{self.name}' returned a non-object JSON-RPC message.",
+                    code=UPSTREAM_PROTOCOL_ERROR,
+                )
+            if message.get("id") != request_id:
                 continue  # skip notifications and unrelated responses
             if "error" in message:
                 error = message.get("error") or {}
                 raise UpstreamError(
-                    f"Upstream '{self.name}' error {error.get('code')}: {error.get('message')}"
+                    f"Upstream '{self.name}' error {error.get('code')}: {error.get('message')}",
+                    code=UPSTREAM_FAILED,
                 )
             result = message.get("result")
-            return result if isinstance(result, dict) else {}
+            if not isinstance(result, dict):
+                raise UpstreamError(
+                    f"Upstream '{self.name}' returned a non-object result for '{method}'.",
+                    code=UPSTREAM_PROTOCOL_ERROR,
+                )
+            return result
 
     def terminate(self) -> None:
         process = self.process
         self.process = None
+        self._lines = None
         self.tools = {}
         self.indexed = False
         if process is None:
@@ -245,8 +355,12 @@ class Gateway:
 
     def __init__(self, config: dict, audit: AuditLog) -> None:
         self.audit = audit
+        defaults = {
+            "startup_timeout_seconds": config.get("startup_timeout_seconds", DEFAULT_STARTUP_TIMEOUT),
+            "request_timeout_seconds": config.get("request_timeout_seconds", DEFAULT_REQUEST_TIMEOUT),
+        }
         self.upstreams: dict[str, UpstreamClient] = {
-            spec["name"]: UpstreamClient(spec) for spec in config.get("upstreams", [])
+            spec["name"]: UpstreamClient(spec, defaults) for spec in config.get("upstreams", [])
         }
 
     def iter_indexed_tools(self) -> Iterable[tuple[str, str, str]]:

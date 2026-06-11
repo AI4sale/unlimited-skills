@@ -8,9 +8,13 @@ import pytest
 
 from unlimited_skills.mcp.audit import AuditLog, default_audit_path, redact, scrub_paths
 from unlimited_skills.mcp.gateway import (
+    UPSTREAM_PROTOCOL_ERROR,
+    UPSTREAM_START_FAILED,
+    UPSTREAM_TIMEOUT,
     Gateway,
     GatewayConfigError,
     StdioServer,
+    UpstreamError,
     build_gateway_registry,
     load_gateway_config,
 )
@@ -21,7 +25,8 @@ import json
 import sys
 from pathlib import Path
 
-Path(sys.argv[1]).write_text("spawned", encoding="utf-8")
+with open(sys.argv[1], "a", encoding="utf-8") as fh:
+    fh.write("spawned\n")
 
 TOOLS = {
     "echo": {
@@ -217,6 +222,211 @@ def test_gateway_through_stdio_server_dispatch(fixture_paths: dict) -> None:
         assert response["result"]["content"][0]["text"] == "echo:rpc"
     finally:
         gateway.shutdown()
+
+
+# Misbehaving upstreams for lifecycle refusal tests. Both complete the MCP
+# initialize handshake correctly, then go bad on the next request.
+SILENT_UPSTREAM = r'''
+import json
+import sys
+
+while True:
+    line = sys.stdin.readline()
+    if not line:
+        break
+    line = line.strip()
+    if not line:
+        continue
+    msg = json.loads(line)
+    if msg.get("method") == "initialize" and "id" in msg:
+        sys.stdout.write(json.dumps({"jsonrpc": "2.0", "id": msg["id"], "result": {
+            "protocolVersion": "2024-11-05", "capabilities": {"tools": {}},
+            "serverInfo": {"name": "silent", "version": "0"}}}) + "\n")
+        sys.stdout.flush()
+    # every other request is swallowed forever
+'''
+
+GARBAGE_UPSTREAM = r'''
+import json
+import sys
+
+while True:
+    line = sys.stdin.readline()
+    if not line:
+        break
+    line = line.strip()
+    if not line:
+        continue
+    msg = json.loads(line)
+    if msg.get("method") == "initialize" and "id" in msg:
+        sys.stdout.write(json.dumps({"jsonrpc": "2.0", "id": msg["id"], "result": {
+            "protocolVersion": "2024-11-05", "capabilities": {"tools": {}},
+            "serverInfo": {"name": "garbage", "version": "0"}}}) + "\n")
+        sys.stdout.flush()
+    elif "id" in msg:
+        sys.stdout.write("<<< THIS IS NOT JSON-RPC >>>\n")
+        sys.stdout.flush()
+'''
+
+
+def misbehaving_gateway(tmp_path: Path, source: str, **spec_extra) -> Gateway:
+    script = tmp_path / "bad_upstream.py"
+    script.write_text(source, encoding="utf-8")
+    config = {
+        "upstreams": [
+            {"name": "bad", "command": sys.executable, "args": [str(script)], **spec_extra}
+        ]
+    }
+    return Gateway(config, AuditLog(tmp_path / "audit.jsonl"))
+
+
+def test_upstream_lazy_spawn_and_reuse(fixture_paths: dict) -> None:
+    gateway = make_gateway(fixture_paths)
+    try:
+        client = gateway.upstreams["fake"]
+        assert not fixture_paths["marker"].exists(), "no upstream process before first need"
+        gateway.tools_schema({"tool": "fake.echo"})
+        pid = client.process.pid
+        gateway.tools_call({"tool": "fake.add", "arguments": {"a": 1, "b": 2}})
+        gateway.tools_schema({"tool": "fake.add"})
+        gateway.tools_call({"tool": "fake.echo", "arguments": {"text": "again"}})
+        assert client.spawn_count == 1, "the upstream must be reused, not respawned"
+        assert client.process.pid == pid
+        assert fixture_paths["marker"].read_text(encoding="utf-8").count("spawned") == 1
+    finally:
+        gateway.shutdown()
+
+
+def test_clean_shutdown_terminates_upstreams(fixture_paths: dict) -> None:
+    gateway = make_gateway(fixture_paths)
+    gateway.tools_schema({"tool": "fake.echo"})
+    process = gateway.upstreams["fake"].process
+    assert process.poll() is None, "upstream alive before shutdown"
+    gateway.shutdown()
+    assert process.poll() is not None, "shutdown must terminate the upstream process"
+    assert not gateway.upstreams["fake"].started
+
+
+def test_failed_upstream_spawn_is_structured_refusal(tmp_path: Path) -> None:
+    config = {"upstreams": [{"name": "ghost", "command": str(tmp_path / "no-such-exe-12345")}]}
+    gateway = Gateway(config, AuditLog(tmp_path / "audit.jsonl"))
+    server = StdioServer(build_gateway_registry(gateway))
+    try:
+        response = server.handle_message(
+            {
+                "jsonrpc": "2.0",
+                "id": 7,
+                "method": "tools/call",
+                "params": {"name": "tools_schema", "arguments": {"tool": "ghost.anything"}},
+            }
+        )
+        assert "result" not in response
+        assert response["error"]["code"] == UPSTREAM_START_FAILED
+        assert "ghost" in response["error"]["message"]
+    finally:
+        gateway.shutdown()
+    rows = [
+        json.loads(line)
+        for line in (tmp_path / "audit.jsonl").read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    assert rows and rows[-1]["ok"] is False
+    assert rows[-1]["error"], "refusals must leave a redacted audit trail"
+    assert str(tmp_path) not in json.dumps(rows), "audit must not leak local paths"
+
+
+def test_upstream_request_timeout_is_structured_refusal(tmp_path: Path) -> None:
+    gateway = misbehaving_gateway(tmp_path, SILENT_UPSTREAM, request_timeout_seconds=0.5)
+    try:
+        client = gateway.upstreams["bad"]
+        with pytest.raises(UpstreamError) as excinfo:
+            gateway.tools_schema({"tool": "bad.anything"})
+        assert excinfo.value.code == UPSTREAM_TIMEOUT
+        assert "timed out" in str(excinfo.value)
+        assert not client.started, "a timed-out upstream must be terminated, not reused"
+    finally:
+        gateway.shutdown()
+
+
+def test_upstream_malformed_response_is_structured_refusal(tmp_path: Path) -> None:
+    gateway = misbehaving_gateway(tmp_path, GARBAGE_UPSTREAM)
+    try:
+        client = gateway.upstreams["bad"]
+        with pytest.raises(UpstreamError) as excinfo:
+            gateway.tools_schema({"tool": "bad.anything"})
+        assert excinfo.value.code == UPSTREAM_PROTOCOL_ERROR
+        assert "malformed" in str(excinfo.value)
+        assert "<<<" not in str(excinfo.value), "garbage must never be propagated"
+        assert not client.started, "a garbage-talking upstream must be terminated"
+    finally:
+        gateway.shutdown()
+
+
+def test_timeout_configuration_and_validation(tmp_path: Path) -> None:
+    config_path = tmp_path / "cfg.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "request_timeout_seconds": 9,
+                "upstreams": [
+                    {"name": "a", "command": "x", "startup_timeout_seconds": 2.5},
+                    {"name": "b", "command": "y"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    gateway = Gateway(load_gateway_config(config_path), AuditLog(tmp_path / "audit.jsonl"))
+    assert gateway.upstreams["a"].startup_timeout == 2.5  # per-upstream override
+    assert gateway.upstreams["a"].request_timeout == 9.0  # config-level default
+    assert gateway.upstreams["b"].request_timeout == 9.0
+
+    for bad in ({"request_timeout_seconds": "fast"}, {"startup_timeout_seconds": -1}):
+        bad_path = tmp_path / "bad.json"
+        bad_path.write_text(
+            json.dumps({"upstreams": [{"name": "a", "command": "x", **bad}]}), encoding="utf-8"
+        )
+        with pytest.raises(GatewayConfigError):
+            load_gateway_config(bad_path)
+
+
+def test_audit_file_never_leaks_secrets(fixture_paths: dict) -> None:
+    """Representative call with every sensitive category; grep the audit file."""
+    secrets = {
+        "api_token": "tok-PLAINTEXT-TOKEN-VALUE",
+        "Authorization": "Bearer PLAINTEXT-BEARER-VALUE",
+        "password": "PLAINTEXT-PASSWORD",
+        "proof": "PLAINTEXT-PROOF-VALUE",
+        "prompt": "PLAINTEXT private user prompt text",
+        "skill_body": "PLAINTEXT SKILL BODY CONTENT",
+        "env": {"MY_SERVICE_TOKEN": "PLAINTEXT-ENV-VALUE"},
+        "private_key": "-----BEGIN RSA PRIVATE KEY-----PLAINTEXTKEY-----",
+    }
+    keyless = {
+        "note": r"see C:\Users\tedja\private\notes.txt for details",
+        "checksum": "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef",
+        "header_blob": "Bearer PLAINTEXT-UNKEYED-BEARER",
+    }
+    gateway = make_gateway(fixture_paths)
+    registry = build_gateway_registry(gateway)
+    try:
+        result = registry["tools_call"]["handler"](
+            {"tool": "fake.echo", "arguments": {"text": "visible-result", **secrets, **keyless}}
+        )
+        assert result["content"][0]["text"].startswith("echo:")
+        with pytest.raises(ToolError):
+            registry["tools_call"]["handler"]({"tool": "fake.nope", "arguments": {}})
+    finally:
+        gateway.shutdown()
+
+    audit_text = fixture_paths["audit"].read_text(encoding="utf-8")
+    assert "PLAINTEXT" not in audit_text, "no token/proof/prompt/body/env value may leak"
+    assert "deadbeef" not in audit_text, "secret-shaped values must be redacted even unkeyed"
+    assert "tedja" not in audit_text and "private\\notes" not in audit_text, "no local paths"
+    assert "echo:" not in audit_text, "tool results are never audited"
+    assert "[redacted]" in audit_text and "[path]" in audit_text
+    rows = [json.loads(line) for line in audit_text.splitlines() if line.strip()]
+    assert any(row["ok"] is False and row.get("error") for row in rows), "failures are audited too"
 
 
 def test_redact_and_scrub_paths(tmp_path: Path) -> None:

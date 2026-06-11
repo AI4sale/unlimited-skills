@@ -28,6 +28,26 @@ The agent's standing context cost drops to the three small meta-tool schemas.
 Full upstream schemas are retrieved lazily, one at a time, only when the agent
 has already decided which tool it needs.
 
+## Why this reduces context load — measured
+
+`tests/test_mcp_context_budget.py` indexes 40 fake upstream tools with
+realistic ~2 KB input schemas and measures the JSON payload sizes
+(`pytest -s tests/test_mcp_context_budget.py` reprints them):
+
+| Payload | Bytes | Share of full dump |
+| --- | ---: | ---: |
+| Full all-schemas dump (what a host pays without the gateway) | 90,420 | 100% |
+| Gateway `tools/list` — the **standing** cost, only 3 meta-tools | 1,268 | 1.4% |
+| One `tools_search` response (limit 8, metadata only) | 1,306 | 1.4% |
+| One `tools_schema` response (exactly one schema) | 2,250 | 2.5% |
+
+The test also asserts the structural guarantees behind the numbers: the
+gateway's `tools/list` exposes **only** `tools_search` / `tools_schema` /
+`tools_call` (no upstream schema text), `tools_search` responses never
+contain an `inputSchema`, and `tools_schema` returns exactly one schema.
+The gap widens with every additional upstream: the standing cost stays
+constant at the three meta-tool schemas.
+
 A companion server, `unlimited-skills mcp serve`, applies the same model to the
 skill library itself: `skills_search` (metadata-only hits), `skills_view` (one
 capped body), `skills_use` (view + a local learning event — never script
@@ -42,7 +62,13 @@ execution). See [mcp-server.md](mcp-server.md) and [mcp-gateway.md](mcp-gateway.
 - The first `tools_schema` / `tools_call` that targets an upstream spawns it
   (subprocess stdio, `initialize` handshake, `tools/list` to index), then keeps
   it alive for reuse.
-- All upstreams are terminated when the gateway shuts down.
+- Every upstream interaction has a hard deadline (startup 20 s, request 30 s
+  by default; configurable globally or per upstream). A timed-out or
+  garbage-talking upstream is terminated and the call is refused with a
+  structured JSON-RPC error (`-32001`…`-32004`, see
+  [mcp-gateway.md](mcp-gateway.md)) — garbage is never relayed.
+- All upstreams are terminated when the gateway shuts down (terminate, then
+  kill after 5 s).
 - The tool index is cached in-memory per gateway process.
 
 ## Privacy boundaries (v1)
@@ -56,13 +82,18 @@ execution). See [mcp-server.md](mcp-server.md) and [mcp-gateway.md](mcp-gateway.
 - **Env hygiene**: upstream `env` values may reference `%VAR%` / `$VAR`; they
   are expanded from your local environment at spawn time and are never written
   to any log.
-- **Audit with redaction**: every meta-tool call is appended to a local JSONL
-  audit log (`<library>/.learning/mcp-audit.jsonl` by default) with `ts`,
-  `tool`, `upstream`, `duration_ms`, `ok`. Argument values for keys matching
-  token/secret/key/password/proof/authorization are redacted; env values, skill
-  bodies, and tool results are never written; local paths are scrubbed from
-  error strings. See `unlimited_skills/mcp/audit.py` (`redact()` is a pure,
-  testable function).
+- **Audit with redaction**: every meta-tool call — success or refusal — is
+  appended to a local JSONL audit log
+  (`<library>/.learning/mcp-audit.jsonl` by default) with `ts`, `tool`,
+  `upstream`, `duration_ms`, `ok`. Argument values under sensitive keys
+  (token/secret/key/password/proof/auth/credential/cookie/session/signature/
+  cert/private/prompt/env/body/content) are redacted recursively; string
+  values that *look* like secrets (`Bearer …`, JWTs, PEM blocks, long
+  hex/base64 blobs) are redacted even under harmless keys; env values, skill
+  bodies, prompts, and tool results are never written; local paths are
+  scrubbed from every audited string. See `unlimited_skills/mcp/audit.py`
+  (`redact()` is a pure, testable function) and the leak-grep test
+  `tests/test_mcp_gateway.py::test_audit_file_never_leaks_secrets`.
 
 ## Quick start
 

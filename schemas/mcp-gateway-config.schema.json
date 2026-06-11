@@ -8,6 +8,18 @@
   "additionalProperties": false,
   "properties": {
     "schema_version": { "type": "integer", "const": 1 },
+    "startup_timeout_seconds": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "default": 20,
+      "description": "Default per-upstream spawn+initialize deadline in seconds. Overridable per upstream."
+    },
+    "request_timeout_seconds": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "default": 30,
+      "description": "Default per-upstream request deadline in seconds. Overridable per upstream. On timeout the upstream is terminated and the call is refused with JSON-RPC error -32002."
+    },
     "upstreams": {
       "type": "array",
       "items": {
@@ -34,6 +46,16 @@
             "type": "object",
             "additionalProperties": { "type": "string" },
             "description": "Extra environment variables for the upstream process. Values may reference local environment variables (%VAR% or $VAR); they are expanded from os.environ at spawn time and are never written to any log."
+          },
+          "startup_timeout_seconds": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "Spawn+initialize deadline for this upstream in seconds. Overrides the config-level default (20)."
+          },
+          "request_timeout_seconds": {
+            "type": "number",
+            "exclusiveMinimum": 0,
+            "description": "Per-request deadline for this upstream in seconds. Overrides the config-level default (30)."
           },
           "tools": {
             "type": "array",

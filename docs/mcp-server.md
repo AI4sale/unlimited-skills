@@ -24,9 +24,29 @@ Startup diagnostics go to stderr only. There is no network listener.
 - Framing is auto-detected from the first bytes: newline-delimited JSON
   (Claude Code and most MCP hosts) or LSP-style `Content-Length` headers.
   Responses use the detected style.
-- Unknown methods return `-32601`; malformed params `-32602`; unparseable
-  frames `-32700`. Tool failures are reported as tool results with
-  `isError: true`, never as server crashes.
+
+### Error model and hard limits
+
+Shared by this server and the gateway (`unlimited_skills/mcp/protocol.py`):
+
+| Code | When |
+| --- | --- |
+| `-32700` | Unparseable frame: invalid JSON, invalid/out-of-range `Content-Length` header, frame over the 5 MB limit, header over 8 KB / more than 32 header lines |
+| `-32600` | Not a JSON-RPC 2.0 request: missing/wrong `jsonrpc`, missing or non-string `method`, non-object message, or a **batch request** (JSON arrays are rejected cleanly — batching is not supported) |
+| `-32601` | Unknown method |
+| `-32602` | Malformed params (non-object `params`/`arguments`, unknown tool name) |
+| `-32603` | Unexpected internal error; the loop answers and keeps serving (exception details are not leaked) |
+| `-32001`…`-32004` | Gateway upstream refusals — see [mcp-gateway.md](mcp-gateway.md) |
+
+Hardened behaviors, each covered in `tests/test_mcp_protocol.py`:
+
+- malformed JSON and oversized frames produce a `-32700` error and the stream
+  resynchronizes to the next newline — never a crash, never a hang;
+- notifications (no `id`) are never answered; unknown notifications are
+  cleanly ignored;
+- EOF mid-message is a clean shutdown (no garbage response);
+- tool handler failures are MCP tool results with `isError: true`;
+  infrastructure refusals (`RefusalError`) are JSON-RPC error responses.
 
 Implementation: `unlimited_skills/mcp/protocol.py` (`StdioServer`) and
 `unlimited_skills/mcp/server.py` (tool registry). No external MCP SDK.

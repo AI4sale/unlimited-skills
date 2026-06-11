@@ -27,6 +27,13 @@ METHOD_NOT_FOUND = -32601
 INVALID_PARAMS = -32602
 INTERNAL_ERROR = -32603
 
+# Hard input limits. Oversized frames are refused with PARSE_ERROR and the
+# stream is resynchronized to the next newline so the loop never crashes or
+# hangs on hostile input.
+MAX_FRAME_BYTES = 5 * 1024 * 1024
+MAX_HEADER_BYTES = 8 * 1024
+MAX_HEADER_LINES = 32
+
 FRAMING_NEWLINE = "newline"
 FRAMING_CONTENT_LENGTH = "content-length"
 
@@ -37,8 +44,23 @@ class ToolError(RuntimeError):
     """Tool execution failed; reported as an MCP tool result with isError."""
 
 
+class RefusalError(RuntimeError):
+    """A structured refusal mapped to a JSON-RPC error response.
+
+    Unlike :class:`ToolError` (a domain-level tool failure reported as a tool
+    result with ``isError: true``), a refusal means the server declines to
+    perform the call at the infrastructure level (e.g. an upstream failed to
+    start, timed out, or returned garbage). It carries an explicit JSON-RPC
+    error ``code``.
+    """
+
+    def __init__(self, code: int, message: str) -> None:
+        super().__init__(str(message))
+        self.code = int(code)
+
+
 class ProtocolParseError(ValueError):
-    """An incoming frame could not be parsed as JSON."""
+    """An incoming frame could not be parsed as JSON (or violates limits)."""
 
 
 def make_response(request_id: Any, result: Any) -> dict:
@@ -73,14 +95,33 @@ class MessageStream:
         self.writer = writer
         self.framing = framing
 
+    def _read_line(self, limit: int) -> bytes | None:
+        """Read one line up to ``limit`` bytes; ``None`` on EOF.
+
+        An over-limit line is drained up to its terminating newline (so the
+        stream stays in sync) and refused with :class:`ProtocolParseError`.
+        """
+        line = self.reader.readline(limit + 1)
+        if not line:
+            return None
+        if len(line) > limit:
+            while not line.endswith(b"\n"):
+                line = self.reader.readline(limit + 1)
+                if not line:
+                    break
+            raise ProtocolParseError(f"Frame exceeds the {limit} byte limit.")
+        return line
+
     def read(self) -> Any:
         """Return one parsed message, or ``None`` on EOF.
 
-        Raises :class:`ProtocolParseError` when a frame is not valid JSON.
+        Raises :class:`ProtocolParseError` when a frame is not valid JSON,
+        a Content-Length header is invalid, or a size limit is exceeded.
+        Returns ``None`` (clean EOF) when the stream ends mid-message.
         """
         while True:
-            line = self.reader.readline()
-            if not line:
+            line = self._read_line(MAX_FRAME_BYTES)
+            if line is None:
                 return None
             stripped = line.strip()
             if not stripped:
@@ -92,13 +133,19 @@ class MessageStream:
                     length = int(stripped.split(b":", 1)[1].strip())
                 except ValueError as exc:
                     raise ProtocolParseError("Invalid Content-Length header.") from exc
-                while True:
-                    header = self.reader.readline()
-                    if not header or not header.strip():
+                if length < 0 or length > MAX_FRAME_BYTES:
+                    raise ProtocolParseError(
+                        f"Content-Length {length} is out of range (0..{MAX_FRAME_BYTES})."
+                    )
+                for _ in range(MAX_HEADER_LINES):
+                    header = self._read_line(MAX_HEADER_BYTES)
+                    if header is None or not header.strip():
                         break
+                else:
+                    raise ProtocolParseError(f"More than {MAX_HEADER_LINES} header lines.")
                 payload = self.reader.read(length)
                 if payload is None or len(payload) < length:
-                    return None
+                    return None  # EOF mid-message: clean shutdown, not a crash
                 return self._parse(payload)
             if self.framing is None:
                 self.framing = FRAMING_NEWLINE
@@ -160,6 +207,8 @@ class StdioServer:
 
     def handle_message(self, message: Any) -> dict | None:
         """Handle one decoded message. Returns a response dict or ``None``."""
+        if isinstance(message, list):
+            return make_error(None, INVALID_REQUEST, "Batch requests are not supported.")
         if not isinstance(message, dict):
             return make_error(None, INVALID_REQUEST, "Request must be a JSON object.")
         is_request = "id" in message
@@ -209,6 +258,8 @@ class StdioServer:
             return make_error(msg_id, INVALID_PARAMS, f"Unknown tool: {name}")
         try:
             result = spec["handler"](arguments)
+        except RefusalError as exc:
+            return make_error(msg_id, exc.code, str(exc))
         except ToolError as exc:
             return make_response(msg_id, tool_result(str(exc), is_error=True))
         except Exception as exc:  # noqa: BLE001 - tool failures must not kill the server loop
@@ -226,6 +277,13 @@ class StdioServer:
                 continue
             if message is None:
                 return
-            response = self.handle_message(message)
+            try:
+                response = self.handle_message(message)
+            except Exception as exc:  # noqa: BLE001 - the loop must survive any handler bug
+                if not (isinstance(message, dict) and "id" in message):
+                    continue  # notification: clean ignore, nothing to answer
+                response = make_error(
+                    message.get("id"), INTERNAL_ERROR, f"Internal error: {type(exc).__name__}"
+                )
             if response is not None:
                 self.stream.write(response)
