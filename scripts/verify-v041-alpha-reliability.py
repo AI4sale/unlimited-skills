@@ -50,6 +50,10 @@ def package_version() -> str:
     return str(tomllib.loads(read(ROOT / "pyproject.toml"))["project"]["version"])
 
 
+def version_tuple(value: str) -> tuple[int, ...]:
+    return tuple(int(part) for part in value.split("."))
+
+
 def init_version() -> str:
     match = re.search(r'__version__\s*=\s*"([^"]+)"', read(ROOT / "unlimited_skills" / "__init__.py"))
     require(match is not None, "__version__ is missing")
@@ -115,11 +119,33 @@ def assert_manifest() -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Verify the v0.4.1-alpha reliability publication package.")
     parser.add_argument("--expected-sha", help="Expected current checkout SHA")
+    parser.add_argument(
+        "--allow-newer-package",
+        action="store_true",
+        help="Post-publication compatibility mode: allow package/plugin metadata newer than v0.4.1.",
+    )
     args = parser.parse_args(argv)
 
-    require(package_version() == VERSION, f"pyproject version must be {VERSION}")
-    require(init_version() == VERSION, f"__version__ must be {VERSION}")
-    require(plugin_versions() == (VERSION, VERSION), "Claude plugin and marketplace versions must match package version")
+    current_package_version = package_version()
+    current_init_version = init_version()
+    current_plugin_versions = plugin_versions()
+    if args.allow_newer_package:
+        require(
+            version_tuple(current_package_version) >= version_tuple(VERSION),
+            f"pyproject version must be {VERSION} or newer",
+        )
+        require(
+            version_tuple(current_init_version) >= version_tuple(VERSION),
+            f"__version__ must be {VERSION} or newer",
+        )
+        require(
+            current_plugin_versions[0] == current_plugin_versions[1] == current_package_version,
+            "Claude plugin and marketplace versions must match package version",
+        )
+    else:
+        require(current_package_version == VERSION, f"pyproject version must be {VERSION}")
+        require(current_init_version == VERSION, f"__version__ must be {VERSION}")
+        require(current_plugin_versions == (VERSION, VERSION), "Claude plugin and marketplace versions must match package version")
     assert_release_files()
     assert_manifest()
     head = git_head()

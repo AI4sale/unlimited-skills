@@ -99,6 +99,8 @@ The gateway enforces [mcp-upstream-security-model.md](mcp-upstream-security-mode
 - **Bounded timeouts and ceilings** are rejected at config load time
   (`GatewayConfigError`) before any process is spawned.
 
+MCP v1 schemas/configs are alpha and may break before v0.6.
+
 ## Meta-tools
 
 ### `tools_search`

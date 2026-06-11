@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "release": "v0.4.2-alpha",
+  "package_version": "0.4.2",
+  "generated_at": "2026-06-11T00:00:00Z",
+  "distribution": "github-clone-alpha",
+  "git": {
+    "base_branch": "main",
+    "publication_branch": "release/v0.4.2-alpha-final-publication",
+    "tag": "v0.4.2-alpha",
+    "tag_status": "pending_release_owner_approval",
+    "tag_target_sha_policy": "After the final publication PR is merged, the release owner must run verify-v042-alpha-publication.py --expected-sha against the selected main SHA before creating or pushing this tag."
+  },
+  "required_prs": {
+    "public": [
+      {
+        "number": 85,
+        "epic": "E06",
+        "title": "Unlimited Tools MCP server and gateway core",
+        "status": "merged"
+      },
+      {
+        "number": 86,
+        "epic": "E06",
+        "title": "MCP smoke, compatibility, and safety harness",
+        "status": "merged"
+      },
+      {
+        "number": 88,
+        "epic": "v0.4.2",
+        "title": "v0.4.2-alpha MCP integration gate",
+        "status": "merged"
+      },
+      {
+        "number": 87,
+        "epic": "E07",
+        "title": "MCP upstream configuration and security model",
+        "status": "merged"
+      }
+    ]
+  },
+  "safety_boundary": {
+    "alpha_only": true,
+    "production_rollout": false,
+    "production_hosted_calls": false,
+    "hosted_gateway": false,
+    "automatic_telemetry": false,
+    "oauth_upstreams": false,
+    "remote_upstreams": false,
+    "mcp_resources": false,
+    "mcp_prompts": false,
+    "arbitrary_shell_execution": false,
+    "automatic_hosted_query_forwarding": false,
+    "automatic_rewriting": false,
+    "automatic_install_update_remove": false,
+    "auto_publish": false,
+    "live_billing": false,
+    "pypi": false,
+    "full_catalog_distribution": false,
+    "full_schema_dump": false,
+    "prompt_upload": false,
+    "skill_body_upload": false,
+    "search_query_upload": false,
+    "private_pack_body_upload": false,
+    "private_registry_content_committed": false,
+    "codex_pushes_tag": false
+  },
+  "required_test_commands": [
+    ".venv\\Scripts\\python.exe scripts\\run-v042-alpha-mcp-smoke.py --fixture-mode --json",
+    ".venv\\Scripts\\python.exe scripts\\verify-v042-alpha-mcp.py --expected-sha <current-sha>",
+    ".venv\\Scripts\\python.exe -m pytest tests\\integration\\test_v042_alpha_mcp_integration.py -q",
+    ".venv\\Scripts\\python.exe -m pytest tests\\test_mcp_protocol.py tests\\test_mcp_server.py tests\\test_mcp_gateway.py tests\\test_mcp_upstream_config_schema.py -q",
+    ".venv\\Scripts\\python.exe -m pytest tests -q",
+    ".venv\\Scripts\\python.exe scripts\\run-v0.2x-smoke-tests.py",
+    ".venv\\Scripts\\python.exe scripts\\run-v041-alpha-release-smoke.py",
+    ".venv\\Scripts\\python.exe -m compileall -q unlimited_skills scripts tests",
+    "git diff --check"
+  ],
+  "publication_evidence": {
+    "release_manifest": "docs/releases/v0.4.2-alpha.release-manifest.json",
+    "release_notes": "docs/releases/v0.4.2-alpha.md",
+    "upgrade_notes": "docs/releases/v0.4.2-alpha-upgrade-notes.md",
+    "known_issues": "docs/releases/v0.4.2-alpha-known-issues.md",
+    "mcp_smoke_runner": "scripts/run-v042-alpha-mcp-smoke.py",
+    "mcp_verifier": "scripts/verify-v042-alpha-mcp.py",
+    "integration_test": "tests/integration/test_v042_alpha_mcp_integration.py",
+    "tag_command_owner": "release-owner",
+    "codex_may_push_tag": false
+  }
+}
