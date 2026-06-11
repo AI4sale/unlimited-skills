@@ -1085,7 +1085,11 @@ def build_parser() -> argparse.ArgumentParser:
     mcp_gateway.add_argument("--config", required=True, help="Path to a gateway JSON config listing upstream stdio MCP servers.")
     mcp_gateway.add_argument("--audit-log", default="", help="Override the redacted JSONL audit log path. Defaults to <root>/.learning/mcp-audit.jsonl.")
     mcp_gateway.add_argument("--profiles", default="", help="Path to a permissioned tool-profile JSON file (schemas/mcp-tool-profile.schema.json). Absent = open no-profiles mode; configured = default-deny enforcement that fails closed on errors.")
-    mcp_gateway.add_argument("--profile", default="", help="Profile name to enforce from --profiles. Precedence: this flag > UNLIMITED_SKILLS_MCP_PROFILE > the file's default_profile.")
+    mcp_gateway.add_argument("--profile", default="", help="Profile name to enforce from --profiles or --profile-bundle. Precedence: this flag > UNLIMITED_SKILLS_MCP_PROFILE > the source's default_profile.")
+    mcp_gateway.add_argument("--profile-bundle", default="", help="Path to a SIGNED profile bundle JSON file (schemas/mcp-profile-bundle.schema.json), verified at startup against --trusted-keys; any verification failure is fail-closed refuse-all (-32014..-32019). May be combined with --profiles: the local file can only narrow the bundle, never widen it.")
+    mcp_gateway.add_argument("--trusted-keys", default="", help="Path to the local trusted-keys JSON file (key_id -> base64 Ed25519 public key, optional not_after) used to verify --profile-bundle. No PKI, no network fetch.")
+    mcp_gateway.add_argument("--audience-id", action="append", default=None, metavar="ID", help="This consumer's audience identifier ('team:NAME', 'org:NAME', or 'host:NAME') matched against the bundle's audience. Repeatable; beats the comma-separated UNLIMITED_SKILLS_MCP_AUDIENCE env var.")
+    mcp_gateway.add_argument("--require-signed-profiles", action="store_true", help="Signed-required policy: refuse unsigned profile sources fail-closed with -32015 bundle_signature_invalid (a raw --profiles file alone, or no bundle at all). Default off pre-v0.6.")
     mcp_gateway.set_defaults(func=mcp_cmds.cmd_mcp_gateway)
     mcp_audit_report = mcp_sub.add_parser(
         "audit-report",

@@ -121,6 +121,10 @@ class ActiveProfile:
     file_sha256: str
     visible_rule_count: int
     callable_rule_count: int
+    # Set only by unlimited_skills.mcp.bundles for verified signed bundles
+    # (a BundleProvenance: hashes, key ids, audience -- non-sensitive by
+    # grammar). None marks the raw local profile file path, unchanged.
+    provenance: object | None = None
 
     def is_visible(self, upstream: str, tool: str) -> bool:
         if not self.visible_chain:
@@ -192,10 +196,16 @@ def _shape_errors(document: object) -> list[str]:
         errors.append("default_profile must be a profile name")
     if "signature" in document:
         errors.extend(_signature_errors(document["signature"]))
-    profiles = document.get("profiles")
+    errors.extend(_profiles_map_shape_errors(document.get("profiles")))
+    return errors
+
+
+def _profiles_map_shape_errors(profiles: object) -> list[str]:
+    """Shape validation of one E09 profiles map (shared with the bundle
+    loader in bundles.py, which embeds the same map verbatim)."""
     if not isinstance(profiles, dict):
-        errors.append("profiles must be an object")
-        return errors
+        return ["profiles must be an object"]
+    errors: list[str] = []
     if not 1 <= len(profiles) <= MAX_PROFILES:
         errors.append(f"profiles must contain between 1 and {MAX_PROFILES} entries")
     for name, profile in profiles.items():
