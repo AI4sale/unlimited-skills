@@ -35,6 +35,15 @@ from typing import Any, BinaryIO, Iterable
 
 from .. import __version__
 from .audit import AuditLog
+from .bundles import (
+    BUNDLE_AUDIENCE_MISMATCH,
+    BUNDLE_EXPIRED,
+    BUNDLE_KEY_MISSING,
+    BUNDLE_REVOKED,
+    BUNDLE_SIGNATURE_INVALID,
+    BundleFailClosed,
+    BundleProvenance,
+)
 from .profiles import (
     PROFILE_INVALID,
     PROFILE_NOT_FOUND,
@@ -138,6 +147,10 @@ TRUST_LEVEL_VIOLATION = -32010  # operation not permitted at the upstream's trus
 # profile_not_found, profile_invalid) are defined in profiles.py and
 # re-exported above, contiguous with this family
 # (docs/mcp-permissioned-tool-profiles.md "Refusal codes").
+# Bundle refusal codes -32015..-32019 (bundle_signature_invalid,
+# bundle_expired, bundle_revoked, bundle_audience_mismatch,
+# bundle_key_missing) are defined in bundles.py and re-exported above
+# (docs/mcp-signed-profile-bundles.md "Refusal codes").
 
 
 class GatewayConfigError(RuntimeError):
@@ -742,15 +755,32 @@ class Gateway:
         if isinstance(profile, ActiveProfile):
             # One startup row pinning WHICH version of the profile governs
             # this session (file SHA-256 plus rule counts -- numbers only).
+            # When a verified signed bundle is the source, the row gains the
+            # bundle provenance (hashes, key id, audience, expiry -- never
+            # key material or signature values).
+            extra: dict[str, Any] = {
+                "profile_sha256": profile.file_sha256,
+                "visible_rules": profile.visible_rule_count,
+                "callable_rules": profile.callable_rule_count,
+            }
+            if isinstance(profile.provenance, BundleProvenance):
+                extra.update(profile.provenance.audit_fields())
+            else:
+                extra["profile_source"] = "raw_file"
+            audit.record(tool="profile_loaded", ok=True, profile=profile.name, extra=extra)
+        elif isinstance(profile, BundleFailClosed):
+            # A failed bundle verification is as observable as a successful
+            # load: one startup row naming the failing step's code (in the
+            # message) and the bundle file SHA-256 when computable.
+            extra = {"profile_source": profile.source}
+            if profile.bundle_sha256:
+                extra["bundle_sha256"] = profile.bundle_sha256
             audit.record(
                 tool="profile_loaded",
-                ok=True,
-                profile=profile.name,
-                extra={
-                    "profile_sha256": profile.file_sha256,
-                    "visible_rules": profile.visible_rule_count,
-                    "callable_rules": profile.callable_rule_count,
-                },
+                ok=False,
+                profile=profile.requested,
+                error=profile.message,
+                extra=extra,
             )
         if "audit_max_bytes" in config:
             audit.max_bytes = int(config["audit_max_bytes"])

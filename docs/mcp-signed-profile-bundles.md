@@ -1,26 +1,73 @@
 # MCP signed profile bundles
 
-**Status: DESIGN (E13).** This document is **Gate C** of the permissioned
-tool profiles design
+**Status: PROTOTYPE (designed in E13, verification implemented by E14).**
+This document is **Gate C** of the permissioned tool profiles design
 ([mcp-permissioned-tool-profiles.md](mcp-permissioned-tool-profiles.md), E09,
 enforced by E10): the profile-signing gate that E09's "Signed/local format"
 section reserved a slot for. It specifies **signed profile bundles** — a
 distribution format that lets a team ship permissioned tool profiles to
 consumers who did not author them, with authenticity, integrity, scope, and
 freshness guarantees, so that nobody has to trust mutable local files
-blindly. Nothing in this document is implemented by the E13 change itself;
-runtime verification and enforcement are a future change (**E14**, see
-"Migration path and E14"). Until E14 ships, the E09/E10 behavior is
-unchanged: signature envelopes are validated for shape only and grant
-nothing.
+blindly. The E14 prototype implements the verification algorithm and refusal
+codes below (`unlimited_skills/mcp/bundles.py`, opt-in via
+`--profile-bundle`; see "Running the prototype"). Without the new flags the
+E09/E10 behavior is byte-for-byte unchanged: raw profile files keep loading
+exactly as before, and their optional signature envelopes are still
+validated for shape only and grant nothing.
 
-Artifacts in this change:
+Artifacts:
 
 - this document;
 - `schemas/mcp-profile-bundle.schema.json` — JSON Schema (draft 2020-12) for
   the bundle format below;
 - `examples/mcp/profile-bundle.example.json` — an annotated example that
-  validates against the schema (`tests/test_mcp_profile_bundle_schema.py`).
+  validates against the schema (`tests/test_mcp_profile_bundle_schema.py`);
+- since E14: `unlimited_skills/mcp/bundles.py` (the verifier) and
+  `tests/test_mcp_bundle_verification.py` (every refusal path, the
+  verification order, rotation, the local-override intersection, and audit
+  provenance, with ephemeral fixture keys).
+
+## Running the prototype
+
+```bash
+unlimited-skills mcp gateway --config cfg.json \
+  --profile-bundle ~/.unlimited-skills/team-bundle.json \
+  --trusted-keys ~/.unlimited-skills/trusted-keys.json \
+  --audience-id host:my-laptop [--audience-id team:core] \
+  [--profile reviewer] [--profiles local-narrowing.json] \
+  [--require-signed-profiles]
+```
+
+- `--profile-bundle FILE` configures the signed bundle, verified once at
+  startup with the 10-step algorithm below; any failure is fail-closed
+  refuse-all with the step's code (`-32014`…`-32019`), never unsigned
+  fallback. `--trusted-keys FILE` is the local trust anchor;
+  `--audience-id` (repeatable, beats the comma-separated
+  `UNLIMITED_SKILLS_MCP_AUDIENCE` env var) presents the consumer's
+  identifiers.
+- Signature verification uses a pluggable backend; the default backend
+  requires the optional `cryptography` package (real Ed25519). With no
+  backend available a configured bundle refuses with `-32019`
+  `bundle_key_missing` (decision 8) — never a silent pass.
+- Profile selection inside a verified bundle: `--profile` >
+  `UNLIMITED_SKILLS_MCP_PROFILE` > the bundle's `default_profile`.
+- `--profiles` alongside the bundle is the `narrow-only` local override
+  (decision 4): the single resolved selection name must exist in **both**
+  artifacts (the local file's own `default_profile` is ignored — exactly one
+  artifact owns selection), and the effective capability set is the
+  intersection; the local file can narrow the bundle, never widen it.
+- `--require-signed-profiles` is the signed-required policy: a raw
+  `--profiles` file without a bundle — or no profile source at all — is
+  refused fail-closed with `-32015` `bundle_signature_invalid`
+  (decision 6). Default off pre-v0.6; without the flag the raw path is
+  unchanged.
+- Audit: the `profile_loaded` row records the source type
+  (`raw_file`/`signed_bundle`), and for bundles the file SHA-256, issuer
+  `key_id` and `display`, `audience`, `expires_at`, and verification status
+  — never key material or signature values. Failed verifications append a
+  `profile_loaded` row naming the failing step's code.
+- Issuing/signing tooling is deliberately NOT in the consumer core; tests
+  sign fixtures with ephemeral keys.
 
 Compatibility note: the project has almost no users and backward
 compatibility before v0.6 is explicitly not required. Signing is **opt-in**:
@@ -521,18 +568,20 @@ Numbered continuing E07's nine and E09's 10–13:
   tier. This document deliberately designs the *enforcement points* those
   policies will set (the flag, the stance enum, the identifier sources) so
   the policy gate composes with E13 instead of reopening it.
-- **Verifier backend decision (E14).** The repo is zero-dependency by
-  stance, and the Python standard library has no Ed25519. E14 must choose
-  between a vendored, reviewed, verification-only pure-Python Ed25519
-  implementation or a single optional dependency (e.g. an
-  `unlimited-skills[signed-profiles]` extra); either way, an absent backend
-  with a bundle configured is `-32019` fail-closed (decision 8), and key
+- **Verifier backend decision (resolved by E14).** The repo is
+  zero-dependency by stance, and the Python standard library has no
+  Ed25519. E14 chose a **pluggable backend with one optional dependency**:
+  the default backend uses the `cryptography` package when importable
+  (real Ed25519, never vendored curve math), an absent backend with a
+  bundle configured is `-32019` fail-closed (decision 8), and key
   *generation*/signing tooling stays out of the consumer code path.
 
 ## Non-goals
 
-- **No runtime implementation in this branch.** Design, schema, example,
-  and schema-validation tests only; `unlimited_skills/mcp/` does not change.
+- **No signing/keygen tooling shipped with verification.** The E14
+  prototype implements *verification only* (`unlimited_skills/mcp/bundles.py`);
+  issuing bundles remains the profile owner's tooling, outside the consumer
+  code path.
 - **No PKI.** No certificate chains, no X.509, no CAs, no key servers, no
   delegation/threshold schemes (no TUF-style roles). One flat local
   trusted-keys file is the v1 trust anchor.
@@ -555,15 +604,15 @@ Numbered continuing E07's nine and E09's 10–13:
 
 Relationship to the E09 migration path and the proposed v0.6 flip:
 
-1. **Now (E13, this change):** design only. Codes `-32015`…`-32019` are
-   reserved; the bundle schema and example exist; nothing verifies, nothing
-   is enforced; E09/E10 behavior is byte-for-byte unchanged.
-2. **E14 (enforcement, a future pre-v0.6 change):** implements this
+1. **E13 (design):** codes `-32015`…`-32019` reserved; the bundle schema
+   and example exist; nothing verified, nothing enforced; E09/E10 behavior
+   byte-for-byte unchanged.
+2. **E14 (this prototype, pre-v0.6):** implements this
    document — `--profile-bundle` / `--trusted-keys` / `--audience-id` /
    `--require-signed-profiles` on the gateway, the verification algorithm,
    the five refusal codes, the intersection-based local override, and the
    extended `profile_loaded` row. All **opt-in**: without the new flags,
-   nothing changes. Evidence that gates E14 (mirroring how E10 evidenced
+   nothing changes. Evidence gating E14 (mirroring how E10 evidenced
    E09): enforcement tests in the style of
    `tests/test_mcp_tool_profile_enforcement.py` covering at minimum —
    tamper detection (flip one signed byte → `-32015`), signature stripping

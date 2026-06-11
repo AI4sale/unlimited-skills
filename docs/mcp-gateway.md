@@ -277,3 +277,51 @@ unlimited-skills mcp gateway --config cfg.json --profiles ~/.unlimited-skills/to
   `profile_loaded` row with the profile file's SHA-256 and rule counts
   (numbers only). Rule evaluation matches fully qualified tool names only and
   never receives call arguments; the redaction floor above is unchanged.
+
+## Signed profile bundles (prototype)
+
+[mcp-signed-profile-bundles.md](mcp-signed-profile-bundles.md) (designed in
+E13, verification prototyped by E14; that document is the authoritative
+contract) adds an opt-in **signed distribution envelope** for the profiles
+above: issuer, mandatory audience, validity window, an
+`allowed_upstream_namespaces` ceiling, an optional local-CRL revocation
+pointer, and a mandatory detached Ed25519 signature verified at startup
+against one local trusted-keys file (no PKI, no network fetch). Bundle file
+format: `schemas/mcp-profile-bundle.schema.json`, annotated example
+`examples/mcp/profile-bundle.example.json`.
+
+```bash
+unlimited-skills mcp gateway --config cfg.json \
+  --profile-bundle bundle.json --trusted-keys trusted-keys.json \
+  --audience-id host:my-laptop [--profile reviewer] \
+  [--profiles narrowing.json] [--require-signed-profiles]
+```
+
+- Verification runs once at startup; any failure is **fail-closed
+  refuse-all** with a named code, never a fallback to unsigned or open
+  behavior: `-32015` `bundle_signature_invalid` (tampered, stripped under
+  policy, or unverifiable), `-32016` `bundle_expired` (also not-yet-valid;
+  ±300 s skew), `-32017` `bundle_revoked` (bundle SHA-256 or key id in the
+  CRL, or a declared-but-unreadable CRL), `-32018`
+  `bundle_audience_mismatch` (also namespace-ceiling violations), `-32019`
+  `bundle_key_missing` (missing trusted-keys file/key/verifier backend).
+  Malformed bundles reuse `-32014`; selection failures reuse `-32013`.
+- The default signature backend requires the optional `cryptography`
+  package; without it, a configured bundle refuses with `-32019`.
+- `--profiles` alongside a bundle is the narrow-only local override: the
+  intersection of the two selected profiles (the one selection name —
+  `--profile` > `UNLIMITED_SKILLS_MCP_PROFILE` > the bundle's
+  `default_profile` — must exist in both; the local file's own
+  `default_profile` is ignored). The local file can narrow the bundle and
+  can never widen it.
+- `--require-signed-profiles` refuses unsigned profile sources outright
+  with `-32015` (a raw `--profiles` file alone, or no profile source at
+  all). Default off pre-v0.6: without the flag and without
+  `--profile-bundle`, the raw `--profiles` path and no-profiles open mode
+  above are byte-for-byte unchanged.
+- Audit: `profile_loaded` records the profile source type
+  (`raw_file`/`signed_bundle`) and, for bundles, the bundle file SHA-256,
+  issuer key id and display, audience, expiry, and verification status —
+  key ids and hashes only, never key material or signature values. Failed
+  verifications append a `profile_loaded` row naming the failing step's
+  code, and every per-call refusal is audited as usual.
