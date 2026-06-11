@@ -1,0 +1,43 @@
+{
+  "bundle_version": 1,
+  "comment": "E13 signed profile bundle example (docs/mcp-signed-profile-bundles.md). Wraps the E09 profiles from examples/mcp/tool-profile.example.json in the signed distribution envelope: issuer + audience + validity window + upstream-namespace ceiling + revocation pointer + mandatory detached signature. The signature value below is a PLACEHOLDER (base64 of 64 zero bytes, clearly fake) — E13 is design-only and nothing verifies it; E14 enforcement would refuse this bundle with bundle_signature_invalid (-32015).",
+  "issuer": {
+    "comment": "Trust decisions use key_id plus the consumer's local trusted-keys file only; display is for audit rows and refusal messages.",
+    "key_id": "ai4sale-team-profiles-2026",
+    "display": "AI4SALE platform team"
+  },
+  "audience": ["team:core-ai4sale", "host:ci-runner"],
+  "issued_at": "2026-06-01T00:00:00Z",
+  "expires_at": "2026-09-01T00:00:00Z",
+  "allowed_upstream_namespaces": ["github.*", "filesystem.*"],
+  "default_profile": "dev-default",
+  "profiles": {
+    "dev-default": {
+      "comment": "Team baseline and ceiling: sees every tool on both local upstreams and may call everything it sees. Every rule is covered by allowed_upstream_namespaces — a rule naming any other upstream would be a static load error (bundle_audience_mismatch, -32018).",
+      "visible": ["github.*", "filesystem.*"],
+      "callable": ["github.*", "filesystem.*"]
+    },
+    "reviewer": {
+      "comment": "Read-only reviewer: inherits the dev-default ceiling, keeps the same visibility, but may call only two read tools. extends resolves only inside this bundle — bundles are self-contained, no cross-file parents in either direction.",
+      "extends": "dev-default",
+      "visible": ["github.*", "filesystem.*"],
+      "callable": ["github.search_repositories", "filesystem.read_file"]
+    },
+    "ci-minimal": {
+      "comment": "CI runtime profile, typically selected via UNLIMITED_SKILLS_MCP_PROFILE on the 'host:ci-runner' audience: inherits the reviewer ceiling and narrows to a single visible, callable tool.",
+      "extends": "reviewer",
+      "visible": ["github.search_repositories"],
+      "callable": ["github.search_repositories"]
+    }
+  },
+  "revocation": {
+    "comment": "Local CRL file (design-only in v1): revoked bundle SHA-256s and revoked key_ids. Declared-but-unreadable is fail-closed bundle_revoked (-32017). registry_endpoint is omitted here; when present it is carried for the future registry gate and never fetched in v1.",
+    "crl_path": "~/.unlimited-skills/profile-bundle-crl.json"
+  },
+  "signature": {
+    "comment": "PLACEHOLDER signature: base64 of 64 zero bytes — obviously fake, for shape illustration only. A real value is the detached Ed25519 signature over the canonical JSON (UTF-8, sorted keys, no insignificant whitespace) of this document with the 'signature' member removed.",
+    "algorithm": "ed25519",
+    "key_id": "ai4sale-team-profiles-2026",
+    "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+  }
+}

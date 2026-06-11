@@ -315,6 +315,17 @@ consumer are different parties) does not require a `schema_version` bump:
   nothing. Key distribution, trust anchors, rotation, and revocation are
   PKI questions that belong to Gate C and are explicitly not designed here.
 
+**Gate C is now designed (E13):**
+[mcp-signed-profile-bundles.md](mcp-signed-profile-bundles.md) specifies
+signed profile *bundles* — a self-contained distribution envelope (issuer,
+audience, validity window, upstream-namespace ceiling, revocation pointer,
+mandatory Ed25519 signature over the canonical JSON defined above) verified
+against a local trusted-keys file, with reserved refusal codes
+`-32015`…`-32019` continuing this document's family. The paragraphs above
+remain accurate for the unsigned local profile file: signing stays opt-in,
+this file format is unchanged, and nothing verifies signatures until the
+bundle enforcement change (E14) ships.
+
 ## Refusal codes
 
 Extending the implemented `-32001`…`-32010` family in

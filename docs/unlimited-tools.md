@@ -137,6 +137,13 @@ it can call (`tools_call`), default-deny when active, fail-closed when
 missing or invalid. The open behavior above remains the default (no-profiles
 mode) until v0.6.
 
+Signed profile bundles for team distribution are designed in
+[mcp-signed-profile-bundles.md](mcp-signed-profile-bundles.md) (E13, design
+only — not yet enforced): Ed25519-signed, self-contained bundles with
+issuer, audience, expiry, and revocation, verified against a local
+trusted-keys file. Unsigned local profiles stay allowed; signing is opt-in
+until a signed-required policy is configured.
+
 ## Quick start
 
 ```bash

@@ -452,6 +452,23 @@ May only open when:
    injection) — they are attacker-authored text destined directly for the
    agent, which is strictly more dangerous than schemas.
 
+### Gate C: signed profile bundles
+
+Designed in E13
+([mcp-signed-profile-bundles.md](mcp-signed-profile-bundles.md)) on top of
+the E09 permissioned tool profiles
+([mcp-permissioned-tool-profiles.md](mcp-permissioned-tool-profiles.md)):
+signed, self-contained profile bundles with issuer, audience, validity
+window, an upstream-namespace ceiling, and a local-CRL revocation pointer,
+verified against a local trusted-keys file (no PKI, no network fetch in v1).
+Refusal codes `-32015`…`-32019` (`bundle_signature_invalid`,
+`bundle_expired`, `bundle_revoked`, `bundle_audience_mismatch`,
+`bundle_key_missing`) continue this document's family contiguously, and
+threat-model vectors 14–18 continue its numbering. Enforcement (E14) has not
+shipped; until it does, signature envelopes are shape-only and grant
+nothing, and every failure mode is designed fail-closed — never a fallback
+to unsigned or open behavior.
+
 ## Invariants preserved
 
 This design keeps every standing guarantee; an implementation that violates
