@@ -226,14 +226,49 @@ in [mcp-upstream-security-model.md](mcp-upstream-security-model.md). The
 gateway enforces that model; the "Config enforcement" section above is the
 summary.
 
-## Permissioned tool profiles (design)
+## Permissioned tool profiles (enforced)
 
-[mcp-permissioned-tool-profiles.md](mcp-permissioned-tool-profiles.md) (E09,
-design only — nothing is enforced yet) specifies named tool profiles on top
-of the model above: default-deny visibility rules filtering
-`tools_search`/`tools_schema` and callability rules gating `tools_call`
-(callable is always a subset of visible), restriction-only `extends`
-inheritance, profile selection via `--profile` /
-`UNLIMITED_SKILLS_MCP_PROFILE` / `default_profile`, and the reserved refusal
-codes `-32011`…`-32014`. Without a profile file the gateway keeps the open
-behavior documented above (no-profiles mode, the default until v0.6).
+[mcp-permissioned-tool-profiles.md](mcp-permissioned-tool-profiles.md)
+(designed in E09, enforced since E10; that document is the authoritative
+contract) specifies named tool profiles on top of the model above:
+default-deny visibility rules filtering `tools_search`/`tools_schema` and
+callability rules gating `tools_call` (callable is always a subset of
+visible), restriction-only `extends` inheritance, profile selection via
+`--profile` / `UNLIMITED_SKILLS_MCP_PROFILE` / `default_profile`, and the
+refusal codes `-32011`…`-32014`. Without a profile file the gateway keeps the
+open behavior documented above (no-profiles mode, the default until v0.6).
+
+Enforcement summary (opt-in, profiles file format:
+`schemas/mcp-tool-profile.schema.json`, annotated example
+`examples/mcp/tool-profile.example.json`):
+
+```bash
+unlimited-skills mcp gateway --config cfg.json --profiles ~/.unlimited-skills/tool-profiles.json --profile reviewer
+```
+
+- `--profiles FILE` configures the profile file (read exactly once at
+  startup — no hot reload; restart is the revocation procedure). Absent =
+  no-profiles mode, exactly the behavior documented above. `--profile NAME`
+  selects the profile; precedence is `--profile` >
+  `UNLIMITED_SKILLS_MCP_PROFILE` > the file's `default_profile`, and an
+  unresolved selection never falls back to anything wider.
+- With a profile active: `tools_search` returns only visible tools (hidden
+  tools are simply absent, pre-declared and live-indexed alike) and marks
+  each hit `callable: true|false`; a search `refresh` never spawns an
+  upstream that cannot contribute a visible tool; `tools_schema` and
+  `tools_call` refuse invisible tools with the existence-neutral `-32011`
+  `tool_not_visible` *before* any existence check or lazy spawn (a hidden
+  tool is indistinguishable from a nonexistent one); `tools_call` refuses
+  visible-but-not-callable tools with `-32012` `tool_not_callable` (no spawn;
+  their schemas stay readable via `tools_schema`).
+- Fail closed: a missing/unresolvable profile (`-32013` `profile_not_found`)
+  or an invalid profile file (`-32014` `profile_invalid` — schema violation,
+  bad rule string, `extends` self-reference/cycle/depth > 8/dangling parent,
+  uncovered `callable` rule) keeps the gateway serving the three meta-tools
+  but refuses **every** call with that code; interactive starts also report
+  the condition on stderr. There is no warn-but-allow mode.
+- Audit: while profiles are active every row (success or refusal, at both
+  audit levels) carries the non-sensitive `profile` name; startup appends one
+  `profile_loaded` row with the profile file's SHA-256 and rule counts
+  (numbers only). Rule evaluation matches fully qualified tool names only and
+  never receives call arguments; the redaction floor above is unchanged.

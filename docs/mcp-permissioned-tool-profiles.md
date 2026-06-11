@@ -1,10 +1,17 @@
 # MCP permissioned tool profiles
 
-**Status: DESIGN (E09).** This document specifies permissioned tool profiles
-for the Unlimited Tools gateway: named, local, default-deny profiles that
-control which upstream tools an agent can *see* and which it can *call*.
-Nothing in this document is implemented by the E09 change itself — it is the
-design contract that a future implementation must satisfy. It builds directly
+**Status: PROTOTYPE ENFORCED (designed in E09, implemented in E10).** This
+document specifies permissioned tool profiles for the Unlimited Tools
+gateway: named, local, default-deny profiles that control which upstream
+tools an agent can *see* and which it can *call*. It remains the
+authoritative design contract; the gateway now enforces it
+(`unlimited_skills/mcp/profiles.py` loads and resolves profiles,
+`unlimited_skills/mcp/gateway.py` enforces them in the three meta-tools,
+`unlimited-skills mcp gateway --profiles FILE [--profile NAME]` wires them
+in — opt-in until v0.6, per "Migration path" step 2; enforcement tests:
+`tests/test_mcp_tool_profile_enforcement.py`). References below to "a future
+implementation" date from the E09 design stage and now describe the shipped
+prototype. It builds directly
 on the upstream security model
 ([mcp-upstream-security-model.md](mcp-upstream-security-model.md), E07) and
 its enforcement in the gateway (E08); it strictly tightens that model and
