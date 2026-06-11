@@ -2,7 +2,7 @@
 
 ## Supported Version
 
-`v0.4.0-alpha` is a developer preview. Security fixes should target the current `main` branch first.
+`v0.4.1-alpha` is a developer preview. Security fixes should target the current `main` branch first.
 
 The older `v0.3.7-alpha` security boundary remains documented for compatibility with the v0.2.x smoke claims that protect release-history wording.
 
@@ -34,7 +34,7 @@ The hosted clients must not upload:
 
 ## Hosted Archives And Enhancers
 
-Current `v0.4.0-alpha` behavior:
+Current `v0.4.1-alpha` behavior:
 
 - hosted remote manifests must include valid signed manifest envelopes;
 - signatures verify hosted manifest authenticity;
@@ -51,7 +51,7 @@ Use "signed hosted manifests plus SHA256-verified hosted collection archives" fo
 
 Local Skill Hub is an alpha MVP. The runtime is allowlist-only, does not execute skills, and does not forward local search queries to the hosted registry. It is intended for local or controlled LAN testing.
 
-Current `v0.4.0-alpha` limitations:
+Current `v0.4.1-alpha` limitations:
 
 - Hub client token creation, revocation, and request enforcement are implemented for Local Skill Hub `/v1/...` APIs. `GET /health` remains unauthenticated for liveness checks.
 - Use the default `127.0.0.1` bind address unless you are testing on a trusted LAN.
@@ -109,6 +109,12 @@ The v0.4 go/no-go package can approve starting implementation epics after review
 The v0.4.0-alpha SkillOps foundation milestone is an alpha verification and publication layer for policy-aware recommendation preview, eval release operator workflow, maintainer queue runtime/status, and governance dashboard signed summaries. It is not a production SLA.
 
 The gate must not call production hosted services, require production signing keys, upload prompts, upload task text, upload skill bodies, upload search queries, include private pack bodies, include local or repository paths, enable live billing, publish to PyPI, distribute the full catalog, install/update/remove skills automatically, rewrite skills automatically, or auto-publish. MIT local core behavior remains registration-free. Codex must not create or push the final release tag; the tag stays pending release-owner approval until the selected `main` SHA passes `verify-v040-alpha-publication.py`.
+
+## v0.4.1-alpha Reliability Boundary
+
+The v0.4.1-alpha Reliability milestone is an alpha verification and publication layer for transactional installs, rollback manifest schema v2, same-second reinstall backup collision protection, `VectorModelMismatch`, hybrid lexical fallback on stale vector indexes, modular CLI command routing, and `skillops usage-snapshot` compatibility after the CLI split. It is not a production SLA.
+
+The gate must not call production hosted services, require production signing keys, upload prompts, upload task text, upload skill bodies, upload search queries, include private pack bodies, include local or repository paths, enable live billing, publish to PyPI, distribute the full catalog, rewrite skills automatically, enable automatic telemetry, or auto-publish. Codex must not create or push the final `v0.4.1-alpha` tag; the release owner verifies the selected `main` SHA and runs the human tag command.
 
 ## Known Security Limitations In v0.3.9-alpha
 

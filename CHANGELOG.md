@@ -14,6 +14,8 @@
 - Local-only `skillops usage-snapshot` command with JSON, `--out`, `--dry-run`, and `explain` modes for privacy-preserving SkillOps recommendation context.
 - Usage snapshot schema, example payload, and documentation covering included counts, excluded sensitive data, and no-hosted-call behavior.
 - Support bundle counts-only usage snapshot summary.
+- v0.4.1-alpha Reliability publication package: release notes, checklist, upgrade notes, known issues, release manifest, reliability smoke runner, release smoke runner, and publication verifier.
+- Post-tag `v0.4.0-alpha` release smoke compatibility: the v0.4.0 smoke can verify that the published tag points to the expected release-owner commit without letting Codex create or overwrite tags.
 
 ### Security
 
@@ -22,6 +24,7 @@
 - MCP audit redaction: argument values for keys matching token/secret/key/password/proof/authorization are never written; env values, skill bodies, and tool results are never written (only shapes/counts); local paths are scrubbed from error strings; `redact()` is a pure tested function.
 - Usage snapshots exclude prompts, task text, skill bodies, search queries, local paths, repo paths, customer data, environment values, tokens, proofs, private keys, private pack names, and private skill names by default.
 - Usage snapshot tests block hosted calls and grep fixture secrets/private names/paths from CLI, file output, and support bundle summary.
+- The v0.4.1-alpha publication gate keeps production hosted calls, live billing, PyPI publication, full catalog distribution, automatic telemetry, automatic rewriting, and auto-publish disabled.
 
 ## v0.4.1-alpha
 
@@ -38,7 +41,7 @@
 - `cli.py` was split from ~3.4k lines down to ~1.6k: all command bodies moved into `unlimited_skills/commands/` (library, catalog, community, private-packs, accounts, team, policy, service, updates). `unlimited_skills.cli` re-exports every command, so existing imports and monkeypatch points keep working; CLI behavior, arguments, and output are unchanged.
 - Shared `migrate_source`/`existing_skill_names`/`MigrationResult` now live in `installers/common.py` instead of being duplicated per installer.
 - Backup directories are uniquified, so two installs in the same second can no longer clobber each other's rollback manifest.
-- Package and plugin manifests stay at `0.4.0`; the `0.4.1` version bump lands in the v0.4.1-alpha publication gate, matching how `0.4.0` was bumped by the v0.4.0-alpha publication PR.
+- Package and plugin manifests are raised to `0.4.1` by the v0.4.1-alpha publication gate, matching how `0.4.0` was bumped by the v0.4.0-alpha publication PR.
 
 ## v0.4.0-alpha
 

@@ -7,6 +7,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+V040_TAG_SHA = "4a3ee7d08be1167bbe37eba9cd7c73870d844ea1"
 
 
 def run(command: list[str]) -> None:
@@ -49,10 +50,21 @@ def main() -> int:
             ]
         )
     run([sys.executable, "scripts/verify-v040-alpha-e01-e04.py", "--expected-sha", sha])
-    run([sys.executable, "scripts/verify-v040-alpha-publication.py", "--expected-sha", sha])
+    run(
+        [
+            sys.executable,
+            "scripts/verify-v040-alpha-publication.py",
+            "--expected-sha",
+            sha,
+            "--allow-existing-tag",
+            "--expected-tag-sha",
+            V040_TAG_SHA,
+            "--allow-newer-package",
+        ]
+    )
     print("v0.4.0-alpha final publication smoke passed", flush=True)
     print(f"tag target sha: {sha}", flush=True)
-    print("tag status: pending release-owner approval", flush=True)
+    print(f"existing v0.4.0-alpha tag target: {V040_TAG_SHA}", flush=True)
     return 0
 
 
