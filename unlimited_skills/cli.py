@@ -1087,6 +1087,19 @@ def build_parser() -> argparse.ArgumentParser:
     mcp_gateway.add_argument("--profiles", default="", help="Path to a permissioned tool-profile JSON file (schemas/mcp-tool-profile.schema.json). Absent = open no-profiles mode; configured = default-deny enforcement that fails closed on errors.")
     mcp_gateway.add_argument("--profile", default="", help="Profile name to enforce from --profiles. Precedence: this flag > UNLIMITED_SKILLS_MCP_PROFILE > the file's default_profile.")
     mcp_gateway.set_defaults(func=mcp_cmds.cmd_mcp_gateway)
+    mcp_audit_report = mcp_sub.add_parser(
+        "audit-report",
+        help="Inspect the local redacted MCP audit JSONL log (including rotated generations): summary, refusals, upstream health, profile usage, redaction self-check.",
+    )
+    mcp_audit_report.add_argument("--audit-log", default="", help="Audit log path to inspect. Defaults to <root>/.learning/mcp-audit.jsonl.")
+    mcp_audit_report.add_argument("--json", action="store_true", help="Print the full report as one JSON document (schemas/mcp-audit-report.schema.json).")
+    mcp_audit_report.add_argument(
+        "--section",
+        choices=["summary", "refusals", "upstreams", "profiles", "redaction", "all"],
+        default="all",
+        help="Limit the plain-text report to one section. JSON output is always the full document.",
+    )
+    mcp_audit_report.set_defaults(func=mcp_cmds.cmd_mcp_audit_report)
 
     catalog = sub.add_parser("catalog", help="Query the registered hosted adapted-skill catalog and browser.")
     catalog_sub = catalog.add_subparsers(dest="catalog_command", required=True)
@@ -1654,7 +1667,7 @@ from .commands.team import (
     cmd_team_status,
     cmd_team_sync,
 )
-from .commands.mcp import cmd_mcp_gateway, cmd_mcp_serve
+from .commands.mcp import cmd_mcp_audit_report, cmd_mcp_gateway, cmd_mcp_serve
 from .commands.skillops import cmd_skillops_usage_snapshot
 from .commands.updates import (
     cmd_release_pin,

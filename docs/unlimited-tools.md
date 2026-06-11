@@ -167,3 +167,11 @@ Claude Code registration example (`.mcp.json`):
 ## Performance and rewrite path
 
 The v1 server and gateway are intentionally Python: MCP traffic is I/O-bound JSON-RPC glue, per-call overhead is microseconds against seconds of upstream/tool work, and the search core they reuse lives in this package. The protocol boundary is pinned by JSON schemas (`schemas/mcp-*.schema.json`) and fixture tests (`tests/test_mcp_protocol.py` and friends), so if a hosted multi-tenant gateway or single-binary distribution ever justifies it, the protocol/gateway layer can be rewritten in a compiled language (e.g. Rust) as a drop-in behind the same contracts without touching the library/search core. Revisit when (a) the gateway becomes a hosted product or (b) no-Python single-file install becomes a distribution goal.
+
+## Auditing what the gateway did
+
+The redacted local audit log the gateway writes can be inspected with
+`unlimited-skills mcp audit-report` — a read-only local report (summary,
+refusal codes, upstream health, profile usage, redaction self-check) over
+the active file and its rotated generations. See
+[mcp-audit-inspector.md](mcp-audit-inspector.md).
