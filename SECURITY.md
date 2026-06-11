@@ -124,9 +124,9 @@ The gate must not call production hosted services, require production signing ke
 
 ## v0.4.3-alpha MCP Upstream Enforcement Boundary
 
-The v0.4.3-alpha MCP milestone integrates E08 runtime enforcement for local stdio upstreams. It proves disabled upstream refusal, future-remote-placeholder refusal, command allowlist enforcement, names-only `env_allowlist` enforcement, `schema_too_large` and `response_too_large` refusal paths, startup timeout and request timeout hard bounds, audit rotation, and audit redaction.
+The v0.4.3-alpha MCP milestone integrates E08 runtime enforcement for local stdio upstreams. It proves disabled upstream refusal, future-remote-placeholder refusal, command allowlist enforcement, names-only `env_allowlist` enforcement, `schema_too_large` and `response_too_large` refusal paths, startup timeout and request timeout hard bounds, audit rotation, and audit redaction. It also includes E09 permissioned MCP tool profile design/schema/docs for visibility-vs-callability boundaries; profile runtime enforcement is not part of this release.
 
-The gate remains alpha and local stdio only. It must not call production hosted services, require production signing keys, upload prompts, upload task text, upload skill bodies, upload search queries, include private pack bodies, include local or repository paths, enable live billing, publish to PyPI, distribute the full catalog, rewrite skills automatically, enable automatic telemetry, expose a hosted gateway, implement OAuth or remote upstreams, enable MCP resources or prompts, allow shell execution, or auto-publish. Codex must not create or push the final `v0.4.3-alpha` tag.
+The gate remains alpha and local stdio only. It must not call production hosted services, require production signing keys, upload prompts, upload task text, upload skill bodies, upload search queries, include private pack bodies, include local or repository paths, enable live billing, publish to PyPI, distribute the full catalog, rewrite skills automatically, enable automatic telemetry, expose a hosted gateway, implement OAuth or remote upstreams, enable MCP resources or prompts, allow shell execution, or auto-publish. Codex may create and push the final `v0.4.3-alpha` tag only after the final publication verifier passes on the selected `main` SHA.
 
 ## Known Security Limitations In v0.3.9-alpha
 

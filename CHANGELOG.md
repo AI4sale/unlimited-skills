@@ -6,6 +6,7 @@
 
 - v0.4.3-alpha MCP upstream enforcement integration gate: disabled upstream refusal, future-remote-placeholder refusal, command allowlist refusal, names-only `env_allowlist` enforcement, schema/response size refusals, startup timeout and request timeout hard bounds, audit rotation, and audit redaction are covered by fixture-mode smoke and verifier evidence.
 - Added `scripts/run-v043-alpha-mcp-enforcement-smoke.py`, `scripts/verify-v043-alpha-mcp-enforcement.py`, `tests/integration/test_v043_alpha_mcp_enforcement.py`, and v0.4.3-alpha release docs/manifest.
+- v0.4.3-alpha final publication package: upgrade notes, release smoke runner, publication verifier, final manifest, profile-design documentation proof, no-private-material scan, and exact Codex tag command for `v0.4.3-alpha`.
 - Raised package, Claude plugin, and marketplace metadata versions to `0.4.3`.
 - Updated the v0.4.2 release smoke/publication verifier so later release branches can verify the already-published `v0.4.2-alpha` tag while package/plugin versions move forward.
 - v0.4.2-alpha MCP integration gate: release notes, checklist, known issues, manifest, fixture-mode smoke JSON report, verifier, and integration test proving E06 MCP server/gateway core and E07 upstream security model evidence together without production hosted calls.
