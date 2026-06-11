@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unlimited.ai4.sale/schemas/mcp-operator-acceptance-report.schema.json",
+  "title": "Unlimited Skills MCP profile stack operator acceptance report",
+  "description": "Machine report of scripts/run-mcp-operator-acceptance.py: the 12-step operator workflow (publish -> import key -> verify -> add to library -> rollout-plan -> replay-audit -> activate -> gateway resolve -> incident drill -> rollback -> audit/report) executed end-to-end with the REAL modules in fixture mode. Per step: name, ok, key facts, duration. Fixture mode only: ephemeral DEV Ed25519 keys, private temp directories, no production keys, no hosted calls, no registry sync, no OAuth, no network, no telemetry. The report never contains key material, signature values, full SHA-256 hashes (prefixes only), argument values, or local paths (basenames at most).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "report_type",
+    "schema_version",
+    "generated_at",
+    "mode",
+    "ed25519",
+    "steps",
+    "summary",
+    "exit_code"
+  ],
+  "properties": {
+    "report_type": { "const": "mcp-operator-acceptance-report" },
+    "schema_version": { "const": 1 },
+    "generated_at": {
+      "type": "string",
+      "description": "UTC generation timestamp; the only wall-clock-dependent field.",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"
+    },
+    "mode": {
+      "const": "fixture",
+      "description": "The suite has exactly one mode: fixture (never the real library root, trust store, or audit log)."
+    },
+    "ed25519": {
+      "const": true,
+      "description": "Always true: the E19 publisher has no fallback signature scheme, so the suite refuses to run without real Ed25519 (the optional cryptography package)."
+    },
+    "steps": {
+      "type": "array",
+      "description": "The executed steps in workflow order. A selection (--step NAME) runs and reports the workflow prefix ending at NAME; a failing step ends the array early.",
+      "minItems": 1,
+      "maxItems": 12,
+      "items": { "$ref": "#/$defs/step" }
+    },
+    "summary": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["steps_total", "steps_selected", "steps_ok", "all_ok"],
+      "properties": {
+        "steps_total": { "const": 12 },
+        "steps_selected": { "type": "integer", "minimum": 1, "maximum": 12 },
+        "steps_ok": { "type": "integer", "minimum": 0, "maximum": 12 },
+        "all_ok": { "type": "boolean" }
+      }
+    },
+    "exit_code": {
+      "type": "integer",
+      "description": "0 only when every selected step passed.",
+      "minimum": 0,
+      "maximum": 1
+    }
+  },
+  "$defs": {
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["step", "name", "ok", "facts", "duration_ms"],
+      "properties": {
+        "step": { "type": "integer", "minimum": 1, "maximum": 12 },
+        "name": {
+          "type": "string",
+          "enum": [
+            "keygen",
+            "trust_import",
+            "publish",
+            "verify",
+            "library_add",
+            "rollout_plan",
+            "replay_audit",
+            "activate",
+            "gateway_resolve",
+            "incident_drill",
+            "rollback",
+            "audit_report"
+          ]
+        },
+        "ok": { "type": "boolean" },
+        "facts": {
+          "type": "object",
+          "description": "Key facts of the step: names, SHA-256 PREFIXES, counts, refusal codes, statuses, basenames. Never key material, full hashes, argument values, or local paths. A failed step carries a single path-scrubbed 'error' string instead."
+        },
+        "duration_ms": { "type": "number", "minimum": 0 }
+      }
+    }
+  }
+}

@@ -212,3 +212,14 @@ Unchanged from E13/E14/E15: no private keys in the consumer core (the drill
 generates EPHEMERAL fixture keys in a temp directory and discards them), no
 PKI, no network fetch, no registry sync, no hosted calls, no telemetry, no
 hot reload.
+
+## See also: the end-to-end operator acceptance suite
+
+This drill goes DEEP on failure (every incident class and recovery).
+`scripts/run-mcp-operator-acceptance.py`
+([mcp-operator-acceptance.md](mcp-operator-acceptance.md)) goes WIDE on
+the healthy lifecycle: one fixture-mode 12-step workflow from publish
+through trust import, verify, library add, rollout-plan, replay-audit,
+activate, and gateway resolve to a revocation incident (`-32017`),
+rollback, and the audit report -- proving the same layers compose as one
+operational flow.

@@ -1,0 +1,206 @@
+{
+  "ed25519": true,
+  "exit_code": 0,
+  "generated_at": "2026-06-11T23:20:59Z",
+  "mode": "fixture",
+  "report_type": "mcp-operator-acceptance-report",
+  "schema_version": 1,
+  "steps": [
+    {
+      "duration_ms": 39.549,
+      "facts": {
+        "algorithm": "ed25519",
+        "dev_only": true,
+        "fingerprint": "e80e05bbcd6e3f63",
+        "key_id": "acceptance-issuer-2026",
+        "private_key_file": "acceptance-issuer-2026.signing-key.json",
+        "public_key_file": "acceptance-issuer-2026.public-key.json"
+      },
+      "name": "keygen",
+      "ok": true,
+      "step": 1
+    },
+    {
+      "duration_ms": 43.047,
+      "facts": {
+        "crl_file": "crl.json",
+        "fingerprint": "e80e05bbcd6e3f63",
+        "key_id": "acceptance-issuer-2026",
+        "public_keys_only": true,
+        "trusted_keys_file": "trusted-keys.json"
+      },
+      "name": "trust_import",
+      "ok": true,
+      "step": 2
+    },
+    {
+      "duration_ms": 95.033,
+      "facts": {
+        "audience": [
+          "team:acceptance"
+        ],
+        "bundles": [
+          "team-v1",
+          "team-v2"
+        ],
+        "ceremony_checks_passed": 7,
+        "issuer_key_id": "acceptance-issuer-2026",
+        "profile_count": 2,
+        "self_check": "resolve_bundle_state (E14)",
+        "v1_sha_prefix": "e149f19a871a",
+        "v2_sha_prefix": "c46310e101f3"
+      },
+      "name": "publish",
+      "ok": true,
+      "step": 3
+    },
+    {
+      "duration_ms": 1.679,
+      "facts": {
+        "audience": [
+          "team:acceptance"
+        ],
+        "issuer_key_id": "acceptance-issuer-2026",
+        "ok": true,
+        "profile": "dev",
+        "verified_via": "resolve_bundle_state (E14)"
+      },
+      "name": "verify",
+      "ok": true,
+      "step": 4
+    },
+    {
+      "duration_ms": 33.29,
+      "facts": {
+        "added": 2,
+        "content_addressed": true,
+        "entries": [
+          {
+            "name": "team-v1",
+            "sha_prefix": "e149f19a871a"
+          },
+          {
+            "name": "team-v2",
+            "sha_prefix": "c46310e101f3"
+          }
+        ],
+        "verified_before_store": true
+      },
+      "name": "library_add",
+      "ok": true,
+      "step": 5
+    },
+    {
+      "duration_ms": 5.602,
+      "facts": {
+        "blockers": 0,
+        "callable": 2,
+        "dry_run": true,
+        "hidden": 1,
+        "mode": "enforced",
+        "profile": "dev",
+        "refused_by_policy": 1,
+        "tools_total": 3,
+        "visible": 2
+      },
+      "name": "rollout_plan",
+      "ok": true,
+      "step": 6
+    },
+    {
+      "duration_ms": 26.307,
+      "facts": {
+        "history_rows": 7,
+        "newly_denied": 1,
+        "recommendation": "safe_with_warnings",
+        "recommendation_present": true,
+        "replayed": 6,
+        "would_allow": 5
+      },
+      "name": "replay_audit",
+      "ok": true,
+      "step": 7
+    },
+    {
+      "duration_ms": 61.273,
+      "facts": {
+        "active": "team-v2",
+        "active_sha_prefix": "c46310e101f3",
+        "history_actions": [
+          "activate",
+          "activate"
+        ],
+        "pointer_file": "active.bundle.json",
+        "previous_sha_prefix": "e149f19a871a",
+        "reverified_at_activation": true
+      },
+      "name": "activate",
+      "ok": true,
+      "step": 8
+    },
+    {
+      "duration_ms": 5.174,
+      "facts": {
+        "bundle_sha_prefix": "c46310e101f3",
+        "fake_echo_callable": true,
+        "issuer_key_id": "acceptance-issuer-2026",
+        "legacy_export_hidden": true,
+        "note": "signed bundle profile 'dev' enforced",
+        "profile": "dev",
+        "require_signed_profiles": true
+      },
+      "name": "gateway_resolve",
+      "ok": true,
+      "step": 9
+    },
+    {
+      "duration_ms": 44.759,
+      "facts": {
+        "activation_refused": true,
+        "crl_append_only": true,
+        "gateway_fail_closed": true,
+        "refusal_code": -32017,
+        "refusal_name": "bundle_revoked",
+        "revoked_sha_prefix": "c46310e101f3"
+      },
+      "name": "incident_drill",
+      "ok": true,
+      "step": 10
+    },
+    {
+      "duration_ms": 12.537,
+      "facts": {
+        "active_profile": "dev",
+        "re_resolve_ok": true,
+        "reverified_at_rollback": true,
+        "rolled_back_sha_prefix": "e149f19a871a",
+        "rolled_back_to": "team-v1",
+        "skipped_candidates": 0
+      },
+      "name": "rollback",
+      "ok": true,
+      "step": 11
+    },
+    {
+      "duration_ms": 19.895,
+      "facts": {
+        "redaction_self_check": "PASS",
+        "refusal_codes_observed": [
+          -32017
+        ],
+        "refusal_rows": 1,
+        "rows_total": 3,
+        "strings_scanned": 10
+      },
+      "name": "audit_report",
+      "ok": true,
+      "step": 12
+    }
+  ],
+  "summary": {
+    "all_ok": true,
+    "steps_ok": 12,
+    "steps_selected": 12,
+    "steps_total": 12
+  }
+}

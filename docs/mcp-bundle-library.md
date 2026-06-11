@@ -156,3 +156,12 @@ E14 verification semantics are reused, never changed or bypassed. Offline
 by construction: no network, no registry sync, no hosted calls, no
 telemetry, no production signing keys, no hot reload. Atomic state and
 pointer writes; loud refusals with the exact reserved codes.
+
+## End-to-end operator acceptance
+
+The whole lifecycle this library sits inside -- publish, trust import,
+verify, add, rollout-plan, replay-audit, activate, gateway resolve,
+revocation incident, rollback, audit report -- is exercised as ONE
+fixture-mode workflow by `scripts/run-mcp-operator-acceptance.py`
+([mcp-operator-acceptance.md](mcp-operator-acceptance.md)), which also
+serves as the operator onboarding walk-through.
