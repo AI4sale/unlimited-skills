@@ -31,28 +31,33 @@ def _is_volatile_home_file(home: Path, path: Path) -> bool:
     return rel in VOLATILE_HOME_FILES
 
 
-def snapshot_real_home(home: Path) -> dict[str, tuple[bool, int, float]]:
-    snapshot: dict[str, tuple[bool, int, float]] = {}
+def snapshot_real_home(home: Path) -> dict[str, tuple[bool, dict[str, int]]]:
+    snapshot: dict[str, tuple[bool, dict[str, int]]] = {}
     for name in WATCHED_HOME_DIRS:
         path = home / name
         if not path.exists():
-            snapshot[name] = (False, 0, 0.0)
+            snapshot[name] = (False, {})
             continue
-        files = [item for item in path.rglob("*") if item.is_file()]
-        stable_files = [item for item in files if not _is_volatile_home_file(home, item)]
-        newest = max((item.stat().st_mtime for item in stable_files), default=path.stat().st_mtime)
-        snapshot[name] = (True, len(files), newest)
+        files: dict[str, int] = {}
+        for item in path.rglob("*"):
+            if not item.is_file():
+                continue
+            if _is_volatile_home_file(home, item):
+                continue
+            rel = item.relative_to(home).as_posix()
+            files[rel] = item.stat().st_size
+        snapshot[name] = (True, files)
     return snapshot
 
 
-def assert_real_home_unchanged(home: Path, before: dict[str, tuple[bool, int, float]]) -> None:
+def assert_real_home_unchanged(home: Path, before: dict[str, tuple[bool, dict[str, int]]]) -> None:
     after = snapshot_real_home(home)
     changed: list[str] = []
     for name, old in before.items():
-        new = after.get(name, (False, 0, 0.0))
-        old_exists, old_count, old_mtime = old
-        new_exists, new_count, new_mtime = new
-        if old_exists != new_exists or old_count != new_count or new_mtime > old_mtime + 0.001:
+        new = after.get(name, (False, {}))
+        old_exists, old_files = old
+        new_exists, new_files = new
+        if old_exists != new_exists or old_files != new_files:
             changed.append(name)
     if changed:
         raise SystemExit(f"Smoke suite appears to have mutated real HOME entries: {', '.join(changed)}")
