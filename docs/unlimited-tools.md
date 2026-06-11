@@ -127,15 +127,15 @@ enforced by the gateway (see the "Config enforcement" section of
 [mcp-gateway.md](mcp-gateway.md)). It strictly tightens the v1 boundaries
 above and never weakens them.
 
-## Permissioned tool profiles (design)
+## Permissioned tool profiles (enforced)
 
-[mcp-permissioned-tool-profiles.md](mcp-permissioned-tool-profiles.md) (E09,
-design only — not yet enforced) adds named per-agent / per-team / per-runtime
-tool profiles on top of the upstream security model: a profile controls which
-upstream tools an agent can see (`tools_search` / `tools_schema`) and which
-it can call (`tools_call`), default-deny when active, fail-closed when
-missing or invalid. The open behavior above remains the default (no-profiles
-mode) until v0.6.
+[mcp-permissioned-tool-profiles.md](mcp-permissioned-tool-profiles.md) (E09
+design, enforced since E10 / v0.4.4-alpha) adds named per-agent / per-team /
+per-runtime tool profiles on top of the upstream security model: a profile
+controls which upstream tools an agent can see (`tools_search` /
+`tools_schema`) and which it can call (`tools_call`), default-deny when
+active, fail-closed when missing or invalid. The open behavior above remains
+the default no-profiles mode.
 
 ## Quick start
 
@@ -173,5 +173,8 @@ The v1 server and gateway are intentionally Python: MCP traffic is I/O-bound JSO
 The redacted local audit log the gateway writes can be inspected with
 `unlimited-skills mcp audit-report` — a read-only local report (summary,
 refusal codes, upstream health, profile usage, redaction self-check) over
-the active file and its rotated generations. See
+the active file and its rotated generations. The v0.4.5-alpha integration gate
+verifies that recent refusals include no argument values and no error text,
+JSON output validates against the report schema, and the inspector never
+writes audit logs. See
 [mcp-audit-inspector.md](mcp-audit-inspector.md).
