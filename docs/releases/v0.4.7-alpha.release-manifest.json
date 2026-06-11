@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "release": "v0.4.7-alpha",
+  "package_version": "0.4.7",
+  "generated_at": "2026-06-12T00:00:00Z",
+  "distribution": "github-clone-alpha",
+  "git": {
+    "base_branch": "main",
+    "publication_branch": "release/v0.4.7-alpha-signed-profile-bundles-integration",
+    "tag": "v0.4.7-alpha",
+    "tag_status": "not_created_by_codex",
+    "tag_target_sha_policy": "This integration gate records signed profile bundle evidence only. A later final publication gate must verify the selected main SHA before tagging."
+  },
+  "required_prs": {
+    "public": [
+      {
+        "number": 102,
+        "epic": "E13",
+        "title": "Signed MCP profile bundle design",
+        "status": "merged"
+      },
+      {
+        "number": 103,
+        "epic": "E14",
+        "title": "Signed MCP profile bundle verification",
+        "status": "merged"
+      }
+    ],
+    "private_registry": [
+      {
+        "number": 50,
+        "epic": "registry-tier-b",
+        "title": "Tier B writer inventory and canonical-default decision report",
+        "status": "merged"
+      }
+    ]
+  },
+  "safety_boundary": {
+    "alpha_only": true,
+    "fixture_mode": true,
+    "signed_profile_bundle_integration": true,
+    "raw_local_profiles_still_allowed_by_default": true,
+    "registered_business_signed_required_future_gated": true,
+    "codex_must_not_push_tag": true,
+    "production_rollout": false,
+    "production_hosted_calls": false,
+    "hosted_trust_fetch": false,
+    "registry_sync": false,
+    "oauth_upstreams": false,
+    "remote_upstreams": false,
+    "mcp_resources": false,
+    "mcp_prompts": false,
+    "production_signing_keys": false,
+    "private_key_storage": false,
+    "auto_publish": false,
+    "live_billing": false,
+    "pypi": false,
+    "full_catalog_distribution": false
+  },
+  "integration_evidence": {
+    "release_manifest": "docs/releases/v0.4.7-alpha.release-manifest.json",
+    "release_notes": "docs/releases/v0.4.7-alpha.md",
+    "known_issues": "docs/releases/v0.4.7-alpha-known-issues.md",
+    "signed_bundle_docs": "docs/mcp-signed-profile-bundles.md",
+    "signed_bundle_schema": "schemas/mcp-profile-bundle.schema.json",
+    "signed_bundle_runtime": "unlimited_skills/mcp/bundles.py",
+    "signed_bundle_smoke_runner": "scripts/run-v047-alpha-signed-profile-bundles-smoke.py",
+    "signed_bundle_verifier": "scripts/verify-v047-alpha-signed-profile-bundles.py",
+    "integration_test": "tests/integration/test_v047_alpha_signed_profile_bundles.py"
+  }
+}
