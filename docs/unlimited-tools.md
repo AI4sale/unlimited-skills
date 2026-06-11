@@ -178,3 +178,19 @@ verifies that recent refusals include no argument values and no error text,
 JSON output validates against the report schema, and the inspector never
 writes audit logs. See
 [mcp-audit-inspector.md](mcp-audit-inspector.md).
+## Measured performance and warm-start plan
+
+A reproducible, fixture-only benchmark pack measures cold/warm gateway
+latency, upstream spawn vs reuse cost, schema indexing time, `tools_search`
+latency, audit write overhead, and the context-bytes table above at
+40/200/1000 indexed tools:
+
+```bash
+python scripts/run-mcp-performance-benchmarks.py --fixture-mode --json --sizes 40,200,1000
+```
+
+Reports (JSON per `schemas/mcp-perf-report.schema.json`, plus Markdown) land
+in `build/perf/`. The reference numbers, what each metric means, and the
+warm-start optimization plan (persistent tool-index cache, opt-in pre-spawn —
+design only, everything default-off) live in
+[mcp-performance.md](mcp-performance.md).
