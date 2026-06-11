@@ -100,7 +100,7 @@ def fixture_paths(tmp_path: Path) -> dict:
                 "name": "fake",
                 "command": sys.executable,
                 "args": [str(script), str(marker)],
-                "env": {"FAKE_UPSTREAM_TOKEN": "%FAKE_UPSTREAM_TOKEN%"},
+                "env_allowlist": ["FAKE_UPSTREAM_TOKEN"],
                 "tools": [
                     {"name": "echo", "description": "Echo text back"},
                     {"name": "add", "description": "Add two integers"},
@@ -308,7 +308,10 @@ def test_clean_shutdown_terminates_upstreams(fixture_paths: dict) -> None:
 
 
 def test_failed_upstream_spawn_is_structured_refusal(tmp_path: Path) -> None:
-    config = {"upstreams": [{"name": "ghost", "command": str(tmp_path / "no-such-exe-12345")}]}
+    # Absolute, outside the temp root (temp-dir commands are a -32006 policy
+    # refusal at local-restricted), but non-existent: spawning must fail.
+    ghost_command = str(Path(sys.executable).parent / "no-such-exe-12345")
+    config = {"upstreams": [{"name": "ghost", "command": ghost_command}]}
     gateway = Gateway(config, AuditLog(tmp_path / "audit.jsonl"))
     server = StdioServer(build_gateway_registry(gateway))
     try:

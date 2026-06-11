@@ -17,8 +17,11 @@ unlimited-skills mcp gateway --config cfg.json --audit-log D:\logs\mcp-audit.jso
 
 ## Config file
 
-Validated against `schemas/mcp-gateway-config.schema.json`; a working sample
-is at `examples/mcp/gateway-config.example.json`:
+Validated against `schemas/mcp-upstream-config.schema.json` (the upstream
+security model format — [mcp-upstream-security-model.md](mcp-upstream-security-model.md)
+is the full specification); annotated samples are at
+`examples/mcp/upstreams.example.json` and
+`examples/mcp/gateway-config.example.json`:
 
 ```json
 {
@@ -28,9 +31,10 @@ is at `examples/mcp/gateway-config.example.json`:
   "upstreams": [
     {
       "name": "github",
+      "trust_level": "local-trusted",
       "command": "npx",
       "args": ["-y", "@modelcontextprotocol/server-github"],
-      "env": { "GITHUB_PERSONAL_ACCESS_TOKEN": "%GITHUB_PERSONAL_ACCESS_TOKEN%" },
+      "env_allowlist": ["GITHUB_PERSONAL_ACCESS_TOKEN"],
       "request_timeout_seconds": 60,
       "tools": [
         { "name": "create_issue", "description": "Create a GitHub issue in a repository" }
@@ -41,19 +45,58 @@ is at `examples/mcp/gateway-config.example.json`:
 ```
 
 - `name` — unique id; tools are addressed as `<name>.<tool>`.
-- `command` / `args` — the upstream stdio MCP server process. stdio only:
-  no URLs, no OAuth upstreams in v1.
-- `env` — extra environment for the upstream. Values may reference local
-  environment variables (`%VAR%` or `$VAR`); they are expanded from
-  `os.environ` at spawn time and **never logged**.
+- `command` / `args` — the upstream stdio MCP server process, spawned as an
+  argv vector (never a shell). stdio only: no URLs, no OAuth upstreams.
+- `trust_level` — `disabled`, `local-restricted` (default), `local-trusted`,
+  or `future-remote-placeholder`; `enabled: false` forces `disabled`
+  semantics. Governs command form, environment, and size ceilings — see
+  below.
+- `env_allowlist` — **names** of environment variables copied from the local
+  environment into the upstream, on top of a fixed minimal base set. Never
+  wildcards, never literal values; the v1 `env` value map is rejected at
+  load. Values are **never logged**.
 - `tools` — optional pre-declared names + descriptions so `tools_search` can
   match this upstream **before it is ever spawned**. Without it, an upstream
   becomes searchable after its first lazy spawn or a `tools_search` call with
   `refresh: true`.
 - `startup_timeout_seconds` / `request_timeout_seconds` — per-upstream
-  deadlines (positive numbers). May also be set at the top level as defaults
-  for all upstreams. Built-in defaults: **20 s** for spawn + `initialize`
-  handshake, **30 s** per request.
+  deadlines, bounded to (0, 120] s / (0, 300] s (out-of-range values are a
+  load error). May also be set at the top level as defaults for all
+  upstreams. Built-in defaults: **20 s** for spawn + `initialize` handshake,
+  **30 s** per request.
+- `max_schema_bytes` / `max_response_bytes` — size caps (defaults 64 KiB /
+  256 KiB) with trust-level ceilings: 256 KiB / 1 MiB at `local-restricted`,
+  1 MiB / 8 MiB at `local-trusted`. Exceeding a cap is a structured refusal,
+  never truncation.
+- `audit_level` (`standard` default, or `minimal`), top-level
+  `audit_max_bytes` / `audit_max_files` — see "Audit log" below.
+
+## Config enforcement (upstream security model)
+
+The gateway enforces [mcp-upstream-security-model.md](mcp-upstream-security-model.md)
+— that document is the authoritative contract; in short:
+
+- **Trust levels.** `disabled` upstreams are never spawned, never indexed
+  (including pre-declared `tools`), and any call addressing them is refused
+  with `-32005`. `future-remote-placeholder` refuses every operation with
+  `-32010` until the OAuth/remote gate opens.
+- **Command allowlist.** No shell, ever. At `local-restricted` the command
+  must be an absolute path (not under a temp directory); at `local-trusted`
+  it may instead be a bare known-runner name (`node`, `npx`, `bunx`, `deno`,
+  `python`, `python3`, `uv`, `uvx` — a frozen list in code, not extensible
+  via config). Shell binaries and relative paths are refused at every level
+  with `-32006`.
+- **Environment.** Upstreams are spawned with a from-scratch environment:
+  a fixed minimal base set (`PATH`, `HOME`, temp/locale variables, Windows
+  process essentials — `COMSPEC` excluded) plus the `env_allowlist` names
+  present in the local environment. Anything broader is refused with
+  `-32007`. The gateway's own working directory is never inherited
+  (per-upstream scratch directory, or an explicit absolute `cwd`).
+- **Size limits.** An oversized tool schema is refused with `-32008` (the
+  tool stays searchable by name/description); an oversized `tools/call`
+  result is dropped and refused with `-32009`. Nothing is ever truncated.
+- **Bounded timeouts and ceilings** are rejected at config load time
+  (`GatewayConfigError`) before any process is spawned.
 
 ## Meta-tools
 
@@ -119,6 +162,12 @@ channels, consistent with the skills server:
 | `-32002` | `UPSTREAM_TIMEOUT` — upstream did not answer within the deadline (upstream is terminated) |
 | `-32003` | `UPSTREAM_PROTOCOL_ERROR` — upstream wrote malformed/garbage output; nothing is relayed (upstream is terminated) |
 | `-32004` | `UPSTREAM_FAILED` — upstream returned a JSON-RPC error or died mid-call |
+| `-32005` | `UPSTREAM_DISABLED` — upstream exists in config but is `disabled` (or `enabled: false`) |
+| `-32006` | `COMMAND_NOT_ALLOWED` — command violates the allowlist policy for its trust level |
+| `-32007` | `ENV_FORWARDING_DENIED` — environment forwarding beyond the names-only allowlist |
+| `-32008` | `SCHEMA_TOO_LARGE` — one tool's `inputSchema` exceeds `max_schema_bytes`; refused, never truncated |
+| `-32009` | `RESPONSE_TOO_LARGE` — a `tools/call` result exceeds `max_response_bytes`; dropped, never trimmed |
+| `-32010` | `TRUST_LEVEL_VIOLATION` — operation not permitted at the upstream's trust level (e.g. `future-remote-placeholder`) |
 
 Standard JSON-RPC codes (`-32700` parse error, `-32600` invalid request —
 including unsupported batch requests, `-32601` unknown method, `-32602`
@@ -153,13 +202,21 @@ Proven by `tests/test_mcp_gateway.py::test_audit_file_never_leaks_secrets`,
 which greps a generated audit file for token/bearer/password/proof/prompt/
 skill-body/env/local-path plaintext after a representative call.
 
-## Upstream security model (E07 design)
+Per-upstream `audit_level`: `standard` (default, as above) or `minimal`
+(only `ts`/`tool`/`upstream`/`duration_ms`/`ok` — no args shape, no error
+string), for upstreams whose argument *shapes* are themselves sensitive.
+There is deliberately no `off`.
 
-How upstreams *should* be configured, allowlisted, isolated, limited, and
-audited going forward — trust levels (`disabled` / `local-restricted` /
-`local-trusted` / `future-remote-placeholder`), a names-only env allowlist
-replacing the `env` value map above, command allowlisting, size caps with
-refusal-not-truncation, audit rotation, the extended refusal codes
-`-32005`…`-32010`, and the 9-vector threat model — is specified in
-[mcp-upstream-security-model.md](mcp-upstream-security-model.md)
-(design only; this page documents the implemented v1 behavior).
+Rotation: when the active JSONL file exceeds `audit_max_bytes` (default
+10 MiB) it is renamed to `.1` (shifting `.1`→`.2`, …) and generations beyond
+`audit_max_files` (default 5) are deleted. Local renames only — no
+compression, no upload, no telemetry.
+
+## Upstream security model
+
+Trust levels, the command allowlist, environment forwarding, size caps,
+audit policy, the refusal codes `-32005`…`-32010`, the 9-vector threat
+model, and the future OAuth/remote and resources/prompts gates are specified
+in [mcp-upstream-security-model.md](mcp-upstream-security-model.md). The
+gateway enforces that model; the "Config enforcement" section above is the
+summary.

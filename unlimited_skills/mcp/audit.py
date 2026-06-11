@@ -34,6 +34,13 @@ REDACTED = "[redacted]"
 MAX_STRING_CHARS = 120
 MAX_ERROR_CHARS = 200
 
+# Size-based rotation defaults (docs/mcp-upstream-security-model.md):
+# rotate the active JSONL file once it exceeds max_bytes; keep max_files
+# rotated generations (mcp-audit.jsonl.1 ... .N). Local renames only --
+# no compression dependency, no upload, no telemetry.
+DEFAULT_AUDIT_MAX_BYTES = 10 * 1024 * 1024
+DEFAULT_AUDIT_MAX_FILES = 5
+
 SENSITIVE_KEY_PATTERN = re.compile(
     r"token|secret|key|password|passwd|proof|auth|credential|bearer|cookie|"
     r"session|signature|cert|private|prompt|env\b|environ|body|content",
@@ -98,10 +105,44 @@ def redact(value: Any) -> Any:
 
 
 class AuditLog:
-    """Append-only JSONL audit log with built-in redaction."""
+    """Append-only JSONL audit log with built-in redaction and rotation."""
 
-    def __init__(self, path: Path) -> None:
+    def __init__(
+        self,
+        path: Path,
+        max_bytes: int = DEFAULT_AUDIT_MAX_BYTES,
+        max_files: int = DEFAULT_AUDIT_MAX_FILES,
+    ) -> None:
         self.path = Path(path)
+        self.max_bytes = int(max_bytes)
+        self.max_files = int(max_files)
+
+    def _generation(self, index: int) -> Path:
+        return self.path.with_name(f"{self.path.name}.{index}")
+
+    def _rotate_if_needed(self) -> None:
+        """Rotate the active file once it exceeds ``max_bytes``.
+
+        The active file becomes ``.1`` (shifting ``.1`` -> ``.2``, ...); the
+        oldest generation beyond ``max_files`` is deleted. Rotation failures
+        never block the audit append itself.
+        """
+        try:
+            if self.path.stat().st_size <= self.max_bytes:
+                return
+        except OSError:
+            return
+        try:
+            oldest = self._generation(self.max_files)
+            if oldest.exists():
+                oldest.unlink()
+            for index in range(self.max_files - 1, 0, -1):
+                source = self._generation(index)
+                if source.exists():
+                    source.replace(self._generation(index + 1))
+            self.path.replace(self._generation(1))
+        except OSError:
+            pass
 
     def record(
         self,
@@ -124,6 +165,7 @@ class AuditLog:
         if error:
             row["error"] = scrub_paths(error)[:MAX_ERROR_CHARS]
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        self._rotate_if_needed()
         with self.path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
         return row
