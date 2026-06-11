@@ -80,6 +80,14 @@ def plugin_versions() -> tuple[str, str]:
     return str(plugin["version"]), str(marketplace["plugins"][0]["version"])
 
 
+def version_tuple(value: str) -> tuple[int, ...]:
+    try:
+        return tuple(int(part) for part in value.split("."))
+    except ValueError as exc:
+        fail(f"invalid version: {value}")
+        raise AssertionError from exc
+
+
 def load_smoke():
     path = ROOT / "scripts" / "run-v044-alpha-mcp-tool-profiles-smoke.py"
     spec = importlib.util.spec_from_file_location("run_v044_alpha_mcp_tool_profiles_smoke", path)
@@ -202,6 +210,11 @@ def assert_no_private_material() -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Verify v0.4.4-alpha MCP tool-profile integration gate.")
     parser.add_argument("--expected-sha", help="Expected checkout SHA for the integration gate")
+    parser.add_argument(
+        "--allow-newer-package",
+        action="store_true",
+        help="Compatibility mode for later release branches: require package/plugin versions to match each other and be >= 0.4.4.",
+    )
     parser.add_argument("--json", action="store_true", help="Print JSON evidence")
     args = parser.parse_args(argv)
 
@@ -209,9 +222,17 @@ def main(argv: list[str] | None = None) -> int:
     if args.expected_sha:
         require(re.fullmatch(r"[0-9a-f]{40}", args.expected_sha) is not None, "--expected-sha must be 40 lowercase hex")
         require(current_head == args.expected_sha, f"current checkout {current_head} does not match {args.expected_sha}")
-    require(package_version() == VERSION, f"pyproject version must be {VERSION}")
-    require(init_version() == VERSION, f"__version__ must be {VERSION}")
-    require(plugin_versions() == (VERSION, VERSION), "Claude plugin and marketplace versions must match package version")
+    pkg_version = package_version()
+    init_ver = init_version()
+    plugin_ver, marketplace_ver = plugin_versions()
+    if args.allow_newer_package:
+        require(version_tuple(pkg_version) >= version_tuple(VERSION), f"pyproject version must be >= {VERSION}")
+        require(init_ver == pkg_version, "__version__ must match pyproject version")
+        require((plugin_ver, marketplace_ver) == (pkg_version, pkg_version), "Claude plugin and marketplace versions must match package version")
+    else:
+        require(pkg_version == VERSION, f"pyproject version must be {VERSION}")
+        require(init_ver == VERSION, f"__version__ must be {VERSION}")
+        require((plugin_ver, marketplace_ver) == (VERSION, VERSION), "Claude plugin and marketplace versions must match package version")
     manifest = assert_manifest()
     assert_docs()
     smoke = load_smoke().collect_evidence(run_pytest=False)
