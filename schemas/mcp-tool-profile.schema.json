@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AI4sale/unlimited-skills/schemas/mcp-tool-profile.schema.json",
+  "title": "Unlimited Tools MCP permissioned tool profiles (E09 design)",
+  "description": "DESIGN (E09): named tool profiles for the Unlimited Tools gateway (docs/mcp-permissioned-tool-profiles.md). A profile controls which upstream tools an agent can SEE (visible: filters tools_search and gates tools_schema) and which it can CALL (callable: gates tools_call). Callable is always a subset of visible. Rules are fully qualified '<upstream>.<tool>' strings in exactly two forms: an exact name, or '<upstream>.*' covering one whole upstream — no regex, no partial globs, no wildcard upstream segment. With a profile active, anything not explicitly allowed is invisible and uncallable (default deny); a missing or invalid profile fails closed (refusal codes -32013 / -32014). Semantic load rules (extends must exist, no self-reference, no cycles, chain depth <= 8, every callable rule covered by a visible rule) are enforced by the gateway at load time; this schema enforces the structural format.",
+  "type": "object",
+  "required": ["schema_version", "profiles"],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "const": 1 },
+    "comment": { "type": "string", "description": "Annotation only; carries no semantics." },
+    "default_profile": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+      "description": "Profile applied when neither --profile nor UNLIMITED_SKILLS_MCP_PROFILE selects one. Must name an existing profile in 'profiles' (semantic load check). Selection precedence: CLI flag > env var > this default; nothing resolved is refused fail-closed with profile_not_found (-32013), never open behavior."
+    },
+    "signature": {
+      "type": "object",
+      "required": ["algorithm", "key_id", "value"],
+      "additionalProperties": false,
+      "description": "Optional forward-compatible detached-signature envelope, reserved for the future profile-signing gate (Gate C). Computed over the canonical JSON (UTF-8, sorted keys, no insignificant whitespace) of this document with the 'signature' member removed. In v1 the gateway validates this shape only and NEVER verifies signatures — presence grants nothing and blocks nothing.",
+      "properties": {
+        "comment": { "type": "string", "description": "Annotation only; carries no semantics." },
+        "algorithm": {
+          "enum": ["ed25519"],
+          "description": "Placeholder algorithm enum; the signing gate owns the final algorithm and key-format decisions."
+        },
+        "key_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "description": "Opaque identifier of the signing key. Never a key value."
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "pattern": "^[A-Za-z0-9+/]+={0,2}$",
+          "description": "Base64-encoded detached signature bytes."
+        }
+      }
+    },
+    "profiles": {
+      "type": "object",
+      "minProperties": 1,
+      "maxProperties": 64,
+      "description": "Map of profile name -> profile. Names share the upstream-name grammar. With a profile active, default deny: a tool is visible/callable only if a rule matches it.",
+      "additionalProperties": false,
+      "patternProperties": {
+        "^[A-Za-z0-9][A-Za-z0-9_-]*$": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "comment": { "type": "string", "description": "Annotation only; carries no semantics." },
+            "extends": {
+              "type": "string",
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+              "description": "Single parent profile in this file (no multiple inheritance). Inheritance is restriction-only: the child's effective sets are intersected with the parent's — a child can narrow but never widen. Self-reference, cycles, dangling names, and chains deeper than 8 are load errors (profile_invalid, -32014)."
+            },
+            "visible": {
+              "type": "array",
+              "uniqueItems": true,
+              "maxItems": 256,
+              "items": {
+                "type": "string",
+                "minLength": 3,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*\\.(\\*|[A-Za-z0-9_][A-Za-z0-9_.-]*)$"
+              },
+              "description": "Visibility rules: exact '<upstream>.<tool>' or '<upstream>.*' (whole upstream). Filters tools_search and gates tools_schema; an invisible tool is refused with tool_not_visible (-32011), indistinguishable from a nonexistent one. Absent: a child inherits the parent's set; a root profile denies everything."
+            },
+            "callable": {
+              "type": "array",
+              "uniqueItems": true,
+              "maxItems": 256,
+              "items": {
+                "type": "string",
+                "minLength": 3,
+                "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*\\.(\\*|[A-Za-z0-9_][A-Za-z0-9_.-]*)$"
+              },
+              "description": "Callability rules, same grammar; gates tools_call. Always a subset of visible: every rule here must be covered by this profile's visible rules (load check), and evaluation additionally requires visibility. A visible-but-not-callable tool is refused with tool_not_callable (-32012). Absent: a child inherits the parent's set; a root profile denies everything."
+            }
+          }
+        }
+      }
+    }
+  }
+}
