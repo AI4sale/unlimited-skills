@@ -9,17 +9,25 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RELEASE = "v0.4.1-alpha"
-VERSION = "0.4.1"
-MANIFEST = ROOT / "docs" / "releases" / "v0.4.1-alpha.release-manifest.json"
+RELEASE = "v0.4.2-alpha"
+VERSION = "0.4.2"
+MANIFEST = ROOT / "docs" / "releases" / "v0.4.2-alpha.release-manifest.json"
 RELEASE_DOCS = [
-    ROOT / "docs" / "releases" / "v0.4.1-alpha.md",
-    ROOT / "docs" / "releases" / "v0.4.1-alpha-checklist.md",
-    ROOT / "docs" / "releases" / "v0.4.1-alpha-upgrade-notes.md",
-    ROOT / "docs" / "releases" / "v0.4.1-alpha-known-issues.md",
+    ROOT / "docs" / "releases" / "v0.4.2-alpha.md",
+    ROOT / "docs" / "releases" / "v0.4.2-alpha-checklist.md",
+    ROOT / "docs" / "releases" / "v0.4.2-alpha-upgrade-notes.md",
+    ROOT / "docs" / "releases" / "v0.4.2-alpha-known-issues.md",
     MANIFEST,
 ]
-PUBLIC_DOCS = RELEASE_DOCS + [ROOT / "README.md", ROOT / "SECURITY.md", ROOT / "CHANGELOG.md"]
+PUBLIC_DOCS = RELEASE_DOCS + [
+    ROOT / "README.md",
+    ROOT / "SECURITY.md",
+    ROOT / "CHANGELOG.md",
+    ROOT / "docs" / "mcp-server.md",
+    ROOT / "docs" / "mcp-gateway.md",
+    ROOT / "docs" / "mcp-upstream-security-model.md",
+    ROOT / "docs" / "unlimited-tools.md",
+]
 PRIVATE_MATERIAL_PATTERNS = {
     "pem_private_key": r"-----BEGIN [A-Z ]*PRIVATE KEY-----",
     "openssh_private_key": r"-----BEGIN OPENSSH PRIVATE KEY-----",
@@ -59,10 +67,6 @@ def package_version() -> str:
     return str(tomllib.loads(read(ROOT / "pyproject.toml"))["project"]["version"])
 
 
-def version_tuple(value: str) -> tuple[int, ...]:
-    return tuple(int(part) for part in value.split("."))
-
-
 def init_version() -> str:
     match = re.search(r'__version__\s*=\s*"([^"]+)"', read(ROOT / "unlimited_skills" / "__init__.py"))
     require(match is not None, "__version__ is missing")
@@ -99,24 +103,30 @@ def assert_manifest() -> None:
     require(payload.get("package_version") == VERSION, "manifest package version mismatch")
     require(payload.get("distribution") == "github-clone-alpha", "GitHub clone must remain distribution path")
     git = payload.get("git") if isinstance(payload.get("git"), dict) else {}
-    require(git.get("publication_branch") == "release/v0.4.1-alpha-reliability-publication", "publication branch mismatch")
+    require(git.get("publication_branch") == "release/v0.4.2-alpha-final-publication", "publication branch mismatch")
     require(git.get("tag") == RELEASE, "manifest tag mismatch")
     require(git.get("tag_status") == "pending_release_owner_approval", "manifest must require release-owner tag approval")
     prs = payload.get("required_prs", {}) if isinstance(payload.get("required_prs"), dict) else {}
     public_numbers = [item.get("number") for item in prs.get("public", []) if isinstance(item, dict)]
-    for number in (82, 83):
+    for number in (85, 86, 87, 88):
         require(number in public_numbers, f"manifest missing public PR #{number}")
     boundary = payload.get("safety_boundary", {}) if isinstance(payload.get("safety_boundary"), dict) else {}
-    require(boundary.get("mit_local_core_registration_free") is True, "MIT local core must remain registration-free")
     for key in (
         "production_rollout",
         "production_hosted_calls",
+        "hosted_gateway",
         "automatic_telemetry",
-        "automatic_rewriting",
+        "oauth_upstreams",
+        "remote_upstreams",
+        "mcp_resources",
+        "mcp_prompts",
+        "arbitrary_shell_execution",
         "auto_publish",
         "live_billing",
         "pypi",
         "full_catalog_distribution",
+        "full_schema_dump",
+        "private_registry_content_committed",
         "codex_pushes_tag",
     ):
         require(boundary.get(key) is False, f"safety boundary must disable {key}")
@@ -127,20 +137,27 @@ def assert_docs() -> None:
         require(path.is_file(), f"missing release doc: {path.relative_to(ROOT)}")
     text = "\n".join(read(path) for path in PUBLIC_DOCS if path.exists()).lower()
     for required in (
-        "v0.4.1-alpha",
-        "transactional install",
-        "rollback manifest",
-        "vectormodelmismatch",
-        "cli split",
-        "skillops usage-snapshot",
-        "release owner",
+        "v0.4.2-alpha",
+        "unlimited tools mcp",
+        "mcp integration gate",
+        "context-budget",
+        "lazy upstream spawn",
+        "metadata-only",
+        "single-tool",
+        "audit redaction",
+        "local-restricted",
+        "mcp v1 schemas/configs may break before v0.6",
+        "no oauth",
+        "no remote upstream",
+        "no mcp resources or prompts",
+        "no hosted gateway",
         "no production hosted calls",
-        "no live billing",
-        "no pypi",
-        "no full catalog distribution",
         "no automatic telemetry",
-        "no automatic rewriting",
-        "no auto-publish",
+        "no arbitrary shell execution",
+        "no full schema dump",
+        "no e08 runtime enforcement",
+        "release owner",
+        "no pypi",
     ):
         require(required in text, f"docs missing required wording: {required}")
 
@@ -158,7 +175,7 @@ def assert_no_private_material() -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Verify v0.4.1-alpha publication before release-owner tagging.")
+    parser = argparse.ArgumentParser(description="Verify v0.4.2-alpha publication before release-owner tagging.")
     parser.add_argument("--expected-sha", help="Final tag target SHA to compare with the current checkout")
     parser.add_argument(
         "--allow-existing-tag",
@@ -166,34 +183,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Post-publication mode: allow the release tag when it already points to --expected-tag-sha.",
     )
     parser.add_argument("--expected-tag-sha", help="Expected commit for the existing release tag in post-publication mode")
-    parser.add_argument(
-        "--allow-newer-package",
-        action="store_true",
-        help="Post-publication compatibility mode: allow package/plugin metadata newer than v0.4.1.",
-    )
     args = parser.parse_args(argv)
 
     assert_clean_worktree()
-    current_package_version = package_version()
-    current_init_version = init_version()
-    current_plugin_versions = plugin_versions()
-    if args.allow_newer_package:
-        require(
-            version_tuple(current_package_version) >= version_tuple(VERSION),
-            f"pyproject version must be {VERSION} or newer",
-        )
-        require(
-            version_tuple(current_init_version) >= version_tuple(VERSION),
-            f"__version__ must be {VERSION} or newer",
-        )
-        require(
-            current_plugin_versions[0] == current_plugin_versions[1] == current_package_version,
-            "Claude plugin and marketplace versions must match package version",
-        )
-    else:
-        require(current_package_version == VERSION, f"pyproject version must be {VERSION}")
-        require(current_init_version == VERSION, f"__version__ must be {VERSION}")
-        require(current_plugin_versions == (VERSION, VERSION), "Claude plugin and marketplace versions must match package version")
+    require(package_version() == VERSION, f"pyproject version must be {VERSION}")
+    require(init_version() == VERSION, f"__version__ must be {VERSION}")
+    require(plugin_versions() == (VERSION, VERSION), "Claude plugin and marketplace versions must match package version")
     existing_tag = tag_exists(RELEASE)
     if args.allow_existing_tag:
         require(args.expected_tag_sha is not None, "--expected-tag-sha is required with --allow-existing-tag")

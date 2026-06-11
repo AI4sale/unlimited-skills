@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "release": "v0.4.2-alpha",
-  "package_version": "0.4.1",
+  "package_version": "0.4.2",
   "generated_at": "2026-06-11T00:00:00Z",
   "distribution": "github-clone-alpha",
   "git": {
     "base_branch": "main",
-    "publication_branch": "release/v0.4.2-alpha-mcp-integration",
+    "publication_branch": "release/v0.4.2-alpha-final-publication",
     "tag": "v0.4.2-alpha",
-    "tag_status": "not_created_by_codex",
-    "tag_target_sha_policy": "After the integration PR is merged, the release owner must run verify-v042-alpha-mcp.py --expected-sha against the selected main SHA before creating or pushing this tag."
+    "tag_status": "pending_release_owner_approval",
+    "tag_target_sha_policy": "After the final publication PR is merged, the release owner must run verify-v042-alpha-publication.py --expected-sha against the selected main SHA before creating or pushing this tag."
   },
   "required_prs": {
     "public": [
@@ -23,6 +23,12 @@
         "number": 86,
         "epic": "E06",
         "title": "MCP smoke, compatibility, and safety harness",
+        "status": "merged"
+      },
+      {
+        "number": 88,
+        "epic": "v0.4.2",
+        "title": "v0.4.2-alpha MCP integration gate",
         "status": "merged"
       },
       {
@@ -73,6 +79,7 @@
   "publication_evidence": {
     "release_manifest": "docs/releases/v0.4.2-alpha.release-manifest.json",
     "release_notes": "docs/releases/v0.4.2-alpha.md",
+    "upgrade_notes": "docs/releases/v0.4.2-alpha-upgrade-notes.md",
     "known_issues": "docs/releases/v0.4.2-alpha-known-issues.md",
     "mcp_smoke_runner": "scripts/run-v042-alpha-mcp-smoke.py",
     "mcp_verifier": "scripts/verify-v042-alpha-mcp.py",

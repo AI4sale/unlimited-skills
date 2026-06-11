@@ -79,8 +79,15 @@ def assert_manifest() -> dict[str, Any]:
     require(payload.get("release") == RELEASE, "manifest release mismatch")
     require(payload.get("distribution") == "github-clone-alpha", "distribution must remain GitHub clone alpha")
     git = payload.get("git") if isinstance(payload.get("git"), dict) else {}
-    require(git.get("publication_branch") == "release/v0.4.2-alpha-mcp-integration", "publication branch mismatch")
-    require(git.get("tag_status") == "not_created_by_codex", "Codex must not create v0.4.2-alpha tag")
+    require(
+        git.get("publication_branch")
+        in {"release/v0.4.2-alpha-mcp-integration", "release/v0.4.2-alpha-final-publication"},
+        "publication branch mismatch",
+    )
+    require(
+        git.get("tag_status") in {"not_created_by_codex", "pending_release_owner_approval"},
+        "Codex must not create v0.4.2-alpha tag",
+    )
     boundary = payload.get("safety_boundary") if isinstance(payload.get("safety_boundary"), dict) else {}
     for key in (
         "production_hosted_calls",
