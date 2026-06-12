@@ -24,12 +24,25 @@ out of context until needed.
 - Never conclude a skill is missing without querying the library first.
 """
 
+# A3-PYPI-FLIP: the `unlimited-skills` package is NOT published on PyPI yet,
+# so every user-facing install hint must point at the Git install below. When
+# the v0.5 PyPI publication gate (A3) lands, flip every site carrying the
+# A3-PYPI-FLIP marker back to `pip install unlimited-skills`. Greppable
+# inventory of touched sites (search the repo for "A3-PYPI-FLIP"):
+#   README.md (Claude Code Option A), docs/claude-code-plugin.md,
+#   plugin/skills/unlimited-skills/SKILL.md, plugin/hooks/session_start.py,
+#   unlimited_skills/cli.py, unlimited_skills/hub.py,
+#   unlimited_skills/commands/library.py,
+#   .claude-plugin/marketplace.json (JSON cannot carry comments — update the
+#   plugin description string there manually), and the guard test
+#   tests/test_install_path_docs.py.
 MISSING_CLI = """## Unlimited Skills Library (plugin)
 
 The unlimited-skills plugin is installed, but the `unlimited-skills` CLI was
 not found on PATH. If the user asks about skills or the library, tell them to
-run `pip install unlimited-skills` (or activate the environment where it is
-installed) so the router can query the library.
+run `pip install "git+https://github.com/AI4sale/unlimited-skills.git"` (or
+activate the environment where it is installed) so the router can query the
+library.
 """
 
 

@@ -604,7 +604,13 @@ def cmd_hub_serve(args: Any) -> int:
     try:
         import uvicorn  # type: ignore
     except ImportError as exc:
-        raise RuntimeError("Install server dependencies with: pip install 'unlimited-skills[server]'") from exc
+        # A3-PYPI-FLIP: not on PyPI yet; flip back to
+        # `pip install 'unlimited-skills[server]'` when the v0.5 publication gate (A3) lands.
+        raise RuntimeError(
+            "Install server dependencies with: pip install \"unlimited-skills[server] @ "
+            "git+https://github.com/AI4sale/unlimited-skills.git\" "
+            "(or, from a repo clone: pip install -e \".[server]\")"
+        ) from exc
     import os
 
     os.environ["UNLIMITED_SKILLS_ROOT"] = str(Path(args.root).expanduser())
