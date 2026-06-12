@@ -51,6 +51,7 @@ Methodology and caveats: [docs/unlimited-tools.md](docs/unlimited-tools.md), [do
 ```bash
 pip install unlimited-skills
 unlimited-skills quickstart
+unlimited-skills mcp install --claude-code --dry-run
 unlimited-skills setup --local-only
 ```
 
@@ -58,7 +59,8 @@ What each step gives you:
 
 1. **Install** — the local core from PyPI. The v0.5 wheel includes the bundled ECC + Superpowers packs used by `quickstart`; for vector/hybrid search, install with the `[all]` extras — see [Install](#install) below.
 2. **`unlimited-skills quickstart`** — the one-command golden path: it imports the bundled skill packs when your library is empty, runs a first search to prove retrieval works, and measures your real MCP context savings — how many tokens of MCP tool schemas your Claude Code config loads into every session versus the 3 meta-tools of the Unlimited Tools gateway. Everything runs locally and the command is idempotent.
-3. **`unlimited-skills setup --local-only`** — the guided first-run wizard for the local-only path.
+3. **`unlimited-skills mcp install --claude-code`** — the safe Claude Code MCP gateway installer. Start with `--dry-run`: it shows a redacted diff, creates backups before writes, preserves existing MCP servers, and never prints env values.
+4. **`unlimited-skills setup --local-only`** — the guided first-run wizard for the local-only path.
 
 Read next, in this order:
 
@@ -96,7 +98,7 @@ Working now in the local core:
 - OpenClaw installer for workspace/plugin/built-in skills;
 - Claude Code installer for personal/project skills and `CLAUDE.md` patching;
 - Hermes router-only context-reduction installer and rollback scripts;
-- the Unlimited Tools MCP layer: `unlimited-skills mcp serve`, `unlimited-skills mcp gateway`, and the local `unlimited-skills mcp savings` measurement;
+- the Unlimited Tools MCP layer: `unlimited-skills mcp serve`, `unlimited-skills mcp gateway`, the local `unlimited-skills mcp savings` measurement, and `unlimited-skills mcp install --claude-code` for safe Claude Code MCP registration;
 - native skill sync for Codex, Claude Code, Hermes, and OpenClaw roots;
 - public repo self-update checks and applies latest releases/tags;
 - guided first-run setup wizard for local-only, registered, Local Skill Hub, and Enterprise onboarding paths;
@@ -214,6 +216,22 @@ Since v0.3.12 the router ships as a native Claude Code plugin with a `SessionSta
 The PyPI install gives you the local core and bundled packs. For vector/hybrid search, install with the `[all]` extras instead — see [Install](#install) above.
 
 See `docs/claude-code-plugin.md` for details, including how the plugin coexists with the script installer below.
+
+### Claude Code MCP gateway
+
+After `pip install unlimited-skills`, register the Unlimited Tools gateway in Claude Code without hand-editing `.mcp.json`:
+
+```bash
+unlimited-skills mcp install --claude-code --dry-run
+unlimited-skills mcp install --claude-code
+unlimited-skills mcp install status
+```
+
+Use `--project` for the current project's `.mcp.json` (default), or `--global` for the top-level `~/.claude.json` `mcpServers` section. The installer validates JSON before and after writes, backs up existing files, preserves other `mcpServers`, and redacts env values/local paths in dry-run output. It creates an empty gateway config on first install; add upstreams there using `env_allowlist` names, not literal env values. Remove the gateway entry with:
+
+```bash
+unlimited-skills mcp uninstall --claude-code
+```
 
 ### Option B: script installer
 

@@ -185,7 +185,20 @@ unlimited-skills mcp serve
 unlimited-skills mcp gateway --config examples/mcp/gateway-config.example.json
 ```
 
-Claude Code registration example (`.mcp.json`):
+Claude Code registration, no manual `.mcp.json` edit:
+
+```bash
+unlimited-skills mcp install --claude-code --dry-run
+unlimited-skills mcp install --claude-code
+unlimited-skills mcp install status
+```
+
+The installer preserves existing `mcpServers`, writes a backup before changing
+an existing config, validates JSON before and after, and redacts env values and
+local paths from dry-run output. It creates an empty gateway config first; add
+upstreams there with `env_allowlist` names, not literal env values.
+
+Manual Claude Code registration example (`.mcp.json`):
 
 ```json
 {

@@ -15,6 +15,32 @@ unlimited-skills mcp gateway --config cfg.json --audit-log D:\logs\mcp-audit.jso
 `--config` is required. `--audit-log` overrides the default audit location
 (`<library root>/.learning/mcp-audit.jsonl`).
 
+## Claude Code one-command registration
+
+For Claude Code, use the installer instead of editing `.mcp.json` by hand:
+
+```bash
+unlimited-skills mcp install --claude-code --dry-run
+unlimited-skills mcp install --claude-code
+unlimited-skills mcp install status
+```
+
+Default scope is the current project's `.mcp.json`; pass `--global` to edit
+the top-level `~/.claude.json` `mcpServers` section. The installer preserves
+existing servers, backs up an existing config before writing, validates JSON
+before and after, and redacts env values/local paths in dry-run output.
+
+Uninstall removes only the `unlimited-tools` server entry:
+
+```bash
+unlimited-skills mcp uninstall --claude-code
+```
+
+The installer does not migrate existing MCP servers into the gateway config
+automatically. Gateway v1 intentionally stores only `env_allowlist` variable
+names, never literal env values, so automatic migration could break servers
+that currently carry secrets in `.mcp.json`.
+
 ## Config file
 
 Validated against `schemas/mcp-upstream-config.schema.json` (the upstream

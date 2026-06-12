@@ -23,8 +23,8 @@ registration, no hosted calls, no uploads.
    tool schemas your Claude Code configuration loads into every session, and
    what the same session costs behind the Unlimited Tools gateway
    (3 meta-tools). See below.
-4. **Next steps** — the exact commands to put the gateway in front of your
-   MCP servers and to run the guided setup wizard.
+4. **Next steps** — the exact commands to register the gateway with Claude
+   Code and to run the guided setup wizard.
 
 Flags: `--json` (machine-readable report), `--skip-mcp-check`,
 `--timeout SECONDS` and `--claude-config PATH` for the savings step.
@@ -83,12 +83,26 @@ Notes:
 
 ## After quickstart
 
-Put the gateway in front of your MCP servers (3 meta-tools instead of every
-schema; see [unlimited-tools.md](unlimited-tools.md) for the Claude Code
-`.mcp.json` registration example):
+Register the gateway with Claude Code. Start with a redacted dry-run so you
+can inspect the planned `.mcp.json` change before any write:
 
 ```bash
-unlimited-skills mcp gateway --config ~/.unlimited-skills/gateway-config.json
+unlimited-skills mcp install --claude-code --dry-run
+unlimited-skills mcp install --claude-code
+unlimited-skills mcp install status
+```
+
+The installer validates JSON before and after writes, creates a timestamped
+backup before changing an existing config, preserves other `mcpServers`, and
+redacts env values and local paths in dry-run output. It creates an empty
+gateway config on first install. Add upstream MCP servers there with
+`env_allowlist` variable names, not literal secret values; see
+[unlimited-tools.md](unlimited-tools.md) and [mcp-gateway.md](mcp-gateway.md).
+
+Remove the Claude Code gateway entry with:
+
+```bash
+unlimited-skills mcp uninstall --claude-code
 ```
 
 Run the guided first-run wizard and diagnostics:

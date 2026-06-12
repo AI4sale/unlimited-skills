@@ -916,6 +916,34 @@ def build_parser() -> argparse.ArgumentParser:
     mcp_savings.add_argument("--timeout", type=float, default=12.0, help="Per-server measurement timeout in seconds (default 12). An unreachable server becomes a skipped row, never a failure.")
     mcp_savings.add_argument("--claude-config", default="", help="Override the Claude Code config path (default ~/.claude.json).")
     mcp_savings.set_defaults(func=mcp_cmds.cmd_mcp_savings)
+    mcp_install = mcp_sub.add_parser(
+        "install",
+        help="Install host integrations for the Unlimited Tools MCP gateway. Claude Code support edits .mcp.json/.claude.json safely with backups.",
+    )
+    mcp_install.add_argument("install_action", nargs="?", choices=["status"], default=None, help="Use `status` to inspect Claude Code MCP gateway installation state.")
+    mcp_install.add_argument("--claude-code", action="store_true", help="Install the Unlimited Tools gateway into Claude Code MCP config.")
+    mcp_install.add_argument("--project", action="store_true", help="Use the current project's .mcp.json (default).")
+    mcp_install.add_argument("--global", dest="global_scope", action="store_true", help="Use the global ~/.claude.json mcpServers section.")
+    mcp_install.add_argument("--dry-run", action="store_true", help="Show a redacted diff without writing files.")
+    mcp_install.add_argument("--force", action="store_true", help="Replace an existing unlimited-tools server entry if it differs.")
+    mcp_install.add_argument("--json", action="store_true", help="Print a machine-readable report.")
+    mcp_install.add_argument("--project-root", default="", help=argparse.SUPPRESS)
+    mcp_install.add_argument("--claude-config", default="", help=argparse.SUPPRESS)
+    mcp_install.add_argument("--gateway-config", default="", help=argparse.SUPPRESS)
+    mcp_install.set_defaults(func=mcp_cmds.cmd_mcp_install)
+    mcp_uninstall = mcp_sub.add_parser(
+        "uninstall",
+        help="Remove host integrations installed by `unlimited-skills mcp install`.",
+    )
+    mcp_uninstall.add_argument("--claude-code", action="store_true", help="Remove the Unlimited Tools gateway from Claude Code MCP config.")
+    mcp_uninstall.add_argument("--project", action="store_true", help="Use the current project's .mcp.json (default).")
+    mcp_uninstall.add_argument("--global", dest="global_scope", action="store_true", help="Use the global ~/.claude.json mcpServers section.")
+    mcp_uninstall.add_argument("--dry-run", action="store_true", help="Show a redacted diff without writing files.")
+    mcp_uninstall.add_argument("--json", action="store_true", help="Print a machine-readable report.")
+    mcp_uninstall.add_argument("--project-root", default="", help=argparse.SUPPRESS)
+    mcp_uninstall.add_argument("--claude-config", default="", help=argparse.SUPPRESS)
+    mcp_uninstall.add_argument("--gateway-config", default="", help=argparse.SUPPRESS)
+    mcp_uninstall.set_defaults(func=mcp_cmds.cmd_mcp_uninstall)
     mcp_trust = mcp_sub.add_parser(
         "trust",
         help="Manage the local trust store for signed MCP profile bundles: PUBLIC keys and the local CRL. Offline only -- no registry sync, no hosted calls, never private keys.",
