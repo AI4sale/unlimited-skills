@@ -54,6 +54,74 @@ def cmd_mcp_savings(args: argparse.Namespace) -> int:
     return 0
 
 
+def _claude_code_mcp_options(args: argparse.Namespace, *, default_scope: str = "project"):
+    from ..mcp.claude_code import ClaudeCodeMcpOptions
+
+    project = bool(getattr(args, "project", False))
+    global_scope = bool(getattr(args, "global_scope", False))
+    if project and global_scope:
+        raise ValueError("choose only one scope: --project or --global")
+    scope = "global" if global_scope else "project" if project else default_scope
+    return ClaudeCodeMcpOptions(
+        scope=scope,
+        project_root=Path(getattr(args, "project_root", "") or ".").expanduser(),
+        claude_config=Path(getattr(args, "claude_config", "") or Path.home() / ".claude.json").expanduser(),
+        gateway_config=Path(args.gateway_config).expanduser() if getattr(args, "gateway_config", "") else None,
+        dry_run=bool(getattr(args, "dry_run", False)),
+        force=bool(getattr(args, "force", False)),
+        json_output=bool(getattr(args, "json", False)),
+    )
+
+
+def _print_claude_code_mcp_report(args: argparse.Namespace, report: dict) -> None:
+    import json
+
+    from ..mcp.claude_code import format_claude_code_gateway_report
+
+    if getattr(args, "json", False):
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(format_claude_code_gateway_report(report))
+
+
+def cmd_mcp_install(args: argparse.Namespace) -> int:
+    from ..mcp.claude_code import (
+        ClaudeCodeMcpError,
+        claude_code_gateway_status,
+        install_claude_code_gateway,
+    )
+
+    try:
+        if getattr(args, "install_action", None) == "status":
+            report = claude_code_gateway_status(_claude_code_mcp_options(args))
+        elif getattr(args, "claude_code", False):
+            report = install_claude_code_gateway(_claude_code_mcp_options(args))
+        else:
+            print("mcp install currently supports --claude-code or status", file=sys.stderr)
+            return 2
+    except (ClaudeCodeMcpError, ValueError) as exc:
+        print(f"mcp install refused: {exc}", file=sys.stderr)
+        return 1
+    _print_claude_code_mcp_report(args, report)
+    return 0
+
+
+def cmd_mcp_uninstall(args: argparse.Namespace) -> int:
+    from ..mcp.claude_code import ClaudeCodeMcpError, uninstall_claude_code_gateway
+
+    try:
+        if getattr(args, "claude_code", False):
+            report = uninstall_claude_code_gateway(_claude_code_mcp_options(args))
+        else:
+            print("mcp uninstall currently supports --claude-code", file=sys.stderr)
+            return 2
+    except (ClaudeCodeMcpError, ValueError) as exc:
+        print(f"mcp uninstall refused: {exc}", file=sys.stderr)
+        return 1
+    _print_claude_code_mcp_report(args, report)
+    return 0
+
+
 def cmd_mcp_audit_report(args: argparse.Namespace) -> int:
     import json
 
