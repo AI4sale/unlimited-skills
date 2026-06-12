@@ -113,3 +113,8 @@ entries; file references restricted to basenames by pattern).
 Implementation: pure functions in `unlimited_skills/mcp/audit_inspector.py`;
 tests in `tests/test_mcp_audit_inspector.py`. MCP v1 schemas are alpha and
 may break before v0.6.
+
+See also: [mcp-audit-replay.md](mcp-audit-replay.md) -- the E17
+`mcp profiles replay-audit` simulator reuses this inspector's readers and
+refusal classification to replay the same audit log against a PROPOSED
+policy before it is applied.

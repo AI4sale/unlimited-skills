@@ -1172,6 +1172,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     add_rollout_common(profiles_doctor)
     profiles_doctor.set_defaults(func=mcp_cmds.cmd_mcp_profiles_doctor)
+    replay_audit = mcp_profiles_sub.add_parser(
+        "replay-audit",
+        help="Replay the HISTORICAL redacted audit log against a PROPOSED policy (profile/bundle/trust store/config): which calls would still pass, which would be refused with which would-be code, which workflows break, and a safe/safe_with_warnings/blocked recommendation. Read-only -- no tool execution, no upstream spawn, no profile activation. JSON validates against schemas/mcp-audit-replay-report.schema.json.",
+    )
+    replay_audit.add_argument("--audit-log", default="", help="Audit log to replay (plus rotated generations). Defaults to <root>/.learning/mcp-audit.jsonl.")
+    replay_audit.add_argument("--config", default="", help="Proposed gateway JSON config (schemas/mcp-upstream-config.schema.json); adds the upstream trust gates (-32005/-32010) to the replay. Never spawned here.")
+    replay_audit.add_argument("--profiles", default="", help="Proposed raw permissioned tool-profile JSON file (E09/E10). Alongside --bundle it is the narrow-only local override.")
+    replay_audit.add_argument("--bundle", default="", help="Proposed SIGNED profile bundle JSON file (schemas/mcp-profile-bundle.schema.json); the REAL E14 verification runs in dry-run.")
+    replay_audit.add_argument("--trusted-keys", default="", help="Trusted-keys JSON file for bundle verification (wins over --trust-store).")
+    replay_audit.add_argument("--trust-store", default="", help="Trust store DIRECTORY whose trusted-keys.json verifies --bundle. Omitted: defaults to the managed store under <root>/.unlimited-skills-trust when it exists (E15).")
+    replay_audit.add_argument("--audience-id", action="append", default=None, metavar="ID", help="This consumer's audience identifier ('team:NAME', 'org:NAME', or 'host:NAME'). Repeatable; beats UNLIMITED_SKILLS_MCP_AUDIENCE.")
+    replay_audit.add_argument("--profile", default="", help="Profile name to simulate. Precedence: this flag > UNLIMITED_SKILLS_MCP_PROFILE > the source's default_profile.")
+    replay_audit.add_argument("--require-signed-profiles", action="store_true", help="Simulate the signed-required policy: unsigned profile sources fail closed with -32015.")
+    replay_audit.add_argument("--json", action="store_true", help="Print the full report as one JSON document (schemas/mcp-audit-replay-report.schema.json).")
+    replay_audit.set_defaults(func=mcp_cmds.cmd_mcp_profiles_replay_audit)
 
     catalog = sub.add_parser("catalog", help="Query the registered hosted adapted-skill catalog and browser.")
     catalog_sub = catalog.add_subparsers(dest="catalog_command", required=True)
@@ -1743,6 +1758,7 @@ from .commands.mcp import (
     cmd_mcp_audit_report,
     cmd_mcp_gateway,
     cmd_mcp_profiles_doctor,
+    cmd_mcp_profiles_replay_audit,
     cmd_mcp_profiles_rollout_plan,
     cmd_mcp_serve,
     cmd_mcp_trust_doctor,

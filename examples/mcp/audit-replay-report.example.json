@@ -1,0 +1,194 @@
+{
+  "breakdowns": {
+    "by_call_type": {
+      "tools_call": {
+        "newly_allowed": 1,
+        "newly_denied": 1,
+        "replayed": 5,
+        "would_allow": 4,
+        "would_deny": 1
+      },
+      "tools_schema": {
+        "newly_allowed": 0,
+        "newly_denied": 0,
+        "replayed": 1,
+        "would_allow": 1,
+        "would_deny": 0
+      }
+    },
+    "by_profile": {
+      "dev": {
+        "newly_allowed": 1,
+        "newly_denied": 1,
+        "replayed": 6,
+        "would_allow": 5,
+        "would_deny": 1
+      }
+    },
+    "by_refusal_code": {
+      "allowed": {
+        "newly_allowed": 1,
+        "newly_denied": 0,
+        "replayed": 5,
+        "would_allow": 5,
+        "would_deny": 0
+      },
+      "tool_not_visible": {
+        "newly_allowed": 0,
+        "newly_denied": 1,
+        "replayed": 1,
+        "would_allow": 0,
+        "would_deny": 1
+      }
+    },
+    "by_time_bucket": {
+      "2026-06-21T00:00Z": {
+        "newly_allowed": 0,
+        "newly_denied": 0,
+        "replayed": 4,
+        "would_allow": 4,
+        "would_deny": 0
+      },
+      "2026-06-21T01:00Z": {
+        "newly_allowed": 1,
+        "newly_denied": 1,
+        "replayed": 2,
+        "would_allow": 1,
+        "would_deny": 1
+      }
+    },
+    "by_tool": {
+      "fake.add": {
+        "newly_allowed": 0,
+        "newly_denied": 1,
+        "replayed": 1,
+        "would_allow": 0,
+        "would_deny": 1
+      },
+      "fake.echo": {
+        "newly_allowed": 0,
+        "newly_denied": 0,
+        "replayed": 4,
+        "would_allow": 4,
+        "would_deny": 0
+      },
+      "other.echo": {
+        "newly_allowed": 1,
+        "newly_denied": 0,
+        "replayed": 1,
+        "would_allow": 1,
+        "would_deny": 0
+      }
+    },
+    "by_upstream": {
+      "fake": {
+        "newly_allowed": 0,
+        "newly_denied": 1,
+        "replayed": 5,
+        "would_allow": 4,
+        "would_deny": 1
+      },
+      "other": {
+        "newly_allowed": 1,
+        "newly_denied": 0,
+        "replayed": 1,
+        "would_allow": 1,
+        "would_deny": 0
+      }
+    }
+  },
+  "events": {
+    "by_call_type": {
+      "other": 0,
+      "skills": 1,
+      "tools_call": 5,
+      "tools_schema": 1,
+      "tools_search": 1
+    },
+    "calls_total": 8,
+    "missing_tool_identity": 0,
+    "profile_loaded_events": 1,
+    "replayed": 6
+  },
+  "findings": [
+    {
+      "detail": "tool 'fake.add' has successful historical calls but the proposed policy hides it; every future call would be refused with tool_not_visible (-32011)",
+      "finding": "policy_hides_used_tool",
+      "severity": "problem"
+    }
+  ],
+  "generated_at": "2026-06-21T02:46:40Z",
+  "impact": {
+    "newly_allowed": 1,
+    "newly_allowed_tools": [
+      {
+        "calls": 1,
+        "tool": "other.echo"
+      }
+    ],
+    "newly_denied": 1,
+    "newly_denied_tools": [
+      {
+        "calls": 1,
+        "tool": "fake.add",
+        "would_be_code": -32011,
+        "would_be_name": "tool_not_visible"
+      }
+    ],
+    "replayed": 6,
+    "unchanged_allowed": 4,
+    "unchanged_denied": 0,
+    "would_allow": 5,
+    "would_deny": 1
+  },
+  "inputs": {
+    "audience_ids": [],
+    "audit_log": "mcp-audit.jsonl",
+    "bundle": "",
+    "config": "",
+    "profile": "",
+    "profiles": "team-profiles.json",
+    "require_signed_profiles": false,
+    "trusted_keys": "",
+    "trusted_keys_source": "none"
+  },
+  "log": {
+    "files_read": [
+      "mcp-audit.jsonl"
+    ],
+    "malformed_lines": 0,
+    "rotated_files_read": 0,
+    "rows_total": 9
+  },
+  "policy": {
+    "message": "profile 'reviewer' would be enforced (default deny outside its rules)",
+    "mode": "enforced",
+    "profile": "reviewer",
+    "refusal_code": 0,
+    "refusal_name": "",
+    "source": "raw_file"
+  },
+  "recommendation": {
+    "reasons": [
+      "1 of 6 replayed call(s) (16.7%) become newly denied, under the 20% block threshold",
+      "1 problem finding(s) and 0 warning(s) -- review them"
+    ],
+    "status": "safe_with_warnings",
+    "thresholds": {
+      "block_breakage_ratio": 0.2
+    }
+  },
+  "report_type": "mcp-audit-replay-report",
+  "schema_version": 1,
+  "verification": {
+    "attempted": false,
+    "audience": [],
+    "bundle_sha256": "",
+    "expires_at": "",
+    "failed_step": "",
+    "issuer_key_id": "",
+    "ok": false,
+    "refusal_code": 0,
+    "refusal_name": ""
+  }
+}
