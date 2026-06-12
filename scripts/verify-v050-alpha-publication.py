@@ -21,6 +21,7 @@ MANIFEST = ROOT / "docs" / "releases" / "v0.5.0-alpha.release-manifest.json"
 REQUIRED_DOCS = [
     ROOT / "docs" / "releases" / "v0.5.0-alpha.md",
     ROOT / "docs" / "releases" / "v0.5.0-alpha-checklist.md",
+    ROOT / "docs" / "releases" / "v0.5.0-alpha-blocked-status.md",
     ROOT / "docs" / "releases" / "v0.5.0-alpha-known-issues.md",
     ROOT / "docs" / "releases" / "v0.5.0-alpha-pypi-publishing.md",
     ROOT / "docs" / "releases" / "v0.5.0-alpha-readme-risks.md",

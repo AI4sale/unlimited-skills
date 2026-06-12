@@ -30,6 +30,7 @@ GIT_INSTALL = 'pip install "git+https://github.com/AI4sale/unlimited-skills.git"
 ALLOWED_WITHOUT_MARKER = {
     "CHANGELOG.md",
     "README-pypi.md",
+    "docs/releases/v0.5.0-alpha-blocked-status.md",
     "docs/releases/v0.5.0-alpha-pypi-publishing.md",
     "tests/test_install_path_docs.py",
 }
@@ -76,3 +77,18 @@ def test_marketplace_json_advertises_working_install() -> None:
     text = (REPO_ROOT / ".claude-plugin" / "marketplace.json").read_text(encoding="utf-8")
     assert "git+https://github.com/AI4sale/unlimited-skills.git" in text
     assert DEAD_COMMAND + ")" not in text and DEAD_COMMAND + '"' not in text
+
+
+def test_blocked_status_documents_release_owner_actions() -> None:
+    text = (REPO_ROOT / "docs/releases/v0.5.0-alpha-blocked-status.md").read_text(encoding="utf-8")
+    for required in (
+        "blocked_account_setup",
+        "GitHub environment pypi",
+        "PyPI Pending Trusted Publisher",
+        "workflow filename = publish-pypi.yml",
+        "PR #127",
+        "PR #119 is background E19 trust-stack work",
+        "No local PyPI token is required",
+        "release/v0.5.0-alpha-pypi-flip-reapply",
+    ):
+        assert required in text
