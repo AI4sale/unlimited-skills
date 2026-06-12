@@ -19,7 +19,6 @@ Everything is local: no registration, no hosted calls, no uploads.
 
 from __future__ import annotations
 
-from dataclasses import asdict
 from pathlib import Path
 
 DEFAULT_QUERY = "code review checklist"
@@ -98,7 +97,15 @@ def first_search(root: Path, query: str, limit: int = 3) -> dict:
     return {
         "query": used_query,
         "fallback_to_demo_query": fallback,
-        "hits": [asdict(hit) for hit in hits],
+        "hits": [
+            {
+                "name": hit.name,
+                "collection": hit.collection,
+                "description": hit.description,
+                "score": hit.score,
+            }
+            for hit in hits
+        ],
     }
 
 
@@ -133,7 +140,7 @@ def run_quickstart(
         except Exception as exc:  # the wow-step must never break onboarding
             savings_error = type(exc).__name__
     report = {
-        "root": str(root),
+        "root": "<local-library>",
         "library": library,
         "search": search,
         "savings": savings,
