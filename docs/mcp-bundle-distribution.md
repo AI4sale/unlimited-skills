@@ -428,3 +428,18 @@ threat→mitigation→test→owner traceability table).
 their refusal-code citations consistent. The future implementation of
 hosted sync MUST land those abuse-case tests with the code — they are its
 adversarial acceptance criteria, written before any hosted code exists.
+
+## Fixture E2E harness (E26)
+
+The whole planned flow above — fixture registry directory, signed channel
+and assignment, entitlement-gated fetch, member-side verification, library
+activation, gateway resolution, incident rollback, redacted audit — runs
+end-to-end TODAY, with nothing hosted, in
+`scripts/run-mcp-profile-distribution-fixture-e2e.py` (fixture mode only;
+offline by construction — no network, no hosted calls, no production keys).
+See [mcp-distribution-e2e-harness.md](mcp-distribution-e2e-harness.md) for
+what the harness proves, what it deliberately does not, the per-step E25
+`ABT-*` traceability, and how the future registry implementation swaps in
+behind the same step interfaces. The machine report validates against
+`schemas/mcp-distribution-e2e-report.schema.json` and is re-checked by
+`scripts/verify-mcp-profile-distribution-e2e.py`.

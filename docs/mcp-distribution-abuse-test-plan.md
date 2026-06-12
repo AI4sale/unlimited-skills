@@ -428,3 +428,11 @@ new code is reserved by E25.
   abuse test reuses.
 - [mcp-operator-acceptance.md](mcp-operator-acceptance.md) — the
   E21-style end-to-end harness the `end-to-end` owner extends.
+- [mcp-distribution-e2e-harness.md](mcp-distribution-e2e-harness.md) —
+  the E26 fixture E2E harness
+  (`scripts/run-mcp-profile-distribution-fixture-e2e.py`): the designated
+  end-to-end (E21-style) owner above, running the full fixture flow today.
+  Its report cites the ABT ids each step covers (client/e2e-owned cases)
+  or models as fixture behavior (registry-owned cases, which still land
+  in the future registry suite with the real code); the per-id status
+  table lives in that document.

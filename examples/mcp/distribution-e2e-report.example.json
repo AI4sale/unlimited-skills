@@ -1,0 +1,432 @@
+{
+  "abt_coverage": [
+    "ABT-01a",
+    "ABT-02b",
+    "ABT-03b",
+    "ABT-04a",
+    "ABT-05a",
+    "ABT-06a",
+    "ABT-06b",
+    "ABT-08a",
+    "ABT-09a",
+    "ABT-10a",
+    "ABT-10b",
+    "ABT-12b",
+    "ABT-13a",
+    "ABT-14a",
+    "ABT-14b",
+    "ABT-19a",
+    "ABT-20b",
+    "ABT-22a",
+    "ABT-23b"
+  ],
+  "clock": "2026-06-12T04:05:32Z",
+  "ed25519": true,
+  "exit_code": 0,
+  "generated_at": "2026-06-12T04:05:33Z",
+  "mode": "fixture",
+  "report_type": "mcp-distribution-e2e-report",
+  "schema_version": 1,
+  "steps": [
+    {
+      "abt": [],
+      "duration_ms": 105.769,
+      "facts": {
+        "algorithm": "ed25519",
+        "dev_only": true,
+        "ephemeral": true,
+        "key_ids": [
+          "distribution-issuer-2026",
+          "distribution-other-owner-2026",
+          "fixture-registry-carrier-2026"
+        ]
+      },
+      "name": "keygen",
+      "ok": true,
+      "step": 1
+    },
+    {
+      "abt": [],
+      "duration_ms": 91.888,
+      "facts": {
+        "carrier_key_in_trust_store": false,
+        "crl_file": "crl.json",
+        "imported": [
+          "distribution-issuer-2026",
+          "distribution-other-owner-2026"
+        ],
+        "public_keys_only": true
+      },
+      "name": "trust_import",
+      "ok": true,
+      "step": 2
+    },
+    {
+      "abt": [],
+      "duration_ms": 118.911,
+      "facts": {
+        "bundles": [
+          "team-v1",
+          "team-v2",
+          "other-team-v1"
+        ],
+        "issuer_key_id": "distribution-issuer-2026",
+        "self_check": "resolve_bundle_state (E14)",
+        "v1_sha_prefix": "4cfe005e8e4c",
+        "v2_sha_prefix": "ce60a8cd9409"
+      },
+      "name": "publish",
+      "ok": true,
+      "step": 3
+    },
+    {
+      "abt": [],
+      "duration_ms": 11.267,
+      "facts": {
+        "bundles_stored": 3,
+        "carrier_key_id": "fixture-registry-carrier-2026",
+        "content_addressed": true,
+        "registered_members": 2,
+        "registry_dir": "fixture-registry",
+        "summaries_signed": 3
+      },
+      "name": "registry_seed",
+      "ok": true,
+      "step": 4
+    },
+    {
+      "abt": [],
+      "duration_ms": 1.48,
+      "facts": {
+        "channel": "stable",
+        "current_sha_prefix": "ce60a8cd9409",
+        "history_records": 2,
+        "owner_key_id": "distribution-issuer-2026",
+        "revisions_published": [
+          1,
+          2
+        ],
+        "unsigned_publish_refused": "unsigned_artifact_rejected"
+      },
+      "name": "channel_publish",
+      "ok": true,
+      "step": 5
+    },
+    {
+      "abt": [],
+      "duration_ms": 1.405,
+      "facts": {
+        "audience": [
+          "team:distribution"
+        ],
+        "label": "team-distribution-follow",
+        "mode": "follow",
+        "revision": 1,
+        "signed": true
+      },
+      "name": "assignment_issue",
+      "ok": true,
+      "step": 6
+    },
+    {
+      "abt": [
+        "ABT-13a",
+        "ABT-14a",
+        "ABT-14b"
+      ],
+      "duration_ms": 60.824,
+      "facts": {
+        "anti_oracle_identical": true,
+        "anti_oracle_reason": "unknown_or_unauthorized",
+        "denied_body_bytes_moved": false,
+        "entitled_reason": "ok",
+        "entitlement_never_consulted": true,
+        "local_transport_verifies": true,
+        "metadata_only_for_denied": true,
+        "unentitled_reason": "no_profile_sync_entitlement",
+        "unknown_member_reason": "not_registered"
+      },
+      "name": "entitlement_gate",
+      "ok": true,
+      "step": 7
+    },
+    {
+      "abt": [],
+      "duration_ms": 27.711,
+      "facts": {
+        "assignments_listed": 1,
+        "content_address_rechecked": true,
+        "fetched": [
+          "team-v2",
+          "team-v1"
+        ],
+        "resolution": "ok",
+        "resolved_sha_prefix": "ce60a8cd9409",
+        "watermark_revision": 2,
+        "winner": "team-distribution-follow"
+      },
+      "name": "client_fetch",
+      "ok": true,
+      "step": 8
+    },
+    {
+      "abt": [],
+      "duration_ms": 5.636,
+      "facts": {
+        "profile": "dev",
+        "verified": [
+          "team-v2",
+          "team-v1"
+        ],
+        "verified_via": "resolve_bundle_state (E14)"
+      },
+      "name": "client_verify",
+      "ok": true,
+      "step": 9
+    },
+    {
+      "abt": [],
+      "duration_ms": 28.535,
+      "facts": {
+        "added": 2,
+        "content_addressed": true,
+        "verified_before_store": true
+      },
+      "name": "library_add",
+      "ok": true,
+      "step": 10
+    },
+    {
+      "abt": [
+        "ABT-03b"
+      ],
+      "duration_ms": 27.747,
+      "facts": {
+        "before_activation": true,
+        "hidden": 1,
+        "newly_denied": 1,
+        "plan_mode": "enforced",
+        "recommendation": "safe_with_warnings",
+        "replayed": 6,
+        "tools_total": 3,
+        "visible": 2
+      },
+      "name": "rollout_replay",
+      "ok": true,
+      "step": 11
+    },
+    {
+      "abt": [],
+      "duration_ms": 62.726,
+      "facts": {
+        "active_sha_prefix": "ce60a8cd9409",
+        "history_actions": [
+          "activate",
+          "activate"
+        ],
+        "pointer_file": "active.bundle.json",
+        "previous_sha_prefix": "4cfe005e8e4c",
+        "reverified_at_activation": true
+      },
+      "name": "activate",
+      "ok": true,
+      "step": 12
+    },
+    {
+      "abt": [],
+      "duration_ms": 3.839,
+      "facts": {
+        "bundle_sha_prefix": "ce60a8cd9409",
+        "issuer_key_id": "distribution-issuer-2026",
+        "legacy_export_hidden": true,
+        "profile": "dev",
+        "require_signed_profiles": true
+      },
+      "name": "gateway_resolve",
+      "ok": true,
+      "step": 13
+    },
+    {
+      "abt": [
+        "ABT-01a"
+      ],
+      "duration_ms": 2.674,
+      "facts": {
+        "active_bundle_unaffected": true,
+        "refused": "routing_signature_invalid",
+        "watermark_unchanged": true
+      },
+      "name": "abuse_tampered_channel",
+      "ok": true,
+      "step": 14
+    },
+    {
+      "abt": [
+        "ABT-01a"
+      ],
+      "duration_ms": 1.61,
+      "facts": {
+        "nothing_activated": true,
+        "refused": "routing_signature_invalid"
+      },
+      "name": "abuse_tampered_assignment",
+      "ok": true,
+      "step": 15
+    },
+    {
+      "abt": [
+        "ABT-01a",
+        "ABT-02b",
+        "ABT-12b",
+        "ABT-22a"
+      ],
+      "duration_ms": 3.274,
+      "facts": {
+        "nothing_activated": true,
+        "refused": {
+          "assignment_stripped": "routing_unsigned",
+          "channel_stripped": "routing_unsigned",
+          "channel_version_2": "schema_invalid",
+          "summary_forbidden_field": "forbidden_field_rejected",
+          "summary_unknown_key": "schema_invalid",
+          "summary_unsigned": "unsigned_artifact_rejected"
+        }
+      },
+      "name": "abuse_unsigned_downgrade",
+      "ok": true,
+      "step": 16
+    },
+    {
+      "abt": [
+        "ABT-04a",
+        "ABT-08a",
+        "ABT-23b"
+      ],
+      "duration_ms": 3.295,
+      "facts": {
+        "independent_identity_watermarks": true,
+        "squatting_refused": "channel_identity_mismatch",
+        "stale_replay_refused": "routing_revision_regression",
+        "watermark_unchanged": true
+      },
+      "name": "abuse_stale_replay",
+      "ok": true,
+      "step": 17
+    },
+    {
+      "abt": [
+        "ABT-04a",
+        "ABT-06a"
+      ],
+      "duration_ms": 4.927,
+      "facts": {
+        "active_bundle_kept_working": true,
+        "expired_assignment_status": "expired",
+        "injected_clock_refusal_code": -32016,
+        "injected_clock_refusal_name": "bundle_expired",
+        "live_assignment_wins": true,
+        "named_loudly": [
+          "expired-routing"
+        ]
+      },
+      "name": "abuse_expired_assignment",
+      "ok": true,
+      "step": 18
+    },
+    {
+      "abt": [
+        "ABT-09a"
+      ],
+      "duration_ms": 2.612,
+      "facts": {
+        "forced_refusal_code": -32018,
+        "forced_refusal_name": "bundle_audience_mismatch",
+        "misrouted_assignment_ignored": true
+      },
+      "name": "abuse_wrong_audience",
+      "ok": true,
+      "step": 19
+    },
+    {
+      "abt": [
+        "ABT-10a",
+        "ABT-10b"
+      ],
+      "duration_ms": 5.761,
+      "facts": {
+        "library_state_unchanged": true,
+        "permutations_checked": 6,
+        "pin_beats_follow": true,
+        "revision_then_issued_at": true,
+        "specificity_winner": "follow-host-r1",
+        "tie_refused_loudly": [
+          "tie-a",
+          "tie-b"
+        ]
+      },
+      "name": "abuse_conflict_resolution",
+      "ok": true,
+      "step": 20
+    },
+    {
+      "abt": [
+        "ABT-19a"
+      ],
+      "duration_ms": 29.917,
+      "facts": {
+        "poisoned_refusal_code": -32015,
+        "poisoned_refusal_name": "bundle_signature_invalid",
+        "restored_via_reactivation": true,
+        "tampered_content_never_governs": true
+      },
+      "name": "abuse_poisoned_pointer",
+      "ok": true,
+      "step": 21
+    },
+    {
+      "abt": [
+        "ABT-05a",
+        "ABT-06b",
+        "ABT-20b"
+      ],
+      "duration_ms": 64.09,
+      "facts": {
+        "channel_status_never_trust_input": true,
+        "gateway_fail_closed": true,
+        "refusal_code": -32017,
+        "refusal_name": "bundle_revoked",
+        "revoked_sha_prefix": "ce60a8cd9409",
+        "rollback_with_carrier_offline": true,
+        "rolled_back_to_prefix": "4cfe005e8e4c"
+      },
+      "name": "abuse_revoked_rollback",
+      "ok": true,
+      "step": 22
+    },
+    {
+      "abt": [],
+      "duration_ms": 20.434,
+      "facts": {
+        "redaction_self_check": "PASS",
+        "refusal_codes_observed": [
+          -32018,
+          -32017,
+          -32016,
+          -32015
+        ],
+        "refusal_rows": 13,
+        "rows_total": 15
+      },
+      "name": "audit_report",
+      "ok": true,
+      "step": 23
+    }
+  ],
+  "summary": {
+    "abt_claimed": 19,
+    "all_ok": true,
+    "steps_ok": 23,
+    "steps_selected": 23,
+    "steps_total": 23
+  }
+}
