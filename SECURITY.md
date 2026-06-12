@@ -2,7 +2,7 @@
 
 ## Supported Version
 
-`v0.4.8-alpha` is a developer preview. Security fixes should target the current `main` branch first.
+`v0.4.9-alpha` is a developer preview. Security fixes should target the current `main` branch first.
 
 The older `v0.3.7-alpha` security boundary remains documented for compatibility with the v0.2.x smoke claims that protect release-history wording.
 
@@ -184,6 +184,27 @@ automatic telemetry, expose a hosted gateway, implement OAuth or remote
 upstreams, enable MCP resources or prompts, allow arbitrary shell execution,
 or auto-publish. Codex must not create or push `v0.4.8-alpha` from this
 integration gate.
+
+## v0.4.9-alpha MCP Profile Rollout Boundary
+
+The v0.4.9-alpha MCP milestone integrates the local dry-run MCP profile
+rollout simulator and policy doctor. It proves raw profile rollout plan,
+signed bundle rollout plan, trust-store-backed rollout plan, missing trust
+store, corrupt trust store, expired key, revoked key, wrong audience,
+namespace violation, hide-all-tools, shadowed tool, signed-required
+unsigned-source, and no upstream spawn / no network / no mutation boundaries.
+
+This gate remains alpha and may break before v0.6. The simulator is a dry-run
+preview only. It must not activate profiles, mutate trust stores, write audit
+rows, spawn upstreams, call production hosted services, fetch hosted trust,
+perform registry sync, require production signing keys, store private keys,
+upload prompts, upload task text, upload skill bodies, upload search queries,
+include private pack bodies, include local or repository paths, enable live
+billing, publish to PyPI, distribute the full catalog, rewrite skills
+automatically, enable telemetry, expose a hosted gateway, implement OAuth or
+remote upstreams, enable MCP resources or prompts, allow arbitrary shell
+execution, or auto-publish. Codex must not create or push `v0.4.9-alpha` from
+this integration gate.
 
 ## Known Security Limitations In v0.3.9-alpha
 
