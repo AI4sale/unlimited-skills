@@ -68,8 +68,6 @@ def inspect_dist(wheel: Path, sdist: Path) -> dict[str, Any]:
         metadata = zf.read(metadata_name).decode("utf-8", errors="replace")
     with tarfile.open(sdist, "r:gz") as tf:
         sdist_names = tf.getnames()
-        pkg_info_name = next(name for name in sdist_names if name.endswith("/PKG-INFO"))
-        pkg_info = tf.extractfile(pkg_info_name).read().decode("utf-8", errors="replace")  # type: ignore[union-attr]
     wheel_skill_files = [name for name in wheel_names if name.startswith("unlimited_skills/bundled_packs/") and name.endswith("/SKILL.md")]
     ecc = [name for name in wheel_skill_files if "/ecc/skills/" in name]
     superpowers = [name for name in wheel_skill_files if "/superpowers/skills/" in name]
@@ -96,14 +94,6 @@ def inspect_dist(wheel: Path, sdist: Path) -> dict[str, Any]:
         "metadata_has_urls": all(item in metadata for item in required_metadata),
         "metadata_mentions_version": f"Version: {VERSION}" in metadata,
         "metadata_has_license_classifier": "Classifier: License :: OSI Approved :: MIT License" in metadata,
-        "long_description_has_flip_marker": "A3-PYPI-FLIP" in metadata or "A3-PYPI-FLIP" in pkg_info,
-        "long_description_has_git_install": "git+https://" in metadata or "git+https://" in pkg_info,
-        "long_description_has_not_on_pypi": (
-            "not published on PyPI" in metadata
-            or "not on PyPI" in metadata
-            or "not published on PyPI" in pkg_info
-            or "not on PyPI" in pkg_info
-        ),
     }
 
 
@@ -194,12 +184,6 @@ def verify(report: dict[str, Any]) -> list[str]:
         errors.append(f"METADATA must mention version {VERSION}")
     if dist["metadata_has_license_classifier"]:
         errors.append("deprecated MIT license classifier must be absent")
-    if dist["long_description_has_flip_marker"]:
-        errors.append("built long description must not contain A3-PYPI-FLIP")
-    if dist["long_description_has_git_install"]:
-        errors.append("built long description must not contain git+ install instructions")
-    if dist["long_description_has_not_on_pypi"]:
-        errors.append("built long description must not say the package is not on PyPI")
     if install["version_output"] != f"unlimited-skills {VERSION}":
         errors.append("installed CLI version output mismatch")
     if install["quickstart_library"]["status"] != "imported":

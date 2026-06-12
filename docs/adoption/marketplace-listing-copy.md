@@ -78,8 +78,10 @@ telemetry, only measured numbers that already exist in the repo.
 The plugin needs the `unlimited-skills` CLI for retrieval. Install the CLI
 first:
 
+<!-- A3-PYPI-FLIP: replace the Git install below with the plain `pip install unlimited-skills` command when the v0.5 PyPI publication gate (A3) lands. -->
+
 ```bash
-pip install unlimited-skills
+pip install "git+https://github.com/AI4sale/unlimited-skills.git"
 unlimited-skills quickstart
 ```
 

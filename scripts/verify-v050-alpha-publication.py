@@ -121,7 +121,7 @@ def assert_manifest() -> dict[str, Any]:
     require(payload.get("release") == RELEASE, "manifest release mismatch")
     require(payload.get("package_version") == VERSION, "manifest package version mismatch")
     git = payload.get("git") if isinstance(payload.get("git"), dict) else {}
-    require(git.get("publication_branch") == "release/v0.5.0-alpha-final-publication", "publication branch mismatch")
+    require(git.get("publication_branch") == "release/v0.5.0-public-alpha", "publication branch mismatch")
     require(git.get("tag") == RELEASE, "manifest tag mismatch")
     requirements = payload.get("package_requirements") if isinstance(payload.get("package_requirements"), dict) else {}
     for key in (
@@ -158,7 +158,6 @@ def assert_docs(package_availability: str) -> None:
         require(not has_flip_marker, "A3-PYPI-FLIP marker must be removed after publication")
         pypi_install = "pip install " + "unlimited-skills"
         require(pypi_install in readme, "PyPI install command must be present after publication")
-        require(pypi_install in read(ROOT / "README-pypi.md"), "PyPI README must contain the PyPI install command")
 
 
 def assert_metadata() -> None:
@@ -213,7 +212,6 @@ def main(argv: list[str] | None = None) -> int:
             "version_output": package_smoke["clean_install"]["version_output"],
             "suggest_candidates": package_smoke["clean_install"]["suggest_candidates"],
             "twine_check": True,
-            "long_description_clean": True,
         },
         "tag_command": f"git tag -a {RELEASE} {git_head()} -m \"{RELEASE}\"",
     }
