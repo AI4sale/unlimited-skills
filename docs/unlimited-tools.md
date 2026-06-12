@@ -1,12 +1,12 @@
-# Unlimited Tools: 3 meta-tools instead of a context-window full of schemas
+﻿# Unlimited Tools: 3 meta-tools instead of a context-window full of schemas
 
 ## The problem: MCP tool schemas eat your context
 
 Every MCP server an agent host (Claude Code, Codex, Hermes, OpenClaw) connects
-to dumps its full tool list — names, descriptions, and complete JSON input
-schemas — into the agent's context window at session start. A realistic
+to dumps its full tool list â€” names, descriptions, and complete JSON input
+schemas â€” into the agent's context window at session start. A realistic
 multi-server setup (GitHub + filesystem + browser + database + issue tracker)
-costs **30,000–200,000 tokens before the agent has read a single line of your
+costs **30,000â€“200,000 tokens before the agent has read a single line of your
 task**. That budget is gone on every turn, whether or not any of those tools
 are ever called.
 
@@ -22,13 +22,13 @@ your upstream MCP servers and exposes exactly three tools:
 | --- | --- | --- |
 | `tools_search` | Matching upstream tool **names + descriptions** (fully qualified as `upstream.tool`) | Input schemas |
 | `tools_schema` | The `inputSchema` of exactly **one** tool | Other tools' schemas |
-| `tools_call` | The relayed result of **one** upstream call | — |
+| `tools_call` | The relayed result of **one** upstream call | â€” |
 
 The agent's standing context cost drops to the three small meta-tool schemas.
 Full upstream schemas are retrieved lazily, one at a time, only when the agent
 has already decided which tool it needs.
 
-## Why this reduces context load — measured
+## Why this reduces context load â€” measured
 
 `tests/test_mcp_context_budget.py` indexes 40 fake upstream tools with
 realistic ~2 KB input schemas and measures the JSON payload sizes
@@ -37,7 +37,7 @@ realistic ~2 KB input schemas and measures the JSON payload sizes
 | Payload | Bytes | Share of full dump |
 | --- | ---: | ---: |
 | Full all-schemas dump (what a host pays without the gateway) | 90,420 | 100% |
-| Gateway `tools/list` — the **standing** cost, only 3 meta-tools | 1,268 | 1.4% |
+| Gateway `tools/list` â€” the **standing** cost, only 3 meta-tools | 1,268 | 1.4% |
 | One `tools_search` response (limit 8, metadata only) | 1,306 | 1.4% |
 | One `tools_schema` response (exactly one schema) | 2,250 | 2.5% |
 
@@ -50,7 +50,7 @@ constant at the three meta-tool schemas.
 
 A companion server, `unlimited-skills mcp serve`, applies the same model to the
 skill library itself: `skills_search` (metadata-only hits), `skills_view` (one
-capped body), `skills_use` (view + a local learning event — never script
+capped body), `skills_use` (view + a local learning event â€” never script
 execution). See [mcp-server.md](mcp-server.md) and [mcp-gateway.md](mcp-gateway.md).
 
 ## Lazy upstream lifecycle
@@ -65,8 +65,8 @@ execution). See [mcp-server.md](mcp-server.md) and [mcp-gateway.md](mcp-gateway.
 - Every upstream interaction has a hard deadline (startup 20 s, request 30 s
   by default; configurable globally or per upstream). A timed-out or
   garbage-talking upstream is terminated and the call is refused with a
-  structured JSON-RPC error (`-32001`…`-32010`, see
-  [mcp-gateway.md](mcp-gateway.md)) — garbage is never relayed.
+  structured JSON-RPC error (`-32001`â€¦`-32010`, see
+  [mcp-gateway.md](mcp-gateway.md)) â€” garbage is never relayed.
 - All upstreams are terminated when the gateway shuts down (terminate, then
   kill after 5 s).
 - The tool index is cached in-memory per gateway process.
@@ -82,7 +82,7 @@ execution). See [mcp-server.md](mcp-server.md) and [mcp-gateway.md](mcp-gateway.
 - **No automatic telemetry**: the gateway writes only the local redacted
   audit log you configure; it does not send usage, prompts, queries, tool
   inputs, or results to hosted services.
-- **Env hygiene**: upstreams get a from-scratch environment — a fixed minimal
+- **Env hygiene**: upstreams get a from-scratch environment â€” a fixed minimal
   base set plus only the variable **names** in `env_allowlist`, copied from
   your local environment at spawn time and never written to any log. There is
   no literal env value map (the v1 `env` map is rejected at config load).
@@ -95,13 +95,13 @@ execution). See [mcp-server.md](mcp-server.md) and [mcp-gateway.md](mcp-gateway.
   timeouts capped, and OAuth, remote upstreams, MCP resources, and MCP
   prompts out of scope. MCP v1 schemas/configs are alpha and may break before
   v0.6.
-- **Audit with redaction**: every meta-tool call — success or refusal — is
+- **Audit with redaction**: every meta-tool call â€” success or refusal â€” is
   appended to a local JSONL audit log
   (`<library>/.learning/mcp-audit.jsonl` by default) with `ts`, `tool`,
   `upstream`, `duration_ms`, `ok`. Argument values under sensitive keys
   (token/secret/key/password/proof/auth/credential/cookie/session/signature/
   cert/private/prompt/env/body/content/query/text) are redacted recursively; string
-  values that *look* like secrets (`Bearer …`, JWTs, PEM blocks, long
+  values that *look* like secrets (`Bearer â€¦`, JWTs, PEM blocks, long
   hex/base64 blobs) are redacted even under harmless keys; env values, skill
   bodies, prompts, and tool results are never written; local paths are
   scrubbed from every audited string. See `unlimited_skills/mcp/audit.py`
@@ -120,7 +120,7 @@ execution.
 
 The contract for upstream trust levels, command and environment
 allowlisting, size/timeout bounds, audit retention, extended refusal codes
-(`-32005`…`-32010`), the threat model, and the OAuth / resources+prompts
+(`-32005`â€¦`-32010`), the threat model, and the OAuth / resources+prompts
 gates is specified in
 [mcp-upstream-security-model.md](mcp-upstream-security-model.md) and
 enforced by the gateway (see the "Config enforcement" section of
@@ -136,6 +136,37 @@ controls which upstream tools an agent can see (`tools_search` /
 `tools_schema`) and which it can call (`tools_call`), default-deny when
 active, fail-closed when missing or invalid. The open behavior above remains
 the default no-profiles mode.
+
+Signed profile bundles for team distribution are designed in
+[mcp-signed-profile-bundles.md](mcp-signed-profile-bundles.md) (E13,
+verified by the E14 prototype): Ed25519-signed, self-contained bundles with
+issuer, audience, expiry, and revocation, verified against a local
+trusted-keys file. Unsigned local profiles stay allowed; signing is opt-in
+until a signed-required policy is configured.
+
+Since v0.4.7-alpha, this path is an alpha integration gate, not just a design
+note: E14 verifies signed MCP profile bundles locally before gateway profile
+loading. The gate may break before v0.6. The local MIT core may still allow
+unsigned profiles by policy. Registered/business signed-required behavior is
+future-gated unless explicitly implemented in a later gate. No hosted trust
+fetch, registry sync, OAuth, resources, prompts, or production signing keys are
+included.
+
+Since v0.4.8-alpha, `unlimited-skills mcp trust status|list|import|revoke|doctor`
+is the managed MCP profile trust store integration gate for those bundles. It
+manages local public keys and the local CRL offline under the library root,
+prints only abbreviated fingerprints, refuses private key material before
+writing, and keeps the signed bundle verifier responsible for wrong scope,
+wrong audience, expiry, revocation, and missing trust store refusals. The gate
+does not add hosted trust fetch, registry sync, OAuth, resources, prompts,
+production signing keys, or private key storage.
+
+Signed profile bundles for team distribution are designed in
+[mcp-signed-profile-bundles.md](mcp-signed-profile-bundles.md) (E13, design
+only — not yet enforced): Ed25519-signed, self-contained bundles with
+issuer, audience, expiry, and revocation, verified against a local
+trusted-keys file. Unsigned local profiles stay allowed; signing is opt-in
+until a signed-required policy is configured.
 
 Signed profile bundles for team distribution are designed in
 [mcp-signed-profile-bundles.md](mcp-signed-profile-bundles.md) (E13, design
@@ -178,10 +209,26 @@ The v1 server and gateway are intentionally Python: MCP traffic is I/O-bound JSO
 ## Auditing what the gateway did
 
 The redacted local audit log the gateway writes can be inspected with
-`unlimited-skills mcp audit-report` — a read-only local report (summary,
+`unlimited-skills mcp audit-report` â€” a read-only local report (summary,
 refusal codes, upstream health, profile usage, redaction self-check) over
 the active file and its rotated generations. The v0.4.5-alpha integration gate
 verifies that recent refusals include no argument values and no error text,
 JSON output validates against the report schema, and the inspector never
 writes audit logs. See
 [mcp-audit-inspector.md](mcp-audit-inspector.md).
+## Measured performance and warm-start plan
+
+A reproducible, fixture-only benchmark pack measures cold/warm gateway
+latency, upstream spawn vs reuse cost, schema indexing time, `tools_search`
+latency, audit write overhead, and the context-bytes table above at
+40/200/1000 indexed tools:
+
+```bash
+python scripts/run-mcp-performance-benchmarks.py --fixture-mode --json --sizes 40,200,1000
+```
+
+Reports (JSON per `schemas/mcp-perf-report.schema.json`, plus Markdown) land
+in `build/perf/`. The reference numbers, what each metric means, and the
+warm-start optimization plan (persistent tool-index cache, opt-in pre-spawn â€”
+design only, everything default-off) live in
+[mcp-performance.md](mcp-performance.md).
