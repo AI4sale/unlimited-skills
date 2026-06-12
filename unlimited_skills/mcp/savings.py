@@ -382,6 +382,10 @@ def format_savings_text(report: dict) -> str:
     lines = [
         "MCP context savings (measured locally; nothing is uploaded)",
         "",
+        "This runs your configured MCP servers locally to measure tool schemas.",
+        "Nothing is uploaded. Unreachable servers are skipped.",
+        "Use --json for a machine-readable local report.",
+        "",
     ]
     rows = report["servers"]
     if not rows:

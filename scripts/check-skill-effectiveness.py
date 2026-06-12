@@ -60,8 +60,8 @@ DEFAULT_ROOT = REPO_ROOT / "packs"
 # below the measured numbers so the check fails on real regressions, not on
 # noise. max latency over DEFAULT_WARN_MAX_MS is a WARNING only (cold-spawn
 # outliers happen); repeated violations should be investigated.
-DEFAULT_MIN_TOP1 = 0.55
-DEFAULT_MIN_TOP3 = 0.83
+DEFAULT_MIN_TOP1 = 0.70
+DEFAULT_MIN_TOP3 = 0.85
 DEFAULT_MAX_FP = 0.10
 DEFAULT_MAX_P90_MS = 1500.0
 DEFAULT_MAX_P95_MS = 2500.0

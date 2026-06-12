@@ -126,8 +126,8 @@ def test_checker_full_run_writes_record_and_passes(tmp_path: Path, checker, caps
         "no_prompt_upload": True,
         "no_local_path_leak": True,
     }
-    assert summary["thresholds"]["min_top1"] == 0.55
-    assert summary["thresholds"]["min_top3"] == 0.83
+    assert summary["thresholds"]["min_top1"] == 0.70
+    assert summary["thresholds"]["min_top3"] == 0.85
     assert summary["thresholds"]["max_fp"] == 0.10
     assert summary["thresholds"]["min_positives"] == 3
     assert summary["thresholds"]["min_negatives"] == 1

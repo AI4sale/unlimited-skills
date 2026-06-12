@@ -53,8 +53,8 @@ Failing either tier-3 condition degrades to tier 2 — never to silence, never t
 
 | Metric | A0 gate | Measured 2026-06-12 (post-F3b run) |
 | --- | --- | --- |
-| top-1 hit rate | >= 0.55 | **0.933** (28/30 positives) |
-| top-3 hit rate | >= 0.83 | **0.967** (29/30 positives) |
+| top-1 hit rate | >= 0.70 | **0.933** (28/30 positives) |
+| top-3 hit rate | >= 0.85 | **0.967** (29/30 positives) |
 | false-positive rate | <= 0.10 | **0.000** (0/12 negatives) |
 | forbidden top-1 violations | 0 | **0** |
 | injection precision (tier-3 cards naming an expected skill) | >= 0.90 | **1.000** (8/8 cards: S4, S8, S10, S11, S23, S29, S31, S32) |
@@ -65,15 +65,20 @@ Failing either tier-3 condition degrades to tier 2 — never to silence, never t
 | latency max | <= 5000 ms (warning only, unless repeated) | **~425 ms** |
 | privacy: no_unintended_body_leak / no_prompt_upload / no_local_path_leak | all true | **all true** |
 
-Planned v0.5 gate (tighten once the library and ranking stabilize; requires a fresh measured run before adoption):
+v0.5 public-release gate (final, Hermes verdict 2026-06-12; `scripts/verify-skill-effectiveness-gate.py --gate v0.5-release`; requires a fresh measured run before adoption):
 
 | Metric | v0.5 gate |
 | --- | --- |
-| top-1 hit rate | >= 0.65 |
+| top-1 hit rate | >= 0.80 |
 | top-3 hit rate | >= 0.90 |
 | false-positive rate | <= 0.10 |
+| negatives injected | 0 (HARD) |
+| injection precision | >= 0.95 |
 | latency p90 | <= 1200 ms |
 | latency p95 | <= 2000 ms |
+| privacy invariants | all true |
+
+Maintenance rule: if top-3 drops below 0.90 after A0, that is a release blocker; if top-1 drops below 0.80, that is a warning on dev PRs and a blocker for public releases. The gate runs on every public/adoption release, after any search/ranking/router/hook change, at least every 10 releases (hard cadence gate), and mandatorily before v0.5 / PyPI / marketplace publication.
 
 History on the same frozen queries: baseline before the A0 ranking fixes — top-1 0.679, top-3 0.750, false-positive rate 0.143, 2 forbidden top-1 violations (S2, S29); diagnosis-time top-1 relevance was 17/30 with `search --mode lexical` at 3.9 s and hybrid at 9.9 s per call. A0 calibration run (2026-06-12, 5 negatives) — top-1 0.821, top-3 0.821, FP 0.000. Hermes-gate run (2026-06-12, 10 negatives) — top-1 0.929, top-3 0.964, FP 0.000 after: the `prompt-optimizer` pack description fix (S29 — the pack shipped a broken empty `description: >-` frontmatter scalar), the profiling↔benchmarking synonym group (S19), and the `pull request`/`release notes` phrase-alias table (S5, S27). A0 contract run with the required 30 positives + 12 negatives — top-1 0.933, top-3 0.967, FP 0.000. All of these are generic library/ranking fixes; no eval query is special-cased.
 

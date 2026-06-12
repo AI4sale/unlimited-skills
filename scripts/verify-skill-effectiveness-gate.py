@@ -49,9 +49,11 @@ def main(argv: list[str] | None = None) -> int:
         runner_args.extend(
             [
                 "--min-top1",
-                "0.65",
+                "0.80",
                 "--min-top3",
                 "0.90",
+                "--min-injection-precision",
+                "0.95",
                 "--max-p90-ms",
                 "1200",
                 "--max-p95-ms",
