@@ -6,6 +6,7 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
+RELEASE = "v0.4.8-alpha"
 
 
 def run(command: list[str]) -> None:
@@ -44,32 +45,25 @@ def tag_target(tag: str) -> str | None:
 
 def main() -> int:
     sha = current_sha()
-    published_tag_sha = tag_target("v0.4.4-alpha")
-    print("Running v0.4.4-alpha MCP permissioned tool profile publication smoke", flush=True)
+    published_tag_sha = tag_target(RELEASE)
+    print("Running v0.4.8-alpha managed MCP profile trust store publication smoke", flush=True)
     run([sys.executable, "scripts/run-v0.2x-smoke-tests.py"])
-    run([sys.executable, "scripts/run-v043-alpha-release-smoke.py"])
-    run([sys.executable, "scripts/run-v044-alpha-mcp-tool-profiles-smoke.py", "--fixture-mode", "--json"])
-    run([sys.executable, "scripts/verify-v044-alpha-mcp-tool-profiles.py", "--expected-sha", sha, "--allow-newer-package"])
+    run([sys.executable, "scripts/run-v047-alpha-release-smoke.py"])
+    run([sys.executable, "scripts/run-v048-alpha-profile-trust-store-smoke.py", "--fixture-mode", "--json"])
+    run([sys.executable, "scripts/verify-v048-alpha-profile-trust-store.py", "--expected-sha", sha])
     publication_command = [
         sys.executable,
-        "scripts/verify-v044-alpha-publication.py",
+        "scripts/verify-v048-alpha-publication.py",
         "--expected-sha",
         sha,
-        "--allow-newer-package",
     ]
     if published_tag_sha:
-        publication_command.extend(
-            [
-                "--allow-existing-tag",
-                "--expected-tag-sha",
-                published_tag_sha,
-            ]
-        )
+        publication_command.extend(["--allow-existing-tag", "--expected-tag-sha", published_tag_sha])
     run(publication_command)
-    print("v0.4.4-alpha MCP permissioned tool profile publication smoke passed", flush=True)
+    print("v0.4.8-alpha managed MCP profile trust store publication smoke passed", flush=True)
     print(f"tag target sha: {sha}", flush=True)
     if published_tag_sha:
-        print(f"published v0.4.4-alpha tag target sha: {published_tag_sha}", flush=True)
+        print(f"published v0.4.8-alpha tag target sha: {published_tag_sha}", flush=True)
         print("tag status: already published by Codex after verifier", flush=True)
     else:
         print("tag status: pending Codex publication after verifier", flush=True)

@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "release": "v0.4.6-alpha",
+  "package_version": "0.4.6",
+  "generated_at": "2026-06-11T00:00:00Z",
+  "distribution": "github-clone-alpha",
+  "git": {
+    "base_branch": "main",
+    "publication_branch": "release/v0.4.6-alpha-mcp-performance-benchmark-integration",
+    "tag": "v0.4.6-alpha",
+    "tag_status": "not_created_by_codex",
+    "tag_target_sha_policy": "This integration gate records benchmark evidence only. A later final publication gate must verify the selected main SHA before tagging."
+  },
+  "required_prs": {
+    "public": [
+      {
+        "number": 100,
+        "epic": "v0.4.5",
+        "title": "v0.4.5-alpha final publication",
+        "status": "merged"
+      },
+      {
+        "number": 99,
+        "epic": "E12",
+        "title": "MCP performance benchmark pack and warm-start plan",
+        "status": "merged"
+      }
+    ]
+  },
+  "safety_boundary": {
+    "alpha_only": true,
+    "fixture_mode": true,
+    "mcp_performance_benchmark_integration": true,
+    "benchmark_fixture_only": true,
+    "schema_locked_report": true,
+    "warm_start_plan_only": true,
+    "codex_must_not_push_tag": true,
+    "production_rollout": false,
+    "production_hosted_calls": false,
+    "hosted_gateway": false,
+    "automatic_telemetry": false,
+    "oauth_upstreams": false,
+    "remote_upstreams": false,
+    "mcp_resources": false,
+    "mcp_prompts": false,
+    "arbitrary_shell_execution": false,
+    "runtime_default_changes": false,
+    "warm_start_implementation": false,
+    "auto_publish": false,
+    "live_billing": false,
+    "pypi": false,
+    "full_catalog_distribution": false
+  },
+  "integration_evidence": {
+    "release_manifest": "docs/releases/v0.4.6-alpha.release-manifest.json",
+    "release_notes": "docs/releases/v0.4.6-alpha.md",
+    "known_issues": "docs/releases/v0.4.6-alpha-known-issues.md",
+    "performance_docs": "docs/mcp-performance.md",
+    "performance_schema": "schemas/mcp-perf-report.schema.json",
+    "performance_runner": "scripts/run-mcp-performance-benchmarks.py",
+    "performance_smoke_runner": "scripts/run-v046-alpha-mcp-performance-smoke.py",
+    "performance_verifier": "scripts/verify-v046-alpha-mcp-performance.py",
+    "integration_test": "tests/integration/test_v046_alpha_mcp_performance.py"
+  }
+}

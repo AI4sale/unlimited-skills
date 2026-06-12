@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "release": "v0.4.9-alpha",
+  "package_version": "0.4.9",
+  "generated_at": "2026-06-12T00:00:00Z",
+  "distribution": "github-clone-alpha",
+  "git": {
+    "base_branch": "main",
+    "publication_branch": "release/v0.4.9-alpha-final-publication",
+    "tag": "v0.4.9-alpha",
+    "tag_status": "pending_codex_publication_after_verifier",
+    "tag_target_sha_policy": "Codex may create and push v0.4.9-alpha only after final publication verifier passes on the selected main SHA."
+  },
+  "required_prs": {
+    "public": [
+      {
+        "number": 107,
+        "epic": "E15",
+        "title": "Managed MCP profile trust store",
+        "status": "merged"
+      },
+      {
+        "number": 108,
+        "epic": "v0.4.8",
+        "title": "v0.4.8-alpha trust-store integration gate",
+        "status": "merged"
+      },
+      {
+        "number": 109,
+        "epic": "v0.4.8",
+        "title": "v0.4.8-alpha final publication gate",
+        "status": "merged"
+      },
+      {
+        "number": 110,
+        "epic": "E16",
+        "title": "MCP profile rollout simulator and policy doctor",
+        "status": "merged"
+      },
+      {
+        "number": 112,
+        "epic": "v0.4.9",
+        "title": "v0.4.9-alpha MCP profile rollout simulator integration gate",
+        "status": "merged"
+      }
+    ]
+  },
+  "safety_boundary": {
+    "alpha_only": true,
+    "fixture_mode": true,
+    "profile_rollout_integration": true,
+    "dry_run_only": true,
+    "codex_must_not_push_tag": false,
+    "codex_pushes_tag": true,
+    "production_rollout": false,
+    "profile_activation": false,
+    "trust_store_mutation": false,
+    "production_hosted_calls": false,
+    "hosted_trust_fetch": false,
+    "registry_sync": false,
+    "oauth_upstreams": false,
+    "remote_upstreams": false,
+    "mcp_resources": false,
+    "mcp_prompts": false,
+    "production_signing_keys": false,
+    "private_key_storage": false,
+    "auto_publish": false,
+    "live_billing": false,
+    "pypi": false,
+    "full_catalog_distribution": false
+  },
+  "integration_evidence": {
+    "release_manifest": "docs/releases/v0.4.9-alpha.release-manifest.json",
+    "release_notes": "docs/releases/v0.4.9-alpha.md",
+    "known_issues": "docs/releases/v0.4.9-alpha-known-issues.md",
+    "rollout_docs": "docs/mcp-profile-rollout.md",
+    "trust_store_docs": "docs/mcp-trust-store.md",
+    "signed_bundle_docs": "docs/mcp-signed-profile-bundles.md",
+    "profile_docs": "docs/mcp-permissioned-tool-profiles.md",
+    "rollout_schema": "schemas/mcp-profile-rollout-plan.schema.json",
+    "rollout_runtime": "unlimited_skills/mcp/profile_rollout.py",
+    "rollout_smoke_runner": "scripts/run-v049-alpha-profile-rollout-smoke.py",
+    "rollout_verifier": "scripts/verify-v049-alpha-profile-rollout.py",
+    "release_smoke_runner": "scripts/run-v049-alpha-release-smoke.py",
+    "publication_verifier": "scripts/verify-v049-alpha-publication.py",
+    "integration_test": "tests/integration/test_v049_alpha_profile_rollout.py"
+  }
+}

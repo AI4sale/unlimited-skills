@@ -323,8 +323,15 @@ mandatory Ed25519 signature over the canonical JSON defined above) verified
 against a local trusted-keys file, with reserved refusal codes
 `-32015`…`-32019` continuing this document's family. The paragraphs above
 remain accurate for the unsigned local profile file: signing stays opt-in,
-this file format is unchanged, and nothing verifies signatures until the
-bundle enforcement change (E14) ships.
+this file format is unchanged, and signed bundles are verified only when the
+gateway is started with the E14 `--profile-bundle` path.
+
+The v0.4.7-alpha signed MCP profile bundle gate is alpha and may break before
+v0.6. The local MIT core may still allow unsigned profiles by policy.
+Registered/business signed-required behavior is future-gated unless explicitly
+implemented in a later gate. There is no hosted trust fetch, no registry sync,
+no OAuth, no resources, no prompts, and no production signing keys in the
+public core gate.
 
 ## Refusal codes
 

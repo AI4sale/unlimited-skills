@@ -2,7 +2,7 @@
 
 ## Supported Version
 
-`v0.4.5-alpha` is a developer preview. Security fixes should target the current `main` branch first.
+`v0.4.9-alpha` is a developer preview. Security fixes should target the current `main` branch first.
 
 The older `v0.3.7-alpha` security boundary remains documented for compatibility with the v0.2.x smoke claims that protect release-history wording.
 
@@ -34,7 +34,7 @@ The hosted clients must not upload:
 
 ## Hosted Archives And Enhancers
 
-Current `v0.4.5-alpha` behavior:
+Current `v0.4.8-alpha` behavior:
 
 - hosted remote manifests must include valid signed manifest envelopes;
 - signatures verify hosted manifest authenticity;
@@ -51,7 +51,7 @@ Use "signed hosted manifests plus SHA256-verified hosted collection archives" fo
 
 Local Skill Hub is an alpha MVP. The runtime is allowlist-only, does not execute skills, and does not forward local search queries to the hosted registry. It is intended for local or controlled LAN testing.
 
-Current `v0.4.5-alpha` limitations:
+Current `v0.4.8-alpha` limitations:
 
 - Hub client token creation, revocation, and request enforcement are implemented for Local Skill Hub `/v1/...` APIs. `GET /health` remains unauthenticated for liveness checks.
 - Use the default `127.0.0.1` bind address unless you are testing on a trusted LAN.
@@ -139,6 +139,72 @@ The gate remains alpha, fixture-mode, and local stdio only. It must not call pro
 The v0.4.5-alpha MCP milestone integrates E11 read-only audit inspection for local redacted MCP audit JSONL logs. It proves `unlimited-skills mcp audit-report`, JSON schema-validated reports, rotated audit log discovery, safe recent refusal summaries with no argument values and no error text, profile audit evidence from `profile_loaded` rows, redaction self-checks that never print suspect values, and clear missing-log exits.
 
 The gate remains alpha, fixture-mode, local, and read-only. The inspector must not write, rotate, or mutate audit logs. It must not call production hosted services, require production signing keys, upload prompts, upload task text, upload skill bodies, upload search queries, include private pack bodies, include local or repository paths, enable live billing, publish to PyPI, distribute the full catalog, rewrite skills automatically, enable automatic telemetry, expose a hosted gateway, implement OAuth or remote upstreams, enable MCP resources or prompts, allow arbitrary shell execution, or auto-publish. Codex must not create or push `v0.4.5-alpha` from this integration gate.
+
+## v0.4.7-alpha Signed Profile Bundle Boundary
+
+The v0.4.7-alpha MCP milestone integrates local signed MCP profile bundle
+verification before gateway profile loading. It proves raw local profile
+compatibility, valid signed bundle loading, fail-closed refusal for bad
+signatures, unknown keys, expired bundles, revoked bundles or keys, wrong
+audience, and namespace-ceiling violations, plus `profile_loaded` audit
+provenance without signature values or private key material.
+
+This gate remains alpha and may break before v0.6. The local MIT core may still
+allow unsigned profiles by policy. Registered/business signed-required behavior
+is future-gated unless explicitly implemented in a later gate. It must not call
+production hosted services, fetch hosted trust, perform registry sync, require
+production signing keys, store private keys, upload prompts, upload task text,
+upload skill bodies, upload search queries, include private pack bodies, include
+local or repository paths, enable live billing, publish to PyPI, distribute the
+full catalog, rewrite skills automatically, enable automatic telemetry, expose
+a hosted gateway, implement OAuth or remote upstreams, enable MCP resources or
+prompts, allow arbitrary shell execution, or auto-publish. Codex must not
+create or push `v0.4.7-alpha` from this integration gate.
+
+## v0.4.8-alpha Managed Profile Trust Store Boundary
+
+The v0.4.8-alpha MCP milestone integrates the managed MCP profile trust store
+for signed profile bundle verification. It proves local/offline
+`unlimited-skills mcp trust status`, `trust list`, `trust import`,
+`trust revoke`, and `trust doctor`; public-key-only import; abbreviated
+fingerprints; append-only local CRL revocation; corrupt trust store detection;
+missing trust store fail-closed behavior; revoked key refusal; wrong scope and
+wrong audience enforcement through the signed bundle verifier; and audit
+provenance without private key material or signature values.
+
+This gate remains alpha and may break before v0.6. The trust store is a local
+management layer over `trusted-keys.json`, `crl.json`, and a metadata sidecar.
+The metadata sidecar is informational only and grants no authority. The gate
+must not call production hosted services, fetch hosted trust, perform registry
+sync, require production signing keys, store private keys, upload prompts,
+upload task text, upload skill bodies, upload search queries, include private
+pack bodies, include local or repository paths, enable live billing, publish
+to PyPI, distribute the full catalog, rewrite skills automatically, enable
+automatic telemetry, expose a hosted gateway, implement OAuth or remote
+upstreams, enable MCP resources or prompts, allow arbitrary shell execution,
+or auto-publish. Codex must not create or push `v0.4.8-alpha` from this
+integration gate.
+
+## v0.4.9-alpha MCP Profile Rollout Boundary
+
+The v0.4.9-alpha MCP milestone integrates the local dry-run MCP profile
+rollout simulator and policy doctor. It proves raw profile rollout plan,
+signed bundle rollout plan, trust-store-backed rollout plan, missing trust
+store, corrupt trust store, expired key, revoked key, wrong audience,
+namespace violation, hide-all-tools, shadowed tool, signed-required
+unsigned-source, and no upstream spawn / no network / no mutation boundaries.
+
+This gate remains alpha and may break before v0.6. The simulator is a dry-run
+preview only. It must not activate profiles, mutate trust stores, write audit
+rows, spawn upstreams, call production hosted services, fetch hosted trust,
+perform registry sync, require production signing keys, store private keys,
+upload prompts, upload task text, upload skill bodies, upload search queries,
+include private pack bodies, include local or repository paths, enable live
+billing, publish to PyPI, distribute the full catalog, rewrite skills
+automatically, enable telemetry, expose a hosted gateway, implement OAuth or
+remote upstreams, enable MCP resources or prompts, allow arbitrary shell
+execution, or auto-publish. Codex must not create or push `v0.4.9-alpha` from
+this integration gate.
 
 ## Known Security Limitations In v0.3.9-alpha
 

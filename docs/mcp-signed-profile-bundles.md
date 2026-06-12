@@ -1,6 +1,7 @@
 # MCP signed profile bundles
 
-**Status: PROTOTYPE (designed in E13, verification implemented by E14).**
+**Status: PROTOTYPE (designed in E13, verification implemented by E14,
+integrated by the v0.4.7-alpha gate).**
 This document is **Gate C** of the permissioned tool profiles design
 ([mcp-permissioned-tool-profiles.md](mcp-permissioned-tool-profiles.md), E09,
 enforced by E10): the profile-signing gate that E09's "Signed/local format"
@@ -14,6 +15,13 @@ codes below (`unlimited_skills/mcp/bundles.py`, opt-in via
 E09/E10 behavior is byte-for-byte unchanged: raw profile files keep loading
 exactly as before, and their optional signature envelopes are still
 validated for shape only and grant nothing.
+
+The v0.4.7-alpha signed MCP profile bundle gate is alpha and may break before
+v0.6. The local MIT core may still allow unsigned profiles by policy.
+Registered/business signed-required behavior is future-gated unless explicitly
+implemented in a later gate. There is no hosted trust fetch, no registry sync,
+no OAuth, no MCP resources, no MCP prompts, no production signing keys, and no
+private key storage in this public core gate.
 
 Artifacts:
 
