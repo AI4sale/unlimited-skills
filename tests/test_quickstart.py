@@ -130,6 +130,9 @@ def test_quickstart_cli_json(
     report = json.loads(capsys.readouterr().out)
     assert report["library"]["status"] == "imported"
     assert report["search"]["hits"]
+    assert report["root"] == "<local-library>"
+    assert "path" not in report["search"]["hits"][0]
+    assert str(root) not in json.dumps(report)
     assert report["savings"] is None
     assert report["next_steps"]
 
