@@ -149,7 +149,7 @@ def assert_manifest() -> dict[str, Any]:
     require(payload.get("release") == RELEASE, "manifest release mismatch")
     require(payload.get("package_version") == VERSION, "manifest package version mismatch")
     git = payload.get("git") if isinstance(payload.get("git"), dict) else {}
-    require(git.get("publication_branch") == "release/v0.5.0-alpha-final-publication", "publication branch mismatch")
+    require(git.get("publication_branch") == "release/v0.5.0-alpha-pypi-flip-reapply", "publication branch mismatch")
     require(git.get("tag") == RELEASE, "manifest tag mismatch")
     require(
         git.get("tag_status") == "blocked_until_pypi_upload_and_post_publish_smoke",
@@ -174,7 +174,7 @@ def assert_manifest() -> dict[str, Any]:
     return payload
 
 
-def assert_docs() -> None:
+def assert_docs(package_availability: str) -> None:
     for path in REQUIRED_DOCS:
         require(path.is_file(), f"missing required doc: {path.relative_to(ROOT)}")
     readme = read(ROOT / "README.md")
@@ -187,9 +187,15 @@ def assert_docs() -> None:
         "scripts/run-v050-alpha-package-smoke.py",
     ):
         require(required.lower() in public_text.lower(), f"public docs missing required wording: {required}")
-    require("A3-PYPI-FLIP" not in readme, "A3-PYPI-FLIP marker must be removed from publishable README")
+    has_flip_marker = "A3-PYPI-FLIP" in readme
     pypi_install = "pip install " + "unlimited-skills"
-    require(pypi_install in readme, "PyPI install command must be present in publishable README")
+    git_install = 'pip install "git+https://github.com/AI4sale/unlimited-skills.git"'
+    if package_availability == "prepublish":
+        require(has_flip_marker, "A3-PYPI-FLIP marker must remain until package availability is real")
+        require(git_install in readme, "Git install command must remain before PyPI availability")
+    else:
+        require(not has_flip_marker, "A3-PYPI-FLIP marker must be removed after publication")
+        require(pypi_install in readme, "PyPI install command must be present after publication")
     require(pypi_install in read(ROOT / "README-pypi.md"), "PyPI README must contain the PyPI install command")
 
 
@@ -350,20 +356,21 @@ def main(argv: list[str] | None = None) -> int:
     assert_metadata()
     manifest = assert_manifest()
     package_availability = "prepublish" if args.package_availability in {"local", "not-published"} else args.package_availability
-    assert_docs()
     if args.expected_sha:
         require(re.fullmatch(r"[0-9a-f]{40}", args.expected_sha) is not None, "--expected-sha must be 40 lowercase hex")
         require(git_head() == args.expected_sha, f"current checkout {git_head()} does not match expected SHA {args.expected_sha}")
     if not args.allow_existing_tag:
         require(not tag_exists(RELEASE), f"tag {RELEASE} already exists locally")
-    package_smoke = run_package_smoke()
-    require(package_smoke.get("ok") is True, "package smoke failed: " + ", ".join(package_smoke.get("errors") or []))
     published_smoke: dict[str, Any] | None = None
     blocker: dict[str, Any] | None = None
     if package_availability == "published":
         published_smoke = published_install_smoke()
         if not published_smoke.get("ok"):
             blocker = dict(published_smoke.get("blocker") or release_blocker("release_blocked_pypi_unavailable"))
+    if not blocker:
+        assert_docs(package_availability)
+    package_smoke = run_package_smoke()
+    require(package_smoke.get("ok") is True, "package smoke failed: " + ", ".join(package_smoke.get("errors") or []))
     report = {
         "schema_version": 1,
         "status": "blocked" if blocker else "passed",
@@ -379,7 +386,6 @@ def main(argv: list[str] | None = None) -> int:
             "version_output": package_smoke["clean_install"]["version_output"],
             "suggest_candidates": package_smoke["clean_install"]["suggest_candidates"],
             "twine_check": True,
-            "long_description_clean": True,
         },
     }
     if published_smoke and published_smoke.get("ok"):
