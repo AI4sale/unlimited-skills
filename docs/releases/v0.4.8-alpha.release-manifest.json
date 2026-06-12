@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "release": "v0.4.8-alpha",
+  "package_version": "0.4.8",
+  "generated_at": "2026-06-12T00:00:00Z",
+  "distribution": "github-clone-alpha",
+  "git": {
+    "base_branch": "main",
+    "publication_branch": "release/v0.4.8-alpha-profile-trust-store-integration",
+    "tag": "v0.4.8-alpha",
+    "tag_status": "not_created_by_codex",
+    "tag_target_sha_policy": "Codex must not create or push v0.4.8-alpha from the integration gate. The final publication PR owns tag verification."
+  },
+  "required_prs": {
+    "public": [
+      {
+        "number": 102,
+        "epic": "E13",
+        "title": "Signed MCP profile bundle design",
+        "status": "merged"
+      },
+      {
+        "number": 103,
+        "epic": "E14",
+        "title": "Signed MCP profile bundle verification",
+        "status": "merged"
+      },
+      {
+        "number": 105,
+        "epic": "v0.4.7",
+        "title": "v0.4.7-alpha signed profile bundle integration gate",
+        "status": "merged"
+      },
+      {
+        "number": 106,
+        "epic": "v0.4.7",
+        "title": "v0.4.7-alpha final publication gate",
+        "status": "merged"
+      },
+      {
+        "number": 107,
+        "epic": "E15",
+        "title": "Managed MCP profile trust store",
+        "status": "merged"
+      }
+    ],
+    "private_registry": [
+      {
+        "number": 50,
+        "epic": "registry-tier-b",
+        "title": "Tier B writer inventory and canonical-default decision report",
+        "status": "merged"
+      },
+      {
+        "number": 51,
+        "epic": "registry-tier-b",
+        "title": "Tier B shared compatible schema implementation",
+        "status": "merged"
+      }
+    ]
+  },
+  "safety_boundary": {
+    "alpha_only": true,
+    "fixture_mode": true,
+    "profile_trust_store_integration": true,
+    "local_offline_trust_store": true,
+    "public_keys_only": true,
+    "raw_local_profiles_still_allowed_by_default": true,
+    "codex_must_not_push_tag": true,
+    "production_rollout": false,
+    "production_hosted_calls": false,
+    "hosted_trust_fetch": false,
+    "registry_sync": false,
+    "oauth_upstreams": false,
+    "remote_upstreams": false,
+    "mcp_resources": false,
+    "mcp_prompts": false,
+    "production_signing_keys": false,
+    "private_key_storage": false,
+    "auto_publish": false,
+    "live_billing": false,
+    "pypi": false,
+    "full_catalog_distribution": false
+  },
+  "integration_evidence": {
+    "release_manifest": "docs/releases/v0.4.8-alpha.release-manifest.json",
+    "release_notes": "docs/releases/v0.4.8-alpha.md",
+    "known_issues": "docs/releases/v0.4.8-alpha-known-issues.md",
+    "trust_store_docs": "docs/mcp-trust-store.md",
+    "signed_bundle_docs": "docs/mcp-signed-profile-bundles.md",
+    "trust_store_schema": "schemas/mcp-trust-store-metadata.schema.json",
+    "trust_store_runtime": "unlimited_skills/mcp/trust_store.py",
+    "trust_store_smoke_runner": "scripts/run-v048-alpha-profile-trust-store-smoke.py",
+    "trust_store_verifier": "scripts/verify-v048-alpha-profile-trust-store.py",
+    "integration_test": "tests/integration/test_v048_alpha_profile_trust_store.py"
+  }
+}
