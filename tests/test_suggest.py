@@ -148,3 +148,146 @@ def test_fast_dispatch_routes_only_plain_suggest_calls() -> None:
     assert _fast_suggest_argv(["search", "fix bug"]) is None
     assert _fast_suggest_argv(["--version"]) is None
     assert _fast_suggest_argv([]) is None
+
+
+# --- F3b ambient injection: tier selection and skill cards ---------------
+
+
+def scored_hit(score: float, name: str = "skill-x", path: str = "") -> SkillHit:
+    return SkillHit(name=name, description="desc", collection="local", path=path, score=score)
+
+
+def test_select_tier_boundaries() -> None:
+    # Tier 1: nothing above the floor.
+    assert suggest.select_tier([]) == suggest.TIER_SILENCE
+    # Tier 2: below the high threshold (18.0).
+    assert suggest.select_tier([scored_hit(17.9)]) == suggest.TIER_HINT
+    assert suggest.select_tier([scored_hit(12.0)]) == suggest.TIER_HINT
+    # Tier 3: at/above the threshold with no runner-up.
+    assert suggest.select_tier([scored_hit(18.0)]) == suggest.TIER_CARD
+    # Margin: top must be >= 1.5x the runner-up.
+    assert suggest.select_tier([scored_hit(18.0), scored_hit(12.1)]) == suggest.TIER_HINT  # 18 < 1.5*12.1
+    assert suggest.select_tier([scored_hit(27.0), scored_hit(18.0)]) == suggest.TIER_CARD  # exactly 1.5x
+    assert suggest.select_tier([scored_hit(26.9), scored_hit(18.0)]) == suggest.TIER_HINT
+    # Runner-up below the floor does not block the card.
+    assert suggest.select_tier([scored_hit(20.0), scored_hit(11.0)]) == suggest.TIER_CARD
+    # Custom threshold/margin parameters are honored.
+    assert suggest.select_tier([scored_hit(10.0)], high_threshold=10.0) == suggest.TIER_CARD
+    assert suggest.select_tier([scored_hit(16.0), scored_hit(12.0)], floor=12.0, high_threshold=10.0, margin=1.2) == suggest.TIER_CARD
+
+
+def card_hit(root: Path, name: str) -> SkillHit:
+    path = root / "local" / "skills" / name / "SKILL.md"
+    return SkillHit(name=name, description="fixture desc", collection="local", path=str(path), score=30.0)
+
+
+def test_build_skill_card_contents_and_footer(library: Path) -> None:
+    write_skill(library, "card-skill", "When the task needs the card fixture.", body="Step 1: do the thing.\nStep 2: verify it.")
+    hit = card_hit(library, "card-skill")
+    card = suggest.build_skill_card(hit)
+    assert card is not None
+    assert card.startswith("Skill card: card-skill (source: local)")
+    assert "When to use: When the task needs the card fixture." in card
+    assert "Step 1: do the thing." in card
+    assert card.rstrip().endswith("Full skill body: unlimited-skills view card-skill")
+    assert "(card truncated" not in card  # fits: no truncation note
+    # Never any local path — not even the skill's own.
+    assert str(library) not in card
+    assert ":\\" not in card and ":/" not in card
+
+
+def test_build_skill_card_truncates_keeping_head(library: Path) -> None:
+    body = "PROCEDURE-HEAD first line.\n" + ("filler line\n" * 600)
+    write_skill(library, "long-skill", "Long body fixture.", body=body)
+    hit = card_hit(library, "long-skill")
+    card = suggest.build_skill_card(hit, max_chars=500)
+    assert card is not None
+    assert len(card) <= 500
+    assert "PROCEDURE-HEAD first line." in card  # head of the body survives
+    assert "(card truncated — full skill: unlimited-skills view long-skill)" in card
+    assert card.rstrip().endswith("Full skill body: unlimited-skills view long-skill")
+    # Default cap is the documented constant.
+    full = suggest.build_skill_card(hit)
+    assert full is not None and len(full) <= suggest.CARD_MAX_CHARS
+
+
+def test_build_skill_card_fails_open(library: Path) -> None:
+    missing = SkillHit(name="ghost", description="", collection="local", path=str(library / "nope" / "SKILL.md"), score=30.0)
+    assert suggest.build_skill_card(missing) is None
+    # Pathological cap with no room even for the header/footer.
+    write_skill(library, "tiny-cap", "Cap fixture.", body="body")
+    assert suggest.build_skill_card(card_hit(library, "tiny-cap"), max_chars=10) is None
+
+
+def test_suggest_json_card_mode_injects_at_high_confidence(library: Path, capsys: pytest.CaptureFixture) -> None:
+    query = "python code review pep8"
+    rc = suggest.main([query, "--root", str(library), "--floor", "1", "--json", "--card", "--high-threshold", "10"])
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert payload["delivery_tier"] == 3
+    card = payload["skill_card"]
+    assert set(card) == {"name", "source", "card"}
+    assert card["name"] == "python-patterns"
+    assert card["source"] == "local"
+    assert card["card"].startswith("Skill card: python-patterns (source: local)")
+    assert "unlimited-skills view python-patterns" in card["card"]
+    # The card never echoes the query and never carries local paths.
+    assert query not in card["card"]
+    assert str(library) not in card["card"]
+    assert ":\\" not in card["card"] and ":/" not in card["card"]
+    # The base contract keys are unchanged alongside the card fields.
+    assert set(payload) == {"task_summary_hash", "top_3_skill_candidates", "reason_code", "recommended_next_action", "latency_ms", "delivery_tier", "skill_card"}
+
+
+def test_suggest_card_mode_degrades_to_hint_without_confidence_or_margin(library: Path, capsys: pytest.CaptureFixture) -> None:
+    query = "python code review pep8"
+    # Below the high threshold -> tier 2 (default threshold 18 > fixture score).
+    rc = suggest.main([query, "--root", str(library), "--floor", "1", "--json", "--card"])
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert payload["delivery_tier"] == 2
+    assert "skill_card" not in payload
+    # Confident top but insufficient margin over the runner-up -> tier 2.
+    rc = suggest.main([query, "--root", str(library), "--floor", "1", "--json", "--card", "--high-threshold", "10", "--high-margin", "5"])
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert payload["delivery_tier"] == 2
+    assert "skill_card" not in payload
+
+
+def test_suggest_card_margin_uses_runner_up_even_with_limit_one(library: Path, capsys: pytest.CaptureFixture) -> None:
+    # The hook calls --limit 1; the margin check must still see candidate #2.
+    rc = suggest.main(["python code review pep8", "--root", str(library), "--floor", "1", "--json", "--card", "--limit", "1", "--high-threshold", "10", "--high-margin", "5"])
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert len(payload["top_3_skill_candidates"]) == 1
+    assert payload["delivery_tier"] == 2  # blocked by the runner-up margin
+    assert "skill_card" not in payload
+
+
+def test_suggest_card_kill_switch_downgrades_to_tier_two(library: Path, capsys: pytest.CaptureFixture, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv(suggest.KILL_SWITCH_ENV, "1")
+    rc = suggest.main(["python code review pep8", "--root", str(library), "--floor", "1", "--json", "--card", "--high-threshold", "10"])
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert payload["delivery_tier"] == 2
+    assert "skill_card" not in payload
+
+
+def test_suggest_card_degrades_on_unreadable_skill_file(library: Path, capsys: pytest.CaptureFixture) -> None:
+    # The index still scores the skill, but its SKILL.md is gone: fail open to tier 2.
+    (library / "local" / "skills" / "python-patterns" / "SKILL.md").unlink()
+    rc = suggest.main(["python code review pep8", "--root", str(library), "--floor", "1", "--json", "--card", "--high-threshold", "10"])
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert payload["delivery_tier"] == 2
+    assert "skill_card" not in payload
+    assert payload["top_3_skill_candidates"][0]["name"] == "python-patterns"
+
+
+def test_suggest_default_json_has_no_card_fields(library: Path, capsys: pytest.CaptureFixture) -> None:
+    rc = suggest.main(["python code review pep8", "--root", str(library), "--floor", "1", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert "delivery_tier" not in payload
+    assert "skill_card" not in payload

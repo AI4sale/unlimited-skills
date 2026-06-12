@@ -28,7 +28,8 @@ def checker():
 def make_library(tmp_path: Path) -> Path:
     root = tmp_path / "library"
     skills = {
-        "python-patterns": "Pythonic idioms, PEP 8 standards, and code review best practices for Python.",
+        # "pep8" (not "PEP 8") so the P1 fixture clears the tier-3 high threshold (18.0).
+        "python-patterns": "Pythonic idioms, pep8 standards, and code review best practices for Python.",
         "react-performance": "React re-render performance optimization with memoization and profiling.",
         "git-workflow": "Git workflow patterns: branching strategies, merge vs rebase, conflict resolution.",
     }
@@ -47,8 +48,8 @@ def make_scenarios(tmp_path: Path) -> Path:
     payload = {
         "name": "fixture",
         "scenarios": [
-            {"id": "P1", "category": "code-review", "prompt": "x", "query": "python code review pep8 idioms", "expected_skills": ["python-patterns"]},
-            {"id": "P2", "category": "code-write", "prompt": "x", "query": "React rerender performance optimization", "expected_skills": ["react-performance"], "forbidden_top1": ["python-patterns"]},
+            {"id": "P1", "category": "code-review", "prompt": "x", "query": "python code review pep8 idioms", "expected_skills": ["python-patterns"], "expected_tier": 3},
+            {"id": "P2", "category": "code-write", "prompt": "x", "query": "React rerender performance optimization", "expected_skills": ["react-performance"], "forbidden_top1": ["python-patterns"], "expected_tier": 3},
             {"id": "P3", "category": "git-pr", "prompt": "x", "query": "git branch merge rebase workflow", "expected_skills": ["git-workflow"]},
             {"id": "N1", "category": "none", "prompt": "x", "query": "what is the capital of Australia", "expected_skills": [], "expect_no_skill": True},
         ],
@@ -71,14 +72,23 @@ def test_frozen_scenario_file_shape() -> None:
         assert "category" in scenario
         if scenario.get("expect_no_skill"):
             assert scenario["expected_skills"] == []
+            assert "expected_tier" not in scenario  # negatives must never expect a card
         else:
             assert scenario["expected_skills"]
+        if "expected_tier" in scenario:
+            assert scenario["expected_tier"] == 3
+    # F3b: a handful of unambiguous positives assert tier-3 card injection.
+    tier3 = [scenario for scenario in scenarios if scenario.get("expected_tier") == 3]
+    assert len(tier3) >= 3
 
 
-def test_checker_full_run_writes_record_and_passes(tmp_path: Path, checker, capsys) -> None:
+def test_checker_full_run_writes_record_and_passes(tmp_path: Path, checker, capsys, monkeypatch) -> None:
     library = make_library(tmp_path)
     scenarios = make_scenarios(tmp_path)
     record = tmp_path / "last-run.json"
+    # The hook-side kill switch must not mask the injection gates: the
+    # checker strips it from the probe environment.
+    monkeypatch.setenv("UNLIMITED_SKILLS_NO_INJECT", "1")
     rc = checker.main(
         [
             "--scenarios", str(scenarios),
@@ -98,9 +108,17 @@ def test_checker_full_run_writes_record_and_passes(tmp_path: Path, checker, caps
     assert summary["results"]["forbidden_top1_violations"] == []
     assert summary["results"]["latency_ms"]["p90"] > 0
     assert summary["results"]["latency_ms"]["p95"] >= summary["results"]["latency_ms"]["p90"]
-    # Privacy invariants are verified by scanning every actual probe output.
+    # F3b injection gates: the unambiguous fixture queries score far above
+    # the high threshold with no contesting runner-up, so cards fire and all
+    # name the expected skill; the negative never gets one.
+    assert summary["results"]["cards_shown"] >= 2
+    assert summary["results"]["injection_precision"] == 1.0
+    assert summary["results"]["negatives_injected"] == []
+    assert summary["results"]["expected_tier3_misses"] == []
+    # Privacy invariants are verified by scanning every actual probe output;
+    # the tier-3 card is the only sanctioned body channel.
     assert summary["results"]["privacy"] == {
-        "no_skill_body_leak": True,
+        "no_unintended_body_leak": True,
         "no_prompt_upload": True,
         "no_local_path_leak": True,
     }
@@ -109,12 +127,16 @@ def test_checker_full_run_writes_record_and_passes(tmp_path: Path, checker, caps
     assert summary["thresholds"]["max_fp"] == 0.10
     assert summary["thresholds"]["max_p90_ms"] == 30000
     assert summary["thresholds"]["max_p95_ms"] == 30000
+    assert summary["thresholds"]["min_injection_precision"] == 0.90
+    assert summary["thresholds"]["max_negatives_injected"] == 0
 
     saved = json.loads(record.read_text(encoding="utf-8"))
     assert saved["version"]
     assert saved["date"]
     assert saved["results"]["top3_hit_rate"] == 1.0
     assert saved["results"]["privacy"]["no_prompt_upload"] is True
+    assert saved["results"]["injection_precision"] == 1.0
+    assert saved["results"]["negatives_injected"] == []
     assert "scenarios" not in saved  # the record stays compact
 
 
@@ -170,6 +192,70 @@ def test_checker_fails_when_privacy_invariant_violated(tmp_path: Path, checker, 
     assert rc == 1
     assert summary["pass"] is False
     assert summary["results"]["privacy"]["no_local_path_leak"] is False
+
+
+def _run_with_patched_scenario(tmp_path: Path, checker, capsys, monkeypatch, mutate) -> dict:
+    """Full fixture run with one row mutated after the real probe."""
+    library = make_library(tmp_path)
+    scenarios = make_scenarios(tmp_path)
+    real_run_scenario = checker.run_scenario
+
+    def patched(python_exe, root, scenario, limit, floor, body_snippets):
+        row = real_run_scenario(python_exe, root, scenario, limit, floor, body_snippets)
+        mutate(row)
+        return row
+
+    monkeypatch.setattr(checker, "run_scenario", patched)
+    rc = checker.main(
+        [
+            "--scenarios", str(scenarios),
+            "--root", str(library),
+            "--no-record",
+            "--max-p90-ms", "30000",
+            "--max-p95-ms", "30000",
+            "--json",
+        ]
+    )
+    summary = json.loads(capsys.readouterr().out)
+    summary["_rc"] = rc
+    return summary
+
+
+def test_checker_fails_when_a_negative_gets_a_card(tmp_path: Path, checker, capsys, monkeypatch) -> None:
+    def mutate(row):
+        if row["id"] == "N1":  # simulate a card injected on a no-skill scenario
+            row["card_skill"] = "python-patterns"
+            row["card_correct"] = False
+
+    summary = _run_with_patched_scenario(tmp_path, checker, capsys, monkeypatch, mutate)
+    assert summary["_rc"] == 1
+    assert summary["pass"] is False
+    assert summary["results"]["negatives_injected"] == ["N1"]
+
+
+def test_checker_fails_when_expected_tier3_scenario_misses(tmp_path: Path, checker, capsys, monkeypatch) -> None:
+    def mutate(row):
+        if row["id"] == "P1":  # simulate the card not firing where asserted
+            row["card_skill"] = None
+            row["card_correct"] = False
+            row["tier"] = 2
+
+    summary = _run_with_patched_scenario(tmp_path, checker, capsys, monkeypatch, mutate)
+    assert summary["_rc"] == 1
+    assert summary["pass"] is False
+    assert summary["results"]["expected_tier3_misses"] == ["P1"]
+
+
+def test_checker_fails_below_injection_precision_gate(tmp_path: Path, checker, capsys, monkeypatch) -> None:
+    def mutate(row):
+        if row["id"] == "P3":  # simulate a card naming the WRONG skill
+            row["card_skill"] = "python-patterns"
+            row["card_correct"] = False
+
+    summary = _run_with_patched_scenario(tmp_path, checker, capsys, monkeypatch, mutate)
+    assert summary["_rc"] == 1
+    assert summary["pass"] is False
+    assert summary["results"]["injection_precision"] < 0.90
 
 
 def test_cli_alias_skills_check_effectiveness(capsys) -> None:

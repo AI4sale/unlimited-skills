@@ -28,6 +28,20 @@ def make_library(tmp_path: Path) -> Path:
     return root
 
 
+def make_card_library(tmp_path: Path, body: str = "Step 1: read the diff.\nStep 2: check idioms.") -> Path:
+    """Single-skill library whose description scores ABOVE the tier-3 high
+    threshold (18.0) for the fixture prompt, with no runner-up."""
+    root = tmp_path / "card-library"
+    skill_dir = root / "local" / "skills" / "python-patterns"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text(
+        "---\nname: python-patterns\ndescription: Pythonic idioms, pep8 issues, code review best practices for any Python module.\n---\n\n# python-patterns\n\n" + body + "\n",
+        encoding="utf-8",
+    )
+    save_index(root)
+    return root
+
+
 def hook_env(tmp_path: Path, **overrides: str) -> dict[str, str]:
     env = dict(os.environ)
     # Isolate the fallback chain from the developer machine's real installs.
@@ -50,7 +64,8 @@ def run_hook(script: Path, stdin_text: str, env: dict[str, str]) -> subprocess.C
         [sys.executable, str(script)],
         input=stdin_text,
         capture_output=True,
-        text=True,
+        encoding="utf-8",  # the hook pins UTF-8 on its stdio
+        errors="replace",
         env=env,
         timeout=60,
         cwd=str(REPO_ROOT),
@@ -108,6 +123,8 @@ def test_session_start_resolves_rendered_launcher(tmp_path: Path) -> None:
 
 
 def test_user_prompt_submit_emits_hint_for_relevant_prompt(tmp_path: Path) -> None:
+    # Medium confidence (fixture scores 16, below the 18.0 high threshold):
+    # tier 2, the one-line NAME-only hint, never a card.
     library = make_library(tmp_path)
     env = hook_env(tmp_path, UNLIMITED_SKILLS_CLI=repo_cli_override(library))
     prompt = "review my python module for pep8 issues and idioms"
@@ -120,11 +137,71 @@ def test_user_prompt_submit_emits_hint_for_relevant_prompt(tmp_path: Path) -> No
     hint = specific["additionalContext"]
     assert "Relevant skill available: python-patterns" in hint
     assert "unlimited-skills view python-patterns" in hint
+    assert "Skill card:" not in hint
     # Privacy: the hint never echoes the prompt text and carries no local paths.
     assert prompt not in hint
     assert str(library) not in hint
     assert str(tmp_path) not in hint
     assert ":\\" not in hint and ":/" not in hint
+
+
+def test_user_prompt_submit_injects_card_at_high_confidence(tmp_path: Path) -> None:
+    library = make_card_library(tmp_path)
+    env = hook_env(tmp_path, UNLIMITED_SKILLS_CLI=repo_cli_override(library))
+    prompt = "review my python module for pep8 issues and idioms"
+    result = run_hook(USER_PROMPT_SUBMIT, json.dumps({"prompt": prompt}), env)
+    assert result.returncode == 0, result.stderr
+    context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert context.startswith("Skill card: python-patterns (source: local)")
+    assert "When to use:" in context
+    assert "Step 1: read the diff." in context  # the body rides along BY DESIGN
+    assert context.rstrip().endswith("Full skill body: unlimited-skills view python-patterns")
+    # Privacy: no prompt echo, no local paths.
+    assert prompt not in context
+    assert str(library) not in context
+    assert str(tmp_path) not in context
+    assert ":\\" not in context and ":/" not in context
+
+
+def test_user_prompt_submit_card_respects_hard_cap(tmp_path: Path) -> None:
+    library = make_card_library(tmp_path, body="HEAD-OF-PROCEDURE marker.\n" + ("padding line for the cap test\n" * 600))
+    env = hook_env(tmp_path, UNLIMITED_SKILLS_CLI=repo_cli_override(library))
+    prompt = "review my python module for pep8 issues and idioms"
+    result = run_hook(USER_PROMPT_SUBMIT, json.dumps({"prompt": prompt}), env)
+    assert result.returncode == 0, result.stderr
+    context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert len(context) <= 8000  # CARD_MAX_CHARS
+    assert "HEAD-OF-PROCEDURE marker." in context  # head of the body survives
+    assert "(card truncated — full skill: unlimited-skills view python-patterns)" in context
+    assert context.rstrip().endswith("Full skill body: unlimited-skills view python-patterns")
+
+
+def test_user_prompt_submit_kill_switch_downgrades_card_to_hint(tmp_path: Path) -> None:
+    library = make_card_library(tmp_path)
+    env = hook_env(
+        tmp_path,
+        UNLIMITED_SKILLS_CLI=repo_cli_override(library),
+        UNLIMITED_SKILLS_NO_INJECT="1",
+    )
+    prompt = "review my python module for pep8 issues and idioms"
+    result = run_hook(USER_PROMPT_SUBMIT, json.dumps({"prompt": prompt}), env)
+    assert result.returncode == 0, result.stderr
+    context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert "Relevant skill available: python-patterns" in context
+    assert "Skill card:" not in context
+    assert "Step 1:" not in context
+
+
+def test_user_prompt_submit_falls_back_to_hint_on_unreadable_skill_file(tmp_path: Path) -> None:
+    library = make_card_library(tmp_path)
+    (library / "local" / "skills" / "python-patterns" / "SKILL.md").unlink()
+    env = hook_env(tmp_path, UNLIMITED_SKILLS_CLI=repo_cli_override(library))
+    prompt = "review my python module for pep8 issues and idioms"
+    result = run_hook(USER_PROMPT_SUBMIT, json.dumps({"prompt": prompt}), env)
+    assert result.returncode == 0, result.stderr
+    context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert "Relevant skill available: python-patterns" in context
+    assert "Skill card:" not in context
 
 
 def test_user_prompt_submit_is_silent_below_floor(tmp_path: Path) -> None:
