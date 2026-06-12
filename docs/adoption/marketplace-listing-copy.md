@@ -81,6 +81,8 @@ first:
 ```bash
 pip install unlimited-skills
 unlimited-skills quickstart
+unlimited-skills mcp install --claude-code --dry-run
+unlimited-skills mcp install --claude-code
 ```
 
 Then, inside Claude Code:
@@ -92,6 +94,13 @@ Then, inside Claude Code:
 
 Restart the session so the SessionStart hook runs. Full details:
 [docs/claude-code-plugin.md](../claude-code-plugin.md).
+
+Optional check:
+
+```bash
+unlimited-skills mcp install status
+unlimited-skills mcp savings
+```
 
 ## Feedback and support
 
