@@ -7,8 +7,8 @@
     "base_branch": "main",
     "publication_branch": "release/v0.5.0-alpha-final-publication",
     "tag": "v0.5.0-alpha",
-    "tag_status": "pending_codex_publication_after_verifier",
-    "tag_target_sha_policy": "Codex may create and push v0.5.0-alpha only after the final verifier passes on the selected release commit after PyPI availability is verified."
+    "tag_status": "blocked_until_pypi_upload_and_post_publish_smoke",
+    "tag_target_sha_policy": "Codex may create and push v0.5.0-alpha only after real PyPI upload, clean PyPI install smoke, and the final verifier with package-availability=published pass on the selected release commit."
   },
   "required_prs": {
     "public": [
@@ -23,6 +23,10 @@
   "package_evidence": {
     "package_smoke_runner": "scripts/run-v050-alpha-package-smoke.py",
     "publication_verifier": "scripts/verify-v050-alpha-publication.py",
+    "publication_verifier_modes": {
+      "prepublish": "Build-only release gate. Must not emit tag guidance.",
+      "published": "Requires real clean install from PyPI before passing."
+    },
     "known_issues": "docs/releases/v0.5.0-alpha-known-issues.md",
     "readme_risks": "docs/releases/v0.5.0-alpha-readme-risks.md",
     "checklist": "docs/releases/v0.5.0-alpha-checklist.md"
@@ -45,6 +49,7 @@
     "hosted_gateway": false,
     "full_catalog_distribution": false,
     "auto_publish": false,
-    "pypi_command_flip": true
+    "pypi_command_flip": true,
+    "pypi_availability": "blocked_until_trusted_publishing_and_clean_install_smoke"
   }
 }
