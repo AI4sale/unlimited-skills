@@ -412,3 +412,19 @@ dependency order:
 | E19 publishing | The ceremony that produces what channels point at; its `MANIFEST`/`ROLLBACK` metadata feeds publish records. | DEV-keys-only boundary; private-key hygiene. |
 | E20 library | The member-side enforcement point: `add`/`activate`/`rollback` with re-verification is exactly where assignments land. | Verify-before-store, no quarantine, no hot reload, append-only history. |
 | E21/E22 | The acceptance flow and the stabilization audit that any future implementing change must keep green. | Audit dimensions; the consistency invariants. |
+
+## Threat model and abuse-case test plan (E25)
+
+The full hosted/team distribution surface — this design's client side plus
+the registry-side carrier contract (E24, private repo) — has a consolidated
+adversarial threat model in
+[mcp-distribution-threat-model.md](mcp-distribution-threat-model.md)
+(threat classes `DT-01`…`DT-23`, consolidating and extending threats 19–22
+above and E13's 14–18) and a matching abuse-case test plan in
+[mcp-distribution-abuse-test-plan.md](mcp-distribution-abuse-test-plan.md)
+(test ids, fixtures, pass criteria, owners, and a
+threat→mitigation→test→owner traceability table).
+`tests/test_mcp_distribution_threat_docs.py` keeps the two documents and
+their refusal-code citations consistent. The future implementation of
+hosted sync MUST land those abuse-case tests with the code — they are its
+adversarial acceptance criteria, written before any hosted code exists.

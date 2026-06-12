@@ -223,3 +223,18 @@ through trust import, verify, library add, rollout-plan, replay-audit,
 activate, and gateway resolve to a revocation incident (`-32017`),
 rollback, and the audit report -- proving the same layers compose as one
 operational flow.
+
+## See also: the distribution threat model and abuse-case test plan (E25)
+
+The hosted/team distribution design (channels and assignments,
+[mcp-bundle-distribution.md](mcp-bundle-distribution.md), plus the
+registry-side E24 contract) has its own adversarial catalogue:
+[mcp-distribution-threat-model.md](mcp-distribution-threat-model.md)
+(threat classes `DT-01`..`DT-23`) with the consolidated test plan in
+[mcp-distribution-abuse-test-plan.md](mcp-distribution-abuse-test-plan.md).
+Every abuse case there is specified fixture-level in THIS drill's style --
+build a known-good fixture with ephemeral keys, inject the abuse, assert
+the exact refusal, execute the documented recovery -- and the client-owned
+ones reuse this drill's machinery (`DrillIssuer`, `ScenarioContext`, the
+scenario builders) by name, so they can be rehearsed the same way the
+incident classes above are.
