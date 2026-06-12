@@ -1,0 +1,64 @@
+name: Install friction
+description: The install, setup, or plugin path failed or fought you. Report where.
+title: "[install] "
+labels: ["bug", "install"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        v0.5 is a public alpha tested Windows-first; install reports from
+        every platform directly drive the test matrix. Nothing is collected
+        automatically — this report is the only signal we get.
+
+        Please redact usernames, local paths, tokens, and anything else
+        sensitive from pasted output before submitting.
+  - type: dropdown
+    id: step
+    attributes:
+      label: Which step failed?
+      options:
+        - pip install (git+ URL)
+        - Repo clone + pip install -e
+        - unlimited-skills quickstart
+        - unlimited-skills setup wizard
+        - Agent installer script (Codex / Claude Code / Hermes / OpenClaw)
+        - Claude Code plugin install
+        - Vector extras / model download
+        - Something else (describe below)
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: OS, shell, and Python version
+      placeholder: "e.g. macOS 15 / zsh / Python 3.11"
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version or commit
+      placeholder: "e.g. v0.5.0-alpha, or the installed commit sha"
+    validations:
+      required: false
+  - type: textarea
+    id: command
+    attributes:
+      label: Exact command you ran
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: error
+    attributes:
+      label: Error output (redacted)
+      description: Trim to the failing part. Replace usernames/paths/tokens with placeholders.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: expectation
+    attributes:
+      label: What did you expect to happen?
+    validations:
+      required: false

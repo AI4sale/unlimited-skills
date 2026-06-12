@@ -1,0 +1,54 @@
+name: MCP savings report
+description: Share your measured `unlimited-skills mcp savings` numbers (names, counts, and sizes only).
+title: "[savings] "
+labels: ["feedback", "mcp"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        `unlimited-skills mcp savings` measures everything locally and
+        uploads nothing. Sharing the numbers here is entirely voluntary —
+        real-world measurements across different MCP setups are how the lab
+        benchmark stays honest.
+
+        The command's output contains only server names, tool counts, byte
+        sizes, and status strings — never schema contents, never commands or
+        args, never env names or values. Please paste only that output and
+        double-check it: do NOT include your MCP config files, spawn
+        commands, or anything from `.mcp.json` / `~/.claude.json`.
+  - type: textarea
+    id: savings-output
+    attributes:
+      label: Output of `unlimited-skills mcp savings`
+      description: Paste the text output (or --json) as-is. Rename servers if their names alone are sensitive in your context.
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: server-count
+    attributes:
+      label: How many MCP servers do you run day-to-day?
+      placeholder: "e.g. 6 (4 measured, 2 remote/skipped)"
+    validations:
+      required: false
+  - type: input
+    id: platform
+    attributes:
+      label: OS / host
+      placeholder: "e.g. Windows 11 / Claude Code"
+    validations:
+      required: false
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes
+      description: Surprises, skipped servers that should have been measured, numbers that look wrong, whether you put the gateway in front afterwards.
+    validations:
+      required: false
+  - type: checkboxes
+    id: privacy-check
+    attributes:
+      label: Privacy check
+      options:
+        - label: I pasted only names/counts/sizes output and no MCP server configuration, commands, args, or environment values.
+          required: true

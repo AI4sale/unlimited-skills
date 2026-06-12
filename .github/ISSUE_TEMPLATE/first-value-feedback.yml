@@ -1,0 +1,66 @@
+name: First-value feedback (quickstart)
+description: "Did `unlimited-skills quickstart` deliver value in under 5 minutes? Tell us either way."
+title: "[first-value] "
+labels: ["feedback", "adoption"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for trying the public alpha. This product sends no telemetry —
+        the only way we learn whether the first five minutes worked is reports
+        like this one. Honest "it did not" reports are the most valuable kind.
+
+        Before pasting any output, please remove anything you consider
+        sensitive. Suggest/savings output is designed to be privacy-safe
+        (names, counts, sizes — no prompts, no local paths), but check anyway.
+  - type: dropdown
+    id: time-to-value
+    attributes:
+      label: Time from install command to first useful result
+      options:
+        - Under 5 minutes
+        - 5-15 minutes
+        - Over 15 minutes
+        - Never got a useful result
+    validations:
+      required: true
+  - type: dropdown
+    id: install-path
+    attributes:
+      label: How did you install?
+      options:
+        - pip install from GitHub (git+ URL)
+        - Repo clone + pip install -e
+        - Claude Code plugin (+ CLI)
+        - Other (describe below)
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: OS and Python version
+      placeholder: "e.g. Windows 11 / Python 3.12"
+    validations:
+      required: true
+  - type: textarea
+    id: what-worked
+    attributes:
+      label: What delivered value (if anything)?
+      description: Which quickstart step felt useful — bundled pack import, the first search, the MCP savings numbers, something else?
+    validations:
+      required: true
+  - type: textarea
+    id: what-did-not
+    attributes:
+      label: Where did it stall, confuse, or disappoint?
+      description: The exact moment you hesitated or stopped is the most useful data point.
+    validations:
+      required: false
+  - type: textarea
+    id: output
+    attributes:
+      label: Relevant output (optional, redact first)
+      description: Paste trimmed `unlimited-skills quickstart` output if it helps. Remove anything sensitive.
+      render: text
+    validations:
+      required: false
