@@ -6,10 +6,10 @@
   "distribution": "github-clone-alpha",
   "git": {
     "base_branch": "main",
-    "publication_branch": "release/v0.4.8-alpha-profile-trust-store-integration",
+    "publication_branch": "release/v0.4.8-alpha-final-publication",
     "tag": "v0.4.8-alpha",
-    "tag_status": "not_created_by_codex",
-    "tag_target_sha_policy": "Codex must not create or push v0.4.8-alpha from the integration gate. The final publication PR owns tag verification."
+    "tag_status": "pending_codex_publication_after_verifier",
+    "tag_target_sha_policy": "Codex may create and push v0.4.8-alpha only after final publication verifier passes on the selected main SHA."
   },
   "required_prs": {
     "public": [
@@ -42,6 +42,12 @@
         "epic": "E15",
         "title": "Managed MCP profile trust store",
         "status": "merged"
+      },
+      {
+        "number": 108,
+        "epic": "v0.4.8",
+        "title": "v0.4.8-alpha managed MCP profile trust store integration gate",
+        "status": "merged"
       }
     ],
     "private_registry": [
@@ -66,7 +72,8 @@
     "local_offline_trust_store": true,
     "public_keys_only": true,
     "raw_local_profiles_still_allowed_by_default": true,
-    "codex_must_not_push_tag": true,
+    "codex_must_not_push_tag": false,
+    "codex_pushes_tag": true,
     "production_rollout": false,
     "production_hosted_calls": false,
     "hosted_trust_fetch": false,
@@ -92,6 +99,8 @@
     "trust_store_runtime": "unlimited_skills/mcp/trust_store.py",
     "trust_store_smoke_runner": "scripts/run-v048-alpha-profile-trust-store-smoke.py",
     "trust_store_verifier": "scripts/verify-v048-alpha-profile-trust-store.py",
+    "release_smoke_runner": "scripts/run-v048-alpha-release-smoke.py",
+    "publication_verifier": "scripts/verify-v048-alpha-publication.py",
     "integration_test": "tests/integration/test_v048_alpha_profile_trust_store.py"
   }
 }
