@@ -1,0 +1,178 @@
+{
+  "audit": {
+    "expected_codes_present": true,
+    "redaction_self_check": "PASS",
+    "refusal_codes_observed": [
+      -32019,
+      -32018,
+      -32017,
+      -32016,
+      -32015
+    ],
+    "refusal_rows": 9,
+    "rows_total": 10
+  },
+  "backend": {
+    "name": "cryptography-ed25519",
+    "note": "ephemeral Ed25519 keys generated for this run only",
+    "real_ed25519": true
+  },
+  "drill_clock": "2026-07-01T00:00:00Z",
+  "exit_code": 0,
+  "generated_at": "2026-06-11T20:49:56Z",
+  "mode": "fixture",
+  "report_type": "mcp-incident-drill-report",
+  "scenarios": [
+    {
+      "duration_ms": 124.419,
+      "expected_code": -32015,
+      "expected_name": "bundle_signature_invalid",
+      "fail_closed": true,
+      "incident": "bundle file modified after signing (audience widened by an attacker)",
+      "observed_code": -32015,
+      "recovered_ok": true,
+      "recovery_steps": [
+        "quarantine the tampered bundle file (keep it for forensics)",
+        "re-issue: re-sign the intended bundle document with the trusted signing key",
+        "re-verify: restart the gateway against the re-issued bundle"
+      ],
+      "refusal_ok": true,
+      "scenario": "bad_signature"
+    },
+    {
+      "duration_ms": 90.065,
+      "expected_code": -32019,
+      "expected_name": "bundle_key_missing",
+      "fail_closed": true,
+      "incident": "bundle signed by a key_id that is not in the local trusted-keys file",
+      "observed_code": -32019,
+      "recovered_ok": true,
+      "recovery_steps": [
+        "confirm with the issuer that the new key_id is legitimate (out of band)",
+        "import the PUBLIC key: unlimited-skills mcp trust import --key-id <id> --public-key <base64 public key>",
+        "re-verify: restart the gateway against the same bundle"
+      ],
+      "refusal_ok": true,
+      "scenario": "unknown_key"
+    },
+    {
+      "duration_ms": 93.516,
+      "expected_code": -32019,
+      "expected_name": "bundle_key_missing",
+      "fail_closed": true,
+      "incident": "signing key past its local not_after trust deadline (expired, not rotated)",
+      "observed_code": -32019,
+      "recovered_ok": true,
+      "recovery_steps": [
+        "rotate: import the NEW public key under a new key_id (unlimited-skills mcp trust import --key-id <new id> --public-key <base64 public key> --not-after <deadline>)",
+        "have the issuer re-sign the bundle with the new key",
+        "re-verify, then remove the expired key entry after the overlap window"
+      ],
+      "refusal_ok": true,
+      "scenario": "expired_key"
+    },
+    {
+      "duration_ms": 65.241,
+      "expected_code": -32016,
+      "expected_name": "bundle_expired",
+      "fail_closed": true,
+      "incident": "current time outside the bundle's signed validity window",
+      "observed_code": -32016,
+      "recovered_ok": true,
+      "recovery_steps": [
+        "request a re-issued bundle with a fresh issued_at/expires_at window",
+        "verify the host clock is correct before assuming the bundle is stale",
+        "re-verify: restart the gateway against the re-issued bundle"
+      ],
+      "refusal_ok": true,
+      "scenario": "expired_bundle"
+    },
+    {
+      "duration_ms": 98.303,
+      "expected_code": -32017,
+      "expected_name": "bundle_revoked",
+      "fail_closed": true,
+      "incident": "bundle SHA-256 listed in the local CRL (operator revocation)",
+      "observed_code": -32017,
+      "recovered_ok": true,
+      "recovery_steps": [
+        "revoke the withdrawn artifact: unlimited-skills mcp trust revoke --bundle-sha256 <hash> --reason <why>",
+        "issue a corrected bundle (new bytes = new SHA-256); never edit the CRL history",
+        "re-verify the corrected bundle; confirm the revoked one still refuses"
+      ],
+      "refusal_ok": true,
+      "scenario": "revoked_bundle"
+    },
+    {
+      "duration_ms": 67.002,
+      "expected_code": -32017,
+      "expected_name": "bundle_revoked",
+      "fail_closed": true,
+      "incident": "declared CRL file unreadable (revocation status unprovable, fail-closed)",
+      "observed_code": -32017,
+      "recovered_ok": true,
+      "recovery_steps": [
+        "detect: unlimited-skills mcp trust doctor (flags the unreadable CRL, exit 1)",
+        "restore the CRL file from backup or re-create it from the revocation history in the store metadata (never silently drop revocations)",
+        "re-check: unlimited-skills mcp trust doctor (exit 0), then re-verify"
+      ],
+      "refusal_ok": true,
+      "scenario": "crl_outage"
+    },
+    {
+      "duration_ms": 44.845,
+      "expected_code": -32018,
+      "expected_name": "bundle_audience_mismatch",
+      "fail_closed": true,
+      "incident": "local audience identifiers do not intersect the bundle's signed audience",
+      "observed_code": -32018,
+      "recovered_ok": true,
+      "recovery_steps": [
+        "compare both sides in the refusal message (it names the bundle audience and the local identifiers)",
+        "fix the consumer identifier (--audience-id / UNLIMITED_SKILLS_MCP_AUDIENCE) or obtain the bundle issued for this audience",
+        "re-verify: restart the gateway with the corrected identifier"
+      ],
+      "refusal_ok": true,
+      "scenario": "wrong_audience"
+    },
+    {
+      "duration_ms": 87.706,
+      "expected_code": -32015,
+      "expected_name": "bundle_signature_invalid",
+      "fail_closed": true,
+      "incident": "bundle fail-closed; operator rolls back to the raw --profiles path (or open mode) while the bundle is re-issued",
+      "observed_code": -32015,
+      "recovered_ok": true,
+      "recovery_steps": [
+        "rollback: restart the gateway with --profiles <local file> and WITHOUT --profile-bundle (raw E10 enforcement keeps working)",
+        "accept what is lost during rollback: signed provenance, the audience binding, the namespace ceiling, and the --require-signed-profiles policy",
+        "last resort: open no-profiles mode (no flags) loses ALL profile enforcement -- record the decision and restore the bundle quickly"
+      ],
+      "refusal_ok": true,
+      "scenario": "operator_rollback"
+    },
+    {
+      "duration_ms": 53.422,
+      "expected_code": -32019,
+      "expected_name": "bundle_key_missing",
+      "fail_closed": true,
+      "incident": "managed trusted-keys file corrupted (verification cannot load any key)",
+      "observed_code": -32019,
+      "recovered_ok": true,
+      "recovery_steps": [
+        "detect: unlimited-skills mcp trust doctor (flags the malformed file, exit 1)",
+        "remove the corrupt trusted-keys file and rebuild by re-importing every known PUBLIC key: unlimited-skills mcp trust import ...",
+        "re-check: unlimited-skills mcp trust doctor (exit 0), then re-verify"
+      ],
+      "refusal_ok": true,
+      "scenario": "trust_store_recovery"
+    }
+  ],
+  "schema_version": 1,
+  "summary": {
+    "all_ok": true,
+    "recoveries_ok": 9,
+    "refusals_ok": 9,
+    "scenarios_total": 9
+  }
+}
