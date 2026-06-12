@@ -56,6 +56,7 @@ Working now:
 - JSON lexical index;
 - local vector sidecar index with ChromaDB compatibility storage;
 - hybrid lexical + vector search;
+- privacy-safe `suggest` probe and deterministic skill effectiveness gate for A0/v0.5 adoption readiness;
 - full skill view by name;
 - Codex router skill;
 - agent-driven one-skill adaptation workflow;

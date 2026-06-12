@@ -13,6 +13,10 @@ Unlimited Skills is an external skill memory and retrieval layer. It keeps large
 
 Use this router before doing substantive work unless an already-loaded skill is clearly relevant and already being used for the current task.
 
+Core rule: search first, view one, then act.
+
+Before solving unfamiliar or procedure-like tasks, check available skills. If a relevant skill is suggested, view it before creating a custom solution. If no relevant skill is suggested, continue normally.
+
 Use this router first when:
 
 - the user asks what skills, abilities, workflows, procedures, agents, or checklists are available;
@@ -35,6 +39,7 @@ Library root:
 OpenClaw launcher:
 
 ```bash
+"{{OPENCLAW_SH_LAUNCHER}}" suggest "<query>" --limit 3
 "{{OPENCLAW_SH_LAUNCHER}}" search "<query>" --mode hybrid --limit 8
 "{{OPENCLAW_SH_LAUNCHER}}" view <skill-name>
 ```
@@ -44,11 +49,13 @@ OpenClaw launcher:
 1. If the user asks what skills are available, run `list --limit 80` and summarize the relevant collections or names.
 2. If the user names a specific skill, run `where <skill-name>` or `view <skill-name>` before saying it is unavailable.
 3. Otherwise, build a short search query from the user's request, project stack, error text, framework names, and domain terms.
-4. Run `search "<query>" --mode hybrid --limit 8` with the launcher above.
-5. Pick a skill only when the result is concrete enough to change the work.
-6. Run `view <skill-name>` and follow only the relevant instructions.
-7. Record usage with `use <skill-name> --query "<query>" --task "<short task>"`.
-8. If the selected skill was wrong or especially useful, record feedback with the `feedback` command.
+4. Run `suggest "<query>" --limit 3` with the launcher above.
+5. If no skill crosses the suggestion floor, continue normally.
+6. If a relevant skill is suggested, run `view <skill-name>` and follow only the relevant instructions.
+7. If the suggestion is inconclusive, run the broader fallback search with `search "<query>" --mode hybrid --limit 8`.
+8. Pick a skill only when the result is concrete enough to change the work.
+9. Record usage with `use <skill-name> --query "<query>" --task "<short task>"`.
+10. If the selected skill was wrong or especially useful, record feedback with the `feedback` command.
 
 {{REMOTE_HUB_ROUTER_BLOCK}}
 
@@ -59,6 +66,7 @@ Do not paste every result or every skill body into the conversation. Treat the l
 ```bash
 "{{OPENCLAW_SH_LAUNCHER}}" list --limit 40
 "{{OPENCLAW_SH_LAUNCHER}}" list --filter "security review" --limit 20
+"{{OPENCLAW_SH_LAUNCHER}}" suggest "React component rerender performance" --limit 3
 "{{OPENCLAW_SH_LAUNCHER}}" search "React component rerender performance" --mode hybrid --limit 8
 "{{OPENCLAW_SH_LAUNCHER}}" where security-review
 "{{OPENCLAW_SH_LAUNCHER}}" view security-review

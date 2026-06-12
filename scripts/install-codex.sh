@@ -261,9 +261,12 @@ Unlimited Skills is the external skill memory for this agent. Treat it as the fi
 
 Before doing substantive work, check whether Unlimited Skills has a relevant skill. This includes writing, editing, coding, review, debugging, research, documentation, operations, planning, and design tasks. Skip this check only when a relevant skill is already active in the current context and it is clear why that skill applies.
 
+Search first, view one, then act. For unfamiliar or procedure-like tasks, run the cheap suggestion probe first. If it returns a relevant skill, view that skill before creating a custom solution. If no relevant skill is suggested, continue normally.
+
 Before saying a skill is unavailable, query the library:
 
 \`\`\`bash
+"$launcher" suggest "<task or skill name>" --limit 3
 "$launcher" search "<task or skill name>" --mode hybrid --limit 8
 "$launcher" where <skill-name>
 "$launcher" view <skill-name>
