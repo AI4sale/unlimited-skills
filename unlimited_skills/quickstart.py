@@ -19,6 +19,8 @@ Everything is local: no registration, no hosted calls, no uploads.
 
 from __future__ import annotations
 
+from contextlib import ExitStack
+from importlib import resources
 from pathlib import Path
 
 DEFAULT_QUERY = "code review checklist"
@@ -39,6 +41,12 @@ def find_repo_root(start: Path | None = None) -> Path | None:
     return None
 
 
+def packaged_packs_root() -> resources.abc.Traversable | None:
+    """Return the wheel-bundled packs root when package data is present."""
+    root = resources.files("unlimited_skills").joinpath("bundled_packs")
+    return root if root.is_dir() else None
+
+
 def library_skill_count(root: Path) -> int:
     from . import cli
 
@@ -54,24 +62,36 @@ def ensure_bundled_library(root: Path, repo_root: Path | None = None) -> dict:
     if count:
         return {"status": "ready", "skill_count": count, "imported": {}}
     repo_root = repo_root or find_repo_root()
-    sources = (
-        [(pack, repo_root / "packs" / pack / "skills") for pack in BUNDLED_PACKS]
-        if repo_root
-        else []
-    )
-    sources = [(pack, path) for pack, path in sources if path.is_dir()]
-    if not sources:
-        return {"status": "empty_no_packs", "skill_count": 0, "imported": {}}
-    imported: dict[str, int] = {}
-    for pack, source in sources:
-        result = migrate_source(
-            source,
-            root,
-            pack,
-            skip_existing_names=False,
-            registry_collection=True,
+    with ExitStack() as stack:
+        if repo_root:
+            packs_root = repo_root / "packs"
+        else:
+            packaged = packaged_packs_root()
+            packs_root = (
+                packaged
+                if isinstance(packaged, Path)
+                else stack.enter_context(resources.as_file(packaged))
+                if packaged
+                else None
+            )
+        sources = (
+            [(pack, packs_root / pack / "skills") for pack in BUNDLED_PACKS]
+            if packs_root
+            else []
         )
-        imported[pack] = result.migrated_count
+        sources = [(pack, path) for pack, path in sources if path.is_dir()]
+        if not sources:
+            return {"status": "empty_no_packs", "skill_count": 0, "imported": {}}
+        imported: dict[str, int] = {}
+        for pack, source in sources:
+            result = migrate_source(
+                source,
+                root,
+                pack,
+                skip_existing_names=False,
+                registry_collection=True,
+            )
+            imported[pack] = result.migrated_count
     cli.save_index(root)
     return {
         "status": "imported",
