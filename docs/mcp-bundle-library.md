@@ -165,3 +165,21 @@ revocation incident, rollback, audit report -- is exercised as ONE
 fixture-mode workflow by `scripts/run-mcp-operator-acceptance.py`
 ([mcp-operator-acceptance.md](mcp-operator-acceptance.md)), which also
 serves as the operator onboarding walk-through.
+
+## Team distribution: channels and assignments (E23, design only)
+
+How a TEAM decides which bundle each member should `add` and `activate` --
+named publish CHANNELS with an ordered bundle history and per-audience
+ASSIGNMENTS (follow a channel or pin one exact bundle SHA-256, with
+deterministic conflict resolution and mandatory assignment expiry) -- is
+designed in [mcp-bundle-distribution.md](mcp-bundle-distribution.md)
+(`schemas/mcp-bundle-channel.schema.json`,
+`schemas/mcp-bundle-assignment.schema.json`). The member-side enforcement
+point stays exactly this library: routing files are plain local documents
+that grant nothing, every routed bundle goes through this library's
+verify-before-store `add` and re-verified `activate`, a channel pointing
+at a revoked bundle fails closed here (`-32017`) with the member keeping
+its last-activated known-good bundle, and channel rollback is a publish
+record pointing back -- the channel-level twin of this library's
+`rollback` history walk. Design only: no registry sync, nothing hosted,
+no changes to this library's semantics.

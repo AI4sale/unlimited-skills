@@ -1,0 +1,121 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AI4sale/unlimited-skills/schemas/mcp-bundle-assignment.schema.json",
+  "title": "Unlimited Tools MCP bundle distribution assignment (E23 design)",
+  "description": "DESIGN (E23, docs/mcp-bundle-distribution.md): a statement that a given audience (team:/org:/host: identifiers, the exact E13 grammar) should activate either a distribution channel's current bundle ('follow' mode) or one exact bundle file SHA-256 ('pin' mode). An assignment is a local JSON FILE distributed over any transport (git repo, shared drive, future registry sync as a dumb carrier); it routes members and grants NO capability by itself -- the routed bundle still passes the unchanged E14 verification against the member's E15 trust store, fail-closed with the reserved codes (-32014..-32019), including the bundle's OWN audience binding (-32018 bundle_audience_mismatch), so a misrouted assignment cannot smuggle a bundle past verification. Semantic load checks (enforced by the loader/tests, not this schema): 'pin' mode requires bundle_sha256 and 'follow' mode forbids it (exactly one artifact owns the pointer); issued_at strictly before expires_at (expiry is mandatory, recommended <= 90 days; an expired assignment stops directing NEW activations but never deactivates a verified bundle); signature.key_id equals issuer.key_id when signed. Conflicts between matching assignments resolve deterministically: host: beats team: beats org:, then pin beats follow, then highest revision/latest issued_at, and a residual tie is refused loudly. The signature envelope is OPTIONAL in the format (MIT core, decision 1) and REQUIRED for registered/business-tier distribution; when present it is the exact E13 envelope over the canonical JSON (UTF-8, sorted keys, no insignificant whitespace) of this document minus 'signature'. NOTHING in E23 is implemented or hosted; this schema fixes the file contract only.",
+  "type": "object",
+  "required": ["assignment_version", "audience", "channel", "mode", "issuer", "revision", "issued_at", "expires_at"],
+  "additionalProperties": false,
+  "properties": {
+    "assignment_version": { "const": 1 },
+    "comment": { "type": "string", "description": "Annotation only; carries no semantics." },
+    "audience": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 32,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "maxLength": 128,
+        "pattern": "^(team|org|host):[A-Za-z0-9][A-Za-z0-9_.-]*$"
+      },
+      "description": "WHO this assignment is for: '<scheme>:<name>' identifiers with exactly three schemes (team:, org:, host:) -- the same identifiers the member presents locally (--audience-id / UNLIMITED_SKILLS_MCP_AUDIENCE) and the same ones the bundle's own audience binds. A member applies the assignment only on a non-empty intersection with its own identifiers. An empty audience is unrepresentable -- there is deliberately no 'anyone' assignment."
+    },
+    "channel": {
+      "type": "object",
+      "required": ["name", "owner_key_id"],
+      "additionalProperties": false,
+      "description": "The channel this assignment routes through, named by the FULL channel identity pair (name + owner key id), so an assignment can never be satisfied by a same-named channel from a different owner. Required even in 'pin' mode: the pin still records where the sha came from, for provenance and the eventual return to 'follow'.",
+      "properties": {
+        "comment": { "type": "string", "description": "Annotation only; carries no semantics." },
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 64,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+          "description": "The channel's name (the mcp-bundle-channel 'name' grammar)."
+        },
+        "owner_key_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "description": "The channel owner's key id (the E13 key_id grammar). Never a key value."
+        }
+      }
+    },
+    "mode": {
+      "enum": ["follow", "pin"],
+      "description": "'follow': activate the channel's current bundle (the member moves when the channel moves). 'pin': activate exactly bundle_sha256 and ignore channel movement until this assignment is reissued. Pin wins over follow when assignments conflict (decision 6)."
+    },
+    "bundle_sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "The pinned bundle's file SHA-256 (lowercase hex) -- the same content address the E20 library and the E15 CRL use. Semantic load checks: REQUIRED when mode is 'pin', MUST BE ABSENT when mode is 'follow' (exactly one artifact owns the pointer -- the channel)."
+    },
+    "issuer": {
+      "type": "object",
+      "required": ["key_id", "display"],
+      "additionalProperties": false,
+      "description": "Who issued the assignment (typically the channel owner; a fleet may use a separate assignment-issuing key that members trust). Trust decisions use key_id plus the member's local trusted-keys file ONLY; display grants nothing.",
+      "properties": {
+        "comment": { "type": "string", "description": "Annotation only; carries no semantics." },
+        "key_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "description": "Opaque identifier of the issuing/signing key (the E13 key_id grammar); must equal signature.key_id when the document is signed (semantic load check). Never a key value."
+        },
+        "display": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Human-readable issuer name for messages. Never used for trust decisions."
+        }
+      }
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic revision per (issuer key_id, audience); consumers refuse to move to a lower revision (the offline anti-replay rule, design threat 20)."
+    },
+    "issued_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+      "description": "Start of the assignment's validity window, RFC 3339 UTC ('Z' only). Must be strictly before expires_at (semantic load check)."
+    },
+    "expires_at": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+      "description": "End of the validity window. Expiry is mandatory for the same reason bundle expiry is (E13): an immortal routing statement would make revocation the only freshness mechanism. Recommended validity <= 90 days. An expired assignment stops directing NEW activations (treated as no-assignment, loudly); the already-activated bundle keeps working until ITS own expires_at."
+    },
+    "signature": {
+      "type": "object",
+      "required": ["algorithm", "key_id", "value"],
+      "additionalProperties": false,
+      "description": "OPTIONAL detached-signature envelope (decision 1: MIT core may distribute unsigned assignments because routing files grant no capability; the registered/business tier REQUIRES it). Exact E13 envelope shape, computed over the canonical JSON (UTF-8, sorted keys, no insignificant whitespace) of this document with the 'signature' member removed. key_id must equal issuer.key_id (semantic load check).",
+      "properties": {
+        "comment": { "type": "string", "description": "Annotation only; carries no semantics." },
+        "algorithm": {
+          "enum": ["ed25519"],
+          "description": "Signature algorithm. Fixed to ed25519 like every signature envelope in this stack; widening the enum requires a new reviewed design."
+        },
+        "key_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "description": "Identifier of the verification key in the member's local trusted-keys file; must equal issuer.key_id (semantic load check). Never a key value."
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "pattern": "^[A-Za-z0-9+/]+={0,2}$",
+          "description": "Base64-encoded detached Ed25519 signature bytes."
+        }
+      }
+    }
+  }
+}

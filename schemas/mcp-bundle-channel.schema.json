@@ -1,0 +1,107 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AI4sale/unlimited-skills/schemas/mcp-bundle-channel.schema.json",
+  "title": "Unlimited Tools MCP bundle distribution channel (E23 design)",
+  "description": "DESIGN (E23, docs/mcp-bundle-distribution.md): a named, ordered publish history for signed profile bundles (docs/mcp-signed-profile-bundles.md), owned by one issuer key. A channel is a local JSON FILE distributed over any transport (git repo, shared drive, future registry sync as a dumb carrier); it routes members to bundle file SHA-256s and grants NO capability by itself -- every routed bundle still passes the unchanged E14 verification against the member's E15 trust store, fail-closed with the reserved codes (-32014..-32019). Channel identity is the pair (name, owner.key_id); 'revision' is monotonic and consumers refuse to move to a lower revision (anti-replay). Exactly one history record has status 'active' and 'current' must equal its bundle_sha256 (semantic load checks, with non-decreasing published_at and signature.key_id equal to owner.key_id when signed -- enforced by the loader/tests, not this schema). The signature envelope is OPTIONAL in the format (MIT core may use unsigned channels locally, decision 1) and REQUIRED for registered/business-tier distribution; when present it is the exact E13 envelope over the canonical JSON (UTF-8, sorted keys, no insignificant whitespace) of this document minus 'signature'. History 'revoked' status is informational routing state only; authoritative revocation stays the E15 CRL. NOTHING in E23 is implemented or hosted; this schema fixes the file contract only.",
+  "type": "object",
+  "required": ["channel_version", "name", "revision", "owner", "history", "current"],
+  "additionalProperties": false,
+  "properties": {
+    "channel_version": { "const": 1 },
+    "comment": { "type": "string", "description": "Annotation only; carries no semantics." },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 64,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9_-]*$",
+      "description": "Operator-facing channel name (stable, beta, team-reviewers). Opaque: no semantics are parsed out of it. Channel identity is (name, owner.key_id) -- a name alone can never be squatted."
+    },
+    "revision": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Monotonic document revision; every republication bumps it. Consumers remember the highest revision applied per channel identity and refuse to move to a lower one (the offline anti-replay rule, design threat 20)."
+    },
+    "owner": {
+      "type": "object",
+      "required": ["key_id", "display"],
+      "additionalProperties": false,
+      "description": "The channel's owning issuer. Trust decisions use key_id plus the member's local trusted-keys file ONLY; display is for messages and grants nothing.",
+      "properties": {
+        "comment": { "type": "string", "description": "Annotation only; carries no semantics." },
+        "key_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "description": "Opaque identifier of the owning/signing key (the E13 key_id grammar); must equal signature.key_id when the document is signed (semantic load check). Never a key value."
+        },
+        "display": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "description": "Human-readable owner name for messages. Never used for trust decisions."
+        }
+      }
+    },
+    "history": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "description": "Append-only publish history, oldest first, published_at non-decreasing (semantic load check). Exactly one record has status 'active' (semantic load check). A sha256 may appear more than once: rollback re-publishes a prior sha as a NEW active record at a higher document revision -- history is never rewritten or deleted.",
+      "items": {
+        "type": "object",
+        "required": ["bundle_sha256", "published_at", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "comment": { "type": "string", "description": "Annotation only; carries no semantics." },
+          "bundle_sha256": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "description": "SHA-256 (lowercase hex) of the signed bundle file bytes -- the same content address the E20 library and the E15 CRL use."
+          },
+          "published_at": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+            "description": "When this record was published, RFC 3339 UTC ('Z' only). Non-decreasing across the array (semantic load check)."
+          },
+          "status": {
+            "enum": ["active", "superseded", "revoked"],
+            "description": "Routing state: 'active' (the single current record), 'superseded' (replaced by a later record), 'revoked' (do not activate -- informational; authoritative revocation stays the E15 CRL, which member-side verification enforces regardless, -32017 bundle_revoked)."
+          }
+        }
+      }
+    },
+    "current": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$",
+      "description": "The current pointer: must equal the bundle_sha256 of the single history record with status 'active' (semantic load check) -- the pointer and the history can never disagree."
+    },
+    "signature": {
+      "type": "object",
+      "required": ["algorithm", "key_id", "value"],
+      "additionalProperties": false,
+      "description": "OPTIONAL detached-signature envelope (decision 1: MIT core may distribute unsigned channels because routing files grant no capability; the registered/business tier REQUIRES it). Exact E13 envelope shape, computed over the canonical JSON (UTF-8, sorted keys, no insignificant whitespace) of this document with the 'signature' member removed. key_id must equal owner.key_id (semantic load check).",
+      "properties": {
+        "comment": { "type": "string", "description": "Annotation only; carries no semantics." },
+        "algorithm": {
+          "enum": ["ed25519"],
+          "description": "Signature algorithm. Fixed to ed25519 like every signature envelope in this stack; widening the enum requires a new reviewed design."
+        },
+        "key_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9_.:-]*$",
+          "description": "Identifier of the verification key in the member's local trusted-keys file; must equal owner.key_id (semantic load check). Never a key value."
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 1024,
+          "pattern": "^[A-Za-z0-9+/]+={0,2}$",
+          "description": "Base64-encoded detached Ed25519 signature bytes."
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "assignment_version": 1,
+  "comment": "E23 distribution assignment example (docs/mcp-bundle-distribution.md). Routes the team:core-ai4sale audience through the 'stable' channel of examples/mcp/bundle-channel.example.json in PIN mode: activate exactly the named bundle sha256 (the channel example's current pointer) and ignore channel movement until this assignment is reissued. In 'follow' mode the bundle_sha256 member MUST be absent (exactly one artifact owns the pointer -- the channel). The sha256 is a PLACEHOLDER (repeated single hex digit, clearly fake) and the signature value is base64 of 64 zero bytes, clearly fake -- E23 is design-only and nothing verifies it. The routed bundle still passes the unchanged E14 verification against the member's E15 trust store, including the bundle's OWN audience binding.",
+  "audience": ["team:core-ai4sale"],
+  "channel": {
+    "comment": "The FULL channel identity pair (name + owner key id): an assignment can never be satisfied by a same-named channel from a different owner.",
+    "name": "stable",
+    "owner_key_id": "ai4sale-team-profiles-2026"
+  },
+  "mode": "pin",
+  "bundle_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+  "issuer": {
+    "comment": "Trust decisions use key_id plus the member's local trusted-keys file only; display grants nothing.",
+    "key_id": "ai4sale-team-profiles-2026",
+    "display": "AI4SALE platform team"
+  },
+  "revision": 2,
+  "issued_at": "2026-06-08T00:00:00Z",
+  "expires_at": "2026-09-01T00:00:00Z",
+  "signature": {
+    "comment": "PLACEHOLDER signature: base64 of 64 zero bytes -- obviously fake, for shape illustration only. Optional in the format (MIT core); REQUIRED for registered/business-tier distribution. A real value is the detached Ed25519 signature over the canonical JSON (UTF-8, sorted keys, no insignificant whitespace) of this document with the 'signature' member removed.",
+    "algorithm": "ed25519",
+    "key_id": "ai4sale-team-profiles-2026",
+    "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+  }
+}

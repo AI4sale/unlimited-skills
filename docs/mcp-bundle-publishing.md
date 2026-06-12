@@ -201,3 +201,19 @@ and `library rollback` walks the activation history back to the previous
 known-good bundle -- the operational answer to "which of my published
 bundles is installed, which is active, and how do I roll back". See
 [mcp-bundle-library.md](mcp-bundle-library.md).
+
+## Team distribution: channels and assignments (E23, design only)
+
+How the bundles this ceremony emits reach a whole TEAM -- named publish
+CHANNELS (stable/beta/...) and per-audience ASSIGNMENTS (follow a channel
+or pin one exact bundle SHA-256) -- is designed in
+[mcp-bundle-distribution.md](mcp-bundle-distribution.md)
+(`schemas/mcp-bundle-channel.schema.json`,
+`schemas/mcp-bundle-assignment.schema.json`). Channels and assignments are
+plain local FILES distributable over any transport (git repo, shared
+drive, future registry sync as a dumb carrier); they route members to
+bundles and grant nothing by themselves -- every routed bundle still
+passes this document's verify step unchanged. The ceremony's `MANIFEST`
+SHA-256 and `ROLLBACK` previous-bundle metadata are exactly what channel
+publish records carry. Design only: nothing hosted, no registry API, no
+new keys, no changes to this ceremony.

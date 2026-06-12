@@ -1,0 +1,38 @@
+{
+  "channel_version": 1,
+  "comment": "E23 distribution channel example (docs/mcp-bundle-distribution.md). A named, ordered publish history for signed profile bundles, owned by one issuer key and distributed as a plain file over any transport. The sha256 values are PLACEHOLDERS (repeated single hex digits, clearly fake) and the signature value is base64 of 64 zero bytes, clearly fake -- E23 is design-only and nothing verifies it. The history illustrates a rollback-by-superseding-record: team-v2 was revoked, so revision 3 re-publishes the team-v1 sha as a NEW active record; history is append-only and never rewritten.",
+  "name": "stable",
+  "revision": 3,
+  "owner": {
+    "comment": "Trust decisions use key_id plus the member's local trusted-keys file only; display is for messages and grants nothing.",
+    "key_id": "ai4sale-team-profiles-2026",
+    "display": "AI4SALE platform team"
+  },
+  "history": [
+    {
+      "comment": "team-v1: the original stable publish (E19 ceremony output).",
+      "bundle_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "published_at": "2026-06-01T00:00:00Z",
+      "status": "superseded"
+    },
+    {
+      "comment": "team-v2: withdrawn via 'mcp trust revoke --bundle-sha256 ...'. This status is informational routing state; the authoritative revocation is the E15 CRL, which member-side verification enforces regardless (-32017 bundle_revoked).",
+      "bundle_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+      "published_at": "2026-06-05T00:00:00Z",
+      "status": "revoked"
+    },
+    {
+      "comment": "Rollback by superseding record: re-publishes the team-v1 sha as the single active record at a higher document revision.",
+      "bundle_sha256": "1111111111111111111111111111111111111111111111111111111111111111",
+      "published_at": "2026-06-08T00:00:00Z",
+      "status": "active"
+    }
+  ],
+  "current": "1111111111111111111111111111111111111111111111111111111111111111",
+  "signature": {
+    "comment": "PLACEHOLDER signature: base64 of 64 zero bytes -- obviously fake, for shape illustration only. Optional in the format (MIT core); REQUIRED for registered/business-tier distribution. A real value is the detached Ed25519 signature over the canonical JSON (UTF-8, sorted keys, no insignificant whitespace) of this document with the 'signature' member removed.",
+    "algorithm": "ed25519",
+    "key_id": "ai4sale-team-profiles-2026",
+    "value": "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+  }
+}
