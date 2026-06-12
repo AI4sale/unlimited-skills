@@ -1,0 +1,80 @@
+name: Publish PyPI
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Package version to publish. For v0.5 public alpha this must be 0.5.0."
+        required: true
+        type: string
+      expected_sha:
+        description: "Exact main commit SHA selected for the release."
+        required: true
+        type: string
+      confirm_pypi_publish:
+        description: "Type: publish unlimited-skills 0.5.0 to PyPI"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  PYTHONUNBUFFERED: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+jobs:
+  publish:
+    name: Publish unlimited-skills 0.5.0 to PyPI
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/unlimited-skills/
+    steps:
+      - name: Checkout selected release commit
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.expected_sha }}
+
+      - name: Validate manual release inputs
+        run: |
+          test "${{ github.event.inputs.version }}" = "0.5.0"
+          test "${{ github.event.inputs.confirm_pypi_publish }}" = "publish unlimited-skills 0.5.0 to PyPI"
+          test "$(git rev-parse HEAD)" = "${{ github.event.inputs.expected_sha }}"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install build twine
+
+      - name: Run v0.5 package smoke
+        run: python scripts/run-v050-alpha-package-smoke.py --json
+
+      - name: Run prepublish verifier
+        run: |
+          python scripts/verify-v050-alpha-publication.py \
+            --expected-sha "${{ github.event.inputs.expected_sha }}" \
+            --package-availability prepublish \
+            --json
+
+      - name: Build distribution artifacts
+        run: python -m build
+
+      - name: Check distribution metadata
+        run: python -m twine check dist/*
+
+      - name: Publish to PyPI with Trusted Publishing
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: dist/
