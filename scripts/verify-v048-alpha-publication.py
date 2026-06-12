@@ -86,6 +86,12 @@ def plugin_versions() -> tuple[str, str]:
     return str(plugin["version"]), str(marketplace["plugins"][0]["version"])
 
 
+def version_tuple(value: str) -> tuple[int, int, int]:
+    parts = value.split(".")
+    require(len(parts) == 3 and all(part.isdigit() for part in parts), f"invalid version: {value}")
+    return tuple(int(part) for part in parts)  # type: ignore[return-value]
+
+
 def git_head() -> str:
     return run_git(["rev-parse", "HEAD"]).stdout.strip()
 
@@ -215,9 +221,16 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     assert_clean_worktree()
-    require(package_version() == VERSION, f"pyproject version must be {VERSION}")
-    require(init_version() == VERSION, f"__version__ must be {VERSION}")
-    require(plugin_versions() == (VERSION, VERSION), "Claude plugin and marketplace versions must match package version")
+    pkg_version = package_version()
+    init_ver = init_version()
+    plugin_ver, marketplace_ver = plugin_versions()
+    require(version_tuple(pkg_version) >= version_tuple(VERSION), f"pyproject version must be >= {VERSION}")
+    require(version_tuple(init_ver) >= version_tuple(VERSION), f"__version__ must be >= {VERSION}")
+    require(
+        version_tuple(plugin_ver) >= version_tuple(VERSION)
+        and version_tuple(marketplace_ver) >= version_tuple(VERSION),
+        "Claude plugin and marketplace versions must be >= release version",
+    )
     existing_tag = tag_exists(RELEASE)
     if args.allow_existing_tag:
         require(args.expected_tag_sha is not None, "--expected-tag-sha is required with --allow-existing-tag")
