@@ -220,7 +220,7 @@ def load_gateway_config(path: Path) -> dict:
     bounds, the removed v1 ``env`` map) are :class:`GatewayConfigError` here,
     before any process is spawned.
     """
-    path = Path(path)
+    path = Path(path).expanduser()
     if not path.is_file():
         raise GatewayConfigError(f"Gateway config not found: {path}")
     try:

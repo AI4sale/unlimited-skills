@@ -12,7 +12,6 @@ import copy
 import difflib
 import json
 import os
-import re
 import shutil
 from dataclasses import dataclass
 from datetime import datetime
@@ -26,10 +25,8 @@ PROJECT_CONFIG_NAME = ".mcp.json"
 PROJECT_GATEWAY_CONFIG = Path(".unlimited-skills") / "mcp" / "claude-code-gateway.json"
 GLOBAL_GATEWAY_CONFIG = Path(".unlimited-skills") / "mcp" / "claude-code-gateway.json"
 
-SENSITIVE_KEY_RE = re.compile(
-    r"(token|secret|key|password|proof|auth|credential|cookie|session|signature|cert|private|env)",
-    re.IGNORECASE,
-)
+_GATEWAY_ARGS_PREFIX = ["mcp", "gateway", "--config"]
+_HIDDEN_ENTRY = "(existing entry, content hidden)"
 
 
 @dataclass(frozen=True)
@@ -93,44 +90,85 @@ def _backup(path: Path) -> Path | None:
     return backup
 
 
-def _redact_for_output(value: Any, *, parent_key: str = "") -> Any:
-    if isinstance(value, dict):
-        redacted: dict[str, Any] = {}
-        for key, item in value.items():
-            key_text = str(key)
-            if SENSITIVE_KEY_RE.search(key_text):
-                if isinstance(item, dict):
-                    redacted[key_text] = {str(child): "[redacted]" for child in item}
-                elif isinstance(item, list):
-                    redacted[key_text] = ["[redacted]" for _ in item]
-                else:
-                    redacted[key_text] = "[redacted]"
-            else:
-                redacted[key_text] = _redact_for_output(item, parent_key=key_text)
-        return redacted
-    if isinstance(value, list):
-        return [_redact_for_output(item, parent_key=parent_key) for item in value]
-    if isinstance(value, str):
-        if SENSITIVE_KEY_RE.search(parent_key):
-            return "[redacted]"
-        return scrub_paths(value)
-    return value
+def _is_gateway_entry(entry: Any) -> bool:
+    """True only for the exact entry shape this installer generates.
+
+    Anything else -- including a same-named entry with extra keys, a foreign
+    command, or non-string args -- is treated as foreign content and never
+    rendered into the diff.
+    """
+    return (
+        isinstance(entry, dict)
+        and set(entry) == {"command", "args"}
+        and entry.get("command") == "unlimited-skills"
+        and isinstance(entry.get("args"), list)
+        and len(entry["args"]) == len(_GATEWAY_ARGS_PREFIX) + 1
+        and entry["args"][: len(_GATEWAY_ARGS_PREFIX)] == _GATEWAY_ARGS_PREFIX
+        and isinstance(entry["args"][len(_GATEWAY_ARGS_PREFIX)], str)
+    )
+
+
+def _render_entry_lines(entry: Any) -> list[str]:
+    """Render ONLY our server entry as JSON lines for the diff.
+
+    Our generated entry contains no secrets by construction; its single free
+    string (the gateway config path) is still path-scrubbed. Any entry that
+    is not byte-for-byte our shape is replaced by a placeholder so foreign
+    content never reaches the output under any key.
+    """
+    if entry is None:
+        return _dump_json({}).splitlines()
+    if _is_gateway_entry(entry):
+        rendered: Any = {
+            "command": entry["command"],
+            "args": entry["args"][:-1] + [scrub_paths(entry["args"][-1])],
+        }
+    else:
+        rendered = _HIDDEN_ENTRY
+    return _dump_json({SERVER_NAME: rendered}).splitlines()
 
 
 def _safe_diff(before: dict[str, Any], after: dict[str, Any], *, fromfile: str, tofile: str) -> str:
-    before_text = _dump_json(_redact_for_output(before)).splitlines()
-    after_text = _dump_json(_redact_for_output(after)).splitlines()
-    return "\n".join(
-        difflib.unified_diff(before_text, after_text, fromfile=fromfile, tofile=tofile, lineterm="")
+    """A privacy-safe unified diff of OUR entry only.
+
+    Other MCP servers are summarized by name, never by content, so secrets
+    in foreign server definitions (args, env, headers, anything) can not
+    leak into human or --json output.
+    """
+    before_servers = before.get("mcpServers") if isinstance(before.get("mcpServers"), dict) else {}
+    after_servers = after.get("mcpServers") if isinstance(after.get("mcpServers"), dict) else {}
+    lines = list(
+        difflib.unified_diff(
+            _render_entry_lines(before_servers.get(SERVER_NAME)),
+            _render_entry_lines(after_servers.get(SERVER_NAME)),
+            fromfile=fromfile,
+            tofile=tofile,
+            lineterm="",
+        )
     )
+    other_names = sorted(
+        str(name) for name in {**before_servers, **after_servers} if name != SERVER_NAME
+    )
+    if other_names:
+        lines.append(
+            f"(unchanged, hidden: {len(other_names)} other MCP server(s): {', '.join(other_names)})"
+        )
+    return "\n".join(lines)
 
 
 def _resolve_paths(options: ClaudeCodeMcpOptions) -> tuple[Path, Path, str]:
     project_root = options.project_root.expanduser().resolve()
     if options.scope == "global":
         config_path = options.claude_config.expanduser().resolve()
-        gateway_path = (options.gateway_config or (Path.home() / GLOBAL_GATEWAY_CONFIG)).expanduser().resolve()
-        gateway_arg = str(gateway_path)
+        if options.gateway_config is not None:
+            gateway_path = options.gateway_config.expanduser().resolve()
+            gateway_arg = str(gateway_path)
+        else:
+            # Keep the global entry portable: write a "~/..." literal instead
+            # of this machine's absolute home path. The gateway CLI and
+            # load_gateway_config() both expanduser() the --config argument.
+            gateway_path = (Path.home() / GLOBAL_GATEWAY_CONFIG).resolve()
+            gateway_arg = "~/" + GLOBAL_GATEWAY_CONFIG.as_posix()
     else:
         config_path = project_root / PROJECT_CONFIG_NAME
         gateway_path = (options.gateway_config or (project_root / PROJECT_GATEWAY_CONFIG)).expanduser().resolve()
@@ -194,6 +232,7 @@ def install_claude_code_gateway(options: ClaudeCodeMcpOptions) -> dict[str, Any]
         "dry_run": options.dry_run,
         "backup_created": False,
         "backup_file": None,
+        "backup_path": None,
         "gateway_config_created": gateway_created,
         "diff": config_diff,
         "next_steps": [
@@ -212,6 +251,7 @@ def install_claude_code_gateway(options: ClaudeCodeMcpOptions) -> dict[str, Any]
         _atomic_write_json(gateway_path, gateway_payload)
     report["backup_created"] = backup is not None
     report["backup_file"] = backup.name if backup is not None else None
+    report["backup_path"] = str(backup) if backup is not None else None
     return report
 
 
@@ -238,6 +278,7 @@ def uninstall_claude_code_gateway(options: ClaudeCodeMcpOptions) -> dict[str, An
         "dry_run": options.dry_run,
         "backup_created": False,
         "backup_file": None,
+        "backup_path": None,
         "diff": _safe_diff(before, after, fromfile="before", tofile="after") if changed else "",
         "next_steps": ["Restart Claude Code so it reloads MCP servers."],
     }
@@ -248,6 +289,7 @@ def uninstall_claude_code_gateway(options: ClaudeCodeMcpOptions) -> dict[str, An
         _atomic_write_json(config_path, after)
     report["backup_created"] = backup is not None
     report["backup_file"] = backup.name if backup is not None else None
+    report["backup_path"] = str(backup) if backup is not None else None
     return report
 
 
@@ -311,7 +353,7 @@ def format_claude_code_gateway_report(report: dict[str, Any]) -> str:
         f"- backup created: {report['backup_created']}",
     ]
     if report.get("backup_file"):
-        lines.append(f"- backup file: {report['backup_file']}")
+        lines.append(f"- backup file: {report.get('backup_path') or report['backup_file']}")
     if report["action"] == "install":
         lines.append(f"- gateway config created: {report['gateway_config_created']}")
     if report.get("diff"):
