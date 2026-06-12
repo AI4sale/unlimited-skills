@@ -337,7 +337,7 @@ def test_cli_json_report_and_privacy(
                     "env": {"FAKE_REQUIRED_TOKEN": "expected-value", "EXTRA_SECRET": secret_value},
                 },
                 "dead": {
-                    "command": str(Path("C:/secret-place/secret-server.exe")),
+                    "command": "unlimited-skills-definitely-missing-server-exe",
                     "args": ["--token", secret_value],
                 },
             }
@@ -359,8 +359,7 @@ def test_cli_json_report_and_privacy(
         "expected-value",
         "text_param_alpha",  # schema property from the fake upstream
         "inputSchema",
-        "secret-server",
-        "secret-place",
+        "definitely-missing",
         os.path.basename(sys.executable),
         str(fake_upstream_script),
     ):

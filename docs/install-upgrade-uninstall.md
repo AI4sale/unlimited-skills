@@ -47,6 +47,8 @@ OpenClaw:
 
 PowerShell variants are available with the same names and `.ps1` extension.
 
+Regenerating the router contract: the installers are idempotent for guidance files — re-running them replaces everything between the `<!-- BEGIN UNLIMITED SKILLS -->` / `<!-- END UNLIMITED SKILLS -->` markers in `CLAUDE.md` / `AGENTS.md` with the current router block (the `suggest`-first contract), without touching surrounding content. The Claude Code installer also registers the SessionStart and UserPromptSubmit hooks in `~/.claude/settings.json` (pass `--no-hooks` to skip; the merge is idempotent and never duplicates entries).
+
 Installer hardening rules:
 
 - default installers patch agent guidance files unless the documented opt-out flag is passed;

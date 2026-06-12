@@ -146,6 +146,15 @@ unlimited-skills --root ~/.codex/.unlimited-skills/library reindex --no-native-s
 unlimited-skills search "security review" --mode hybrid --limit 8 --no-native-sync
 ```
 
+Then complete one full retrieval loop so the first session establishes the habit the router contract describes — probe, view, apply:
+
+```bash
+unlimited-skills suggest "security review before release"
+unlimited-skills view security-review
+```
+
+`suggest` is the cheap always-first probe: lexical-only, ~1 second cold, top-3 one-liners, and silence (exit 0, no output) when nothing clears the score floor. Silence is an answer: proceed with the task without re-searching synonyms.
+
 For registered features, run:
 
 ```bash

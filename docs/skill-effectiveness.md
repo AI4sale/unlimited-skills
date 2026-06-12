@@ -43,29 +43,32 @@ If no skill crosses the floor, continue normally.
 
 ## A0 Merge Gate
 
-Run the frozen fixture gate before merging skill-routing, ranking, hook,
-indexing, or release-readiness changes:
+Run the frozen eval gate before merging skill-routing, ranking, hook, indexing,
+or release-readiness changes:
 
 ```bash
-python scripts/check-skill-effectiveness.py --fixture-mode --json
+python scripts/check-skill-effectiveness.py --json --no-record
 python scripts/verify-skill-effectiveness-gate.py
 ```
 
-The A0 fixture set contains 30 positive skill-eligible scenarios and 10
-negative no-skill scenarios.
+The A0 eval set lives in `evals/invocation-scenarios.json` and contains 30
+positive skill-eligible scenarios plus 12 negative no-skill scenarios. The
+checker runs the real cold `suggest` subprocess for every scenario, including
+the ambient card path used by hooks.
 
 Minimum A0 merge thresholds:
 
 - positive scenarios: `30`;
-- negative scenarios: `10`;
+- negative scenarios: `12`;
 - top-1 hit rate: `>= 0.55`;
 - top-3 hit rate: `>= 0.83`;
 - false positive rate: `<= 0.10`;
 - p90 suggest latency: `<= 1500ms`;
 - p95 suggest latency: `<= 2500ms`;
-- no skill body leak;
+- injection precision: `>= 0.90`;
+- no negative scenario receives a skill card;
+- no unintended skill body leak outside the sanctioned tier-3 card channel;
 - no prompt upload;
-- no tool output upload;
 - no local path leak.
 
 ## v0.5 Release Gate
@@ -73,7 +76,7 @@ Minimum A0 merge thresholds:
 Before a v0.5 public adoption release, run:
 
 ```bash
-python scripts/check-skill-effectiveness.py --fixture-mode --gate v0.5-release --json
+python scripts/verify-skill-effectiveness-gate.py --gate v0.5-release
 ```
 
 The v0.5 gate raises quality and latency thresholds:
@@ -94,6 +97,13 @@ Run this gate:
 - after changes to ranking, router instructions, hooks, indexing, or skill
   import behavior.
 
-The fixture gate is a deterministic release gate. Real model behavior should
-also be observed locally with redacted invocation reports, but those reports are
-not CI gates yet because they depend on agent behavior outside this repository.
+For release cadence, refresh the compact record only after a full accepted run:
+
+```bash
+python scripts/check-skill-effectiveness.py --json
+git add evals/last-effectiveness-run.json
+```
+
+The eval gate is deterministic and local. Real model behavior should also be
+observed locally with redacted invocation reports, but those reports are not CI
+gates yet because they depend on agent behavior outside this repository.

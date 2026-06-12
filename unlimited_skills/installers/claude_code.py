@@ -32,6 +32,7 @@ class ClaudeCodeInstallOptions:
     patch_claude: bool = True
     patch_global_claude: bool = True
     include_project_skills: bool = True
+    register_hooks: bool = True
     skip_reindex: bool = False
     vector_reindex: bool = False
     python_executable: str = sys.executable
@@ -52,6 +53,8 @@ class ClaudeCodeInstallReport:
     router_installed: bool = False
     claude_patched: bool = False
     global_claude_patched: bool = False
+    hooks_registered: bool = False
+    hooks_settings_file: str = ""
     lexical_index: str = "skipped"
     vector_index: str = "skipped"
     remote_config: str = ""
@@ -83,6 +86,10 @@ class ClaudeCodeInstallReport:
             f"  project path: {self.claude_file or '<skipped>'}",
             f"  global patched: {'yes' if self.global_claude_patched else 'no'}",
             f"  global path: {self.global_claude_file or '<skipped>'}",
+            "",
+            "Hooks:",
+            f"  registered: {'yes' if self.hooks_registered else 'no'}",
+            f"  settings file: {self.hooks_settings_file or '<skipped>'}",
             "",
             "Migrations:",
         ]
@@ -143,7 +150,7 @@ def _write_launchers(sh_launcher: Path, ps_launcher: Path, repo_root: Path, libr
         f"  export PYTHONPATH={sh_repo_root}\n"
         "fi\n"
         f"export UNLIMITED_SKILLS_CLAUDE_PROJECT_ROOT={sh_project_root}\n"
-        f"exec {sh_python} -m unlimited_skills.cli --root {sh_library_root} \"$@\"\n",
+        f"exec {sh_python} -m unlimited_skills --root {sh_library_root} \"$@\"\n",
         encoding="utf-8",
     )
     try:
@@ -158,7 +165,7 @@ def _write_launchers(sh_launcher: Path, ps_launcher: Path, repo_root: Path, libr
         "$ErrorActionPreference = \"Stop\"\n"
         f"$env:PYTHONPATH = {json.dumps(str(repo_root))} + [System.IO.Path]::PathSeparator + $env:PYTHONPATH\n"
         f"$env:UNLIMITED_SKILLS_CLAUDE_PROJECT_ROOT = {json.dumps(str(project_root))}\n"
-        f"& {json.dumps(python_executable)} -m unlimited_skills.cli --root {json.dumps(str(library_root))} @Args\n",
+        f"& {json.dumps(python_executable)} -m unlimited_skills --root {json.dumps(str(library_root))} @Args\n",
         encoding="utf-8",
     )
 
@@ -176,50 +183,51 @@ def _render_router_skill(router_skill: Path, sh_launcher: Path, ps_launcher: Pat
     router_skill.write_text(text, encoding="utf-8")
 
 
+def router_block_lines(sh_text: str, ps_text: str) -> list[str]:
+    """The managed CLAUDE.md router block (A0 contract).
+
+    Regenerable: re-running the installer replaces everything between the
+    BEGIN/END UNLIMITED SKILLS markers with the current contract.
+    """
+    return [
+        "<!-- BEGIN UNLIMITED SKILLS -->",
+        "## Unlimited Skills Library",
+        "",
+        "A local library of 250+ proven skills (checklists, workflows, regression recipes) that are deliberately NOT in your skill list. A 1-second lookup often replaces 20 minutes of rediscovery — the library has shipped-and-tested procedures for most recurring tasks.",
+        "",
+        "RUN this single command BEFORE starting any task that matches a trigger below. It costs ~1 second and returns at most 3 one-liners (or nothing):",
+        "",
+        "```bash",
+        f"\"{sh_text}\" suggest \"<task in 3-8 keywords>\"",
+        "```",
+        "",
+        "On Windows PowerShell:",
+        "",
+        "```powershell",
+        f"powershell -NoProfile -ExecutionPolicy Bypass -File \"{ps_text}\" suggest \"<task in 3-8 keywords>\"",
+        "```",
+        "",
+        "TRIGGERS (any one suffices):",
+        "",
+        "- writing or reviewing code in a named language/framework (React, Python, Go, n8n, ...)",
+        "- review, audit, or security check of any artifact",
+        "- writing tests, fixing a bug, or debugging a failure",
+        "- git/GitHub workflows: branches, PRs, releases, changelogs",
+        "- writing prose: docs, posts, outreach, marketing, research reports",
+        "- planning, refactoring, migrations, deployments, ops procedures",
+        "- the user names a skill, workflow, or asks \"what can you do\"",
+        "",
+        "ACT on the result: if a suggestion looks relevant, run `view <skill-name>` with the same launcher and follow it. If `suggest` returns nothing, proceed — do not search again with synonyms. For deeper retrieval use `search \"<query>\" --mode hybrid --limit 8`; for inventory questions use `list --limit 80`.",
+        "",
+        "SKIP only when a relevant skill is already active in the current context.",
+        "<!-- END UNLIMITED SKILLS -->",
+        "",
+    ]
+
+
 def _patch_claude_file(claude_file: Path, sh_launcher: Path, ps_launcher: Path) -> None:
     claude_file.parent.mkdir(parents=True, exist_ok=True)
-    sh_text = sh_launcher.as_posix()
-    ps_text = ps_launcher.as_posix()
-    block = "\n".join(
-        [
-            "<!-- BEGIN UNLIMITED SKILLS -->",
-            "## Unlimited Skills Library",
-            "",
-            "Unlimited Skills is the external skill memory for Claude Code. Treat it as the first place to ask for task-specific skills, workflows, checklists, procedures, and regression recipes that may not be visible in Claude Code's current skill listing.",
-            "",
-            "Before doing substantive work, check whether Unlimited Skills has a relevant skill. This includes writing, editing, coding, review, debugging, research, documentation, operations, planning, and design tasks. Skip this check only when a relevant skill is already active in the current context and it is clear why that skill applies.",
-            "",
-            "Search first, view one, then act. For unfamiliar or procedure-like tasks, run the cheap suggestion probe first. If it returns a relevant skill, view that skill before creating a custom solution. If no relevant skill is suggested, continue normally.",
-            "",
-            "Before saying a skill is unavailable, query the library:",
-            "",
-            "```bash",
-            f"\"{sh_text}\" suggest \"<task or skill name>\" --limit 3",
-            f"\"{sh_text}\" search \"<task or skill name>\" --mode hybrid --limit 8",
-            f"\"{sh_text}\" where <skill-name>",
-            f"\"{sh_text}\" view <skill-name>",
-            "```",
-            "",
-            "On Windows PowerShell, use:",
-            "",
-            "```powershell",
-            f"powershell -NoProfile -ExecutionPolicy Bypass -File \"{ps_text}\" suggest \"<task or skill name>\" --limit 3",
-            f"powershell -NoProfile -ExecutionPolicy Bypass -File \"{ps_text}\" search \"<task or skill name>\" --mode hybrid --limit 8",
-            f"powershell -NoProfile -ExecutionPolicy Bypass -File \"{ps_text}\" where <skill-name>",
-            f"powershell -NoProfile -ExecutionPolicy Bypass -File \"{ps_text}\" view <skill-name>",
-            "```",
-            "",
-            "For inventory questions, query the library before answering:",
-            "",
-            "```bash",
-            f"\"{sh_text}\" list --limit 80",
-            "```",
-            "",
-            "Do not rely only on `~/.claude/skills`, `.claude/skills`, or the visible skill list. The library may contain skills that are intentionally not loaded into context.",
-            "<!-- END UNLIMITED SKILLS -->",
-            "",
-        ]
-    )
+    block = "\n".join(router_block_lines(sh_launcher.as_posix(), ps_launcher.as_posix()))
     pattern_start = "<!-- BEGIN UNLIMITED SKILLS -->"
     pattern_end = "<!-- END UNLIMITED SKILLS -->"
     text = claude_file.read_text(encoding="utf-8", errors="replace") if claude_file.is_file() else ""
@@ -233,6 +241,67 @@ def _patch_claude_file(claude_file: Path, sh_launcher: Path, ps_launcher: Path) 
     else:
         text = block
     claude_file.write_text(text, encoding="utf-8")
+
+
+HOOK_SCRIPTS = ("_cli_resolve.py", "session_start.py", "user_prompt_submit.py")
+HOOK_EVENTS = {"SessionStart": "session_start.py", "UserPromptSubmit": "user_prompt_submit.py"}
+HOOK_TIMEOUTS = {"SessionStart": 15, "UserPromptSubmit": 10}
+
+
+def _copy_hook_scripts(repo_root: Path, hooks_target: Path) -> bool:
+    source_dir = repo_root / "plugin" / "hooks"
+    if not all((source_dir / script).is_file() for script in HOOK_SCRIPTS):
+        return False
+    hooks_target.mkdir(parents=True, exist_ok=True)
+    for script in HOOK_SCRIPTS:
+        shutil.copy2(source_dir / script, hooks_target / script)
+    return True
+
+
+def _is_unlimited_skills_hook_entry(entry: object) -> bool:
+    if not isinstance(entry, dict):
+        return False
+    for hook in entry.get("hooks") or []:
+        command = str(hook.get("command") or "") if isinstance(hook, dict) else ""
+        if "unlimited-skills" in command and any(script in command for script in HOOK_SCRIPTS):
+            return True
+    return False
+
+
+def _register_claude_hooks(settings_file: Path, hooks_dir: Path, python_executable: str) -> tuple[bool, str]:
+    """Merge SessionStart/UserPromptSubmit hook commands into settings.json.
+
+    Idempotent: previous unlimited-skills hook entries are replaced. Fails
+    soft (returns False + reason) when the settings file is unparseable, so
+    the install never destroys user configuration.
+    """
+    try:
+        text = settings_file.read_text(encoding="utf-8") if settings_file.is_file() else ""
+    except OSError as exc:
+        return False, f"could not read {settings_file}: {exc}"
+    try:
+        payload = json.loads(text) if text.strip() else {}
+    except json.JSONDecodeError:
+        return False, f"{settings_file} is not valid JSON; hooks were not registered."
+    if not isinstance(payload, dict):
+        return False, f"{settings_file} does not contain a JSON object; hooks were not registered."
+
+    hooks_section = payload.setdefault("hooks", {})
+    if not isinstance(hooks_section, dict):
+        return False, f"{settings_file} has a non-object 'hooks' section; hooks were not registered."
+
+    for event, script in HOOK_EVENTS.items():
+        entries = hooks_section.get(event)
+        if not isinstance(entries, list):
+            entries = []
+        entries = [entry for entry in entries if not _is_unlimited_skills_hook_entry(entry)]
+        command = f'"{python_executable}" "{hooks_dir / script}"'
+        entries.append({"hooks": [{"type": "command", "command": command, "timeout": HOOK_TIMEOUTS[event]}]})
+        hooks_section[event] = entries
+
+    settings_file.parent.mkdir(parents=True, exist_ok=True)
+    settings_file.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    return True, ""
 
 
 def install_claude_code(options: ClaudeCodeInstallOptions) -> ClaudeCodeInstallReport:
@@ -256,8 +325,10 @@ def install_claude_code(options: ClaudeCodeInstallOptions) -> ClaudeCodeInstallR
 
     transaction = InstallTransaction("claude-code", install_root)
     global_claude_file = claude_home / "CLAUDE.md"
+    settings_file = claude_home / "settings.json"
     claude_patched = False
     global_claude_patched = False
+    hooks_registered = False
     migrations: list[MigrationResult] = []
     lexical_index = "skipped"
     vector_index = "skipped"
@@ -294,6 +365,19 @@ def install_claude_code(options: ClaudeCodeInstallOptions) -> ClaudeCodeInstallR
                 transaction.snapshot_file(global_claude_file)
                 _patch_claude_file(global_claude_file, sh_launcher, ps_launcher)
                 global_claude_patched = True
+
+        # Deterministic per-session / per-prompt hook delivery for the legacy
+        # (non-plugin) install path: copy the plugin hook scripts next to the
+        # router and register them in the Claude Code settings file.
+        if options.register_hooks:
+            hooks_dir = router_target / "hooks"
+            if _copy_hook_scripts(repo_root, hooks_dir):
+                transaction.snapshot_file(settings_file)
+                hooks_registered, hook_message = _register_claude_hooks(settings_file, hooks_dir, options.python_executable)
+                if hook_message:
+                    messages.append(hook_message)
+            else:
+                messages.append("Plugin hook scripts not found in the repo; Claude Code hooks were not registered.")
 
         if options.mode == "bundled":
             for pack in ("ecc", "superpowers"):
@@ -383,6 +467,8 @@ def install_claude_code(options: ClaudeCodeInstallOptions) -> ClaudeCodeInstallR
         router_installed=router_target.is_dir(),
         claude_patched=claude_patched,
         global_claude_patched=global_claude_patched,
+        hooks_registered=hooks_registered,
+        hooks_settings_file=str(settings_file) if options.register_hooks else "",
         lexical_index=lexical_index,
         vector_index=vector_index,
         remote_config=remote_config,
@@ -419,6 +505,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--no-claude-patch", action="store_true")
     parser.add_argument("--no-global-claude-patch", action="store_true")
     parser.add_argument("--no-project-skills", action="store_true")
+    parser.add_argument("--no-hooks", action="store_true", help="Do not register SessionStart/UserPromptSubmit hooks in Claude Code settings.json.")
     parser.add_argument("--python-executable", default=sys.executable)
     parser.add_argument("--skip-reindex", action="store_true")
     parser.add_argument("--vector-reindex", action="store_true")
@@ -452,6 +539,7 @@ def main(argv: list[str] | None = None) -> int:
             patch_claude=not args.no_claude_patch,
             patch_global_claude=not args.no_global_claude_patch,
             include_project_skills=not args.no_project_skills,
+            register_hooks=not args.no_hooks,
             skip_reindex=args.skip_reindex,
             vector_reindex=args.vector_reindex,
             python_executable=args.python_executable,
