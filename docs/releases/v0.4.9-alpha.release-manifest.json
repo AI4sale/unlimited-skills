@@ -6,10 +6,10 @@
   "distribution": "github-clone-alpha",
   "git": {
     "base_branch": "main",
-    "publication_branch": "release/v0.4.9-alpha-profile-rollout-integration",
+    "publication_branch": "release/v0.4.9-alpha-final-publication",
     "tag": "v0.4.9-alpha",
-    "tag_status": "not_created_by_codex",
-    "tag_target_sha_policy": "Codex must not create or push v0.4.9-alpha from the integration gate. The final publication PR owns tag verification."
+    "tag_status": "pending_codex_publication_after_verifier",
+    "tag_target_sha_policy": "Codex may create and push v0.4.9-alpha only after final publication verifier passes on the selected main SHA."
   },
   "required_prs": {
     "public": [
@@ -36,6 +36,12 @@
         "epic": "E16",
         "title": "MCP profile rollout simulator and policy doctor",
         "status": "merged"
+      },
+      {
+        "number": 112,
+        "epic": "v0.4.9",
+        "title": "v0.4.9-alpha MCP profile rollout simulator integration gate",
+        "status": "merged"
       }
     ]
   },
@@ -44,7 +50,8 @@
     "fixture_mode": true,
     "profile_rollout_integration": true,
     "dry_run_only": true,
-    "codex_must_not_push_tag": true,
+    "codex_must_not_push_tag": false,
+    "codex_pushes_tag": true,
     "production_rollout": false,
     "profile_activation": false,
     "trust_store_mutation": false,
@@ -74,6 +81,8 @@
     "rollout_runtime": "unlimited_skills/mcp/profile_rollout.py",
     "rollout_smoke_runner": "scripts/run-v049-alpha-profile-rollout-smoke.py",
     "rollout_verifier": "scripts/verify-v049-alpha-profile-rollout.py",
+    "release_smoke_runner": "scripts/run-v049-alpha-release-smoke.py",
+    "publication_verifier": "scripts/verify-v049-alpha-publication.py",
     "integration_test": "tests/integration/test_v049_alpha_profile_rollout.py"
   }
 }
