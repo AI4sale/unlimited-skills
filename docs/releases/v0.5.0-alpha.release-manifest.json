@@ -5,17 +5,19 @@
   "distribution": "package-first-public-alpha",
   "git": {
     "base_branch": "main",
-    "publication_branch": "release/v0.5.0-public-alpha",
+    "publication_branch": "release/v0.5.0-alpha-final-publication",
     "tag": "v0.5.0-alpha",
-    "tag_status": "blocked_until_final_verifier_and_release_owner_approval",
-    "tag_target_sha_policy": "Codex may create and push v0.5.0-alpha only after the final verifier passes on the selected release commit and the release owner approves publication."
+    "tag_status": "pending_codex_publication_after_verifier",
+    "tag_target_sha_policy": "Codex may create and push v0.5.0-alpha only after the final verifier passes on the selected release commit after PyPI availability is verified."
   },
   "required_prs": {
     "public": [
       {"number": 120, "title": "chore: lock post-review effectiveness thresholds and add durable knowledge records"},
       {"number": 121, "title": "docs: reposition README around context savings and golden path (A2)"},
       {"number": 122, "title": "fix: redact local paths from quickstart report"},
-      {"number": 123, "title": "docs: add v0.5 public alpha review pack (A3 prep)"}
+      {"number": 123, "title": "docs: add v0.5 public alpha review pack (A3 prep)"},
+      {"number": 124, "title": "chore: prepare v0.5 public alpha package gate"},
+      {"number": 125, "title": "docs: add v0.5 launch announcement draft and PyPI-flip UX copy review"}
     ]
   },
   "package_evidence": {
@@ -43,6 +45,6 @@
     "hosted_gateway": false,
     "full_catalog_distribution": false,
     "auto_publish": false,
-    "pypi_command_flip_before_availability": false
+    "pypi_command_flip": true
   }
 }

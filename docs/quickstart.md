@@ -1,7 +1,7 @@
 # Quickstart: the one-command golden path
 
 ```bash
-pip install "git+https://github.com/AI4sale/unlimited-skills.git"
+pip install unlimited-skills
 unlimited-skills quickstart
 ```
 
@@ -14,11 +14,8 @@ registration, no hosted calls, no uploads.
 
 1. **Library** — when the library root (`~/.unlimited-skills/library` by
    default) has zero skills, the bundled `ecc` and `superpowers` packs from
-   the repo's `packs/` directory are imported (the same import path the
-   installers' `bundled` mode uses) and the lexical index is rebuilt. A
-   non-empty library is left untouched. A pip install straight from GitHub
-   does not ship `packs/`; in that case the step prints a hint to run
-   `unlimited-skills install-pack ecc` instead.
+   the installed package or repo checkout are imported and the lexical index
+   is rebuilt. A non-empty library is left untouched.
 2. **First search** — one lexical search (your query or a demo query) with
    the top 3 hits, proving retrieval works end to end. Pass your own query:
    `unlimited-skills quickstart "postgres migration locks"`.
