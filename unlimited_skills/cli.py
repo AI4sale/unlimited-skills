@@ -916,6 +916,36 @@ def build_parser() -> argparse.ArgumentParser:
     mcp_savings.add_argument("--timeout", type=float, default=12.0, help="Per-server measurement timeout in seconds (default 12). An unreachable server becomes a skipped row, never a failure.")
     mcp_savings.add_argument("--claude-config", default="", help="Override the Claude Code config path (default ~/.claude.json).")
     mcp_savings.set_defaults(func=mcp_cmds.cmd_mcp_savings)
+
+    def add_install_common(command: argparse.ArgumentParser) -> None:
+        command.add_argument("--claude-code", dest="claude_code", action="store_true", help="Target Claude Code (required; the only supported host today).")
+        scope = command.add_mutually_exclusive_group()
+        scope.add_argument("--project", action="store_true", help="Project scope: ./.mcp.json in the current directory (the default).")
+        scope.add_argument("--global", dest="global_scope", action="store_true", help="Global scope: the top-level mcpServers map of ~/.claude.json.")
+        command.add_argument("--json", action="store_true", help="Print a machine-readable report (server names and file paths only; never env values).")
+
+    mcp_install = mcp_sub.add_parser(
+        "install",
+        help="One command: register the Unlimited Tools gateway as the 'unlimited-tools' MCP server in your Claude Code config. Timestamped backup before any write, idempotent rerun, other servers never touched, unparseable configs refused (even with --force). The written entry calls the pip-installed `unlimited-skills` CLI -- no repo paths.",
+    )
+    add_install_common(mcp_install)
+    mcp_install.add_argument("--force", action="store_true", help="Replace an existing 'unlimited-tools' entry whose content differs (a timestamped backup is written first). Never applies to a config that does not parse.")
+    mcp_install.add_argument("--dry-run", action="store_true", help="Show the before/after diff of the one managed entry and write nothing.")
+    mcp_install.set_defaults(func=mcp_cmds.cmd_mcp_install)
+    mcp_uninstall = mcp_sub.add_parser(
+        "uninstall",
+        help="Remove ONLY the 'unlimited-tools' gateway entry from your Claude Code config (timestamped backup first). Idempotent: 'not installed' exits 0.",
+    )
+    add_install_common(mcp_uninstall)
+    mcp_uninstall.add_argument("--dry-run", action="store_true", help="Show the before/after diff of the one managed entry and write nothing.")
+    mcp_uninstall.set_defaults(func=mcp_cmds.cmd_mcp_uninstall)
+    mcp_install_status = mcp_sub.add_parser(
+        "install-status",
+        help="Show where the 'unlimited-tools' gateway is registered (./.mcp.json and ~/.claude.json). Read-only. Exit 0 when installed somewhere, 1 when not.",
+    )
+    mcp_install_status.add_argument("--claude-code", dest="claude_code", action="store_true", help="Target Claude Code (required; the only supported host today).")
+    mcp_install_status.add_argument("--json", action="store_true", help="Print a machine-readable report (server names and file paths only; never env values).")
+    mcp_install_status.set_defaults(func=mcp_cmds.cmd_mcp_install_status)
     mcp_trust = mcp_sub.add_parser(
         "trust",
         help="Manage the local trust store for signed MCP profile bundles: PUBLIC keys and the local CRL. Offline only -- no registry sync, no hosted calls, never private keys.",
@@ -1583,6 +1613,9 @@ from .commands.team import (
 from .commands.mcp import (
     cmd_mcp_audit_report,
     cmd_mcp_gateway,
+    cmd_mcp_install,
+    cmd_mcp_install_status,
+    cmd_mcp_uninstall,
     cmd_mcp_profiles_doctor,
     cmd_mcp_profiles_replay_audit,
     cmd_mcp_profiles_rollout_plan,

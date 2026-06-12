@@ -54,6 +54,102 @@ def cmd_mcp_savings(args: argparse.Namespace) -> int:
     return 0
 
 
+def _install_scope(args: argparse.Namespace) -> str:
+    return "global" if getattr(args, "global_scope", False) else "project"
+
+
+def _require_claude_code(args: argparse.Namespace, action: str) -> bool:
+    if getattr(args, "claude_code", False):
+        return True
+    print(
+        f"mcp {action}: pass --claude-code (Claude Code is the only supported "
+        "host today; the flag keeps the command explicit when more hosts land).",
+        file=sys.stderr,
+    )
+    return False
+
+
+def _log_install_event(args: argparse.Namespace, report: dict) -> None:
+    """Best-effort local learning-log snapshot: status and scope only, no paths."""
+    from .. import cli
+
+    try:
+        cli.log_event(
+            Path(args.root).expanduser(),
+            f"mcp_{report['action'].replace('-', '_')}",
+            {"status": report.get("status", ""), "scope": report.get("scope", "")},
+        )
+    except OSError:
+        pass
+
+
+def cmd_mcp_install(args: argparse.Namespace) -> int:
+    """A3.1: one-command Claude Code registration of the Unlimited Tools gateway.
+
+    Writes the ``unlimited-tools`` server entry into ``./.mcp.json``
+    (``--project``, the default) or the top-level ``mcpServers`` of
+    ``~/.claude.json`` (``--global``) -- the same places ``mcp savings``
+    reads. Backup before any write, idempotent, never touches other servers,
+    refuses an unparseable config, and prints only names and paths (never
+    env values). See unlimited_skills/mcp/install.py for the full contract.
+    """
+    import json
+
+    from ..mcp.install import format_install_text, install_claude_code
+
+    if not _require_claude_code(args, "install"):
+        return 2
+    report = install_claude_code(
+        _install_scope(args),
+        force=bool(getattr(args, "force", False)),
+        dry_run=bool(getattr(args, "dry_run", False)),
+    )
+    _log_install_event(args, report)
+    if getattr(args, "json", False):
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+    elif report["status"] == "refused":
+        print(format_install_text(report), file=sys.stderr)
+    else:
+        print(format_install_text(report))
+    return int(report["exit_code"])
+
+
+def cmd_mcp_uninstall(args: argparse.Namespace) -> int:
+    import json
+
+    from ..mcp.install import format_uninstall_text, uninstall_claude_code
+
+    if not _require_claude_code(args, "uninstall"):
+        return 2
+    report = uninstall_claude_code(
+        _install_scope(args),
+        dry_run=bool(getattr(args, "dry_run", False)),
+    )
+    _log_install_event(args, report)
+    if getattr(args, "json", False):
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+    elif report["status"] == "refused":
+        print(format_uninstall_text(report), file=sys.stderr)
+    else:
+        print(format_uninstall_text(report))
+    return int(report["exit_code"])
+
+
+def cmd_mcp_install_status(args: argparse.Namespace) -> int:
+    import json
+
+    from ..mcp.install import format_status_text, install_status
+
+    if not _require_claude_code(args, "install-status"):
+        return 2
+    report = install_status()
+    if getattr(args, "json", False):
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(format_status_text(report))
+    return int(report["exit_code"])
+
+
 def cmd_mcp_audit_report(args: argparse.Namespace) -> int:
     import json
 

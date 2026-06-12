@@ -166,7 +166,7 @@ def run_quickstart(
         "savings": savings,
         "savings_error": savings_error,
         "next_steps": [
-            "unlimited-skills mcp gateway --config ~/.unlimited-skills/gateway-config.json",
+            "unlimited-skills mcp install --claude-code",
             "unlimited-skills setup --local-only",
         ],
     }
@@ -228,9 +228,9 @@ def format_quickstart_text(report: dict) -> str:
     lines.extend(
         [
             "[4/4] Next steps",
-            "  - Front your MCP servers with the gateway (3 meta-tools instead of every schema):",
-            "      unlimited-skills mcp gateway --config ~/.unlimited-skills/gateway-config.json",
-            "    Claude Code registration example: docs/unlimited-tools.md",
+            "  - Register the Unlimited Tools gateway in Claude Code (one command; 3 meta-tools instead of every schema):",
+            "      unlimited-skills mcp install --claude-code",
+            "    Then restart your Claude Code session. Details: docs/unlimited-tools.md",
             "  - Guided setup (router skill, agents, diagnostics):",
             "      unlimited-skills setup --local-only",
             "  - Docs: docs/quickstart.md",

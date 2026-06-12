@@ -171,5 +171,5 @@ def test_quickstart_text_renders_all_steps(fixture_repo: Path, tmp_path: Path) -
     assert "[2/4] First search" in text
     assert "[3/4] MCP context savings" in text
     assert "[4/4] Next steps" in text
-    assert "unlimited-skills mcp gateway" in text
+    assert "unlimited-skills mcp install --claude-code" in text
     assert "unlimited-skills setup --local-only" in text

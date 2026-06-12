@@ -24,6 +24,23 @@ The plugin needs the CLI for actual retrieval. Install Unlimited Skills first (s
 
 Restart the session after installing so the SessionStart hook runs.
 
+## Connect the Unlimited Tools MCP gateway
+
+The plugin covers skill routing; the MCP gateway (3 meta-tools fronting all your MCP servers — see [unlimited-tools.md](unlimited-tools.md)) is registered with one command:
+
+```bash
+unlimited-skills mcp install --claude-code
+```
+
+By default this writes the `unlimited-tools` server entry into the project's `./.mcp.json`; pass `--global` to write the top-level `mcpServers` map of `~/.claude.json` instead. The command is safe by construction: it backs up an existing config (timestamped, next to the original, path printed) before any write, never touches other configured servers, is idempotent (rerunning reports "already installed" and changes nothing), refuses to replace a differing `unlimited-tools` entry without `--force`, and refuses to modify a config it cannot parse — even with `--force`. `--dry-run` shows the before/after diff of the one managed entry without writing; `--json` prints a machine-readable report (server names and file paths only — never configured env values). The written entry invokes the pip-installed `unlimited-skills` CLI with a portable `~/...` gateway-config path, so it works on any machine without a repo checkout. A minimal `~/.unlimited-skills/gateway-config.json` is created when none exists; add your upstream servers there.
+
+After installing, restart your Claude Code session to load the gateway. Companion commands:
+
+```bash
+unlimited-skills mcp install-status --claude-code   # where is it registered? (exit 0 installed / 1 not)
+unlimited-skills mcp uninstall --claude-code        # remove only the unlimited-tools entry (backup first)
+```
+
 ## Plugin vs legacy installer
 
 | Aspect | Plugin (recommended for Claude Code) | `scripts/install-claude-code.*` |
