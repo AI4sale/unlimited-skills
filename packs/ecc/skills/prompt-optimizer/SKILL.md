@@ -1,6 +1,10 @@
 ---
 name: prompt-optimizer
 description: >-
+  Analyze a draft prompt, critique it, and output a complete optimized prompt
+  ready to paste and run. Use for prompt engineering requests: optimizing or
+  rewriting prompts, improving agent instructions, or asking how to phrase a
+  task for Claude Code or another LLM agent.
 version: 1.0.0
 category: ecc
 tags: "[prompt-optimizer, ecc]"

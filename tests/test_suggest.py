@@ -45,8 +45,10 @@ def test_suggest_text_output_is_one_line_per_hit(library: Path, capsys: pytest.C
     assert rc == 0
     lines = [line for line in captured.out.splitlines() if line.strip()]
     assert 1 <= len(lines) <= 3
-    assert lines[0].startswith("python-patterns — ")
-    assert lines[0].rstrip().endswith(")")
+    # name + source + short description only: no absolute paths, no scores.
+    assert lines[0].startswith("python-patterns [local] — ")
+    assert str(library) not in captured.out
+    assert ":\\" not in captured.out and ":/" not in captured.out
 
 
 def test_suggest_prints_nothing_below_floor_and_exits_zero(library: Path, capsys: pytest.CaptureFixture) -> None:
@@ -56,16 +58,49 @@ def test_suggest_prints_nothing_below_floor_and_exits_zero(library: Path, capsys
     assert captured.out == ""
 
 
-def test_suggest_json_contract(library: Path, capsys: pytest.CaptureFixture) -> None:
-    rc = suggest.main(["python code review pep8", "--root", str(library), "--floor", "1", "--json"])
+def test_suggest_json_contract_is_privacy_hardened(library: Path, capsys: pytest.CaptureFixture) -> None:
+    query = "python code review pep8"
+    rc = suggest.main([query, "--root", str(library), "--floor", "1", "--json"])
+    raw = capsys.readouterr().out
+    payload = json.loads(raw)
+    assert rc == 0
+    # ONLY the contract keys — no query echo, no paths, no bodies.
+    assert set(payload) == {"task_summary_hash", "top_3_skill_candidates", "reason_code", "recommended_next_action", "latency_ms"}
+    assert payload["task_summary_hash"] == suggest.task_summary_hash(query)
+    assert query not in raw
+    assert str(library) not in raw and ":\\" not in raw
+    assert payload["reason_code"] == "match_found"
+    assert payload["recommended_next_action"] == "unlimited-skills view python-patterns"
+    assert isinstance(payload["latency_ms"], (int, float))
+    candidates = payload["top_3_skill_candidates"]
+    assert candidates and len(candidates) <= 3
+    for candidate in candidates:
+        assert set(candidate) == {"name", "source", "score"}
+    assert candidates[0]["name"] == "python-patterns"
+    assert candidates[0]["source"] == "local"
+    assert candidates[0]["score"] >= 1
+
+
+def test_suggest_json_reason_codes(library: Path, tmp_path: Path, capsys: pytest.CaptureFixture) -> None:
+    rc = suggest.main(["quantum yodeling", "--root", str(library), "--floor", "50", "--json"])
     payload = json.loads(capsys.readouterr().out)
     assert rc == 0
-    assert isinstance(payload, list) and payload
-    assert {"name", "description", "collection", "path", "score"} <= set(payload[0])
+    assert payload["top_3_skill_candidates"] == []
+    assert payload["reason_code"] == "below_floor"
+    assert "proceed with the task" in payload["recommended_next_action"]
 
-    rc = suggest.main(["quantum yodeling", "--root", str(library), "--floor", "50", "--json"])
+    rc = suggest.main(["python code review", "--root", str(tmp_path / "nope"), "--json"])
+    payload = json.loads(capsys.readouterr().out)
     assert rc == 0
-    assert json.loads(capsys.readouterr().out) == []
+    assert payload["top_3_skill_candidates"] == []
+    assert payload["reason_code"] == "empty_library"
+
+
+def test_task_summary_hash_normalizes_and_never_echoes() -> None:
+    assert suggest.task_summary_hash("Fix  My   Bug") == suggest.task_summary_hash("fix my bug")
+    digest = suggest.task_summary_hash("fix my bug")
+    assert len(digest) == 12
+    assert all(char in "0123456789abcdef" for char in digest)
 
 
 def test_suggest_logs_event_best_effort(library: Path, capsys: pytest.CaptureFixture) -> None:

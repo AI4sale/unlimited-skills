@@ -15,7 +15,8 @@ Hard guarantees:
 - no below-floor noise: when `suggest` returns nothing, the hook prints
   nothing;
 - privacy: the prompt text goes only to the local CLI; nothing is logged
-  here.
+  here, the injected hint never echoes the prompt text, and it carries no
+  local filesystem paths (skills are referenced by NAME only).
 """
 from __future__ import annotations
 
@@ -27,7 +28,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-from _cli_resolve import display_command, resolve_cli_command  # noqa: E402
+from _cli_resolve import resolve_cli_command  # noqa: E402
 
 MIN_PROMPT_CHARS = 12
 MAX_PROMPT_CHARS = 300
@@ -59,19 +60,24 @@ def main() -> int:
         )
         if proc.returncode != 0 or not proc.stdout.strip():
             return 0
-        hits = json.loads(proc.stdout)
-        if not isinstance(hits, list) or not hits:
+        payload_out = json.loads(proc.stdout)
+        if not isinstance(payload_out, dict):
             return 0
-        top = hits[0]
+        candidates = payload_out.get("top_3_skill_candidates")
+        if not isinstance(candidates, list) or not candidates:
+            return 0
+        top = candidates[0]
+        if not isinstance(top, dict):
+            return 0
         name = str(top.get("name") or "").strip()
         if not name:
             return 0
-        description = " ".join(str(top.get("description") or "").split())
-        if len(description) > 120:
-            description = description[:117].rstrip() + "..."
+        source = str(top.get("source") or "").strip()
+        origin = f" (from the {source} pack)" if source else ""
+        # NAME-only reference: no local paths, no prompt text echo.
         hint = (
-            f"Relevant skill available: {name} — {description} "
-            f"View it with: {display_command(command)} view {name}"
+            f"Relevant skill available: {name}{origin} — "
+            f"view it with: unlimited-skills view {name}"
         )
         print(
             json.dumps(

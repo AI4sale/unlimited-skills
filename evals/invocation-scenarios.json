@@ -9,7 +9,8 @@
     "expect_no_skill scenarios MUST return nothing at the default suggest floor: silence beats noise.",
     "forbidden_top1 marks the wrong-ecosystem hijackers observed in the baseline; the ecosystem ranking guard must keep them out of the top spot.",
     "S22 was a GAP in the diagnosis report (no typescript-* skill); reclassified as a positive because the bundled library does carry TypeScript-ecosystem skills (prisma/nestjs/vite/backend patterns) that legitimately answer the query.",
-    "N1-N5 are added negative scenarios (the report's frozen set had only library-gap negatives)."
+    "N1-N5 are added negative scenarios (the report's frozen set had only library-gap negatives).",
+    "N6-N10 are the Hermes A0 merge-gate negatives: pure conversation, factual question, opinion ask, trivial one-off command, wording request. With S18/S28 the no-skill pool is 12; the FP gate (<= 0.10) is measured over all of them."
   ],
   "scenarios": [
     {"id": "S1", "category": "debugging", "prompt": "Debug an intermittently failing test", "query": "debug intermittent failing test root cause", "expected_skills": ["systematic-debugging", "test-driven-development", "e2e-testing", "ai-regression-testing"]},
@@ -46,6 +47,11 @@
     {"id": "N2", "category": "none", "prompt": "General-knowledge question", "query": "what is the capital of Australia", "expected_skills": [], "expect_no_skill": true},
     {"id": "N3", "category": "none", "prompt": "Casual translation request", "query": "translate this short letter into French", "expected_skills": [], "expect_no_skill": true},
     {"id": "N4", "category": "none", "prompt": "Personal life planning", "query": "plan a birthday dinner menu for eight guests", "expected_skills": [], "expect_no_skill": true},
-    {"id": "N5", "category": "none", "prompt": "Everyday physical-world task", "query": "fix a flat bicycle tire", "expected_skills": [], "expect_no_skill": true}
+    {"id": "N5", "category": "none", "prompt": "Everyday physical-world task", "query": "fix a flat bicycle tire", "expected_skills": [], "expect_no_skill": true},
+    {"id": "N6", "category": "none", "prompt": "Pure conversation, no task at all", "query": "good morning how is your day going so far", "expected_skills": [], "expect_no_skill": true},
+    {"id": "N7", "category": "none", "prompt": "Factual question answered from general knowledge", "query": "how many moons does the planet jupiter have", "expected_skills": [], "expect_no_skill": true},
+    {"id": "N8", "category": "none", "prompt": "Opinion / judgment ask, no procedure helps", "query": "do you think remote work beats working from an office", "expected_skills": [], "expect_no_skill": true},
+    {"id": "N9", "category": "none", "prompt": "Trivial one-off command, cheaper to just do it", "query": "delete the temp folder from my desktop", "expected_skills": [], "expect_no_skill": true},
+    {"id": "N10", "category": "none", "prompt": "Wording / phrasing request", "query": "make this sentence sound more polite and formal", "expected_skills": [], "expect_no_skill": true}
   ]
 }

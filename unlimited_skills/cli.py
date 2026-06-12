@@ -491,6 +491,17 @@ def build_parser() -> argparse.ArgumentParser:
     suggest.add_argument("--json", action="store_true")
     suggest.set_defaults(func=library_cmds.cmd_suggest)
 
+    skills_parser = sub.add_parser("skills", help="Skill-quality operations (effectiveness regression check).")
+    skills_sub = skills_parser.add_subparsers(dest="skills_command", required=True)
+    skills_check = skills_sub.add_parser(
+        "check-effectiveness",
+        help="Run the skill-suggestion effectiveness regression check (wraps scripts/check-skill-effectiveness.py; the script remains the CI entry point).",
+    )
+    skills_check.add_argument("--json", action="store_true")
+    skills_check.add_argument("--cadence-check", action="store_true", help="Only verify the release-gap cadence; do not replay scenarios.")
+    skills_check.add_argument("--no-record", action="store_true", help="Do not write evals/last-effectiveness-run.json.")
+    skills_check.set_defaults(func=library_cmds.cmd_skills_check_effectiveness)
+
     list_parser = sub.add_parser("list", help="List available skills in the library.")
     list_parser.add_argument("--collection", help="Only list one collection.")
     list_parser.add_argument("--filter", default="", help="Filter by name, description, or body text.")
@@ -1495,6 +1506,7 @@ from .commands.library import (
     cmd_search,
     cmd_serve,
     cmd_setup,
+    cmd_skills_check_effectiveness,
     cmd_support_bundle,
     cmd_sync_native,
     cmd_use,

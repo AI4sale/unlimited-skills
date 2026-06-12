@@ -4,28 +4,56 @@ Owner directive: «Сделать фикс, написать стандартн�
 
 ## What is measured
 
-`scripts/check-skill-effectiveness.py` replays the frozen scenario set `evals/invocation-scenarios.json` (30 diagnosis scenarios + 5 added negatives) through the REAL cold `suggest` probe — one `python -m unlimited_skills suggest --json` subprocess per scenario, exactly the way agents and hooks invoke it — against the bundled 267-skill library (`packs/`).
+`scripts/check-skill-effectiveness.py` replays the frozen scenario set `evals/invocation-scenarios.json` (30 diagnosis scenarios + 10 added negatives N1–N10; with the two diagnosis no-skill scenarios S18/S28 that is 28 positives and 12 no-skill scenarios) through the REAL cold `suggest` probe — one `python -m unlimited_skills suggest --json` subprocess per scenario, exactly the way agents and hooks invoke it — against the bundled 267-skill library (`packs/`).
 
 Metrics:
 
 - **top-1 / top-3 hit rate** — share of positive scenarios where an expected skill is the first / among the (≤3) returned suggestions;
 - **false-positive rate** — share of no-skill scenarios where `suggest` returns ANYTHING above the score floor (silence beats noise);
 - **forbidden top-1 violations** — the wrong-ecosystem hijackers observed in the baseline (e.g. `flutter-dart-code-review` topping a Python review query) must never be top-1 again;
-- **cold-probe latency p50/p90/max** — wall time of the full subprocess, spawn included.
+- **cold-probe latency p50/p90/p95/max** — wall time of the full subprocess, spawn included (max is a warning above 5000 ms, not a gate — cold-spawn outliers happen; investigate if repeated);
+- **privacy invariants** — VERIFIED by scanning every actual probe output during the run, never assumed: `no_prompt_upload` (the task/query text never appears in suggest output — only `task_summary_hash`, a short sha256 of the normalized query), `no_local_path_leak` (no absolute filesystem paths anywhere in the output), `no_skill_body_leak` (no skill body content; verified against normalized chunks of every indexed body). All three must be true to PASS.
 
-## Thresholds (PASS/FAIL)
+## The `suggest --json` output contract (privacy-hardened)
 
-| Metric | Threshold | Measured 2026-06-12 (calibration run) |
+The probe's JSON output contains ONLY:
+
+| Field | Content |
+| --- | --- |
+| `task_summary_hash` | short sha256 (12 hex chars) of the lowercased, whitespace-normalized query — a correlation id, never the text |
+| `top_3_skill_candidates` | up to 3 objects with `name`, `source` (pack/collection), `score` — never paths, descriptions, or bodies |
+| `reason_code` | `match_found` / `below_floor` / `empty_library` / `error` |
+| `recommended_next_action` | a next step referencing skills by NAME only (e.g. `unlimited-skills view <name>`) |
+| `latency_ms` | in-process probe time |
+
+It never echoes the task/query text, never includes local filesystem paths, and never includes skill bodies. Text mode prints `name [source] — description` one-liners (no paths, no scores) or nothing. The `UserPromptSubmit` hook hint is built from this contract and is equally path-free and prompt-free.
+
+## Thresholds (PASS/FAIL — Hermes A0 merge gate)
+
+| Metric | A0 gate | Measured 2026-06-12 (post-gate run) |
 | --- | --- | --- |
-| top-3 hit rate | >= 0.60 | **0.821** (23/28 positives) |
-| false-positive rate | <= 0.10 | **0.000** (0/7 negatives) |
+| top-1 hit rate | >= 0.55 | **0.929** (26/28 positives) |
+| top-3 hit rate | >= 0.83 | **0.964** (27/28 positives) |
+| false-positive rate | <= 0.10 | **0.000** (0/12 negatives) |
 | forbidden top-1 violations | 0 | **0** |
-| latency p90 | <= 1500 ms | **~450 ms** (direct spawn; ~790 ms through the PowerShell launcher) |
-| top-1 hit rate (informational, no gate) | — | 0.821 |
+| latency p90 | <= 1500 ms | **~700 ms** (direct spawn) |
+| latency p95 | <= 2500 ms | **~710 ms** |
+| latency max | <= 5000 ms (warning only, unless repeated) | **~740 ms** |
+| privacy: no_skill_body_leak / no_prompt_upload / no_local_path_leak | all true | **all true** |
 
-Baseline before the A0 ranking fixes, same scenario set: top-1 0.679, top-3 0.750, false-positive rate 0.143, 2 forbidden top-1 violations (S2, S29); diagnosis-time top-1 relevance was 17/30 with `search --mode lexical` at 3.9 s and hybrid at 9.9 s per call.
+Planned v0.5 gate (tighten once the library and ranking stabilize; requires a fresh measured run before adoption):
 
-Known honest misses at the calibrated floor (12.0): S5 (PR description), S7 (safe refactor), S19 (generic profiling — `benchmark-optimization-loop` lands at 11, just under the floor), S27 (release notes), S29 (`prompt-optimizer` ships with a broken empty frontmatter description — library fix F8 pending). Raising the floor any lower than 12 readmits the strongest negative (N4 at 11). Do NOT tune queries to fix these; fix ranking or the library.
+| Metric | v0.5 gate |
+| --- | --- |
+| top-1 hit rate | >= 0.65 |
+| top-3 hit rate | >= 0.90 |
+| false-positive rate | <= 0.10 |
+| latency p90 | <= 1200 ms |
+| latency p95 | <= 2000 ms |
+
+History on the same frozen queries: baseline before the A0 ranking fixes — top-1 0.679, top-3 0.750, false-positive rate 0.143, 2 forbidden top-1 violations (S2, S29); diagnosis-time top-1 relevance was 17/30 with `search --mode lexical` at 3.9 s and hybrid at 9.9 s per call. A0 calibration run (2026-06-12, 5 negatives) — top-1 0.821, top-3 0.821, FP 0.000. Hermes-gate run (2026-06-12, 10 negatives) — top-1 0.929, top-3 0.964, FP 0.000 after: the `prompt-optimizer` pack description fix (S29 — the pack shipped a broken empty `description: >-` frontmatter scalar), the profiling↔benchmarking synonym group (S19), the `pull request`/`release notes` phrase-alias table (S5, S27). All of these are generic library/ranking fixes; no eval query is special-cased.
+
+Known honest miss at the calibrated floor (12.0): S7 (refactor a large module safely) — the best matching bundled skills (`hexagonal-architecture` at 4) sit far below the floor, and no generic synonym honestly bridges "refactor safely" to them. Raising the floor any lower than 12 readmits the strongest negative (N4 at 11). Do NOT tune queries to fix this; fix ranking or the library.
 
 ## How to run
 
@@ -38,9 +66,12 @@ python scripts/check-skill-effectiveness.py --json
 
 # cadence gate only (no scenario replay, < 1 s)
 python scripts/check-skill-effectiveness.py --cadence-check
+
+# CLI alias (wraps the same script logic; requires a source checkout)
+unlimited-skills skills check-effectiveness [--json] [--cadence-check] [--no-record]
 ```
 
-A full run writes `evals/last-effectiveness-run.json` — `{version, date, results, thresholds, pass}`. Commit that file together with the run.
+A full run writes `evals/last-effectiveness-run.json` — `{version, date, results (including the privacy booleans), thresholds, pass}`. Commit that file together with the run.
 
 ## Cadence contract (every 10 releases)
 

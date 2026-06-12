@@ -110,14 +110,21 @@ def test_session_start_resolves_rendered_launcher(tmp_path: Path) -> None:
 def test_user_prompt_submit_emits_hint_for_relevant_prompt(tmp_path: Path) -> None:
     library = make_library(tmp_path)
     env = hook_env(tmp_path, UNLIMITED_SKILLS_CLI=repo_cli_override(library))
-    payload = json.dumps({"prompt": "review my python module for pep8 issues and idioms"})
+    prompt = "review my python module for pep8 issues and idioms"
+    payload = json.dumps({"prompt": prompt})
     result = run_hook(USER_PROMPT_SUBMIT, payload, env)
     assert result.returncode == 0, result.stderr
     output = json.loads(result.stdout)
     specific = output["hookSpecificOutput"]
     assert specific["hookEventName"] == "UserPromptSubmit"
-    assert "Relevant skill available: python-patterns" in specific["additionalContext"]
-    assert "view python-patterns" in specific["additionalContext"]
+    hint = specific["additionalContext"]
+    assert "Relevant skill available: python-patterns" in hint
+    assert "unlimited-skills view python-patterns" in hint
+    # Privacy: the hint never echoes the prompt text and carries no local paths.
+    assert prompt not in hint
+    assert str(library) not in hint
+    assert str(tmp_path) not in hint
+    assert ":\\" not in hint and ":/" not in hint
 
 
 def test_user_prompt_submit_is_silent_below_floor(tmp_path: Path) -> None:

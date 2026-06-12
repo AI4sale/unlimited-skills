@@ -77,10 +77,32 @@ QUERY_EXPANSIONS = {
     "sql": "postgres postgresql mysql database query index",
     "prompt": "prompts prompting",
     "prompts": "prompt prompting",
+    # Performance-measurement vocabulary: profiling and benchmarking name the
+    # same activity (measure, compare, find the slow part) in different tools.
+    "profiling": "profiler benchmark benchmarking performance measure",
+    "profiler": "profiling benchmark benchmarking performance",
+    "benchmark": "benchmarks benchmarking profiling performance",
+    "benchmarking": "benchmark benchmarks profiling performance",
+    # Release vocabulary: changelogs/release notes/versioning are one workflow.
+    "changelog": "release notes versioning history",
+    "versioning": "version semver release changelog",
+    # Refactoring synonyms (verb stemming + common aliases).
+    "refactor": "refactoring restructure cleanup",
+    "refactoring": "refactor restructure cleanup",
+    "pr": "pull request github review merge",
     "токены": "token tokens oauth credentials auth secret",
     "безопасно": "security secure secrets credentials auth",
     "скил": "skill procedure workflow",
     "скилы": "skills procedures workflows",
+}
+
+# Multi-word aliases applied on the lowercased query before token expansion:
+# bigrams like "pull request" carry an ecosystem meaning their individual
+# tokens lack ("pull" and "request" alone are generic verbs/nouns).
+PHRASE_EXPANSIONS = {
+    "pull request": "pr github merge review branch",
+    "merge request": "pr mr github gitlab merge review",
+    "release notes": "changelog release versioning publish github",
 }
 
 # Ecosystem ranking guard (A0 fix): when the query clearly names one
@@ -162,8 +184,10 @@ def tokens(text: str) -> set[str]:
 
 
 def expanded_query(query: str) -> str:
+    q_lower = (query or "").lower()
+    extras = [expansion for phrase, expansion in PHRASE_EXPANSIONS.items() if phrase in q_lower]
     q_tokens = tokens(query)
-    extras = [QUERY_EXPANSIONS[tok] for tok in q_tokens if tok in QUERY_EXPANSIONS]
+    extras.extend(QUERY_EXPANSIONS[tok] for tok in q_tokens if tok in QUERY_EXPANSIONS)
     return query + (" " + " ".join(extras) if extras else "")
 
 

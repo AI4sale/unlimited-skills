@@ -61,11 +61,11 @@ def make_scenarios(tmp_path: Path) -> Path:
 def test_frozen_scenario_file_shape() -> None:
     payload = json.loads(SCENARIOS_FILE.read_text(encoding="utf-8"))
     scenarios = payload["scenarios"]
-    assert len(scenarios) == 35
+    assert len(scenarios) == 40
     ids = [scenario["id"] for scenario in scenarios]
-    assert len(set(ids)) == 35
+    assert len(set(ids)) == 40
     negatives = [scenario for scenario in scenarios if scenario.get("expect_no_skill")]
-    assert len(negatives) >= 5
+    assert len(negatives) >= 12  # S18, S28 + N1-N10 (Hermes gate: >= 10 added negatives)
     for scenario in scenarios:
         assert scenario["query"].strip()
         assert "category" in scenario
@@ -85,6 +85,7 @@ def test_checker_full_run_writes_record_and_passes(tmp_path: Path, checker, caps
             "--root", str(library),
             "--record", str(record),
             "--max-p90-ms", "30000",
+            "--max-p95-ms", "30000",
             "--json",
         ]
     )
@@ -96,11 +97,24 @@ def test_checker_full_run_writes_record_and_passes(tmp_path: Path, checker, caps
     assert summary["results"]["false_positive_rate"] == 0.0
     assert summary["results"]["forbidden_top1_violations"] == []
     assert summary["results"]["latency_ms"]["p90"] > 0
+    assert summary["results"]["latency_ms"]["p95"] >= summary["results"]["latency_ms"]["p90"]
+    # Privacy invariants are verified by scanning every actual probe output.
+    assert summary["results"]["privacy"] == {
+        "no_skill_body_leak": True,
+        "no_prompt_upload": True,
+        "no_local_path_leak": True,
+    }
+    assert summary["thresholds"]["min_top1"] == 0.55
+    assert summary["thresholds"]["min_top3"] == 0.83
+    assert summary["thresholds"]["max_fp"] == 0.10
+    assert summary["thresholds"]["max_p90_ms"] == 30000
+    assert summary["thresholds"]["max_p95_ms"] == 30000
 
     saved = json.loads(record.read_text(encoding="utf-8"))
     assert saved["version"]
     assert saved["date"]
     assert saved["results"]["top3_hit_rate"] == 1.0
+    assert saved["results"]["privacy"]["no_prompt_upload"] is True
     assert "scenarios" not in saved  # the record stays compact
 
 
@@ -117,6 +131,56 @@ def test_checker_fails_when_thresholds_not_met(tmp_path: Path, checker, capsys) 
     )
     capsys.readouterr()
     assert rc == 1
+
+
+def test_scan_privacy_detects_each_leak_class(checker) -> None:
+    snippets = frozenset({"a long enough normalized chunk of some skill body text to be unmistakable"})
+    clean = checker.scan_privacy('{"top_3_skill_candidates": [{"name": "python-patterns", "source": "local", "score": 18.0}]}', "fix python bug", snippets)
+    assert clean == {"prompt_leak": False, "path_leak": False, "body_leak": False}
+    assert checker.scan_privacy("Fix Python  Bug", "fix python bug", snippets)["prompt_leak"] is True
+    assert checker.scan_privacy(r'{"path": "C:\\Users\\someone\\skills"}', "q", snippets)["path_leak"] is True
+    assert checker.scan_privacy('{"path": "/home/someone/skills"}', "q", snippets)["path_leak"] is True
+    assert checker.scan_privacy("see https://example.com/docs", "q", snippets)["path_leak"] is False  # URLs are not local paths
+    assert checker.scan_privacy("A LONG ENOUGH normalized chunk of some skill body text to be unmistakable", "q", snippets)["body_leak"] is True
+
+
+def test_checker_fails_when_privacy_invariant_violated(tmp_path: Path, checker, capsys, monkeypatch) -> None:
+    library = make_library(tmp_path)
+    scenarios = make_scenarios(tmp_path)
+
+    real_run_scenario = checker.run_scenario
+
+    def leaky_run_scenario(python_exe, root, scenario, limit, floor, body_snippets):
+        row = real_run_scenario(python_exe, root, scenario, limit, floor, body_snippets)
+        row["privacy"]["path_leak"] = True  # simulate a path leaking into the output
+        return row
+
+    monkeypatch.setattr(checker, "run_scenario", leaky_run_scenario)
+    rc = checker.main(
+        [
+            "--scenarios", str(scenarios),
+            "--root", str(library),
+            "--no-record",
+            "--max-p90-ms", "30000",
+            "--max-p95-ms", "30000",
+            "--json",
+        ]
+    )
+    summary = json.loads(capsys.readouterr().out)
+    assert rc == 1
+    assert summary["pass"] is False
+    assert summary["results"]["privacy"]["no_local_path_leak"] is False
+
+
+def test_cli_alias_skills_check_effectiveness(capsys) -> None:
+    # `unlimited-skills skills check-effectiveness` wraps the script logic;
+    # cadence mode is deterministic against the committed record.
+    from unlimited_skills import cli
+
+    rc = cli.main(["skills", "check-effectiveness", "--cadence-check", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 0, payload
+    assert payload["ok"] is True
 
 
 def test_parse_version(checker) -> None:

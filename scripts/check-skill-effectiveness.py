@@ -8,10 +8,15 @@ agents and hooks invoke it) and reports:
 - top-1 / top-3 hit rate on scenarios with expected skills;
 - false-positive rate on the no-skill scenarios (any hit above the floor);
 - wrong-ecosystem top-1 violations (``forbidden_top1`` lists);
-- cold-probe latency p50/p90/max.
+- cold-probe latency p50/p90/p95/max (max is a warning, not a gate);
+- privacy invariants VERIFIED by scanning every actual probe output:
+  ``no_prompt_upload`` (the task/query text never appears in suggest output),
+  ``no_local_path_leak`` (no absolute filesystem paths), and
+  ``no_skill_body_leak`` (no skill body content). All three must be true to
+  PASS.
 
-PASS/FAIL thresholds are calibrated against the bundled library (see
-docs/adoption/skill-effectiveness-standard.md for the measured baseline).
+PASS/FAIL thresholds are the Hermes A0 merge-gate values (see
+docs/adoption/skill-effectiveness-standard.md for the measured numbers).
 
 Cadence contract («каждые 10 релизов прогоняется проверка эффективности»):
 a full run records ``evals/last-effectiveness-run.json``; ``--cadence-check``
@@ -41,14 +46,60 @@ DEFAULT_RECORD = REPO_ROOT / "evals" / "last-effectiveness-run.json"
 DEFAULT_RELEASES_DIR = REPO_ROOT / "docs" / "releases"
 DEFAULT_ROOT = REPO_ROOT / "packs"
 
-# Thresholds: calibrated 2026-06-12 against the bundled 267-skill library
-# (measured: top-1 0.821, top-3 0.821, FP 0.000, p90 ~0.45 s cold; see
-# docs/adoption/skill-effectiveness-standard.md). Thresholds sit below the
-# measured numbers so the check fails on real regressions, not on noise.
-DEFAULT_MIN_TOP3 = 0.60
+# Thresholds: the Hermes A0 merge-gate values (2026-06-12), set against the
+# bundled 267-skill library (see docs/adoption/skill-effectiveness-standard.md
+# for the measured numbers and the stricter v0.5 outlook). Thresholds sit
+# below the measured numbers so the check fails on real regressions, not on
+# noise. max latency over DEFAULT_WARN_MAX_MS is a WARNING only (cold-spawn
+# outliers happen); repeated violations should be investigated.
+DEFAULT_MIN_TOP1 = 0.55
+DEFAULT_MIN_TOP3 = 0.83
 DEFAULT_MAX_FP = 0.10
 DEFAULT_MAX_P90_MS = 1500.0
+DEFAULT_MAX_P95_MS = 2500.0
+DEFAULT_WARN_MAX_MS = 5000.0
 DEFAULT_MAX_RELEASE_GAP = 10
+
+# Absolute filesystem path detector for the privacy scan: Windows drive paths
+# (C:\..., C:/...; the (?!/) keeps protocol separators like :// out) and
+# rooted POSIX user/system paths.
+PATH_LEAK_RE = re.compile(
+    r"[A-Za-z]:[\\/](?!/)\S|(?:^|[\s\"'(=\[,])/(?:home|users|usr|var|opt|tmp|mnt|etc)/",
+    re.IGNORECASE,
+)
+
+
+def collect_body_snippets(root: Path) -> frozenset[str]:
+    """Whitespace-normalized chunks of every indexed skill body.
+
+    Used to VERIFY (not assume) that no skill body content appears in any
+    probe output: if any chunk shows up in a suggest stdout, the
+    ``no_skill_body_leak`` invariant fails.
+    """
+    from unlimited_skills.search_core import load_records
+
+    snippets: set[str] = set()
+    for _hit, body in load_records(root):
+        normalized = " ".join(str(body).split()).lower()
+        if len(normalized) < 80:
+            continue
+        snippets.add(normalized[:120])
+        middle = len(normalized) // 2
+        chunk = normalized[middle : middle + 120]
+        if len(chunk) >= 60:
+            snippets.add(chunk)
+    return frozenset(snippets)
+
+
+def scan_privacy(raw_stdout: str, query: str, body_snippets: frozenset[str]) -> dict:
+    """Scan one actual probe output for the three privacy invariants."""
+    normalized_out = " ".join(raw_stdout.split()).lower()
+    normalized_query = " ".join(query.split()).lower()
+    return {
+        "prompt_leak": bool(normalized_query) and normalized_query in normalized_out,
+        "path_leak": bool(PATH_LEAK_RE.search(raw_stdout)),
+        "body_leak": any(snippet in normalized_out for snippet in body_snippets),
+    }
 
 
 def parse_version(text: str) -> tuple[int, ...] | None:
@@ -95,7 +146,7 @@ def cadence_check(record_path: Path, releases_dir: Path, max_gap: int) -> tuple[
     )
 
 
-def run_scenario(python_exe: str, root: Path, scenario: dict, limit: int, floor: float | None) -> dict:
+def run_scenario(python_exe: str, root: Path, scenario: dict, limit: int, floor: float | None, body_snippets: frozenset[str]) -> dict:
     cmd = [python_exe, "-m", "unlimited_skills", "suggest", scenario["query"], "--root", str(root), "--json", "--limit", str(limit)]
     if floor is not None:
         cmd.extend(["--floor", str(floor)])
@@ -103,11 +154,15 @@ def run_scenario(python_exe: str, root: Path, scenario: dict, limit: int, floor:
     proc = subprocess.run(cmd, capture_output=True, text=True, timeout=30, cwd=str(REPO_ROOT))
     elapsed_ms = (time.perf_counter() - started) * 1000.0
     hits: list[dict] = []
+    reason_code = ""
     if proc.returncode == 0 and proc.stdout.strip():
         try:
             payload = json.loads(proc.stdout)
-            if isinstance(payload, list):
-                hits = [hit for hit in payload if isinstance(hit, dict)]
+            if isinstance(payload, dict):
+                candidates = payload.get("top_3_skill_candidates")
+                if isinstance(candidates, list):
+                    hits = [hit for hit in candidates if isinstance(hit, dict)]
+                reason_code = str(payload.get("reason_code") or "")
         except json.JSONDecodeError:
             hits = []
 
@@ -121,8 +176,10 @@ def run_scenario(python_exe: str, root: Path, scenario: dict, limit: int, floor:
         "category": scenario.get("category", ""),
         "query": scenario["query"],
         "hits": hit_names,
+        "reason_code": reason_code,
         "elapsed_ms": round(elapsed_ms, 1),
         "expect_no_skill": expect_no_skill,
+        "privacy": scan_privacy(proc.stdout or "", scenario["query"], body_snippets),
     }
     if expect_no_skill:
         result["false_positive"] = bool(hit_names)
@@ -157,9 +214,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--python", default=sys.executable, help="Python executable used to spawn the cold probe.")
     parser.add_argument("--limit", type=int, default=3)
     parser.add_argument("--floor", type=float, default=None, help="Override the suggest score floor.")
+    parser.add_argument("--min-top1", type=float, default=DEFAULT_MIN_TOP1)
     parser.add_argument("--min-top3", type=float, default=DEFAULT_MIN_TOP3)
     parser.add_argument("--max-fp", type=float, default=DEFAULT_MAX_FP)
     parser.add_argument("--max-p90-ms", type=float, default=DEFAULT_MAX_P90_MS)
+    parser.add_argument("--max-p95-ms", type=float, default=DEFAULT_MAX_P95_MS)
+    parser.add_argument("--warn-max-ms", type=float, default=DEFAULT_WARN_MAX_MS, help="Max single-probe latency above which a WARNING (not a failure) is reported.")
     parser.add_argument("--record", type=Path, default=DEFAULT_RECORD, help="Where the run record is written.")
     parser.add_argument("--no-record", action="store_true", help="Do not write the run record.")
     parser.add_argument("--json", action="store_true")
@@ -178,8 +238,9 @@ def main(argv: list[str] | None = None) -> int:
     root = args.root.expanduser()
     if not index_path(root).is_file():
         save_index(root)
+    body_snippets = collect_body_snippets(root)
 
-    results = [run_scenario(args.python, root, scenario, args.limit, args.floor) for scenario in scenarios]
+    results = [run_scenario(args.python, root, scenario, args.limit, args.floor, body_snippets) for scenario in scenarios]
 
     positives = [row for row in results if not row["expect_no_skill"]]
     negatives = [row for row in results if row["expect_no_skill"]]
@@ -190,12 +251,27 @@ def main(argv: list[str] | None = None) -> int:
     forbidden_violations = [row["id"] for row in results if row.get("forbidden_top1_violation")]
     p50 = percentile(latencies, 0.50)
     p90 = percentile(latencies, 0.90)
+    p95 = percentile(latencies, 0.95)
+    max_ms = max(latencies) if latencies else 0.0
+    latency_warning = max_ms > args.warn_max_ms
+
+    prompt_leaks = [row["id"] for row in results if row["privacy"]["prompt_leak"]]
+    path_leaks = [row["id"] for row in results if row["privacy"]["path_leak"]]
+    body_leaks = [row["id"] for row in results if row["privacy"]["body_leak"]]
+    privacy = {
+        "no_skill_body_leak": not body_leaks,
+        "no_prompt_upload": not prompt_leaks,
+        "no_local_path_leak": not path_leaks,
+    }
 
     passed = (
-        top3_rate >= args.min_top3
+        top1_rate >= args.min_top1
+        and top3_rate >= args.min_top3
         and fp_rate <= args.max_fp
         and p90 <= args.max_p90_ms
+        and p95 <= args.max_p95_ms
         and not forbidden_violations
+        and all(privacy.values())
     )
 
     summary = {
@@ -211,12 +287,18 @@ def main(argv: list[str] | None = None) -> int:
             "top3_hit_rate": round(top3_rate, 3),
             "false_positive_rate": round(fp_rate, 3),
             "forbidden_top1_violations": forbidden_violations,
-            "latency_ms": {"p50": round(p50, 1), "p90": round(p90, 1), "max": round(max(latencies), 1) if latencies else 0.0},
+            "latency_ms": {"p50": round(p50, 1), "p90": round(p90, 1), "p95": round(p95, 1), "max": round(max_ms, 1)},
+            "latency_max_warning": latency_warning,
+            "privacy": privacy,
+            "privacy_violations": {"prompt_upload": prompt_leaks, "local_path_leak": path_leaks, "skill_body_leak": body_leaks},
         },
         "thresholds": {
+            "min_top1": args.min_top1,
             "min_top3": args.min_top3,
             "max_fp": args.max_fp,
             "max_p90_ms": args.max_p90_ms,
+            "max_p95_ms": args.max_p95_ms,
+            "warn_max_ms": args.warn_max_ms,
         },
         "pass": passed,
         "scenarios": results,
@@ -241,11 +323,16 @@ def main(argv: list[str] | None = None) -> int:
                 status = "FORB"
             print(f"{row['id']:>4} [{status}] {row['elapsed_ms']:7.1f} ms  {row['query'][:48]:<50} -> {', '.join(row['hits'][:3]) or '<silence>'}")
         print()
-        print(f"top-1 hit rate:       {top1_rate:.3f}  ({len(positives)} positive scenarios)")
+        print(f"top-1 hit rate:       {top1_rate:.3f}  ({len(positives)} positive scenarios, threshold >= {args.min_top1})")
         print(f"top-3 hit rate:       {top3_rate:.3f}  (threshold >= {args.min_top3})")
         print(f"false-positive rate:  {fp_rate:.3f}  ({len(negatives)} no-skill scenarios, threshold <= {args.max_fp})")
         print(f"forbidden top-1:      {forbidden_violations or 'none'}")
-        print(f"latency ms:           p50={p50:.1f} p90={p90:.1f} max={max(latencies):.1f}  (p90 threshold <= {args.max_p90_ms:.0f})")
+        print(f"latency ms:           p50={p50:.1f} p90={p90:.1f} p95={p95:.1f} max={max_ms:.1f}  (p90 <= {args.max_p90_ms:.0f}, p95 <= {args.max_p95_ms:.0f})")
+        if latency_warning:
+            print(f"WARNING:              max latency {max_ms:.1f} ms exceeds {args.warn_max_ms:.0f} ms (warning only; investigate if repeated)")
+        print(f"privacy invariants:   no_skill_body_leak={privacy['no_skill_body_leak']} no_prompt_upload={privacy['no_prompt_upload']} no_local_path_leak={privacy['no_local_path_leak']}")
+        if prompt_leaks or path_leaks or body_leaks:
+            print(f"privacy violations:   prompt={prompt_leaks} paths={path_leaks} bodies={body_leaks}")
         print(f"RESULT:               {'PASS' if passed else 'FAIL'}")
         if not args.no_record:
             print(f"record:               {args.record}")
