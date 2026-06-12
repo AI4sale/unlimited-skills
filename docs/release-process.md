@@ -49,6 +49,27 @@ Thresholds, measured baselines, and rules live in [adoption/skill-effectiveness-
 - State that private signing keys are never shipped in the client or committed to the repo.
 - State that Local Skill Hub is allowlist-only until a release explicitly enables a broader distribution policy.
 
+## Skill Effectiveness Gate
+
+Unlimited Skills public adoption releases must prove that skill suggestions are
+fast, relevant, and privacy-safe. Run the deterministic A0 gate before merging
+changes to ranking, router instructions, hooks, indexing, or skill import
+behavior, and before every public adoption release:
+
+```bash
+python scripts/check-skill-effectiveness.py --json --no-record
+python scripts/verify-skill-effectiveness-gate.py
+```
+
+For the v0.5 public adoption release, use the stricter release gate:
+
+```bash
+python scripts/verify-skill-effectiveness-gate.py --gate v0.5-release
+```
+
+See [skill-effectiveness.md](skill-effectiveness.md) for thresholds, privacy
+boundaries, and the every-10-releases minimum.
+
 ## Smoke Tests
 
 Run the repeatable v0.2.x smoke suite first:

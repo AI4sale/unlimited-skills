@@ -62,9 +62,11 @@ def make_scenarios(tmp_path: Path) -> Path:
 def test_frozen_scenario_file_shape() -> None:
     payload = json.loads(SCENARIOS_FILE.read_text(encoding="utf-8"))
     scenarios = payload["scenarios"]
-    assert len(scenarios) == 40
+    assert len(scenarios) == 42
     ids = [scenario["id"] for scenario in scenarios]
-    assert len(set(ids)) == 40
+    assert len(set(ids)) == 42
+    positives = [scenario for scenario in scenarios if not scenario.get("expect_no_skill")]
+    assert len(positives) >= 30
     negatives = [scenario for scenario in scenarios if scenario.get("expect_no_skill")]
     assert len(negatives) >= 12  # S18, S28 + N1-N10 (Hermes gate: >= 10 added negatives)
     for scenario in scenarios:
@@ -94,6 +96,8 @@ def test_checker_full_run_writes_record_and_passes(tmp_path: Path, checker, caps
             "--scenarios", str(scenarios),
             "--root", str(library),
             "--record", str(record),
+            "--min-positives", "3",
+            "--min-negatives", "1",
             "--max-p90-ms", "30000",
             "--max-p95-ms", "30000",
             "--json",
@@ -125,6 +129,8 @@ def test_checker_full_run_writes_record_and_passes(tmp_path: Path, checker, caps
     assert summary["thresholds"]["min_top1"] == 0.55
     assert summary["thresholds"]["min_top3"] == 0.83
     assert summary["thresholds"]["max_fp"] == 0.10
+    assert summary["thresholds"]["min_positives"] == 3
+    assert summary["thresholds"]["min_negatives"] == 1
     assert summary["thresholds"]["max_p90_ms"] == 30000
     assert summary["thresholds"]["max_p95_ms"] == 30000
     assert summary["thresholds"]["min_injection_precision"] == 0.90
@@ -148,6 +154,8 @@ def test_checker_fails_when_thresholds_not_met(tmp_path: Path, checker, capsys) 
             "--scenarios", str(scenarios),
             "--root", str(library),
             "--no-record",
+            "--min-positives", "3",
+            "--min-negatives", "1",
             "--max-p90-ms", "0.001",
         ]
     )
@@ -183,6 +191,8 @@ def test_checker_fails_when_privacy_invariant_violated(tmp_path: Path, checker, 
             "--scenarios", str(scenarios),
             "--root", str(library),
             "--no-record",
+            "--min-positives", "3",
+            "--min-negatives", "1",
             "--max-p90-ms", "30000",
             "--max-p95-ms", "30000",
             "--json",
@@ -211,6 +221,8 @@ def _run_with_patched_scenario(tmp_path: Path, checker, capsys, monkeypatch, mut
             "--scenarios", str(scenarios),
             "--root", str(library),
             "--no-record",
+            "--min-positives", "3",
+            "--min-negatives", "1",
             "--max-p90-ms", "30000",
             "--max-p95-ms", "30000",
             "--json",

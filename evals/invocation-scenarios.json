@@ -10,6 +10,7 @@
     "forbidden_top1 marks the wrong-ecosystem hijackers observed in the baseline; the ecosystem ranking guard must keep them out of the top spot.",
     "S22 was a GAP in the diagnosis report (no typescript-* skill); reclassified as a positive because the bundled library does carry TypeScript-ecosystem skills (prisma/nestjs/vite/backend patterns) that legitimately answer the query.",
     "N1-N5 are added negative scenarios (the report's frozen set had only library-gap negatives).",
+    "S31-S32 are added A0 positive scenarios so the frozen set contains 30 positive skill-eligible scenarios plus the 12 no-skill negatives.",
     "N6-N10 are the Hermes A0 merge-gate negatives: pure conversation, factual question, opinion ask, trivial one-off command, wording request. With S18/S28 the no-skill pool is 12; the FP gate (<= 0.10) is measured over all of them.",
     "expected_tier (F3b ambient injection, version 2): scenarios marked expected_tier=3 are unambiguous positives whose top hit clears the HIGH threshold (18.0) with a >=1.5x margin over the runner-up on the bundled library, so the checker asserts a tier-3 skill card is injected AND names an expected skill. Scenarios without the field carry no tier assertion. Negative scenarios must NEVER reach tier 3 (negatives_injected = 0 is a hard gate); their queries stay frozen."
   ],
@@ -44,6 +45,8 @@
     {"id": "S28", "category": "none", "prompt": "Clean a messy CSV/spreadsheet (Claude Code native xlsx covers it)", "query": "spreadsheet csv data cleaning", "expected_skills": [], "expect_no_skill": true},
     {"id": "S29", "category": "planning", "prompt": "Improve an agent prompt", "query": "prompt engineering LLM agent instructions", "expected_skills": ["prompt-optimizer"], "forbidden_top1": ["llm-trading-agent-security"], "expected_tier": 3},
     {"id": "S30", "category": "deploy-ops", "prompt": "Build an n8n automation", "query": "n8n workflow automation webhook", "expected_skills": ["automation-audit-ops", "api-connector-builder"]},
+    {"id": "S31", "category": "mcp", "prompt": "Build an MCP stdio server", "query": "MCP server tool schema stdio protocol", "expected_skills": ["mcp-server-patterns"], "expected_tier": 3},
+    {"id": "S32", "category": "browser-qa", "prompt": "Verify a browser flow with screenshots", "query": "browser automation QA screenshot click flow", "expected_skills": ["browser-qa"], "expected_tier": 3},
     {"id": "N1", "category": "none", "prompt": "Unit conversion question", "query": "convert 5 kilometers to miles", "expected_skills": [], "expect_no_skill": true},
     {"id": "N2", "category": "none", "prompt": "General-knowledge question", "query": "what is the capital of Australia", "expected_skills": [], "expect_no_skill": true},
     {"id": "N3", "category": "none", "prompt": "Casual translation request", "query": "translate this short letter into French", "expected_skills": [], "expect_no_skill": true},

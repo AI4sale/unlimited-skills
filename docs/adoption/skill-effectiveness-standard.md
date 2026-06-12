@@ -4,7 +4,7 @@ Owner directive: «Сделать фикс, написать стандартн�
 
 ## What is measured
 
-`scripts/check-skill-effectiveness.py` replays the frozen scenario set `evals/invocation-scenarios.json` (30 diagnosis scenarios + 10 added negatives N1–N10; with the two diagnosis no-skill scenarios S18/S28 that is 28 positives and 12 no-skill scenarios) through the REAL cold `suggest` probe — one `python -m unlimited_skills suggest --json` subprocess per scenario, exactly the way agents and hooks invoke it — against the bundled 267-skill library (`packs/`).
+`scripts/check-skill-effectiveness.py` replays the frozen scenario set `evals/invocation-scenarios.json` (30 positive skill-eligible scenarios plus 12 no-skill scenarios) through the REAL cold `suggest` probe — one `python -m unlimited_skills suggest --json` subprocess per scenario, exactly the way agents and hooks invoke it — against the bundled 267-skill library (`packs/`).
 
 Metrics:
 
@@ -43,7 +43,7 @@ Owner rationale: «нужный тул приехавший сразу убир�
 
 Failing either tier-3 condition degrades to tier 2 — never to silence, never to a wrong card.
 
-**Calibration (2026-06-12, frozen eval set, bundled 267-skill library).** Score distribution: every no-skill scenario tops out at 11 (strongest: N4), i.e. below the floor — negatives cannot reach ANY tier; true-positive top scores run 12–51. `HIGH_CONFIDENCE_THRESHOLD = 18.0` (= 1.5 x the floor) keeps the weak/ambiguous band (12–17, e.g. S9 15.2, S27 16.0) at the hint tier. The margin rule earns its keep on S5: the wrong top-1 (`finishing-a-development-branch`, 19.0) leads the right #2 (`github-ops`, 18.0) by only 1.06x, so it stays a hint; contested-but-right rankings such as S2 (1.14x), S13 (1.38x), S6/S26 (1.47x) also stay at tier 2. Six positives qualify for tier 3, all with a correct top-1: S4 (29.0, 2.42x), S8 (33.0, sole hit), S10 (51.0, 1.89x), S11 (19.0, 1.58x), S23 (19.0, sole hit), S29 (27.0, 1.69x) — measured injection_precision 1.000, negatives_injected 0. The four most clear-cut (S4, S8, S10, S29) are pinned in the eval set with `expected_tier: 3`.
+**Calibration (2026-06-12, frozen eval set, bundled 267-skill library).** Score distribution: every no-skill scenario tops out at 11 (strongest: N4), i.e. below the floor — negatives cannot reach ANY tier; true-positive top scores run 12–51. `HIGH_CONFIDENCE_THRESHOLD = 18.0` (= 1.5 x the floor) keeps the weak/ambiguous band (12–17, e.g. S9 15.2, S27 16.0) at the hint tier. The margin rule earns its keep on S5: the wrong top-1 (`finishing-a-development-branch`, 19.0) leads the right #2 (`github-ops`, 18.0) by only 1.06x, so it stays a hint; contested-but-right rankings such as S2 (1.14x), S13 (1.38x), S6/S26 (1.47x) also stay at tier 2. Eight positives qualify for tier 3, all with a correct top-1: S4 (29.0, 2.42x), S8 (33.0, sole hit), S10 (51.0, 1.89x), S11 (19.0, 1.58x), S23 (19.0, sole hit), S29 (27.0, 1.69x), S31 (19.2, sole hit), and S32 (23.0, sole hit) — measured injection_precision 1.000, negatives_injected 0. The clear-cut tier-3 cases (S4, S8, S10, S29, S31, S32) are pinned in the eval set with `expected_tier: 3`.
 
 **The skill card** is built by `unlimited_skills.suggest.build_skill_card` from the matched skill's own SKILL.md: a `Skill card: <name> (source: <pack>)` header, a `When to use:` line from the frontmatter description, the HEAD of the body after the frontmatter, and always a `Full skill body: unlimited-skills view <name>` footer. Hard cap `CARD_MAX_CHARS = 8000` chars (~2,000 tokens); when truncated, the line `(card truncated — full skill: unlimited-skills view <name>)` precedes the footer. The card never contains absolute local paths, the user's prompt text, or any other skill's content. An unreadable SKILL.md fails open to tier 2.
 
@@ -53,16 +53,16 @@ Failing either tier-3 condition degrades to tier 2 — never to silence, never t
 
 | Metric | A0 gate | Measured 2026-06-12 (post-F3b run) |
 | --- | --- | --- |
-| top-1 hit rate | >= 0.55 | **0.929** (26/28 positives) |
-| top-3 hit rate | >= 0.83 | **0.964** (27/28 positives) |
+| top-1 hit rate | >= 0.55 | **0.933** (28/30 positives) |
+| top-3 hit rate | >= 0.83 | **0.967** (29/30 positives) |
 | false-positive rate | <= 0.10 | **0.000** (0/12 negatives) |
 | forbidden top-1 violations | 0 | **0** |
-| injection precision (tier-3 cards naming an expected skill) | >= 0.90 | **1.000** (6/6 cards: S4, S8, S10, S11, S23, S29) |
+| injection precision (tier-3 cards naming an expected skill) | >= 0.90 | **1.000** (8/8 cards: S4, S8, S10, S11, S23, S29, S31, S32) |
 | negatives injected (no-skill scenarios receiving a card) | 0 (HARD) | **0** |
-| expected_tier-3 scenarios hit (S4, S8, S10, S29) | all (HARD) | **all hit** |
-| latency p90 | <= 1500 ms | **~460 ms** (direct spawn, cards included) |
-| latency p95 | <= 2500 ms | **~460 ms** |
-| latency max | <= 5000 ms (warning only, unless repeated) | **~490 ms** |
+| expected_tier-3 scenarios hit (S4, S8, S10, S29, S31, S32) | all (HARD) | **all hit** |
+| latency p90 | <= 1500 ms | **~418 ms** (direct spawn, cards included) |
+| latency p95 | <= 2500 ms | **~422 ms** |
+| latency max | <= 5000 ms (warning only, unless repeated) | **~425 ms** |
 | privacy: no_unintended_body_leak / no_prompt_upload / no_local_path_leak | all true | **all true** |
 
 Planned v0.5 gate (tighten once the library and ranking stabilize; requires a fresh measured run before adoption):
@@ -75,7 +75,7 @@ Planned v0.5 gate (tighten once the library and ranking stabilize; requires a fr
 | latency p90 | <= 1200 ms |
 | latency p95 | <= 2000 ms |
 
-History on the same frozen queries: baseline before the A0 ranking fixes — top-1 0.679, top-3 0.750, false-positive rate 0.143, 2 forbidden top-1 violations (S2, S29); diagnosis-time top-1 relevance was 17/30 with `search --mode lexical` at 3.9 s and hybrid at 9.9 s per call. A0 calibration run (2026-06-12, 5 negatives) — top-1 0.821, top-3 0.821, FP 0.000. Hermes-gate run (2026-06-12, 10 negatives) — top-1 0.929, top-3 0.964, FP 0.000 after: the `prompt-optimizer` pack description fix (S29 — the pack shipped a broken empty `description: >-` frontmatter scalar), the profiling↔benchmarking synonym group (S19), the `pull request`/`release notes` phrase-alias table (S5, S27). All of these are generic library/ranking fixes; no eval query is special-cased.
+History on the same frozen queries: baseline before the A0 ranking fixes — top-1 0.679, top-3 0.750, false-positive rate 0.143, 2 forbidden top-1 violations (S2, S29); diagnosis-time top-1 relevance was 17/30 with `search --mode lexical` at 3.9 s and hybrid at 9.9 s per call. A0 calibration run (2026-06-12, 5 negatives) — top-1 0.821, top-3 0.821, FP 0.000. Hermes-gate run (2026-06-12, 10 negatives) — top-1 0.929, top-3 0.964, FP 0.000 after: the `prompt-optimizer` pack description fix (S29 — the pack shipped a broken empty `description: >-` frontmatter scalar), the profiling↔benchmarking synonym group (S19), and the `pull request`/`release notes` phrase-alias table (S5, S27). A0 contract run with the required 30 positives + 12 negatives — top-1 0.933, top-3 0.967, FP 0.000. All of these are generic library/ranking fixes; no eval query is special-cased.
 
 Known honest miss at the calibrated floor (12.0): S7 (refactor a large module safely) — the best matching bundled skills (`hexagonal-architecture` at 4) sit far below the floor, and no generic synonym honestly bridges "refactor safely" to them. Raising the floor any lower than 12 readmits the strongest negative (N4 at 11). Do NOT tune queries to fix this; fix ranking or the library.
 
@@ -108,7 +108,8 @@ The gate is enforced in two places:
 
 ## Rules for changing the eval set
 
-- The 30 diagnosis scenarios (S1–S30) are FROZEN: queries must not be rewritten to make the checker pass.
+- The diagnosis scenarios (S1–S30) are FROZEN: queries must not be rewritten to make the checker pass.
+- The A0 positive floor is 30 skill-eligible scenarios; S31-S32 are append-only positives added to satisfy that release gate contract.
 - `expected_skills` may be extended only with skills that would genuinely change the work for that scenario (document the reasoning in the file's `notes`).
 - `expected_tier: 3` may be set only on positives whose top hit clears the high threshold with the required margin AND is an expected skill on the bundled library — pin only clear-cut cases (a fresh measured run is the evidence); it must never appear on a negative.
 - New scenarios (positive or negative) may be appended with fresh ids; update `tests/test_skill_effectiveness_check.py::test_frozen_scenario_file_shape` counts accordingly.

@@ -67,6 +67,8 @@ DEFAULT_MAX_P90_MS = 1500.0
 DEFAULT_MAX_P95_MS = 2500.0
 DEFAULT_WARN_MAX_MS = 5000.0
 DEFAULT_MAX_RELEASE_GAP = 10
+DEFAULT_MIN_POSITIVES = 30
+DEFAULT_MIN_NEGATIVES = 10
 # F3b ambient-injection gates: cards must overwhelmingly name the right
 # skill, and a no-skill scenario receiving a card is an unconditional FAIL.
 DEFAULT_MIN_INJECTION_PRECISION = 0.90
@@ -273,6 +275,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--min-top1", type=float, default=DEFAULT_MIN_TOP1)
     parser.add_argument("--min-top3", type=float, default=DEFAULT_MIN_TOP3)
     parser.add_argument("--max-fp", type=float, default=DEFAULT_MAX_FP)
+    parser.add_argument("--min-positives", type=int, default=DEFAULT_MIN_POSITIVES)
+    parser.add_argument("--min-negatives", type=int, default=DEFAULT_MIN_NEGATIVES)
     parser.add_argument("--min-injection-precision", type=float, default=DEFAULT_MIN_INJECTION_PRECISION, help="Minimum share of tier-3 cards naming an expected skill (negatives_injected = 0 stays a hard gate).")
     parser.add_argument("--max-p90-ms", type=float, default=DEFAULT_MAX_P90_MS)
     parser.add_argument("--max-p95-ms", type=float, default=DEFAULT_MAX_P95_MS)
@@ -331,6 +335,8 @@ def main(argv: list[str] | None = None) -> int:
         top1_rate >= args.min_top1
         and top3_rate >= args.min_top3
         and fp_rate <= args.max_fp
+        and len(positives) >= args.min_positives
+        and len(negatives) >= args.min_negatives
         and p90 <= args.max_p90_ms
         and p95 <= args.max_p95_ms
         and not forbidden_violations
@@ -366,6 +372,8 @@ def main(argv: list[str] | None = None) -> int:
             "min_top1": args.min_top1,
             "min_top3": args.min_top3,
             "max_fp": args.max_fp,
+            "min_positives": args.min_positives,
+            "min_negatives": args.min_negatives,
             "max_p90_ms": args.max_p90_ms,
             "max_p95_ms": args.max_p95_ms,
             "warn_max_ms": args.warn_max_ms,
