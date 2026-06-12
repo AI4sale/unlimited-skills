@@ -1,6 +1,8 @@
 <div align="center">
 
-# Lord of the Skills
+# Stop flooding your agent's context with tool schemas
+
+**Search skills and tools first. Load one only when it's needed.**
 
 <pre>
 +--------------------------------------------------------------+
@@ -8,17 +10,45 @@
 +--------------------------------------------------------------+
 </pre>
 
-**Unlimited Skills** is a local skill memory and retrieval layer for coding agents.
+**Unlimited Skills** is a local skill memory and retrieval layer for coding agents, plus an MCP gateway that applies the same rule to tool schemas.
 
-Keep thousands of `SKILL.md` files out of the always-loaded context. Ask one tiny router skill what the task needs. Load only the selected skill.
-
-**v0.4.9-alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, catalog browser discovery is signed metadata-only alpha, catalog feedback is explicit and registration-gated, catalog quality and skill improvement status are signed metadata-only diagnostics, Local Skill Hub is allowlist-only alpha, Enterprise Skill Lock is a local policy MVP with registered managed sync, private team packs plus org/team governance diagnostics are registered/entitled alpha paths, plan/billing diagnostics are sandbox-only with no live payment provider, and community catalog install is limited to signed approved/published items. The v0.4.9-alpha Unlimited Tools MCP milestone integrates the local dry-run MCP profile rollout simulator and policy doctor while production rollout remains gated.
+**v0.4.9-alpha / public alpha of a local-first tool.** The MIT core runs offline today. There is nothing for sale on this page; gated alpha surfaces are described under [Enterprise & trust layer](#enterprise--trust-layer).
 
 [Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
 
 </div>
 
-## Quickstart
+## The problem
+
+Every MCP server your agent host connects to dumps its full tool list — names, descriptions, and complete JSON input schemas — into the context window at session start. Every visible `SKILL.md` competes for attention on every turn. The agent pays that tax before it has read a single line of your task, whether or not those tools and skills are ever called. Adding more capability this way makes the agent slower instead of smarter: the context gets noisy, unrelated instructions compete with the task, and tokens are spent carrying procedures that will not run.
+
+## The fix: search first, load one
+
+Unlimited Skills keeps capability out of the standing context and retrieves it on demand:
+
+1. keep only a tiny router skill (and, for MCP, 3 small meta-tools) in the agent context;
+2. store all real skills on disk and keep full tool schemas behind the gateway;
+3. search by task intent;
+4. load only the selected `SKILL.md` — or the `inputSchema` of exactly one tool;
+5. record which skills were searched, viewed, used, accepted, or rejected;
+6. use that feedback to improve retrieval and draft new skills.
+
+## Measured, not promised
+
+These numbers are measured and reproducible — and they are deliberately not a promise about your machine. MCP savings depend entirely on how many servers and schemas your host loads, so measure your own setup; it is one command.
+
+| What | Measured on our setup | Reproduce |
+| --- | --- | --- |
+| MCP standing context cost (lab benchmark: 40 realistic upstream tools with ~2 KB schemas) | 90,420 bytes full schema dump → 1,268 bytes for the gateway's 3 meta-tools (1.4%) | `pytest -s tests/test_mcp_context_budget.py` |
+| MCP savings on your machine | your numbers — measured locally from your real Claude Code MCP config; nothing is uploaded | `unlimited-skills mcp savings` |
+| Invocation probe latency | under 1 second cold on the bundled 267-skill library (p90 ~450 ms direct spawn, ~790 ms through the PowerShell launcher) | `unlimited-skills suggest "<task>"` |
+| Retrieval quality | top-3 hit rate 0.967 (29/30) and top-1 0.933 on the frozen 30-scenario eval set, with 0 false positives across 12 negative scenarios | `python scripts/check-skill-effectiveness.py` |
+
+Methodology and caveats: [docs/unlimited-tools.md](docs/unlimited-tools.md), [docs/mcp-performance.md](docs/mcp-performance.md), [docs/adoption/skill-effectiveness-standard.md](docs/adoption/skill-effectiveness-standard.md).
+
+## Start here
+
+<!-- A3-PYPI-FLIP: the package is not on PyPI yet; switch this back to `pip install unlimited-skills` when the v0.5 PyPI publication gate (A3) lands. -->
 
 ```bash
 pip install "git+https://github.com/AI4sale/unlimited-skills.git"
@@ -26,7 +56,17 @@ unlimited-skills quickstart
 unlimited-skills setup --local-only
 ```
 
-`quickstart` is the one-command golden path: it imports the bundled skill packs when your library is empty, runs a first search to prove retrieval works, and measures your real MCP context savings — how many tokens of MCP tool schemas your Claude Code config loads into every session versus the 3 meta-tools of the Unlimited Tools gateway. Everything runs locally and the command is idempotent. Details: [docs/quickstart.md](docs/quickstart.md).
+What each step gives you:
+
+1. **Install** — the light lexical-only core straight from GitHub (the package is not published on PyPI yet). For vector/hybrid search, install from a clone with the `[all]` extras — see [Install](#install) below.
+2. **`unlimited-skills quickstart`** — the one-command golden path: it imports the bundled skill packs when your library is empty, runs a first search to prove retrieval works, and measures your real MCP context savings — how many tokens of MCP tool schemas your Claude Code config loads into every session versus the 3 meta-tools of the Unlimited Tools gateway. Everything runs locally and the command is idempotent.
+3. **`unlimited-skills setup --local-only`** — the guided first-run wizard for the local-only path.
+
+Read next, in this order:
+
+1. [docs/quickstart.md](docs/quickstart.md) — what quickstart does and how the `mcp savings` measurement works;
+2. [docs/unlimited-tools.md](docs/unlimited-tools.md) — the 3-meta-tool MCP gateway model and the measured context budget;
+3. [docs/adoption/skill-effectiveness-standard.md](docs/adoption/skill-effectiveness-standard.md) — how retrieval quality is measured and gated.
 
 ## What it is
 
@@ -40,27 +80,9 @@ The current version is built for Codex first, with full installers for Codex, Cl
 >
 > Agents often look only at `.agents/skills`, `.codex/skills`, or the visible skill list before saying a skill is missing. The installer patches `AGENTS.md` by default with a managed instruction block that tells the agent to query Unlimited Skills first. Pass the opt-out flag if you do not want that.
 
-## Why this exists
-
-Large skill packs are useful, but loading every skill into the model context is wasteful and eventually self-defeating:
-
-- the context gets noisy;
-- unrelated instructions compete with the task;
-- the agent spends tokens carrying procedures it will not use;
-- adding more skills makes the agent slower instead of smarter.
-
-Unlimited Skills treats skills as a local library:
-
-1. keep only a tiny router skill in the agent context;
-2. store all real skills on disk;
-3. search by task intent;
-4. load only the selected `SKILL.md`;
-5. record which skills were searched, viewed, used, accepted, or rejected;
-6. use that feedback to improve retrieval and draft new skills.
-
 ## Status
 
-Working now:
+Working now in the local core:
 
 - recursive `SKILL.md` discovery;
 - JSON lexical index;
@@ -76,60 +98,13 @@ Working now:
 - OpenClaw installer for workspace/plugin/built-in skills;
 - Claude Code installer for personal/project skills and `CLAUDE.md` patching;
 - Hermes router-only context-reduction installer and rollback scripts;
-- registered-installation state for hosted catalog and adapted collection updates;
-- hosted update client with SHA256-verified collection archives;
-- registered hosted catalog client;
-- registered signed catalog browser for reviewed metadata search, filters, preview, and dry-run install verification;
-- explicit registered catalog feedback for redacted catalog quality signals;
-- registered community skills client for list/search/preview/install/submit/status/local remove with signed approved/published install enforcement;
-- registered Team Free create/join/members/pending/approve/reject/revoke/collections/sync/leave client;
-- registered private team pack client for list/preview/install/sync/installed/remove under `registry/private/<pack_id>`;
-- registered private pack access diagnostics with redacted `private-packs access-check <pack_id>` output;
-- local/cache org and team governance diagnostics with `org status`;
-- local/cache plan diagnostics with `plan status`, `plan explain`, and `plan doctor`;
-- registered plan refresh through `/v1/hub/entitlements`;
-- local/cache billing lifecycle diagnostics with `billing status` and `billing doctor`;
-- registered sandbox billing refresh through `/v1/hub/billing-status`;
-- registered signed skill improvement status, known issues, deprecated/retired warnings, and preview-only update recommendations;
-- v0.3.9-alpha cross-repo skill improvement integration gate proving feedback/evals -> improvement backlog -> maintainer triage -> catalog quality report -> public signed recommendations;
-- v0.4 policy-aware recommendation runtime preview with `catalog recommendation-preview`, combining signed catalog metadata with quality, improvement, entitlement, and policy signals without applying changes;
-- v0.4.0-alpha E01-E04 integration gate for policy-aware recommendation preview, eval release operator workflow, maintainer queue runtime/status, and governance dashboard signed summaries without production rollout;
-- v0.4.1-alpha Reliability publication gate for transactional installs, rollback manifests, `VectorModelMismatch`, modular CLI command routing, and `skillops usage-snapshot` compatibility after the CLI split;
-- v0.4.2-alpha MCP integration gate for `unlimited-skills mcp serve`, `unlimited-skills mcp gateway`, compact `tools_search`, single-tool `tools_schema`, fixture `tools_call`, lazy upstream spawn/reuse, audit redaction, and the E07 upstream security model contract;
-- v0.4.3-alpha MCP upstream enforcement gate for disabled upstream refusal, future remote refusal, command allowlists, names-only `env_allowlist`, size/timeouts, audit rotation, audit redaction, no OAuth, no remote upstreams, no resources, no prompts, no hosted gateway, and no shell execution;
-- v0.4.4-alpha MCP permissioned tool profile enforcement integration gate for default-deny profiles, visible-only search, non-callable call refusals, restriction-only inheritance, fail-closed missing/invalid profiles, `profile_loaded` audit rows, profile SHA-256 evidence, no OAuth, no remote upstreams, no resources, no prompts, no hosted gateway, and no production hosted calls;
-- v0.4.5-alpha MCP audit inspector integration gate for read-only `mcp audit-report`, JSON schema-validated reports, rotated audit log discovery, safe recent refusal summaries with no argument values and no error text, profile audit evidence, redaction self-checks, and clear missing-log exits;
-- v0.4.7-alpha signed MCP profile bundle integration gate for local verification before gateway profile loading. It proves raw local profile compatibility, valid signed bundle loading, fail-closed refusals for bad signatures, unknown keys, expiry, revocation, wrong audience, and namespace violations, plus audit provenance with no hosted trust fetch, no registry sync, and no production signing keys. This alpha may break before v0.6; the local MIT core may still allow unsigned profiles by policy, and registered/business signed-required behavior is future-gated unless explicitly implemented in a later gate;
-- v0.4.8-alpha managed MCP profile trust store integration gate for `unlimited-skills mcp trust status|list|import|revoke|doctor`. It proves local/offline public-key import, key listing with abbreviated fingerprints, append-only local CRL revocation, doctor checks for corrupt trust store files, managed trusted-key verification, revoked key refusal, missing trust store refusal, explicit trusted-keys override behavior, unreadable CRL fail-closed behavior, and audit provenance with no hosted trust fetch, no registry sync, no production signing keys, no private key storage, no OAuth, no resources, and no prompts;
-- v0.4.9-alpha MCP profile rollout simulator final publication gate for `unlimited-skills mcp profiles rollout-plan|doctor`. It proves raw profile rollout plan, signed bundle rollout plan, trust-store-backed rollout plan, missing trust store, corrupt trust store, expired key, revoked key, wrong audience, namespace violation, hide-all-tools, shadowed tool, signed-required unsigned-source, and no upstream spawn / no network / no mutation boundaries;
-- private team pack setup, service diagnostics, doctor, and redacted support bundle summaries;
+- the Unlimited Tools MCP layer: `unlimited-skills mcp serve`, `unlimited-skills mcp gateway`, and the local `unlimited-skills mcp savings` measurement;
 - native skill sync for Codex, Claude Code, Hermes, and OpenClaw roots;
 - public repo self-update checks and applies latest releases/tags;
-- production service onboarding diagnostics for configured service URL, health, trust, redacted registration dry run, and local proof generation;
 - guided first-run setup wizard for local-only, registered, Local Skill Hub, and Enterprise onboarding paths;
-- redacted support diagnostic bundle for support handoff without skill bodies, prompts, search queries, env values, tokens, private keys, or local paths by default;
-- service diagnostics v2 shared by setup and support workflows, with explicit network checks and redacted output;
-- Enterprise Skill Lock policy MVP for governed registries, channels, signing keys, local roots, community install/submit, hub allowlists, and remote fallback;
-- managed Enterprise Skill Lock policy sync from a registered registry with signed `enterprise-policy` assignment verification and dry-run support;
-- allowlist-backed Local Skill Hub runtime MVP for local/controlled LAN testing when `server` extras are installed;
-- Local Skill Hub allowlist bootstrap/sync with validated cached allowlist metadata;
-- required signed hosted manifest verification for hub allowlists, collection updates, enhancement manifests, and team sync manifests;
-- production-shaped registry contract E2E coverage for device proof, retries, offline metadata cache, hub heartbeat, entitlements, and team sync;
-- release channel UX for registered catalog/update checks: signed channel status, local stable/beta/canary pinning, one-off channel overrides, and local collection rollback snapshots;
-- bundled/local/env trusted manifest keys with scope enforcement, registry-origin pinning, and local revocation;
-- remote Local Skill Hub client commands: `remote configure`, `remote status`, `remote search`, `remote resolve`, and `remote view`.
+- redacted support diagnostic bundle for support handoff without skill bodies, prompts, search queries, env values, tokens, private keys, or local paths by default.
 
-In development:
-
-- v0.4 readiness audit and SkillOps architecture RFC for governed delivery, eval-driven release gates, maintainer improvement queues, governance dashboards, optional self-hosted registry mode, and future human-reviewed automatic improvement proposals;
-- v0.4 cross-repo readiness suite that verifies public client and private registry readiness contracts in fixture mode or against a local private registry checkout without production hosted calls, production signing keys, live billing, PyPI publication, full catalog distribution, automatic install/update/remove, automatic skill rewriting, or auto-publish;
-- v0.4 go/no-go decision package that recommends GO for the first four implementation epics after review and merge while keeping production rollout behind per-epic review gates;
-- v0.4.9-alpha MCP profile rollout simulator is the active release gate for the MCP profile distribution milestone;
-- persistent warm daemon as the default agent retrieval path;
-- richer learning loop for accepted/rejected matches;
-- automatic skill drafting from repeated task patterns;
-- stronger per-agent installers and config adapters;
-- hosted registry service hardening and broader early-access onboarding.
+Registered, hosted, signed-distribution, and governance surfaces — and the integration gates that verify them — are listed under [Enterprise & trust layer](#enterprise--trust-layer).
 
 ## Install
 
@@ -172,272 +147,7 @@ unlimited-skills support bundle --out support-bundle.zip
 
 See [docs/support-bundle.md](docs/support-bundle.md) for the privacy boundary.
 
-For the v0.4.9-alpha MCP profile rollout simulator milestone,
-see [docs/releases/v0.4.9-alpha.md](docs/releases/v0.4.9-alpha.md),
-[docs/releases/v0.4.9-alpha-checklist.md](docs/releases/v0.4.9-alpha-checklist.md),
-[docs/releases/v0.4.9-alpha-upgrade-notes.md](docs/releases/v0.4.9-alpha-upgrade-notes.md),
-and [docs/releases/v0.4.9-alpha-known-issues.md](docs/releases/v0.4.9-alpha-known-issues.md).
-For the v0.4.8-alpha managed MCP profile trust store integration milestone,
-see [docs/releases/v0.4.8-alpha.md](docs/releases/v0.4.8-alpha.md),
-[docs/releases/v0.4.8-alpha-checklist.md](docs/releases/v0.4.8-alpha-checklist.md),
-and [docs/releases/v0.4.8-alpha-known-issues.md](docs/releases/v0.4.8-alpha-known-issues.md).
-For the v0.4.7-alpha signed MCP profile bundle integration milestone, see
-[docs/releases/v0.4.7-alpha.md](docs/releases/v0.4.7-alpha.md),
-[docs/releases/v0.4.7-alpha-checklist.md](docs/releases/v0.4.7-alpha-checklist.md),
-and [docs/releases/v0.4.7-alpha-known-issues.md](docs/releases/v0.4.7-alpha-known-issues.md).
-
-For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md), [docs/packaging.md](docs/packaging.md), [docs/install-upgrade-uninstall.md](docs/install-upgrade-uninstall.md), and [SECURITY.md](SECURITY.md). For the v0.4.5-alpha MCP audit inspector milestone, see [docs/releases/v0.4.5-alpha.md](docs/releases/v0.4.5-alpha.md), [docs/releases/v0.4.5-alpha-checklist.md](docs/releases/v0.4.5-alpha-checklist.md), [docs/releases/v0.4.5-alpha-upgrade-notes.md](docs/releases/v0.4.5-alpha-upgrade-notes.md), and [docs/releases/v0.4.5-alpha-known-issues.md](docs/releases/v0.4.5-alpha-known-issues.md). For the v0.4.4-alpha MCP permissioned tool profile integration milestone, see [docs/releases/v0.4.4-alpha.md](docs/releases/v0.4.4-alpha.md), [docs/releases/v0.4.4-alpha-checklist.md](docs/releases/v0.4.4-alpha-checklist.md), [docs/releases/v0.4.4-alpha-upgrade-notes.md](docs/releases/v0.4.4-alpha-upgrade-notes.md), and [docs/releases/v0.4.4-alpha-known-issues.md](docs/releases/v0.4.4-alpha-known-issues.md). For the v0.4.3-alpha MCP enforcement milestone, see [docs/releases/v0.4.3-alpha.md](docs/releases/v0.4.3-alpha.md), [docs/releases/v0.4.3-alpha-checklist.md](docs/releases/v0.4.3-alpha-checklist.md), [docs/releases/v0.4.3-alpha-upgrade-notes.md](docs/releases/v0.4.3-alpha-upgrade-notes.md), and [docs/releases/v0.4.3-alpha-known-issues.md](docs/releases/v0.4.3-alpha-known-issues.md). For the v0.4.2-alpha MCP milestone, see [docs/releases/v0.4.2-alpha.md](docs/releases/v0.4.2-alpha.md), [docs/releases/v0.4.2-alpha-checklist.md](docs/releases/v0.4.2-alpha-checklist.md), [docs/releases/v0.4.2-alpha-upgrade-notes.md](docs/releases/v0.4.2-alpha-upgrade-notes.md), and [docs/releases/v0.4.2-alpha-known-issues.md](docs/releases/v0.4.2-alpha-known-issues.md). For the v0.4.1-alpha reliability candidate, see [docs/releases/v0.4.1-alpha.md](docs/releases/v0.4.1-alpha.md), [docs/releases/v0.4.1-alpha-checklist.md](docs/releases/v0.4.1-alpha-checklist.md), [docs/releases/v0.4.1-alpha-upgrade-notes.md](docs/releases/v0.4.1-alpha-upgrade-notes.md), and [docs/releases/v0.4.1-alpha-known-issues.md](docs/releases/v0.4.1-alpha-known-issues.md). For the v0.4.0-alpha foundation tag, see [docs/releases/v0.4.0-alpha.md](docs/releases/v0.4.0-alpha.md). For v0.4 planning, see [docs/releases/v0.4-readiness-audit.md](docs/releases/v0.4-readiness-audit.md), [docs/rfcs/v0.4-skillops-platform-rfc.md](docs/rfcs/v0.4-skillops-platform-rfc.md), [docs/rfcs/v0.4-risk-register.md](docs/rfcs/v0.4-risk-register.md), and [docs/rfcs/v0.4-implementation-epics.md](docs/rfcs/v0.4-implementation-epics.md).
-
-## Product Editions
-
-See [docs/product-editions.md](docs/product-editions.md) for the full edition table.
-
-- **Community Core**: MIT, local-first, no registration. Local search, list, view, where, use, feedback, reindex, vector-reindex, adapt, serve, installers, migration scripts, native sync, and public self-update stay available offline.
-- **Registered Community**: free registration for hosted adapted catalog access, early-access collection updates, registered local enhancer downloads, future official community catalog/submissions, and the Registered Local Skill Hub contract up to 100 active client instances.
-- **Team Free**: registered team sync MVP with master approval and up to 10 instances when enforced server-side.
-- **Pro / Team**: planned paid hosted collaboration, dashboard, private packs, collection assignment, longer auto-approval windows, and support. The public client includes registered private-pack install/sync commands; registry-side access requires private-pack entitlement or a Business/Enterprise plan.
-- **Enterprise**: local Enterprise Skill Lock policy MVP and registered managed policy sync now; private registry enforcement, SSO/on-prem/VPC options later.
-
-Local Skill Hub is separate from the free local daemon: `unlimited-skills serve` remains unregistered, while `unlimited-skills hub serve` is registration-gated and allowlist-only. See [docs/local-skill-hub.md](docs/local-skill-hub.md).
-
-Local Skill Hub is an MVP alpha surface. It defaults to `127.0.0.1`; binding to a LAN address requires explicit `--allow-lan` and at least one active hub client token. For serious LAN deployment, use a reverse proxy or network control with TLS, authentication, access logging, and IP allowlisting. `remote search`, `remote resolve`, and `remote view` call the configured Local Skill Hub over HTTP with hub-token authentication and explicit fallback policy.
-
-Local Skill Hub client setup:
-
-```bash
-unlimited-skills hub init --allowlist examples/hub/allowlist-fixture.v1.json
-# or, for registered hosted allowlist metadata:
-unlimited-skills hub sync
-unlimited-skills hub token create --label "codex-laptop"
-export ULS_HUB_TOKEN="<hub_client_token>"
-unlimited-skills hub serve
-unlimited-skills remote configure --url http://127.0.0.1:8766 --token-env ULS_HUB_TOKEN --fallback local_allowed
-unlimited-skills remote status
-unlimited-skills remote search "security review"
-unlimited-skills remote resolve "security review" --agent codex
-unlimited-skills remote view security-review
-```
-
-Use `--fallback hub_required` when an agent must fail instead of using local fallback. Use `--token <hub_client_token>` only for quick local tests; it stores the raw token in `~/.unlimited-skills/remote.json` with private file permissions where supported.
-
-Remote-first agent install examples:
-
-```bash
-./scripts/install-codex.sh --remote-first --remote-hub-url http://127.0.0.1:8766 --hub-token-env ULS_HUB_TOKEN --remote-fallback local_allowed
-./scripts/install-claude-code.sh --remote-first --remote-hub-url http://127.0.0.1:8766 --hub-token-env ULS_HUB_TOKEN --remote-fallback local_allowed
-./scripts/install-hermes.sh --mode evacuate-visible-skills --remote-first --remote-hub-url http://127.0.0.1:8766 --hub-token-env ULS_HUB_TOKEN --remote-fallback hub_required --apply
-./scripts/install-openclaw.sh --remote-first --remote-hub-url http://127.0.0.1:8766 --hub-token-env ULS_HUB_TOKEN --remote-fallback local_allowed
-```
-
-The installers write remote hub config under the selected install root and render remote-first router instructions. They prefer `--hub-token-env`; if `--hub-token` is used, the raw token is stored only in private `remote.json` and is not written into visible router files.
-
-Capability-aware install plans:
-
-```bash
-unlimited-skills remote capabilities --agent codex --json
-unlimited-skills remote install-plan browser-automation --dry-run
-```
-
-Retrieval can be centralized, but dependencies and capabilities remain local. The hub never executes skills or installs packages. Install plans are dry-run metadata in this release, and secrets stay client-side.
-
-## Support
-
-Unlimited Skills is open source under the MIT license. Voluntary donations help fund adapters, migration scripts, indexing work, hosted registry maintenance, and the learning-loop roadmap.
-
-Donate at [https://opportunity.ai4.sale/donate/unlimited-skills](https://opportunity.ai4.sale/donate/unlimited-skills), use GitHub's Sponsor button generated from [.github/FUNDING.yml](.github/FUNDING.yml), or see [DONATE.md](DONATE.md).
-
-Donations are voluntary support payments. They are non-refundable unless a separate written agreement says otherwise, and they are not investments, securities, loans, equity, revenue share, voting rights, ownership interests, subscriptions, pre-orders, or purchases of hosted-service access. See [SERVICE-TERMS.md](SERVICE-TERMS.md).
-
-## Registration and Hosted Updates
-
-The local core stays free and offline-first. Registration is not required for local search, local migration, local adaptation, bundled base packs, or the router skill.
-
-Registration is required only for AI4sale-hosted services:
-
-- hosted adapted-skill catalog;
-- hosted `community-skills` catalog and submissions;
-- adapted collection update stream;
-- registered local skill enhancement script;
-- signed hosted manifests for official hosted delivery metadata;
-- SHA256-verified hosted collection archives;
-- future dashboard, cloud sync, marketplace, team skill sync, and enterprise features.
-
-Register an installation:
-
-```powershell
-unlimited-skills register --agent codex
-```
-
-```bash
-unlimited-skills register --agent codex
-```
-
-Use `--agent claude-code`, `--agent hermes`, or `--agent openclaw` from those surfaces. The registration flow is the same for every agent: the client creates a local installation id and Ed25519 device key, sends only the public key and client metadata to the registry, and stores the returned hosted-service token locally. Hosted API calls must present both the token and a signed device proof.
-
-Check hosted access:
-
-```bash
-unlimited-skills license status
-```
-
-Configure and diagnose the registered service endpoint:
-
-```bash
-unlimited-skills service configure --url https://unlimited.ai4.sale
-unlimited-skills service status
-unlimited-skills service doctor
-unlimited-skills service verify-trust
-unlimited-skills service test-registration --dry-run --agent codex
-unlimited-skills service test-proof
-```
-
-`service status` is local-only unless `--refresh` is passed. `service doctor` contacts only `/health`, optional `/ready`, and `/v1/public-keys`, and prints the exact endpoint list. Service diagnostics do not upload skill bodies, skill names, prompts, search queries, local paths, repository paths, environment values, tokens, or private keys. See [docs/production-registry-onboarding.md](docs/production-registry-onboarding.md) and [docs/service-diagnostics.md](docs/service-diagnostics.md).
-
-Check and apply hosted adapted collection updates:
-
-```bash
-unlimited-skills catalog list
-unlimited-skills updates check
-unlimited-skills updates apply
-```
-
-Hosted catalog/update access is registration-gated early access. A clean registered install should receive starter catalog metadata and updates for `ecc` and `superpowers`; additional hosted catalog contents are delivered through registered catalog/update commands as they become available.
-
-Browse signed reviewed catalog metadata:
-
-```bash
-unlimited-skills catalog browse --source community --compatible-agent codex
-unlimited-skills catalog search "browser qa" --source community
-unlimited-skills catalog filters
-unlimited-skills catalog preview <catalog-item-id>
-unlimited-skills catalog install <catalog-item-id> --dry-run
-```
-
-Catalog browser responses must be signed, metadata-only, and approved or published before install can proceed. Community-source installs delegate to the Community Skills install flow after the signed browser metadata check. Official and private-visible browser items are metadata/dry-run only until dedicated install-plan capability checks are implemented. The v0.3.6 release gate verifies public fixture mode without a private checkout and local registry mode when `<private-registry-checkout>` is available. See [docs/catalog-browser.md](docs/catalog-browser.md) and [docs/releases/v0.3.6-alpha.md](docs/releases/v0.3.6-alpha.md).
-
-Catalog feedback is explicit only. `catalog feedback` requires registration and confirmation, `--dry-run` sends nothing, and feedback payloads are redacted before submit. See [docs/catalog-feedback.md](docs/catalog-feedback.md).
-
-Browse, preview, install, and submit registered community skills:
-
-```bash
-unlimited-skills community list
-unlimited-skills community search "browser qa"
-unlimited-skills community preview <catalog-item-id>
-unlimited-skills community install <catalog-item-id> --dry-run
-unlimited-skills community install <catalog-item-id> --yes
-unlimited-skills community submit ./my-skill --dry-run
-unlimited-skills community submit ./my-skill --yes
-unlimited-skills community submission-status
-unlimited-skills community installed
-unlimited-skills community remove community --dry-run
-```
-
-`catalog` is the official registered hosted catalog and collection metadata. `community` is the user-facing community discovery, submission, install, and local management flow. Community list/search/preview/install/status calls do not upload local skill bodies. `community submit` is the explicit exception: it uploads only the selected skill or pack after local validation, preview generation, and confirmation. Community preview and install require signed hosted metadata, and install is allowed only for signed items whose review status is `approved` or `published`.
-
-Run a local-only diagnostic without registration or hosted calls:
-
-```bash
-unlimited-skills doctor
-unlimited-skills doctor --json
-unlimited-skills doctor --agent hermes
-```
-
-Mirror native agent skill roots into the local library:
-
-```bash
-unlimited-skills sync-native --agent hermes
-unlimited-skills search "security review" --native-agent hermes
-```
-
-`search`, `list`, `view`, `where`, `use`, `reindex`, and `vector-reindex` automatically sync known native skill roots before running. This means newly installed Codex, Claude Code, Hermes, and OpenClaw skills are mirrored under the active Unlimited Skills library and become searchable through the router without manual migration. Codex defaults to `~/.codex/.unlimited-skills/library`; other agents default to `~/.unlimited-skills/library` unless their installer overrides the root. Native sync is non-destructive: it overlays new or changed skill files and never clears the existing `local/` library. Pass `--no-native-sync` or set `UNLIMITED_SKILLS_DISABLE_NATIVE_SYNC=1` to skip this behavior.
-
-For Claude Code, native sync also discovers skills bundled with installed plugins. It reads `~/.claude/plugins/installed_plugins.json`, resolves each plugin's install path (falling back to the marketplace clone listed in `known_marketplaces.json` when the cache snapshot is pruned), and mirrors the skill roots declared in the plugin's `.claude-plugin/plugin.json` (plus the conventional `skills/` and `.claude/skills/` folders) into `local/claude-code-plugin-<marketplace>-<plugin>/skills/`. Declared paths cannot escape the plugin root. Skills whose names already exist elsewhere in the library are diverted to `duplicates/` instead of overwriting. Set `UNLIMITED_SKILLS_DISABLE_PLUGIN_SYNC=1` to opt out of plugin discovery only.
-
-Import skills from a local directory or a GitHub repository into the library:
-
-```bash
-unlimited-skills import-dir ./my-skills --collection my-team
-unlimited-skills import-github obra/superpowers --collection superpowers --ref main
-unlimited-skills import-github org/repo --subdir skills --dry-run --json
-```
-
-Both commands deduplicate by content (sha256): a skill whose name already exists with identical content is skipped, a skill whose name collides with different content is diverted to the collection's `duplicates/` folder and reported as a conflict, and new skills are imported and structurally adapted. Use `--dry-run` to preview, `--json` for machine-readable reports, and `--skip-reindex` to defer index rebuilds.
-
-Download and run the registered local enhancer:
-
-```bash
-unlimited-skills enhance download
-unlimited-skills enhance run
-unlimited-skills enhance run --apply
-```
-
-`enhance run` is a dry run unless `--apply` is passed. The enhancer script is downloaded from the official registry, checksum-verified, cached locally, and then runs on your machine. It does not send skill bodies or prompts to the registry.
-
-Update the local Unlimited Skills core from the public repository:
-
-```bash
-unlimited-skills self-update check
-unlimited-skills self-update apply
-```
-
-Self-update does not require hosted-service registration. It checks the latest public GitHub release for `AI4sale/unlimited-skills`, falls back to the latest tag when releases are not available yet, updates the local source checkout when possible, refreshes the installed Codex router `SKILL.md` without touching its launcher scripts, and rebuilds the local skill index unless `--skip-reindex` is passed.
-
-The registration file is stored at:
-
-```text
-~/.unlimited-skills/registration.json
-```
-
-The registry client sends only install id, public device key, key thumbprint, client version, collection versions, source labels, and skill-count buckets. It does not send skill bodies, prompts, source code, skill names, full local paths, repository paths, customer names, environment variables, device private keys, tokens, or secrets. See [docs/privacy-and-telemetry.md](docs/privacy-and-telemetry.md).
-
-For the public client-facing hosted registry contract, see [docs/hosted-registry-api.md](docs/hosted-registry-api.md), [docs/hosted-catalog-model.md](docs/hosted-catalog-model.md), and [docs/registry-contract-tests.md](docs/registry-contract-tests.md).
-
-Using the hosted `community-skills` catalog or pushing skills into it also requires registration. Submitting to `community-skills` is an explicit upload of the selected skill or pack, not background telemetry. See [docs/community-skills.md](docs/community-skills.md) and [docs/community-submission-review.md](docs/community-submission-review.md).
-
-Team Free: registered teams can create a team, join instances, approve or reject pending instances, revoke old instances, list members and assigned collections, dry-run sync, and synchronize assigned catalog collections across approved team nodes. The first node that runs `team create` becomes the master. A join code alone does not grant sync access. Default team mode is manual approval. The master may enable auto-approval for up to 24 hours on community plans; longer windows require business or enterprise access. Team Free supports up to 10 approved instances when enforced server-side. See [docs/team-free.md](docs/team-free.md), [docs/team-sync.md](docs/team-sync.md), and [docs/team-skill-sync.md](docs/team-skill-sync.md).
-
-```bash
-unlimited-skills team create --name "My Team"
-unlimited-skills team join <join-code> --display-name "Hermes laptop"
-unlimited-skills team status --json
-unlimited-skills team members
-unlimited-skills team pending
-unlimited-skills team approve <install-id>
-unlimited-skills team reject <install-id> --reason "not recognized"
-unlimited-skills team revoke <install-id> --reason "old machine" --yes
-unlimited-skills team mode manual
-unlimited-skills team mode auto --duration 6h
-unlimited-skills team collections
-unlimited-skills team sync --dry-run
-unlimited-skills team sync --yes
-unlimited-skills team leave --yes
-```
-
-Private team packs: registered installations can list, preview, install, sync, and remove team-scoped private packs. Installs verify signed `private-team-pack` manifests, use proofed POST downloads, check SHA256, safely extract zip archives, and write only under `registry/private/<pack_id>`. See [docs/private-team-packs.md](docs/private-team-packs.md).
-
-```bash
-unlimited-skills private-packs list
-unlimited-skills private-packs preview <pack_id>
-unlimited-skills private-packs install <pack_id> --yes
-unlimited-skills private-packs sync --dry-run
-unlimited-skills private-packs sync --yes
-unlimited-skills private-packs installed
-unlimited-skills private-packs remove <pack_id> --yes
-```
-
-Enterprise Skill Lock MVP lets managed instances audit or refuse unmanaged skill delivery and direct operators to a corporate administrator or approved enterprise update channel. No policy means Community Core behavior is unchanged.
-
-```bash
-unlimited-skills policy status
-unlimited-skills policy verify enterprise-policy.json
-unlimited-skills policy install enterprise-policy.json
-unlimited-skills policy explain
-unlimited-skills policy remove --yes
-```
-
-See [docs/enterprise-skill-lock.md](docs/enterprise-skill-lock.md).
-
-Business and enterprise access starts with a company registration request at [https://unlimited.ai4.sale/enterprise](https://unlimited.ai4.sale/enterprise). That page collects basic company, rollout, pricing, and deployment-model context; it is separate from the community CLI self-registration flow.
+For release scope and known limitations, see [CHANGELOG.md](CHANGELOG.md), [docs/packaging.md](docs/packaging.md), [docs/install-upgrade-uninstall.md](docs/install-upgrade-uninstall.md), and [SECURITY.md](SECURITY.md). Per-release milestone docs are listed under [Release milestone docs](#release-milestone-docs).
 
 ## Install for Codex
 
@@ -496,21 +206,14 @@ Restart Codex after installing the router skill.
 
 ### Option A: Claude Code plugin (recommended)
 
-Since v0.3.12 the router ships as a native Claude Code plugin with a `SessionStart` hook, so the router contract is injected into every session deterministically instead of relying on `CLAUDE.md` or skill-list visibility. Install the CLI, then add the plugin inside Claude Code:
-
-<!-- A3-PYPI-FLIP: the package is not on PyPI yet; switch this back to `pip install unlimited-skills` when the v0.5 PyPI publication gate (A3) lands. -->
-
-```bash
-pip install "git+https://github.com/AI4sale/unlimited-skills.git"
-unlimited-skills setup --local-only
-```
-
-This installs the light lexical-only core straight from GitHub (the package is not published on PyPI yet). For vector/hybrid search, install from a clone with the `[all]` extras instead — see [Install](#install) above.
+Since v0.3.12 the router ships as a native Claude Code plugin with a `SessionStart` hook, so the router contract is injected into every session deterministically instead of relying on `CLAUDE.md` or skill-list visibility. Install the CLI (see [Start here](#start-here) for the install command), then add the plugin inside Claude Code:
 
 ```text
 /plugin marketplace add AI4sale/unlimited-skills
 /plugin install unlimited-skills@unlimited-skills
 ```
+
+The pip install from GitHub gives you the light lexical-only core (the package is not published on PyPI yet). For vector/hybrid search, install from a clone with the `[all]` extras instead — see [Install](#install) above.
 
 See `docs/claude-code-plugin.md` for details, including how the plugin coexists with the script installer below.
 
@@ -815,6 +518,46 @@ Invoke-RestMethod http://127.0.0.1:8765/search -Method Post -ContentType "applic
 
 This is the intended path for very large libraries or repeated vector/hybrid searches because it avoids repeated model startup cost.
 
+## Local diagnostics and library management
+
+Run a local-only diagnostic without registration or hosted calls:
+
+```bash
+unlimited-skills doctor
+unlimited-skills doctor --json
+unlimited-skills doctor --agent hermes
+```
+
+Mirror native agent skill roots into the local library:
+
+```bash
+unlimited-skills sync-native --agent hermes
+unlimited-skills search "security review" --native-agent hermes
+```
+
+`search`, `list`, `view`, `where`, `use`, `reindex`, and `vector-reindex` automatically sync known native skill roots before running. This means newly installed Codex, Claude Code, Hermes, and OpenClaw skills are mirrored under the active Unlimited Skills library and become searchable through the router without manual migration. Codex defaults to `~/.codex/.unlimited-skills/library`; other agents default to `~/.unlimited-skills/library` unless their installer overrides the root. Native sync is non-destructive: it overlays new or changed skill files and never clears the existing `local/` library. Pass `--no-native-sync` or set `UNLIMITED_SKILLS_DISABLE_NATIVE_SYNC=1` to skip this behavior.
+
+For Claude Code, native sync also discovers skills bundled with installed plugins. It reads `~/.claude/plugins/installed_plugins.json`, resolves each plugin's install path (falling back to the marketplace clone listed in `known_marketplaces.json` when the cache snapshot is pruned), and mirrors the skill roots declared in the plugin's `.claude-plugin/plugin.json` (plus the conventional `skills/` and `.claude/skills/` folders) into `local/claude-code-plugin-<marketplace>-<plugin>/skills/`. Declared paths cannot escape the plugin root. Skills whose names already exist elsewhere in the library are diverted to `duplicates/` instead of overwriting. Set `UNLIMITED_SKILLS_DISABLE_PLUGIN_SYNC=1` to opt out of plugin discovery only.
+
+Import skills from a local directory or a GitHub repository into the library:
+
+```bash
+unlimited-skills import-dir ./my-skills --collection my-team
+unlimited-skills import-github obra/superpowers --collection superpowers --ref main
+unlimited-skills import-github org/repo --subdir skills --dry-run --json
+```
+
+Both commands deduplicate by content (sha256): a skill whose name already exists with identical content is skipped, a skill whose name collides with different content is diverted to the collection's `duplicates/` folder and reported as a conflict, and new skills are imported and structurally adapted. Use `--dry-run` to preview, `--json` for machine-readable reports, and `--skip-reindex` to defer index rebuilds.
+
+Update the local Unlimited Skills core from the public repository:
+
+```bash
+unlimited-skills self-update check
+unlimited-skills self-update apply
+```
+
+Self-update does not require hosted-service registration. It checks the latest public GitHub release for `AI4sale/unlimited-skills`, falls back to the latest tag when releases are not available yet, updates the local source checkout when possible, refreshes the installed Codex router `SKILL.md` without touching its launcher scripts, and rebuilds the local skill index unless `--skip-reindex` is passed.
+
 ## How it works
 
 The system has four layers:
@@ -860,6 +603,317 @@ examples/                example libraries and commands
 - The daemon binds to `127.0.0.1` by default.
 - Usage and feedback logs are local files under `.learning/`.
 - Skills are not executed automatically. They are retrieved and then inspected by the agent.
+
+## Enterprise & trust layer
+
+Everything below is the governed and registered side of the project: signed artifacts, permission profiles, audit tooling, hosted catalogs, team distribution, and policy enforcement. None of it is required for the local core above.
+
+**v0.4.9-alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, catalog browser discovery is signed metadata-only alpha, catalog feedback is explicit and registration-gated, catalog quality and skill improvement status are signed metadata-only diagnostics, Local Skill Hub is allowlist-only alpha, Enterprise Skill Lock is a local policy MVP with registered managed sync, private team packs plus org/team governance diagnostics are registered/entitled alpha paths, plan/billing diagnostics are sandbox-only with no live payment provider, and community catalog install is limited to signed approved/published items. The v0.4.9-alpha Unlimited Tools MCP milestone integrates the local dry-run MCP profile rollout simulator and policy doctor while production rollout remains gated.
+
+Map of the trust stack:
+
+| Area | Docs |
+| --- | --- |
+| MCP upstream security model and enforcement | [docs/mcp-upstream-security-model.md](docs/mcp-upstream-security-model.md), [docs/mcp-gateway.md](docs/mcp-gateway.md) |
+| Permissioned tool profiles (default-deny) | [docs/mcp-permissioned-tool-profiles.md](docs/mcp-permissioned-tool-profiles.md) |
+| Signed profile bundles | [docs/mcp-signed-profile-bundles.md](docs/mcp-signed-profile-bundles.md) |
+| Managed trust store | [docs/mcp-trust-store.md](docs/mcp-trust-store.md) |
+| Audit inspector, replay, incident drills | [docs/mcp-audit-inspector.md](docs/mcp-audit-inspector.md), [docs/mcp-audit-replay.md](docs/mcp-audit-replay.md), [docs/mcp-incident-runbook.md](docs/mcp-incident-runbook.md) |
+| Profile rollout simulator and policy doctor | [docs/mcp-profile-rollout.md](docs/mcp-profile-rollout.md) |
+| Enterprise Skill Lock policy | [docs/enterprise-skill-lock.md](docs/enterprise-skill-lock.md), [docs/managed-enterprise-policy-sync.md](docs/managed-enterprise-policy-sync.md) |
+| Product editions | [docs/product-editions.md](docs/product-editions.md) |
+| Registration, licensing, and privacy boundary | [docs/registration-and-licensing.md](docs/registration-and-licensing.md), [docs/privacy-and-telemetry.md](docs/privacy-and-telemetry.md), [docs/public-core-boundary.md](docs/public-core-boundary.md) |
+| Hosted catalog and registry contract | [docs/hosted-registry-api.md](docs/hosted-registry-api.md), [docs/hosted-catalog-model.md](docs/hosted-catalog-model.md), [docs/catalog-browser.md](docs/catalog-browser.md) |
+| Community skills | [docs/community-skills.md](docs/community-skills.md), [docs/community-submission-review.md](docs/community-submission-review.md) |
+| Teams and private packs | [docs/team-free.md](docs/team-free.md), [docs/team-skill-sync.md](docs/team-skill-sync.md), [docs/private-team-packs.md](docs/private-team-packs.md) |
+| Local Skill Hub | [docs/local-skill-hub.md](docs/local-skill-hub.md), [docs/local-skill-hub-security.md](docs/local-skill-hub-security.md) |
+| Release channels and rollback | [docs/release-channels.md](docs/release-channels.md), [docs/update-channels-and-rollback.md](docs/update-channels-and-rollback.md) |
+
+### Product editions
+
+See [docs/product-editions.md](docs/product-editions.md) for the full edition table.
+
+- **Community Core**: MIT, local-first, no registration. Local search, list, view, where, use, feedback, reindex, vector-reindex, adapt, serve, installers, migration scripts, native sync, and public self-update stay available offline.
+- **Registered Community**: free registration for hosted adapted catalog access, early-access collection updates, registered local enhancer downloads, future official community catalog/submissions, and the Registered Local Skill Hub contract up to 100 active client instances.
+- **Team Free**: registered team sync MVP with master approval and up to 10 instances when enforced server-side.
+- **Team collaboration roadmap**: hosted collaboration, dashboard, private packs, collection assignment, longer auto-approval windows, and support remain future gated work. The public client includes registered private-pack install/sync commands; registry-side access requires explicit private-pack entitlement.
+- **Enterprise**: local Enterprise Skill Lock policy MVP and registered managed policy sync now; private registry enforcement, SSO/on-prem/VPC options later.
+
+Local Skill Hub is separate from the free local daemon: `unlimited-skills serve` remains unregistered, while `unlimited-skills hub serve` is registration-gated and allowlist-only. See [docs/local-skill-hub.md](docs/local-skill-hub.md).
+
+Local Skill Hub is an MVP alpha surface. It defaults to `127.0.0.1`; binding to a LAN address requires explicit `--allow-lan` and at least one active hub client token. For serious LAN deployment, use a reverse proxy or network control with TLS, authentication, access logging, and IP allowlisting. `remote search`, `remote resolve`, and `remote view` call the configured Local Skill Hub over HTTP with hub-token authentication and explicit fallback policy.
+
+Local Skill Hub client setup:
+
+```bash
+unlimited-skills hub init --allowlist examples/hub/allowlist-fixture.v1.json
+# or, for registered hosted allowlist metadata:
+unlimited-skills hub sync
+unlimited-skills hub token create --label "codex-laptop"
+export ULS_HUB_TOKEN="<hub_client_token>"
+unlimited-skills hub serve
+unlimited-skills remote configure --url http://127.0.0.1:8766 --token-env ULS_HUB_TOKEN --fallback local_allowed
+unlimited-skills remote status
+unlimited-skills remote search "security review"
+unlimited-skills remote resolve "security review" --agent codex
+unlimited-skills remote view security-review
+```
+
+Use `--fallback hub_required` when an agent must fail instead of using local fallback. Use `--token <hub_client_token>` only for quick local tests; it stores the raw token in `~/.unlimited-skills/remote.json` with private file permissions where supported.
+
+Remote-first agent install examples:
+
+```bash
+./scripts/install-codex.sh --remote-first --remote-hub-url http://127.0.0.1:8766 --hub-token-env ULS_HUB_TOKEN --remote-fallback local_allowed
+./scripts/install-claude-code.sh --remote-first --remote-hub-url http://127.0.0.1:8766 --hub-token-env ULS_HUB_TOKEN --remote-fallback local_allowed
+./scripts/install-hermes.sh --mode evacuate-visible-skills --remote-first --remote-hub-url http://127.0.0.1:8766 --hub-token-env ULS_HUB_TOKEN --remote-fallback hub_required --apply
+./scripts/install-openclaw.sh --remote-first --remote-hub-url http://127.0.0.1:8766 --hub-token-env ULS_HUB_TOKEN --remote-fallback local_allowed
+```
+
+The installers write remote hub config under the selected install root and render remote-first router instructions. They prefer `--hub-token-env`; if `--hub-token` is used, the raw token is stored only in private `remote.json` and is not written into visible router files.
+
+Capability-aware install plans:
+
+```bash
+unlimited-skills remote capabilities --agent codex --json
+unlimited-skills remote install-plan browser-automation --dry-run
+```
+
+Retrieval can be centralized, but dependencies and capabilities remain local. The hub never executes skills or installs packages. Install plans are dry-run metadata in this release, and secrets stay client-side.
+
+### Registration and hosted updates
+
+The local core stays free and offline-first. Registration is not required for local search, local migration, local adaptation, bundled base packs, or the router skill.
+
+Registration is required only for AI4sale-hosted services:
+
+- hosted adapted-skill catalog;
+- hosted `community-skills` catalog and submissions;
+- adapted collection update stream;
+- registered local skill enhancement script;
+- signed hosted manifests for official hosted delivery metadata;
+- SHA256-verified hosted collection archives;
+- future dashboard, cloud sync, marketplace, team skill sync, and enterprise features.
+
+Register an installation:
+
+```powershell
+unlimited-skills register --agent codex
+```
+
+```bash
+unlimited-skills register --agent codex
+```
+
+Use `--agent claude-code`, `--agent hermes`, or `--agent openclaw` from those surfaces. The registration flow is the same for every agent: the client creates a local installation id and Ed25519 device key, sends only the public key and client metadata to the registry, and stores the returned hosted-service token locally. Hosted API calls must present both the token and a signed device proof.
+
+Check hosted access:
+
+```bash
+unlimited-skills license status
+```
+
+Configure and diagnose the registered service endpoint:
+
+```bash
+unlimited-skills service configure --url https://unlimited.ai4.sale
+unlimited-skills service status
+unlimited-skills service doctor
+unlimited-skills service verify-trust
+unlimited-skills service test-registration --dry-run --agent codex
+unlimited-skills service test-proof
+```
+
+`service status` is local-only unless `--refresh` is passed. `service doctor` contacts only `/health`, optional `/ready`, and `/v1/public-keys`, and prints the exact endpoint list. Service diagnostics do not upload skill bodies, skill names, prompts, search queries, local paths, repository paths, environment values, tokens, or private keys. See [docs/production-registry-onboarding.md](docs/production-registry-onboarding.md) and [docs/service-diagnostics.md](docs/service-diagnostics.md).
+
+Check and apply hosted adapted collection updates:
+
+```bash
+unlimited-skills catalog list
+unlimited-skills updates check
+unlimited-skills updates apply
+```
+
+Hosted catalog/update access is registration-gated early access. A clean registered install should receive starter catalog metadata and updates for `ecc` and `superpowers`; additional hosted catalog contents are delivered through registered catalog/update commands as they become available.
+
+Browse signed reviewed catalog metadata:
+
+```bash
+unlimited-skills catalog browse --source community --compatible-agent codex
+unlimited-skills catalog search "browser qa" --source community
+unlimited-skills catalog filters
+unlimited-skills catalog preview <catalog-item-id>
+unlimited-skills catalog install <catalog-item-id> --dry-run
+```
+
+Catalog browser responses must be signed, metadata-only, and approved or published before install can proceed. Community-source installs delegate to the Community Skills install flow after the signed browser metadata check. Official and private-visible browser items are metadata/dry-run only until dedicated install-plan capability checks are implemented. The v0.3.6 release gate verifies public fixture mode without a private checkout and local registry mode when `<private-registry-checkout>` is available. See [docs/catalog-browser.md](docs/catalog-browser.md) and [docs/releases/v0.3.6-alpha.md](docs/releases/v0.3.6-alpha.md).
+
+Catalog feedback is explicit only. `catalog feedback` requires registration and confirmation, `--dry-run` sends nothing, and feedback payloads are redacted before submit. See [docs/catalog-feedback.md](docs/catalog-feedback.md).
+
+Browse, preview, install, and submit registered community skills:
+
+```bash
+unlimited-skills community list
+unlimited-skills community search "browser qa"
+unlimited-skills community preview <catalog-item-id>
+unlimited-skills community install <catalog-item-id> --dry-run
+unlimited-skills community install <catalog-item-id> --yes
+unlimited-skills community submit ./my-skill --dry-run
+unlimited-skills community submit ./my-skill --yes
+unlimited-skills community submission-status
+unlimited-skills community installed
+unlimited-skills community remove community --dry-run
+```
+
+`catalog` is the official registered hosted catalog and collection metadata. `community` is the user-facing community discovery, submission, install, and local management flow. Community list/search/preview/install/status calls do not upload local skill bodies. `community submit` is the explicit exception: it uploads only the selected skill or pack after local validation, preview generation, and confirmation. Community preview and install require signed hosted metadata, and install is allowed only for signed items whose review status is `approved` or `published`.
+
+Download and run the registered local enhancer:
+
+```bash
+unlimited-skills enhance download
+unlimited-skills enhance run
+unlimited-skills enhance run --apply
+```
+
+`enhance run` is a dry run unless `--apply` is passed. The enhancer script is downloaded from the official registry, checksum-verified, cached locally, and then runs on your machine. It does not send skill bodies or prompts to the registry.
+
+The registration file is stored at:
+
+```text
+~/.unlimited-skills/registration.json
+```
+
+The registry client sends only install id, public device key, key thumbprint, client version, collection versions, source labels, and skill-count buckets. It does not send skill bodies, prompts, source code, skill names, full local paths, repository paths, customer names, environment variables, device private keys, tokens, or secrets. See [docs/privacy-and-telemetry.md](docs/privacy-and-telemetry.md).
+
+For the public client-facing hosted registry contract, see [docs/hosted-registry-api.md](docs/hosted-registry-api.md), [docs/hosted-catalog-model.md](docs/hosted-catalog-model.md), and [docs/registry-contract-tests.md](docs/registry-contract-tests.md).
+
+Using the hosted `community-skills` catalog or pushing skills into it also requires registration. Submitting to `community-skills` is an explicit upload of the selected skill or pack, not background telemetry. See [docs/community-skills.md](docs/community-skills.md) and [docs/community-submission-review.md](docs/community-submission-review.md).
+
+Team Free: registered teams can create a team, join instances, approve or reject pending instances, revoke old instances, list members and assigned collections, dry-run sync, and synchronize assigned catalog collections across approved team nodes. The first node that runs `team create` becomes the master. A join code alone does not grant sync access. Default team mode is manual approval. The master may enable auto-approval for up to 24 hours on community plans; longer windows require business or enterprise access. Team Free supports up to 10 approved instances when enforced server-side. See [docs/team-free.md](docs/team-free.md), [docs/team-sync.md](docs/team-sync.md), and [docs/team-skill-sync.md](docs/team-skill-sync.md).
+
+```bash
+unlimited-skills team create --name "My Team"
+unlimited-skills team join <join-code> --display-name "Hermes laptop"
+unlimited-skills team status --json
+unlimited-skills team members
+unlimited-skills team pending
+unlimited-skills team approve <install-id>
+unlimited-skills team reject <install-id> --reason "not recognized"
+unlimited-skills team revoke <install-id> --reason "old machine" --yes
+unlimited-skills team mode manual
+unlimited-skills team mode auto --duration 6h
+unlimited-skills team collections
+unlimited-skills team sync --dry-run
+unlimited-skills team sync --yes
+unlimited-skills team leave --yes
+```
+
+Private team packs: registered installations can list, preview, install, sync, and remove team-scoped private packs. Installs verify signed `private-team-pack` manifests, use proofed POST downloads, check SHA256, safely extract zip archives, and write only under `registry/private/<pack_id>`. See [docs/private-team-packs.md](docs/private-team-packs.md).
+
+```bash
+unlimited-skills private-packs list
+unlimited-skills private-packs preview <pack_id>
+unlimited-skills private-packs install <pack_id> --yes
+unlimited-skills private-packs sync --dry-run
+unlimited-skills private-packs sync --yes
+unlimited-skills private-packs installed
+unlimited-skills private-packs remove <pack_id> --yes
+```
+
+Enterprise Skill Lock MVP lets managed instances audit or refuse unmanaged skill delivery and direct operators to a corporate administrator or approved enterprise update channel. No policy means Community Core behavior is unchanged.
+
+```bash
+unlimited-skills policy status
+unlimited-skills policy verify enterprise-policy.json
+unlimited-skills policy install enterprise-policy.json
+unlimited-skills policy explain
+unlimited-skills policy remove --yes
+```
+
+See [docs/enterprise-skill-lock.md](docs/enterprise-skill-lock.md).
+
+Business and enterprise access starts with a company registration request at [https://unlimited.ai4.sale/enterprise](https://unlimited.ai4.sale/enterprise). That page collects basic company, rollout, pricing, and deployment-model context; it is separate from the community CLI self-registration flow.
+
+### Verified registered and governance surfaces
+
+Working now:
+
+- registered-installation state for hosted catalog and adapted collection updates;
+- hosted update client with SHA256-verified collection archives;
+- registered hosted catalog client;
+- registered signed catalog browser for reviewed metadata search, filters, preview, and dry-run install verification;
+- explicit registered catalog feedback for redacted catalog quality signals;
+- registered community skills client for list/search/preview/install/submit/status/local remove with signed approved/published install enforcement;
+- registered Team Free create/join/members/pending/approve/reject/revoke/collections/sync/leave client;
+- registered private team pack client for list/preview/install/sync/installed/remove under `registry/private/<pack_id>`;
+- registered private pack access diagnostics with redacted `private-packs access-check <pack_id>` output;
+- local/cache org and team governance diagnostics with `org status`;
+- local/cache plan diagnostics with `plan status`, `plan explain`, and `plan doctor`;
+- registered plan refresh through `/v1/hub/entitlements`;
+- local/cache billing lifecycle diagnostics with `billing status` and `billing doctor`;
+- registered sandbox billing refresh through `/v1/hub/billing-status`;
+- registered signed skill improvement status, known issues, deprecated/retired warnings, and preview-only update recommendations;
+- v0.3.9-alpha cross-repo skill improvement integration gate proving feedback/evals -> improvement backlog -> maintainer triage -> catalog quality report -> public signed recommendations;
+- v0.4 policy-aware recommendation runtime preview with `catalog recommendation-preview`, combining signed catalog metadata with quality, improvement, entitlement, and policy signals without applying changes;
+- v0.4.0-alpha E01-E04 integration gate for policy-aware recommendation preview, eval release operator workflow, maintainer queue runtime/status, and governance dashboard signed summaries without production rollout;
+- v0.4.1-alpha Reliability publication gate for transactional installs, rollback manifests, `VectorModelMismatch`, modular CLI command routing, and `skillops usage-snapshot` compatibility after the CLI split;
+- v0.4.2-alpha MCP integration gate for `unlimited-skills mcp serve`, `unlimited-skills mcp gateway`, compact `tools_search`, single-tool `tools_schema`, fixture `tools_call`, lazy upstream spawn/reuse, audit redaction, and the E07 upstream security model contract;
+- v0.4.3-alpha MCP upstream enforcement gate for disabled upstream refusal, future remote refusal, command allowlists, names-only `env_allowlist`, size/timeouts, audit rotation, audit redaction, no OAuth, no remote upstreams, no resources, no prompts, no hosted gateway, and no shell execution;
+- v0.4.4-alpha MCP permissioned tool profile enforcement integration gate for default-deny profiles, visible-only search, non-callable call refusals, restriction-only inheritance, fail-closed missing/invalid profiles, `profile_loaded` audit rows, profile SHA-256 evidence, no OAuth, no remote upstreams, no resources, no prompts, no hosted gateway, and no production hosted calls;
+- v0.4.5-alpha MCP audit inspector integration gate for read-only `mcp audit-report`, JSON schema-validated reports, rotated audit log discovery, safe recent refusal summaries with no argument values and no error text, profile audit evidence, redaction self-checks, and clear missing-log exits;
+- v0.4.7-alpha signed MCP profile bundle integration gate for local verification before gateway profile loading. It proves raw local profile compatibility, valid signed bundle loading, fail-closed refusals for bad signatures, unknown keys, expiry, revocation, wrong audience, and namespace violations, plus audit provenance with no hosted trust fetch, no registry sync, and no production signing keys. This alpha may break before v0.6; the local MIT core may still allow unsigned profiles by policy, and registered/business signed-required behavior is future-gated unless explicitly implemented in a later gate;
+- v0.4.8-alpha managed MCP profile trust store integration gate for `unlimited-skills mcp trust status|list|import|revoke|doctor`. It proves local/offline public-key import, key listing with abbreviated fingerprints, append-only local CRL revocation, doctor checks for corrupt trust store files, managed trusted-key verification, revoked key refusal, missing trust store refusal, explicit trusted-keys override behavior, unreadable CRL fail-closed behavior, and audit provenance with no hosted trust fetch, no registry sync, no production signing keys, no private key storage, no OAuth, no resources, and no prompts;
+- v0.4.9-alpha MCP profile rollout simulator final publication gate for `unlimited-skills mcp profiles rollout-plan|doctor`. It proves raw profile rollout plan, signed bundle rollout plan, trust-store-backed rollout plan, missing trust store, corrupt trust store, expired key, revoked key, wrong audience, namespace violation, hide-all-tools, shadowed tool, signed-required unsigned-source, and no upstream spawn / no network / no mutation boundaries;
+- private team pack setup, service diagnostics, doctor, and redacted support bundle summaries;
+- production service onboarding diagnostics for configured service URL, health, trust, redacted registration dry run, and local proof generation;
+- service diagnostics v2 shared by setup and support workflows, with explicit network checks and redacted output;
+- Enterprise Skill Lock policy MVP for governed registries, channels, signing keys, local roots, community install/submit, hub allowlists, and remote fallback;
+- managed Enterprise Skill Lock policy sync from a registered registry with signed `enterprise-policy` assignment verification and dry-run support;
+- allowlist-backed Local Skill Hub runtime MVP for local/controlled LAN testing when `server` extras are installed;
+- Local Skill Hub allowlist bootstrap/sync with validated cached allowlist metadata;
+- required signed hosted manifest verification for hub allowlists, collection updates, enhancement manifests, and team sync manifests;
+- production-shaped registry contract E2E coverage for device proof, retries, offline metadata cache, hub heartbeat, entitlements, and team sync;
+- release channel UX for registered catalog/update checks: signed channel status, local stable/beta/canary pinning, one-off channel overrides, and local collection rollback snapshots;
+- bundled/local/env trusted manifest keys with scope enforcement, registry-origin pinning, and local revocation;
+- remote Local Skill Hub client commands: `remote configure`, `remote status`, `remote search`, `remote resolve`, and `remote view`.
+
+In development:
+
+- v0.4 readiness audit and SkillOps architecture RFC for governed delivery, eval-driven release gates, maintainer improvement queues, governance dashboards, optional self-hosted registry mode, and future human-reviewed automatic improvement proposals;
+- v0.4 cross-repo readiness suite that verifies public client and private registry readiness contracts in fixture mode or against a local private registry checkout without production hosted calls, production signing keys, live billing, PyPI publication, full catalog distribution, automatic install/update/remove, automatic skill rewriting, or auto-publish;
+- v0.4 go/no-go decision package that recommends GO for the first four implementation epics after review and merge while keeping production rollout behind per-epic review gates;
+- v0.4.9-alpha MCP profile rollout simulator is the active release gate for the MCP profile distribution milestone;
+- persistent warm daemon as the default agent retrieval path;
+- richer learning loop for accepted/rejected matches;
+- automatic skill drafting from repeated task patterns;
+- stronger per-agent installers and config adapters;
+- hosted registry service hardening and broader early-access onboarding.
+
+### Release milestone docs
+
+For the v0.4.9-alpha MCP profile rollout simulator milestone,
+see [docs/releases/v0.4.9-alpha.md](docs/releases/v0.4.9-alpha.md),
+[docs/releases/v0.4.9-alpha-checklist.md](docs/releases/v0.4.9-alpha-checklist.md),
+[docs/releases/v0.4.9-alpha-upgrade-notes.md](docs/releases/v0.4.9-alpha-upgrade-notes.md),
+and [docs/releases/v0.4.9-alpha-known-issues.md](docs/releases/v0.4.9-alpha-known-issues.md).
+For the v0.4.8-alpha managed MCP profile trust store integration milestone,
+see [docs/releases/v0.4.8-alpha.md](docs/releases/v0.4.8-alpha.md),
+[docs/releases/v0.4.8-alpha-checklist.md](docs/releases/v0.4.8-alpha-checklist.md),
+and [docs/releases/v0.4.8-alpha-known-issues.md](docs/releases/v0.4.8-alpha-known-issues.md).
+For the v0.4.7-alpha signed MCP profile bundle integration milestone, see
+[docs/releases/v0.4.7-alpha.md](docs/releases/v0.4.7-alpha.md),
+[docs/releases/v0.4.7-alpha-checklist.md](docs/releases/v0.4.7-alpha-checklist.md),
+and [docs/releases/v0.4.7-alpha-known-issues.md](docs/releases/v0.4.7-alpha-known-issues.md).
+
+For the v0.4.5-alpha MCP audit inspector milestone, see [docs/releases/v0.4.5-alpha.md](docs/releases/v0.4.5-alpha.md), [docs/releases/v0.4.5-alpha-checklist.md](docs/releases/v0.4.5-alpha-checklist.md), [docs/releases/v0.4.5-alpha-upgrade-notes.md](docs/releases/v0.4.5-alpha-upgrade-notes.md), and [docs/releases/v0.4.5-alpha-known-issues.md](docs/releases/v0.4.5-alpha-known-issues.md). For the v0.4.4-alpha MCP permissioned tool profile integration milestone, see [docs/releases/v0.4.4-alpha.md](docs/releases/v0.4.4-alpha.md), [docs/releases/v0.4.4-alpha-checklist.md](docs/releases/v0.4.4-alpha-checklist.md), [docs/releases/v0.4.4-alpha-upgrade-notes.md](docs/releases/v0.4.4-alpha-upgrade-notes.md), and [docs/releases/v0.4.4-alpha-known-issues.md](docs/releases/v0.4.4-alpha-known-issues.md). For the v0.4.3-alpha MCP enforcement milestone, see [docs/releases/v0.4.3-alpha.md](docs/releases/v0.4.3-alpha.md), [docs/releases/v0.4.3-alpha-checklist.md](docs/releases/v0.4.3-alpha-checklist.md), [docs/releases/v0.4.3-alpha-upgrade-notes.md](docs/releases/v0.4.3-alpha-upgrade-notes.md), and [docs/releases/v0.4.3-alpha-known-issues.md](docs/releases/v0.4.3-alpha-known-issues.md). For the v0.4.2-alpha MCP milestone, see [docs/releases/v0.4.2-alpha.md](docs/releases/v0.4.2-alpha.md), [docs/releases/v0.4.2-alpha-checklist.md](docs/releases/v0.4.2-alpha-checklist.md), [docs/releases/v0.4.2-alpha-upgrade-notes.md](docs/releases/v0.4.2-alpha-upgrade-notes.md), and [docs/releases/v0.4.2-alpha-known-issues.md](docs/releases/v0.4.2-alpha-known-issues.md). For the v0.4.1-alpha reliability candidate, see [docs/releases/v0.4.1-alpha.md](docs/releases/v0.4.1-alpha.md), [docs/releases/v0.4.1-alpha-checklist.md](docs/releases/v0.4.1-alpha-checklist.md), [docs/releases/v0.4.1-alpha-upgrade-notes.md](docs/releases/v0.4.1-alpha-upgrade-notes.md), and [docs/releases/v0.4.1-alpha-known-issues.md](docs/releases/v0.4.1-alpha-known-issues.md). For the v0.4.0-alpha foundation tag, see [docs/releases/v0.4.0-alpha.md](docs/releases/v0.4.0-alpha.md). For v0.4 planning, see [docs/releases/v0.4-readiness-audit.md](docs/releases/v0.4-readiness-audit.md), [docs/rfcs/v0.4-skillops-platform-rfc.md](docs/rfcs/v0.4-skillops-platform-rfc.md), [docs/rfcs/v0.4-risk-register.md](docs/rfcs/v0.4-risk-register.md), and [docs/rfcs/v0.4-implementation-epics.md](docs/rfcs/v0.4-implementation-epics.md).
+
+## Support
+
+Unlimited Skills is open source under the MIT license. Voluntary donations help fund adapters, migration scripts, indexing work, hosted registry maintenance, and the learning-loop roadmap.
+
+Donate at [https://opportunity.ai4.sale/donate/unlimited-skills](https://opportunity.ai4.sale/donate/unlimited-skills), use GitHub's Sponsor button generated from [.github/FUNDING.yml](.github/FUNDING.yml), or see [DONATE.md](DONATE.md).
+
+Donations are voluntary support payments. They are non-refundable unless a separate written agreement says otherwise, and they are not investments, securities, loans, equity, revenue share, voting rights, ownership interests, subscriptions, pre-orders, or purchases of hosted-service access. See [SERVICE-TERMS.md](SERVICE-TERMS.md).
 
 ## License
 

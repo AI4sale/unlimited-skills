@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Changed
+
+- A2 README repositioning: the README top is rewritten around the context-flooding pain and the search-first/load-one model, leads with measured numbers only (lab gateway benchmark 90,420 -> 1,268 bytes standing cost, `unlimited-skills mcp savings` for on-your-machine measurement, sub-second `suggest` probe, 0.967 top-3 hit rate on the frozen eval set) framed as "measured, not promised", adds an explicit install -> quickstart -> docs reading order, and moves the registered/governed surfaces (editions, registration, hosted catalogs, teams, hub, policy, release gates) under a single bottom "Enterprise & trust layer" section with a docs/ link map. No content was removed and no paid/hosted offers were added; the single A3-PYPI-FLIP install marker moved next to the canonical top install block.
+
 ### Added
 
 - A1 golden path: `unlimited-skills quickstart [QUERY] [--json] [--skip-mcp-check] [--timeout SECONDS] [--claude-config PATH]` imports bundled packs when the local library is empty, runs a first non-empty search, measures MCP context savings, and prints real next-step commands without touching populated libraries.
