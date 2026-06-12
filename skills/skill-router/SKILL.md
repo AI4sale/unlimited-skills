@@ -9,6 +9,10 @@ Unlimited Skills is the gateway to the agent's external skill memory. Treat it a
 
 Use this router before doing substantive work unless an already-loaded skill is clearly relevant and already being used for the current task.
 
+Core rule: search first, view one, then act.
+
+Before solving unfamiliar or procedure-like tasks, check available skills. If a relevant skill is suggested, view it before creating a custom solution. If no relevant skill is suggested, continue normally.
+
 Use this router first when:
 
 - the user asks what skills, abilities, agents, workflows, procedures, or checklists are available;
@@ -25,11 +29,13 @@ Do not skip this router just because the task looks simple; skip it only when a 
 1. If the user asks what skills are available, run `list` and summarize the relevant collections or names.
 2. If the user names a specific skill, run `where <skill-name>` or `view <skill-name>` before saying it is unavailable.
 3. Otherwise, build a short search query from the user's request, project stack, error text, framework names, and domain terms.
-4. Run the installed launcher: `$env:USERPROFILE\.codex\skills\unlimited-skills\scripts\unlimited-skills.ps1 search "<query>" --mode hybrid --limit 8`.
-5. Pick a skill only when the result is concrete enough to change the work.
-6. Run `$env:USERPROFILE\.codex\skills\unlimited-skills\scripts\unlimited-skills.ps1 view <skill-name>` and follow only the relevant instructions.
-7. Record usage with `$env:USERPROFILE\.codex\skills\unlimited-skills\scripts\unlimited-skills.ps1 use <skill-name> --query "<query>" --task "<short task>"`.
-8. If the selected skill was wrong or especially useful, record feedback with the same launcher and the `feedback` command.
+4. Run the cheap suggestion probe first: `$env:USERPROFILE\.codex\skills\unlimited-skills\scripts\unlimited-skills.ps1 suggest "<query>" --limit 3`.
+5. If no skill crosses the suggestion floor, continue normally.
+6. If a relevant skill is suggested, run `$env:USERPROFILE\.codex\skills\unlimited-skills\scripts\unlimited-skills.ps1 view <skill-name>` and follow only the relevant instructions.
+7. If the suggestion is inconclusive, run the broader fallback search: `$env:USERPROFILE\.codex\skills\unlimited-skills\scripts\unlimited-skills.ps1 search "<query>" --mode hybrid --limit 8`.
+8. Pick a skill only when the result is concrete enough to change the work.
+9. Record usage with `$env:USERPROFILE\.codex\skills\unlimited-skills\scripts\unlimited-skills.ps1 use <skill-name> --query "<query>" --task "<short task>"`.
+10. If the selected skill was wrong or especially useful, record feedback with the same launcher and the `feedback` command.
 
 {{REMOTE_HUB_ROUTER_BLOCK}}
 
@@ -38,6 +44,7 @@ Do not skip this router just because the task looks simple; skip it only when a 
 ```powershell
 $env:USERPROFILE\.codex\skills\unlimited-skills\scripts\unlimited-skills.ps1 list --limit 40
 $env:USERPROFILE\.codex\skills\unlimited-skills\scripts\unlimited-skills.ps1 list --filter "security review" --limit 20
+$env:USERPROFILE\.codex\skills\unlimited-skills\scripts\unlimited-skills.ps1 suggest "React component rerender performance" --limit 3
 $env:USERPROFILE\.codex\skills\unlimited-skills\scripts\unlimited-skills.ps1 search "React component rerender performance" --mode hybrid --limit 8
 $env:USERPROFILE\.codex\skills\unlimited-skills\scripts\unlimited-skills.ps1 where security-review
 $env:USERPROFILE\.codex\skills\unlimited-skills\scripts\unlimited-skills.ps1 view react-performance

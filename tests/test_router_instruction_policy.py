@@ -17,6 +17,9 @@ def test_router_skills_require_skill_lookup_before_substantive_work() -> None:
         assert "before doing substantive work" in text.lower()
         assert "already active" in text.lower()
         assert "content writing" in text.lower()
+        if path.name == "SKILL.md":
+            assert "search first, view one, then act" in text.lower()
+            assert "suggest" in text.lower()
 
 
 def test_agents_patches_require_skill_lookup_before_substantive_work() -> None:
@@ -29,3 +32,5 @@ def test_agents_patches_require_skill_lookup_before_substantive_work() -> None:
         text = path.read_text(encoding="utf-8")
         assert "Before doing substantive work" in text
         assert "relevant skill is already active" in text
+        assert "Search first, view one, then act" in text
+        assert "suggest" in text

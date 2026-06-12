@@ -9,6 +9,10 @@ Unlimited Skills is Claude Code's external skill memory. Treat it as the place w
 
 Use this router before doing substantive work unless a relevant skill is already active in context and it is clear why that skill applies.
 
+Core rule: search first, view one, then act.
+
+Before solving unfamiliar or procedure-like tasks, check available skills. If a relevant skill is suggested, view it before creating a custom solution. If no relevant skill is suggested, continue normally.
+
 Use this router first when:
 
 - the user asks what skills, abilities, workflows, procedures, or checklists are available;
@@ -21,11 +25,13 @@ Do not conclude that a skill is missing just because it is absent from `~/.claud
 ## Workflow
 
 1. Build a short search query from the user's request, project stack, error text, framework names, and domain terms.
-2. Run the installed launcher with `search "<query>" --mode hybrid --limit 8`.
-3. Pick a skill only when the result is concrete enough to change the work.
-4. Run `view <skill-name>` and follow only the relevant instructions.
-5. Record usage with `use <skill-name> --query "<query>" --task "<short task>"`.
-6. If the selected skill was wrong or especially useful, record feedback with the `feedback` command.
+2. Run the cheap suggestion probe with `suggest "<query>" --limit 3`.
+3. If no skill crosses the suggestion floor, continue normally.
+4. If a relevant skill is suggested, run `view <skill-name>` and follow only the relevant instructions.
+5. If the suggestion is inconclusive, run the broader fallback search with `search "<query>" --mode hybrid --limit 8`.
+6. Pick a skill only when the result is concrete enough to change the work.
+7. Record usage with `use <skill-name> --query "<query>" --task "<short task>"`.
+8. If the selected skill was wrong or especially useful, record feedback with the `feedback` command.
 
 {{REMOTE_HUB_ROUTER_BLOCK}}
 
@@ -35,6 +41,7 @@ Use the shell launcher on macOS, Linux, and WSL:
 
 ```bash
 "{{CLAUDE_SH_LAUNCHER}}" search "<query>" --mode hybrid --limit 8
+"{{CLAUDE_SH_LAUNCHER}}" suggest "<query>" --limit 3
 "{{CLAUDE_SH_LAUNCHER}}" where <skill-name>
 "{{CLAUDE_SH_LAUNCHER}}" view <skill-name>
 "{{CLAUDE_SH_LAUNCHER}}" use <skill-name> --query "<query>" --task "<short task>"
@@ -45,6 +52,7 @@ Use the PowerShell launcher on Windows:
 
 ```powershell
 powershell -NoProfile -ExecutionPolicy Bypass -File "{{CLAUDE_PS_LAUNCHER}}" search "<query>" --mode hybrid --limit 8
+powershell -NoProfile -ExecutionPolicy Bypass -File "{{CLAUDE_PS_LAUNCHER}}" suggest "<query>" --limit 3
 powershell -NoProfile -ExecutionPolicy Bypass -File "{{CLAUDE_PS_LAUNCHER}}" where <skill-name>
 powershell -NoProfile -ExecutionPolicy Bypass -File "{{CLAUDE_PS_LAUNCHER}}" view <skill-name>
 powershell -NoProfile -ExecutionPolicy Bypass -File "{{CLAUDE_PS_LAUNCHER}}" use <skill-name> --query "<query>" --task "<short task>"

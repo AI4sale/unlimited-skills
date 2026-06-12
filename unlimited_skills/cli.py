@@ -663,6 +663,7 @@ def build_parser() -> argparse.ArgumentParser:
     from .commands import policy as policy_cmds
     from .commands import private_packs as private_packs_cmds
     from .commands import service as service_cmds
+    from . import skill_effectiveness as skill_effectiveness_cmds
     from .commands import skillops as skillops_cmds
     from .commands import team as team_cmds
     from .commands import updates as updates_cmds
@@ -705,6 +706,15 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("--require-vector", action="store_true")
     add_native_sync_options(search)
     search.set_defaults(func=library_cmds.cmd_search)
+
+    suggest = sub.add_parser("suggest", help="Suggest up to three relevant skills without printing skill bodies or local paths.")
+    suggest.add_argument("query")
+    suggest.add_argument("--limit", type=int, default=3)
+    suggest.add_argument("--score-floor", type=float, default=3.0)
+    suggest.add_argument("--json", action="store_true")
+    suggest.add_argument("--fresh", action="store_true")
+    add_native_sync_options(suggest)
+    suggest.set_defaults(func=skill_effectiveness_cmds.cmd_suggest)
 
     list_parser = sub.add_parser("list", help="List available skills in the library.")
     list_parser.add_argument("--collection", help="Only list one collection.")
@@ -977,6 +987,20 @@ def build_parser() -> argparse.ArgumentParser:
     support_bundle.add_argument("--include-paths", action="store_true", help="Include local paths in diagnostics. Off by default.")
     support_bundle.add_argument("--include-private-pack-refs", action="store_true", help="Include hashed private pack references. Skill names and bodies are still excluded.")
     support_bundle.set_defaults(func=library_cmds.cmd_support_bundle)
+
+    skills = sub.add_parser("skills", help="Run skill invocation and effectiveness diagnostics.")
+    skills_sub = skills.add_subparsers(dest="skills_command", required=True)
+    check_effectiveness = skills_sub.add_parser(
+        "check-effectiveness",
+        help="Run the deterministic A0 skill suggestion effectiveness gate.",
+    )
+    check_effectiveness.add_argument("--gate", choices=["a0-merge", "v0.5-release"], default="a0-merge")
+    check_effectiveness.add_argument("--score-floor", type=float, default=3.0)
+    check_effectiveness.add_argument("--fixture-mode", action="store_true", help="Use the built-in frozen 30 positive / 10 negative fixture set.")
+    check_effectiveness.add_argument("--fresh", action="store_true")
+    check_effectiveness.add_argument("--json", action="store_true")
+    check_effectiveness.add_argument("--out", default="", help="Write the report JSON to this path.")
+    check_effectiveness.set_defaults(func=skill_effectiveness_cmds.cmd_check_effectiveness)
 
     register = sub.add_parser("register", help="Self-register this installation for hosted catalog and adapted collection updates.")
     register.add_argument("--server-url", default=DEFAULT_SERVICE_URL, help="Registration and update service URL.")
