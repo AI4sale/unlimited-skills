@@ -83,7 +83,12 @@ def _atomic_write_json(path: Path, payload: dict[str, Any]) -> None:
 def _backup(path: Path) -> Path | None:
     if not path.exists():
         return None
-    backup = path.with_name(f"{path.name}.{_timestamp()}.back")
+    stem = f"{path.name}.{_timestamp()}"
+    backup = path.with_name(f"{stem}.back")
+    suffix = 1
+    while backup.exists():
+        backup = path.with_name(f"{stem}-{suffix}.back")
+        suffix += 1
     shutil.copy2(path, backup)
     return backup
 
@@ -188,6 +193,7 @@ def install_claude_code_gateway(options: ClaudeCodeMcpOptions) -> dict[str, Any]
         "idempotent": not changed and not gateway_created,
         "dry_run": options.dry_run,
         "backup_created": False,
+        "backup_file": None,
         "gateway_config_created": gateway_created,
         "diff": config_diff,
         "next_steps": [
@@ -205,6 +211,7 @@ def install_claude_code_gateway(options: ClaudeCodeMcpOptions) -> dict[str, Any]
     if gateway_created:
         _atomic_write_json(gateway_path, gateway_payload)
     report["backup_created"] = backup is not None
+    report["backup_file"] = backup.name if backup is not None else None
     return report
 
 
@@ -230,6 +237,7 @@ def uninstall_claude_code_gateway(options: ClaudeCodeMcpOptions) -> dict[str, An
         "idempotent": not changed,
         "dry_run": options.dry_run,
         "backup_created": False,
+        "backup_file": None,
         "diff": _safe_diff(before, after, fromfile="before", tofile="after") if changed else "",
         "next_steps": ["Restart Claude Code so it reloads MCP servers."],
     }
@@ -239,6 +247,7 @@ def uninstall_claude_code_gateway(options: ClaudeCodeMcpOptions) -> dict[str, An
     if changed:
         _atomic_write_json(config_path, after)
     report["backup_created"] = backup is not None
+    report["backup_file"] = backup.name if backup is not None else None
     return report
 
 
@@ -301,6 +310,8 @@ def format_claude_code_gateway_report(report: dict[str, Any]) -> str:
         f"- server: {report['server_name']}",
         f"- backup created: {report['backup_created']}",
     ]
+    if report.get("backup_file"):
+        lines.append(f"- backup file: {report['backup_file']}")
     if report["action"] == "install":
         lines.append(f"- gateway config created: {report['gateway_config_created']}")
     if report.get("diff"):

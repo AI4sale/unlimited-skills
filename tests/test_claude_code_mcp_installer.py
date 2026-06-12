@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from unlimited_skills import cli
+from unlimited_skills.mcp import claude_code
 
 
 def run_cli(args: list[str], capsys) -> tuple[int, str, str]:
@@ -55,7 +56,10 @@ def test_project_install_preserves_existing_servers_and_is_idempotent(tmp_path: 
         capsys,
     )
     assert first_code == 0, first_err
-    assert json.loads(first_out)["backup_created"] is True
+    first_report = json.loads(first_out)
+    assert first_report["backup_created"] is True
+    assert first_report["backup_file"].startswith(".mcp.json.")
+    assert str(tmp_path) not in first_report["backup_file"]
     assert list(tmp_path.glob(".mcp.json.*.back"))
 
     config = read_json(tmp_path / ".mcp.json")
@@ -71,6 +75,7 @@ def test_project_install_preserves_existing_servers_and_is_idempotent(tmp_path: 
     assert second["changed"] is False
     assert second["idempotent"] is True
     assert second["backup_created"] is False
+    assert second["backup_file"] is None
 
 
 def test_project_install_dry_run_redacts_secrets_and_paths(tmp_path: Path, capsys) -> None:
@@ -213,3 +218,34 @@ def test_install_status_reports_project_and_global(tmp_path: Path, capsys) -> No
     by_scope = {entry["scope"]: entry for entry in report["entries"]}
     assert by_scope["project"]["configured"] is True
     assert by_scope["global"]["configured"] is True
+
+
+def test_project_backup_names_do_not_collide_with_same_timestamp(
+    tmp_path: Path, capsys, monkeypatch
+) -> None:
+    monkeypatch.setattr(claude_code, "_timestamp", lambda: "20260101_010101")
+    (tmp_path / ".mcp.json").write_text(
+        json.dumps({"mcpServers": {"github": {"command": "npx", "args": ["github-server"]}}}),
+        encoding="utf-8",
+    )
+
+    install_code, install_out, install_err = run_cli(
+        ["mcp", "install", "--claude-code", "--project-root", str(tmp_path), "--json"],
+        capsys,
+    )
+    assert install_code == 0, install_err
+    install_report = json.loads(install_out)
+    assert install_report["backup_file"] == ".mcp.json.20260101_010101.back"
+
+    uninstall_code, uninstall_out, uninstall_err = run_cli(
+        ["mcp", "uninstall", "--claude-code", "--project-root", str(tmp_path), "--json"],
+        capsys,
+    )
+    assert uninstall_code == 0, uninstall_err
+    uninstall_report = json.loads(uninstall_out)
+    assert uninstall_report["backup_file"] == ".mcp.json.20260101_010101-1.back"
+
+    assert sorted(path.name for path in tmp_path.glob(".mcp.json.*.back")) == [
+        ".mcp.json.20260101_010101-1.back",
+        ".mcp.json.20260101_010101.back",
+    ]
