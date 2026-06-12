@@ -13,7 +13,8 @@ the A3 publication gate will mechanically find and flip every site back to
 the plain PyPI command once the package is real.
 
 Allowed without the marker: CHANGELOG.md (release history may quote the old
-command) and this test itself.
+command), README-pypi.md (the future PyPI long description that is not uploaded
+until publication), the Trusted Publishing runbook, and this test itself.
 """
 from __future__ import annotations
 
@@ -28,6 +29,8 @@ MARKER = "A3-PYPI-FLIP"
 GIT_INSTALL = 'pip install "git+https://github.com/AI4sale/unlimited-skills.git"'
 ALLOWED_WITHOUT_MARKER = {
     "CHANGELOG.md",
+    "README-pypi.md",
+    "docs/releases/v0.5.0-alpha-pypi-publishing.md",
     "tests/test_install_path_docs.py",
 }
 
