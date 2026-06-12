@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from unlimited_skills.search_core import save_index
+from unlimited_skills.skill_effectiveness_thresholds import get_effectiveness_gate_profile, profile_to_runner_args
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CHECKER = REPO_ROOT / "scripts" / "check-skill-effectiveness.py"
@@ -84,6 +85,16 @@ def test_frozen_scenario_file_shape() -> None:
     assert len(tier3) >= 3
 
 
+def test_effectiveness_gate_profiles_are_single_source(checker) -> None:
+    a0 = get_effectiveness_gate_profile("a0-merge")
+    v05 = get_effectiveness_gate_profile("v0.5-release")
+    assert checker.DEFAULT_MIN_TOP1 == a0["min_top1"]
+    assert checker.DEFAULT_MIN_TOP3 == a0["min_top3"]
+    assert checker.DEFAULT_MIN_INJECTION_PRECISION == a0["min_injection_precision"]
+    assert "--min-top1" in profile_to_runner_args("v0.5-release")
+    assert str(v05["min_top1"]) in profile_to_runner_args("v0.5-release")
+
+
 def test_checker_full_run_writes_record_and_passes(tmp_path: Path, checker, capsys, monkeypatch) -> None:
     library = make_library(tmp_path)
     scenarios = make_scenarios(tmp_path)
@@ -126,8 +137,8 @@ def test_checker_full_run_writes_record_and_passes(tmp_path: Path, checker, caps
         "no_prompt_upload": True,
         "no_local_path_leak": True,
     }
-    assert summary["thresholds"]["min_top1"] == 0.55
-    assert summary["thresholds"]["min_top3"] == 0.83
+    assert summary["thresholds"]["min_top1"] == 0.70
+    assert summary["thresholds"]["min_top3"] == 0.85
     assert summary["thresholds"]["max_fp"] == 0.10
     assert summary["thresholds"]["min_positives"] == 3
     assert summary["thresholds"]["min_negatives"] == 1
