@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Feedback guide
+    url: https://github.com/AI4sale/unlimited-skills/blob/main/docs/feedback.md
+    about: How feedback works here — no telemetry, nothing is uploaded; every report is manual and voluntary.

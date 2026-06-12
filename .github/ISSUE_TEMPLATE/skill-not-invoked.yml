@@ -1,0 +1,70 @@
+name: Skill not invoked / wrong suggestion
+description: You expected a skill suggestion for a task and got silence or the wrong skill.
+title: "[suggest] "
+labels: ["feedback", "retrieval"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Suggestion quality is gated by a frozen eval set and measured runs
+        (see docs/adoption/skill-effectiveness-standard.md). Real-world
+        misses like yours are how that eval set grows. Silence on a true
+        no-skill task is by design (silence beats noise) — but silence or a
+        wrong pick on a task that has a matching skill is exactly what we
+        want reported.
+
+        `suggest` output is privacy-safe by contract: skill names, sources,
+        and scores only — no prompts, no local paths, no skill bodies.
+        Still, redact anything you consider sensitive.
+  - type: dropdown
+    id: failure-mode
+    attributes:
+      label: What went wrong?
+      options:
+        - No suggestion at all (silence), but a matching skill exists in my library
+        - Wrong skill suggested (top hit does not fit the task)
+        - Right skill ranked too low (not in top 3)
+        - Skill card injected for the wrong skill
+        - Hint appeared but pointed nowhere useful
+    validations:
+      required: true
+  - type: textarea
+    id: task
+    attributes:
+      label: The task you were doing (paraphrase is fine)
+      description: A few keywords or a paraphrase is enough — you do not need to paste your actual prompt.
+    validations:
+      required: true
+  - type: input
+    id: expected-skill
+    attributes:
+      label: Which skill did you expect? (name, if known)
+      placeholder: "e.g. github-ops"
+    validations:
+      required: false
+  - type: textarea
+    id: suggest-output
+    attributes:
+      label: Output of the suggest probe
+      description: "Run `unlimited-skills suggest \"<the same keywords>\" --json` and paste the result (names/scores only by contract)."
+      render: text
+    validations:
+      required: true
+  - type: input
+    id: library-size
+    attributes:
+      label: Library size
+      placeholder: "skill count from `unlimited-skills list` (approximate is fine)"
+    validations:
+      required: false
+  - type: dropdown
+    id: source
+    attributes:
+      label: Where do the skills come from?
+      options:
+        - Bundled packs (ecc / superpowers)
+        - My own imported skills
+        - Mix of both
+        - Not sure
+    validations:
+      required: false
