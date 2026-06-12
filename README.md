@@ -48,17 +48,15 @@ Methodology and caveats: [docs/unlimited-tools.md](docs/unlimited-tools.md), [do
 
 ## Start here
 
-<!-- A3-PYPI-FLIP: the package is not on PyPI yet; switch this back to `pip install unlimited-skills` when the v0.5 PyPI publication gate (A3) lands. -->
-
 ```bash
-pip install "git+https://github.com/AI4sale/unlimited-skills.git"
+pip install unlimited-skills
 unlimited-skills quickstart
 unlimited-skills setup --local-only
 ```
 
 What each step gives you:
 
-1. **Install** — the local core straight from GitHub while PyPI publication is still gated. The v0.5 wheel includes the bundled ECC + Superpowers packs used by `quickstart`; for vector/hybrid search, install with the `[all]` extras — see [Install](#install) below.
+1. **Install** — the local core from PyPI. The v0.5 wheel includes the bundled ECC + Superpowers packs used by `quickstart`; for vector/hybrid search, install with the `[all]` extras — see [Install](#install) below.
 2. **`unlimited-skills quickstart`** — the one-command golden path: it imports the bundled skill packs when your library is empty, runs a first search to prove retrieval works, and measures your real MCP context savings — how many tokens of MCP tool schemas your Claude Code config loads into every session versus the 3 meta-tools of the Unlimited Tools gateway. Everything runs locally and the command is idempotent.
 3. **`unlimited-skills setup --local-only`** — the guided first-run wizard for the local-only path.
 
@@ -127,7 +125,7 @@ For minimal lexical-only usage:
 python -m pip install -e .
 ```
 
-PyPI publication is gated until the v0.5 package verifier and install smoke pass on the release commit. The v0.5 wheel now includes the bundled ECC + Superpowers packs needed for `quickstart`; repo-only installer scripts and full docs still live in the GitHub checkout.
+The v0.5 wheel includes the bundled ECC + Superpowers packs needed for `quickstart`. Repo-only installer scripts and full docs still live in the GitHub checkout.
 
 Run the first-run wizard:
 
@@ -213,7 +211,7 @@ Since v0.3.12 the router ships as a native Claude Code plugin with a `SessionSta
 /plugin install unlimited-skills@unlimited-skills
 ```
 
-The pip install from GitHub gives you the local core and bundled packs while the package is not published on PyPI yet. For vector/hybrid search, install with the `[all]` extras instead — see [Install](#install) above.
+The PyPI install gives you the local core and bundled packs. For vector/hybrid search, install with the `[all]` extras instead — see [Install](#install) above.
 
 See `docs/claude-code-plugin.md` for details, including how the plugin coexists with the script installer below.
 
@@ -608,7 +606,7 @@ examples/                example libraries and commands
 
 Everything below is the governed and registered side of the project: signed artifacts, permission profiles, audit tooling, hosted catalogs, team distribution, and policy enforcement. None of it is required for the local core above.
 
-**v0.5.0-alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, catalog browser discovery is signed metadata-only alpha, catalog feedback is explicit and registration-gated, catalog quality and skill improvement status are signed metadata-only diagnostics, Local Skill Hub is allowlist-only alpha, Enterprise Skill Lock is a local policy MVP with registered managed sync, private team packs plus org/team governance diagnostics are registered/entitled alpha paths, plan/billing diagnostics are sandbox-only with no live payment provider, and community catalog install is limited to signed approved/published items. The v0.5.0-alpha packaging milestone verifies wheel/sdist metadata, bundled-pack inclusion, and clean-install first value before any PyPI command is flipped.
+**v0.5.0-alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, catalog browser discovery is signed metadata-only alpha, catalog feedback is explicit and registration-gated, catalog quality and skill improvement status are signed metadata-only diagnostics, Local Skill Hub is allowlist-only alpha, Enterprise Skill Lock is a local policy MVP with registered managed sync, private team packs plus org/team governance diagnostics are registered/entitled alpha paths, plan/billing diagnostics are sandbox-only with no live payment provider, and community catalog install is limited to signed approved/published items. The v0.5.0-alpha packaging milestone verifies wheel/sdist metadata, bundled-pack inclusion, and clean-install first value.
 
 Map of the trust stack:
 
