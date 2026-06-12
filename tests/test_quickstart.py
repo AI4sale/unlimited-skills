@@ -61,6 +61,20 @@ def test_empty_library_imports_bundled_packs(fixture_repo: Path, tmp_path: Path)
     assert (root / ".unlimited-skills-index.json").is_file()
 
 
+def test_empty_library_imports_packaged_bundled_packs(
+    fixture_repo: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "library"
+    monkeypatch.setattr(quickstart_mod, "find_repo_root", lambda start=None: None)
+    monkeypatch.setattr(quickstart_mod, "packaged_packs_root", lambda: fixture_repo / "packs")
+    result = ensure_bundled_library(root)
+    assert result["status"] == "imported"
+    assert result["imported"] == {"ecc": 1, "superpowers": 1}
+    assert result["skill_count"] == 2
+    assert (root / "registry" / "ecc" / "skills" / "code-review" / "SKILL.md").is_file()
+    assert (root / "registry" / "superpowers" / "skills" / "debugging-loop" / "SKILL.md").is_file()
+
+
 def test_populated_library_skips_import(fixture_repo: Path, tmp_path: Path) -> None:
     root = tmp_path / "library"
     make_skill(root / "local" / "skills", "existing-skill", "Already here")

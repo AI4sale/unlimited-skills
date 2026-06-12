@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "unlimited-skills"
-version = "0.4.9"
+version = "0.5.0"
 description = "A local skill retrieval library for coding agents: lexical search, vector sidecar search, warm daemon mode, and learning-loop logs."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -20,12 +20,18 @@ keywords = ["agents", "skills", "codex", "claude-code", "chroma", "retrieval", "
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Intended Audience :: Developers",
-  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.10",
   "Programming Language :: Python :: 3.11",
   "Programming Language :: Python :: 3.12",
 ]
+
+[project.urls]
+Homepage = "https://github.com/AI4sale/unlimited-skills"
+Repository = "https://github.com/AI4sale/unlimited-skills"
+Issues = "https://github.com/AI4sale/unlimited-skills/issues"
+Changelog = "https://github.com/AI4sale/unlimited-skills/blob/main/CHANGELOG.md"
+Documentation = "https://github.com/AI4sale/unlimited-skills/tree/main/docs"
 
 [project.optional-dependencies]
 vector = [
@@ -48,6 +54,9 @@ unlimited-skills = "unlimited_skills.__main__:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["unlimited_skills"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"packs" = "unlimited_skills/bundled_packs"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
