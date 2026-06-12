@@ -1143,6 +1143,35 @@ def build_parser() -> argparse.ArgumentParser:
         help="Limit the plain-text report to one section. JSON output is always the full document.",
     )
     mcp_audit_report.set_defaults(func=mcp_cmds.cmd_mcp_audit_report)
+    mcp_profiles = mcp_sub.add_parser(
+        "profiles",
+        help="Dry-run rollout simulator and policy doctor for MCP tool profiles and signed bundles: shows what WOULD happen before applying. Read-only -- never spawns upstreams, no runtime state changes, no network, no telemetry.",
+    )
+    mcp_profiles_sub = mcp_profiles.add_subparsers(dest="profiles_command", required=True)
+
+    def add_rollout_common(command: argparse.ArgumentParser) -> None:
+        command.add_argument("--config", default="", help="Gateway JSON config (schemas/mcp-upstream-config.schema.json); its pre-declared 'tools' entries are the default tool list. Never spawned here.")
+        command.add_argument("--profiles", default="", help="Raw permissioned tool-profile JSON file (E09/E10). Alongside --bundle it is the narrow-only local override.")
+        command.add_argument("--bundle", default="", help="SIGNED profile bundle JSON file (schemas/mcp-profile-bundle.schema.json); the REAL E14 verification runs in dry-run.")
+        command.add_argument("--trusted-keys", default="", help="Trusted-keys JSON file for bundle verification. Omitted: defaults to the managed trust store's trusted-keys.json under <root>/.unlimited-skills-trust when it exists (E15).")
+        command.add_argument("--audience-id", action="append", default=None, metavar="ID", help="This consumer's audience identifier ('team:NAME', 'org:NAME', or 'host:NAME'). Repeatable; beats UNLIMITED_SKILLS_MCP_AUDIENCE.")
+        command.add_argument("--profile", default="", help="Profile name to simulate. Precedence: this flag > UNLIMITED_SKILLS_MCP_PROFILE > the source's default_profile.")
+        command.add_argument("--tools-fixture", default="", help="What-if tool list: a JSON list of {upstream, name, description} objects, replacing the config's pre-declared tools.")
+        command.add_argument("--require-signed-profiles", action="store_true", help="Simulate the signed-required policy: unsigned profile sources fail closed with -32015.")
+        command.add_argument("--json", action="store_true")
+
+    rollout_plan = mcp_profiles_sub.add_parser(
+        "rollout-plan",
+        help="Build the dry-run rollout plan: visible/hidden/callable tool counts and lists, upstreams that would never spawn, the inheritance chain and its narrowing, what E14 verification WOULD say, and the audit impact. JSON validates against schemas/mcp-profile-rollout-plan.schema.json.",
+    )
+    add_rollout_common(rollout_plan)
+    rollout_plan.set_defaults(func=mcp_cmds.cmd_mcp_profiles_rollout_plan)
+    profiles_doctor = mcp_profiles_sub.add_parser(
+        "doctor",
+        help="Policy doctor over the same dry-run inputs: distinct findings (missing/corrupt trust store, expired/revoked/unknown keys, wrong audience, namespace-ceiling violations, hides-all profiles, inert callable rules, shadowed tool names, over-deep chains, unsigned-under-signed-policy). Exit 0 clean / 1 problems.",
+    )
+    add_rollout_common(profiles_doctor)
+    profiles_doctor.set_defaults(func=mcp_cmds.cmd_mcp_profiles_doctor)
 
     catalog = sub.add_parser("catalog", help="Query the registered hosted adapted-skill catalog and browser.")
     catalog_sub = catalog.add_subparsers(dest="catalog_command", required=True)
@@ -1713,6 +1742,8 @@ from .commands.team import (
 from .commands.mcp import (
     cmd_mcp_audit_report,
     cmd_mcp_gateway,
+    cmd_mcp_profiles_doctor,
+    cmd_mcp_profiles_rollout_plan,
     cmd_mcp_serve,
     cmd_mcp_trust_doctor,
     cmd_mcp_trust_import,

@@ -668,3 +668,18 @@ keep working. When `--profile-bundle` is given without `--trusted-keys` and
 the managed store exists, the gateway defaults to the managed
 trusted-keys file (no managed store = behavior unchanged). See
 [mcp-trust-store.md](mcp-trust-store.md).
+
+## Rollout simulator and policy doctor (E16)
+
+Before enabling a bundle, `unlimited-skills mcp profiles rollout-plan|doctor`
+runs this document's verification algorithm in DRY-RUN over the same
+artifacts (bundle, trusted keys -- explicit or the E15 managed store --
+local narrow-only file, gateway config) and reports what WOULD happen:
+the exact refusal code and failing step, the visible/hidden/callable tool
+counts, upstreams that would never spawn, and the `profile_loaded` audit
+impact. The doctor adds distinct findings (missing/corrupt trust store,
+expired/revoked/unknown keys, wrong audience, namespace-ceiling violations,
+hides-all profiles, inert callable rules, shadowed tool names, over-deep
+chains, unsigned-under-signed-policy; exit 0 clean / 1 problems). The
+simulator is read-only: verification semantics here are reused, never
+changed or bypassed. See [mcp-profile-rollout.md](mcp-profile-rollout.md).

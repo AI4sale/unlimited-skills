@@ -1,0 +1,223 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://unlimited.ai4.sale/schemas/mcp-profile-rollout-plan.schema.json",
+  "title": "MCP profile rollout plan (E16 dry-run simulator output)",
+  "description": "The --json output of 'unlimited-skills mcp profiles rollout-plan': a read-only dry-run over the profile/bundle/trust/config artifacts the gateway would load at startup. Nothing is spawned, written, fetched, or telemetered to produce this document; refusal codes are the reserved -32011..-32019 family.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "inputs",
+    "profile_state",
+    "tools",
+    "upstreams",
+    "inheritance",
+    "verification",
+    "audit_impact",
+    "warnings",
+    "blockers"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "inputs": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "config_path",
+        "profiles_path",
+        "bundle_path",
+        "trusted_keys_path",
+        "trusted_keys_source",
+        "profile",
+        "audience_ids",
+        "tools_source",
+        "require_signed_profiles"
+      ],
+      "properties": {
+        "config_path": { "type": "string" },
+        "profiles_path": { "type": "string" },
+        "bundle_path": { "type": "string" },
+        "trusted_keys_path": { "type": "string" },
+        "trusted_keys_source": { "enum": ["explicit", "managed", "none"] },
+        "profile": { "type": "string" },
+        "audience_ids": { "type": "array", "items": { "type": "string" } },
+        "tools_source": { "enum": ["config", "fixture", "none"] },
+        "require_signed_profiles": { "type": "boolean" }
+      }
+    },
+    "profile_state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mode", "profile", "source", "refusal_code", "refusal_name", "message"],
+      "properties": {
+        "mode": { "enum": ["open", "enforced", "fail_closed", "blocked"] },
+        "profile": { "type": "string" },
+        "source": {
+          "enum": ["none", "raw_file", "signed_bundle", "signed_bundle_narrowed", "policy_refusal"]
+        },
+        "refusal_code": { "type": "integer", "maximum": 0 },
+        "refusal_name": { "type": "string" },
+        "message": { "type": "string" }
+      }
+    },
+    "tools": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "total",
+        "visible",
+        "hidden",
+        "callable",
+        "view_only",
+        "refused_by_policy",
+        "visible_tools",
+        "hidden_tools"
+      ],
+      "properties": {
+        "total": { "type": "integer", "minimum": 0 },
+        "visible": { "type": "integer", "minimum": 0 },
+        "hidden": { "type": "integer", "minimum": 0 },
+        "callable": { "type": "integer", "minimum": 0 },
+        "view_only": { "type": "integer", "minimum": 0 },
+        "refused_by_policy": { "type": "integer", "minimum": 0 },
+        "visible_tools": { "type": "array", "items": { "type": "string" } },
+        "hidden_tools": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "upstreams": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "name",
+          "trust_level",
+          "spawnable",
+          "configured",
+          "declared_tools",
+          "visible_tools",
+          "would_spawn",
+          "loses_all_visibility",
+          "note"
+        ],
+        "properties": {
+          "name": { "type": "string" },
+          "trust_level": { "type": "string" },
+          "spawnable": { "type": "boolean" },
+          "configured": { "type": "boolean" },
+          "declared_tools": { "type": "integer", "minimum": 0 },
+          "visible_tools": { "type": "integer", "minimum": 0 },
+          "would_spawn": { "type": "boolean" },
+          "loses_all_visibility": { "type": "boolean" },
+          "note": { "type": "string" }
+        }
+      }
+    },
+    "inheritance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["available", "chain", "depth", "narrowed_by_local_file", "steps"],
+      "properties": {
+        "available": { "type": "boolean" },
+        "chain": { "type": "array", "items": { "type": "string" } },
+        "depth": { "type": "integer", "minimum": 0 },
+        "narrowed_by_local_file": { "type": "boolean" },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "profile",
+              "declared_visible_rules",
+              "declared_callable_rules",
+              "visible_tools_after_step",
+              "callable_tools_after_step"
+            ],
+            "properties": {
+              "profile": { "type": "string" },
+              "declared_visible_rules": { "type": "integer", "minimum": 0 },
+              "declared_callable_rules": { "type": "integer", "minimum": 0 },
+              "visible_tools_after_step": { "type": "integer", "minimum": 0 },
+              "callable_tools_after_step": { "type": "integer", "minimum": 0 }
+            }
+          }
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "attempted",
+        "ok",
+        "refusal_code",
+        "refusal_name",
+        "failed_step",
+        "detail",
+        "bundle_sha256",
+        "issuer_key_id",
+        "issuer_display",
+        "audience",
+        "expires_at"
+      ],
+      "properties": {
+        "attempted": { "type": "boolean" },
+        "ok": { "type": "boolean" },
+        "refusal_code": { "type": "integer", "maximum": 0 },
+        "refusal_name": { "type": "string" },
+        "failed_step": {
+          "enum": [
+            "",
+            "shape_or_static_checks",
+            "key_lookup",
+            "signature",
+            "validity_window",
+            "revocation",
+            "audience",
+            "namespace_ceiling",
+            "selection",
+            "policy"
+          ]
+        },
+        "detail": { "type": "string" },
+        "bundle_sha256": { "type": "string", "pattern": "^$|^[0-9a-f]{64}$" },
+        "issuer_key_id": { "type": "string" },
+        "issuer_display": { "type": "string" },
+        "audience": { "type": "array", "items": { "type": "string" } },
+        "expires_at": { "type": "string" }
+      }
+    },
+    "audit_impact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "profile_loaded_row_recorded",
+        "profile_loaded_row",
+        "note",
+        "audit_levels",
+        "per_call_rows_carry_profile"
+      ],
+      "properties": {
+        "profile_loaded_row_recorded": { "type": "boolean" },
+        "profile_loaded_row": {
+          "type": "object",
+          "description": "The exact non-timestamp fields the gateway's profile_loaded audit row would carry (empty object when no row would be recorded). Hashes, key ids, names, and counts only -- never key material, signature values, or rule text."
+        },
+        "note": { "type": "string" },
+        "audit_levels": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["standard", "minimal"],
+          "properties": {
+            "standard": { "type": "integer", "minimum": 0 },
+            "minimal": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "per_call_rows_carry_profile": { "type": "boolean" }
+      }
+    },
+    "warnings": { "type": "array", "items": { "type": "string" } },
+    "blockers": { "type": "array", "items": { "type": "string" } }
+  }
+}
