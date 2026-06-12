@@ -636,7 +636,7 @@ See [docs/product-editions.md](docs/product-editions.md) for the full edition ta
 - **Community Core**: MIT, local-first, no registration. Local search, list, view, where, use, feedback, reindex, vector-reindex, adapt, serve, installers, migration scripts, native sync, and public self-update stay available offline.
 - **Registered Community**: free registration for hosted adapted catalog access, early-access collection updates, registered local enhancer downloads, future official community catalog/submissions, and the Registered Local Skill Hub contract up to 100 active client instances.
 - **Team Free**: registered team sync MVP with master approval and up to 10 instances when enforced server-side.
-- **Pro / Team**: planned paid hosted collaboration, dashboard, private packs, collection assignment, longer auto-approval windows, and support. The public client includes registered private-pack install/sync commands; registry-side access requires private-pack entitlement or a Business/Enterprise plan.
+- **Team collaboration roadmap**: hosted collaboration, dashboard, private packs, collection assignment, longer auto-approval windows, and support remain future gated work. The public client includes registered private-pack install/sync commands; registry-side access requires explicit private-pack entitlement.
 - **Enterprise**: local Enterprise Skill Lock policy MVP and registered managed policy sync now; private registry enforcement, SSO/on-prem/VPC options later.
 
 Local Skill Hub is separate from the free local daemon: `unlimited-skills serve` remains unregistered, while `unlimited-skills hub serve` is registration-gated and allowlist-only. See [docs/local-skill-hub.md](docs/local-skill-hub.md).
