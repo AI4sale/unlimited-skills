@@ -152,6 +152,15 @@ future-gated unless explicitly implemented in a later gate. No hosted trust
 fetch, registry sync, OAuth, resources, prompts, or production signing keys are
 included.
 
+Since v0.4.8-alpha, `unlimited-skills mcp trust status|list|import|revoke|doctor`
+is the managed MCP profile trust store integration gate for those bundles. It
+manages local public keys and the local CRL offline under the library root,
+prints only abbreviated fingerprints, refuses private key material before
+writing, and keeps the signed bundle verifier responsible for wrong scope,
+wrong audience, expiry, revocation, and missing trust store refusals. The gate
+does not add hosted trust fetch, registry sync, OAuth, resources, prompts,
+production signing keys, or private key storage.
+
 Signed profile bundles for team distribution are designed in
 [mcp-signed-profile-bundles.md](mcp-signed-profile-bundles.md) (E13, design
 only — not yet enforced): Ed25519-signed, self-contained bundles with

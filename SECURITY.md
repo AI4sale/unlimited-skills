@@ -2,7 +2,7 @@
 
 ## Supported Version
 
-`v0.4.7-alpha` is a developer preview. Security fixes should target the current `main` branch first.
+`v0.4.8-alpha` is a developer preview. Security fixes should target the current `main` branch first.
 
 The older `v0.3.7-alpha` security boundary remains documented for compatibility with the v0.2.x smoke claims that protect release-history wording.
 
@@ -34,7 +34,7 @@ The hosted clients must not upload:
 
 ## Hosted Archives And Enhancers
 
-Current `v0.4.7-alpha` behavior:
+Current `v0.4.8-alpha` behavior:
 
 - hosted remote manifests must include valid signed manifest envelopes;
 - signatures verify hosted manifest authenticity;
@@ -51,7 +51,7 @@ Use "signed hosted manifests plus SHA256-verified hosted collection archives" fo
 
 Local Skill Hub is an alpha MVP. The runtime is allowlist-only, does not execute skills, and does not forward local search queries to the hosted registry. It is intended for local or controlled LAN testing.
 
-Current `v0.4.7-alpha` limitations:
+Current `v0.4.8-alpha` limitations:
 
 - Hub client token creation, revocation, and request enforcement are implemented for Local Skill Hub `/v1/...` APIs. `GET /health` remains unauthenticated for liveness checks.
 - Use the default `127.0.0.1` bind address unless you are testing on a trusted LAN.
@@ -160,6 +160,30 @@ full catalog, rewrite skills automatically, enable automatic telemetry, expose
 a hosted gateway, implement OAuth or remote upstreams, enable MCP resources or
 prompts, allow arbitrary shell execution, or auto-publish. Codex must not
 create or push `v0.4.7-alpha` from this integration gate.
+
+## v0.4.8-alpha Managed Profile Trust Store Boundary
+
+The v0.4.8-alpha MCP milestone integrates the managed MCP profile trust store
+for signed profile bundle verification. It proves local/offline
+`unlimited-skills mcp trust status`, `trust list`, `trust import`,
+`trust revoke`, and `trust doctor`; public-key-only import; abbreviated
+fingerprints; append-only local CRL revocation; corrupt trust store detection;
+missing trust store fail-closed behavior; revoked key refusal; wrong scope and
+wrong audience enforcement through the signed bundle verifier; and audit
+provenance without private key material or signature values.
+
+This gate remains alpha and may break before v0.6. The trust store is a local
+management layer over `trusted-keys.json`, `crl.json`, and a metadata sidecar.
+The metadata sidecar is informational only and grants no authority. The gate
+must not call production hosted services, fetch hosted trust, perform registry
+sync, require production signing keys, store private keys, upload prompts,
+upload task text, upload skill bodies, upload search queries, include private
+pack bodies, include local or repository paths, enable live billing, publish
+to PyPI, distribute the full catalog, rewrite skills automatically, enable
+automatic telemetry, expose a hosted gateway, implement OAuth or remote
+upstreams, enable MCP resources or prompts, allow arbitrary shell execution,
+or auto-publish. Codex must not create or push `v0.4.8-alpha` from this
+integration gate.
 
 ## Known Security Limitations In v0.3.9-alpha
 
