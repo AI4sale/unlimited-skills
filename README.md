@@ -18,6 +18,16 @@ Keep thousands of `SKILL.md` files out of the always-loaded context. Ask one tin
 
 </div>
 
+## Quickstart
+
+```bash
+pip install "git+https://github.com/AI4sale/unlimited-skills.git"
+unlimited-skills quickstart
+unlimited-skills setup --local-only
+```
+
+`quickstart` is the one-command golden path: it imports the bundled skill packs when your library is empty, runs a first search to prove retrieval works, and measures your real MCP context savings — how many tokens of MCP tool schemas your Claude Code config loads into every session versus the 3 meta-tools of the Unlimited Tools gateway. Everything runs locally and the command is idempotent. Details: [docs/quickstart.md](docs/quickstart.md).
+
 ## What it is
 
 Unlimited Skills turns a folder full of skills into an action library for agents.

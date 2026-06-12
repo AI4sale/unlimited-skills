@@ -18,6 +18,42 @@ def cmd_mcp_serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_mcp_savings(args: argparse.Namespace) -> int:
+    """A1: measure the user's real standing MCP context cost vs the gateway.
+
+    Local-only and read-only against the host config: discovers the user's
+    Claude Code MCP servers, measures each server's full ``tools/list``
+    payload with the repo's own stdio client, compares the summed standing
+    cost against the gateway's live-measured 3 meta-tools, and appends a
+    numbers-only snapshot to ``<root>/.learning/events.jsonl``. The output
+    contains only server names, tool counts, byte sizes, and status strings.
+    """
+    import json
+
+    from .. import cli
+    from ..mcp.savings import (
+        build_savings_report,
+        discover_mcp_servers,
+        event_snapshot,
+        format_savings_text,
+    )
+
+    root = Path(args.root).expanduser()
+    cli.enforce_local_root(root, action="mcp savings library root")
+    claude_config = Path(args.claude_config).expanduser() if args.claude_config else None
+    servers = discover_mcp_servers(claude_config)
+    report = build_savings_report(servers, timeout=args.timeout)
+    try:
+        cli.log_event(root, "mcp_savings", event_snapshot(report))
+    except OSError:
+        pass  # a read-only library root must not break the measurement
+    if args.json:
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(format_savings_text(report))
+    return 0
+
+
 def cmd_mcp_audit_report(args: argparse.Namespace) -> int:
     import json
 

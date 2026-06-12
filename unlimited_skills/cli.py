@@ -764,6 +764,17 @@ def build_parser() -> argparse.ArgumentParser:
     setup_doctor.set_defaults(func=library_cmds.cmd_setup, local_only=False, registered=False, hub=False, enterprise=False, private_packs=False)
     setup.set_defaults(func=library_cmds.cmd_setup)
 
+    quickstart = sub.add_parser(
+        "quickstart",
+        help="One-command golden path: import bundled packs when the library is empty, run a first search, and show your measured MCP context savings. Idempotent and local-only.",
+    )
+    quickstart.add_argument("query", nargs="?", default="", help="Optional search query for the first-search step. Defaults to a demo query.")
+    quickstart.add_argument("--json", action="store_true", help="Print the machine-readable quickstart report.")
+    quickstart.add_argument("--timeout", type=float, default=None, help="Per-MCP-server measurement timeout in seconds for the savings step (default 12).")
+    quickstart.add_argument("--claude-config", default="", help="Override the Claude Code config path read by the savings step (default ~/.claude.json).")
+    quickstart.add_argument("--skip-mcp-check", action="store_true", help="Skip the MCP savings step.")
+    quickstart.set_defaults(func=library_cmds.cmd_quickstart)
+
     support = sub.add_parser("support", help="Create redacted support diagnostics.")
     support_sub = support.add_subparsers(dest="support_command", required=True)
     support_bundle = support_sub.add_parser("bundle", help="Create a redacted support diagnostic bundle.")
@@ -897,6 +908,14 @@ def build_parser() -> argparse.ArgumentParser:
     mcp_gateway.add_argument("--audience-id", action="append", default=None, metavar="ID", help="This consumer's audience identifier ('team:NAME', 'org:NAME', or 'host:NAME') matched against the bundle's audience. Repeatable; beats the comma-separated UNLIMITED_SKILLS_MCP_AUDIENCE env var.")
     mcp_gateway.add_argument("--require-signed-profiles", action="store_true", help="Signed-required policy: refuse unsigned profile sources fail-closed with -32015 bundle_signature_invalid (a raw --profiles file alone, or no bundle at all). Default off pre-v0.6.")
     mcp_gateway.set_defaults(func=mcp_cmds.cmd_mcp_gateway)
+    mcp_savings = mcp_sub.add_parser(
+        "savings",
+        help="Measure your real standing MCP context cost: reads your Claude Code MCP config, runs each stdio server's tools/list locally, and compares the summed schema bytes/tokens against the gateway's 3 meta-tools. Local-only; the output carries only server names, tool counts, sizes, and statuses -- never schema contents, commands, or env.",
+    )
+    mcp_savings.add_argument("--json", action="store_true", help="Print the machine-readable savings report.")
+    mcp_savings.add_argument("--timeout", type=float, default=12.0, help="Per-server measurement timeout in seconds (default 12). An unreachable server becomes a skipped row, never a failure.")
+    mcp_savings.add_argument("--claude-config", default="", help="Override the Claude Code config path (default ~/.claude.json).")
+    mcp_savings.set_defaults(func=mcp_cmds.cmd_mcp_savings)
     mcp_trust = mcp_sub.add_parser(
         "trust",
         help="Manage the local trust store for signed MCP profile bundles: PUBLIC keys and the local CRL. Offline only -- no registry sync, no hosted calls, never private keys.",
