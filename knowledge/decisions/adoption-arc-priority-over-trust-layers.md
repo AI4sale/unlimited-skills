@@ -14,7 +14,7 @@ reset: user value first, adoption first, v0.5 is the first public alpha.
 
 ## Evidence
 
-- Fresh-clone new-user audit: `pip install unlimited-skills` returned 404 yet
+- Fresh-clone new-user audit: `pip install unlimited-skills` returned 404 yet <!-- A3-PYPI-FLIP historical dead-command citation; do not use before PyPI publication. -->
   was recommended everywhere, including runtime error hints; first search hit
   an empty library while 267 ready skills sat unimported in `packs/`.
 - Invocation diagnosis: see `knowledge/product-state/skill-invocation-red-flag.md`.

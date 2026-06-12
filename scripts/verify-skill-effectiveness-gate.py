@@ -15,6 +15,11 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
+from unlimited_skills.skill_effectiveness_thresholds import (  # noqa: E402
+    EFFECTIVENESS_GATE_PROFILES,
+    profile_to_runner_args,
+)
+
 
 def load_runner():
     path = ROOT / "scripts" / "check-skill-effectiveness.py"
@@ -29,7 +34,7 @@ def load_runner():
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Verify the skill effectiveness release gate.")
     parser.add_argument("--root", default="", help="Optional skill library root. Defaults to bundled packs.")
-    parser.add_argument("--gate", choices=["a0-merge", "v0.5-release"], default="a0-merge")
+    parser.add_argument("--gate", choices=sorted(EFFECTIVENESS_GATE_PROFILES), default="a0-merge")
     parser.add_argument("--report", default="", help="Write the JSON report to this path.")
     parser.add_argument("--record", action="store_true", help="Refresh evals/last-effectiveness-run.json.")
     return parser
@@ -45,21 +50,7 @@ def main(argv: list[str] | None = None) -> int:
         runner_args.extend(["--root", args.root])
     if not args.record:
         runner_args.append("--no-record")
-    if args.gate == "v0.5-release":
-        runner_args.extend(
-            [
-                "--min-top1",
-                "0.80",
-                "--min-top3",
-                "0.90",
-                "--min-injection-precision",
-                "0.95",
-                "--max-p90-ms",
-                "1200",
-                "--max-p95-ms",
-                "2000",
-            ]
-        )
+    runner_args.extend(profile_to_runner_args(args.gate))
     # The redirect target is kept explicit so the runner remains the single
     # implementation while this wrapper owns the persisted release artifact.
     stdout = io.StringIO()

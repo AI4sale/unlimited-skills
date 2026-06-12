@@ -7,6 +7,7 @@ from pathlib import Path
 import pytest
 
 from unlimited_skills.search_core import save_index
+from unlimited_skills.skill_effectiveness_thresholds import get_effectiveness_gate_profile, profile_to_runner_args
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 CHECKER = REPO_ROOT / "scripts" / "check-skill-effectiveness.py"
@@ -82,6 +83,16 @@ def test_frozen_scenario_file_shape() -> None:
     # F3b: a handful of unambiguous positives assert tier-3 card injection.
     tier3 = [scenario for scenario in scenarios if scenario.get("expected_tier") == 3]
     assert len(tier3) >= 3
+
+
+def test_effectiveness_gate_profiles_are_single_source(checker) -> None:
+    a0 = get_effectiveness_gate_profile("a0-merge")
+    v05 = get_effectiveness_gate_profile("v0.5-release")
+    assert checker.DEFAULT_MIN_TOP1 == a0["min_top1"]
+    assert checker.DEFAULT_MIN_TOP3 == a0["min_top3"]
+    assert checker.DEFAULT_MIN_INJECTION_PRECISION == a0["min_injection_precision"]
+    assert "--min-top1" in profile_to_runner_args("v0.5-release")
+    assert str(v05["min_top1"]) in profile_to_runner_args("v0.5-release")
 
 
 def test_checker_full_run_writes_record_and_passes(tmp_path: Path, checker, capsys, monkeypatch) -> None:

@@ -48,6 +48,7 @@ sys.path.insert(0, str(REPO_ROOT))
 
 from unlimited_skills import __version__  # noqa: E402
 from unlimited_skills.search_core import index_path, save_index  # noqa: E402
+from unlimited_skills.skill_effectiveness_thresholds import get_effectiveness_gate_profile  # noqa: E402
 
 DEFAULT_SCENARIOS = REPO_ROOT / "evals" / "invocation-scenarios.json"
 DEFAULT_RECORD = REPO_ROOT / "evals" / "last-effectiveness-run.json"
@@ -60,18 +61,19 @@ DEFAULT_ROOT = REPO_ROOT / "packs"
 # below the measured numbers so the check fails on real regressions, not on
 # noise. max latency over DEFAULT_WARN_MAX_MS is a WARNING only (cold-spawn
 # outliers happen); repeated violations should be investigated.
-DEFAULT_MIN_TOP1 = 0.70
-DEFAULT_MIN_TOP3 = 0.85
-DEFAULT_MAX_FP = 0.10
-DEFAULT_MAX_P90_MS = 1500.0
-DEFAULT_MAX_P95_MS = 2500.0
-DEFAULT_WARN_MAX_MS = 5000.0
-DEFAULT_MAX_RELEASE_GAP = 10
-DEFAULT_MIN_POSITIVES = 30
-DEFAULT_MIN_NEGATIVES = 10
+A0_GATE_PROFILE = get_effectiveness_gate_profile("a0-merge")
+DEFAULT_MIN_TOP1 = float(A0_GATE_PROFILE["min_top1"])
+DEFAULT_MIN_TOP3 = float(A0_GATE_PROFILE["min_top3"])
+DEFAULT_MAX_FP = float(A0_GATE_PROFILE["max_fp"])
+DEFAULT_MAX_P90_MS = float(A0_GATE_PROFILE["max_p90_ms"])
+DEFAULT_MAX_P95_MS = float(A0_GATE_PROFILE["max_p95_ms"])
+DEFAULT_WARN_MAX_MS = float(A0_GATE_PROFILE["warn_max_ms"])
+DEFAULT_MAX_RELEASE_GAP = int(A0_GATE_PROFILE["max_release_gap"])
+DEFAULT_MIN_POSITIVES = int(A0_GATE_PROFILE["min_positives"])
+DEFAULT_MIN_NEGATIVES = int(A0_GATE_PROFILE["min_negatives"])
 # F3b ambient-injection gates: cards must overwhelmingly name the right
 # skill, and a no-skill scenario receiving a card is an unconditional FAIL.
-DEFAULT_MIN_INJECTION_PRECISION = 0.90
+DEFAULT_MIN_INJECTION_PRECISION = float(A0_GATE_PROFILE["min_injection_precision"])
 # The hook-side kill switch must never silently disable the injection gates
 # during a checker run; it is stripped from the probe environment.
 KILL_SWITCH_ENV = "UNLIMITED_SKILLS_NO_INJECT"
