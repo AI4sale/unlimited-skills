@@ -7,6 +7,35 @@ under your library's `.learning/` directory. The project only learns what
 you choose to tell it — feedback is manual and voluntary, through GitHub
 issues.
 
+## Prepare a paste-safe report
+
+Use `feedback prepare` to generate a local, redacted report you can paste into
+a GitHub issue:
+
+```bash
+unlimited-skills feedback prepare
+unlimited-skills feedback prepare --include-usage-snapshot
+unlimited-skills feedback prepare --format markdown --out feedback.md
+unlimited-skills feedback doctor
+```
+
+The command does not upload anything. It prints or writes a report only on
+your machine. The report includes coarse metadata such as Unlimited Skills
+version, OS family, Python family, install method, indexed skill counts,
+quickstart status, local suggest outcome counts, Claude Code MCP installer
+configured/not configured status, issue-template mapping, and latest local
+error categories.
+
+`--include-usage-snapshot` may also include local MCP savings counts: server
+names, tool counts, byte counts, token estimates, and status strings. It still
+does not include MCP schemas, spawn commands, args, environment names or
+values, raw `.mcp.json`, or raw `.claude.json`.
+
+The generated report excludes prompts, tool inputs, tool outputs, skill
+bodies, MCP schemas, launch commands, environment names or values, tokens,
+proofs, private keys, local absolute paths, raw `.mcp.json`, and raw
+`.claude.json`.
+
 That makes your reports disproportionately valuable in this public alpha.
 One honest "the quickstart stalled at step 2" is worth more than any
 dashboard we refuse to build.
@@ -28,6 +57,8 @@ Anything that fits none of these — a plain blank issue is fine too.
 
 ## Before you paste output
 
+- Prefer `unlimited-skills feedback prepare` and paste the generated JSON or
+  Markdown into the matching issue template.
 - `suggest` and `mcp savings` output is privacy-safe by contract (skill
   names, sources, scores, server names, counts, byte sizes — never your
   prompt text, never local paths, never skill bodies or schema contents).
