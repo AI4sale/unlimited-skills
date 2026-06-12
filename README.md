@@ -12,7 +12,7 @@
 
 Keep thousands of `SKILL.md` files out of the always-loaded context. Ask one tiny router skill what the task needs. Load only the selected skill.
 
-**v0.4.8-alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, catalog browser discovery is signed metadata-only alpha, catalog feedback is explicit and registration-gated, catalog quality and skill improvement status are signed metadata-only diagnostics, Local Skill Hub is allowlist-only alpha, Enterprise Skill Lock is a local policy MVP with registered managed sync, private team packs plus org/team governance diagnostics are registered/entitled alpha paths, plan/billing diagnostics are sandbox-only with no live payment provider, and community catalog install is limited to signed approved/published items. The v0.4.8-alpha Unlimited Tools MCP milestone integrates the managed MCP profile trust store for signed bundle verification while production rollout remains gated.
+**v0.4.9-alpha / developer preview.** The local-first MIT core is usable today. Hosted registry features are registration-gated early access, catalog browser discovery is signed metadata-only alpha, catalog feedback is explicit and registration-gated, catalog quality and skill improvement status are signed metadata-only diagnostics, Local Skill Hub is allowlist-only alpha, Enterprise Skill Lock is a local policy MVP with registered managed sync, private team packs plus org/team governance diagnostics are registered/entitled alpha paths, plan/billing diagnostics are sandbox-only with no live payment provider, and community catalog install is limited to signed approved/published items. The v0.4.9-alpha Unlimited Tools MCP milestone integrates the local dry-run MCP profile rollout simulator and policy doctor while production rollout remains gated.
 
 [Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
 
@@ -90,6 +90,7 @@ Working now:
 - v0.4.5-alpha MCP audit inspector integration gate for read-only `mcp audit-report`, JSON schema-validated reports, rotated audit log discovery, safe recent refusal summaries with no argument values and no error text, profile audit evidence, redaction self-checks, and clear missing-log exits;
 - v0.4.7-alpha signed MCP profile bundle integration gate for local verification before gateway profile loading. It proves raw local profile compatibility, valid signed bundle loading, fail-closed refusals for bad signatures, unknown keys, expiry, revocation, wrong audience, and namespace violations, plus audit provenance with no hosted trust fetch, no registry sync, and no production signing keys. This alpha may break before v0.6; the local MIT core may still allow unsigned profiles by policy, and registered/business signed-required behavior is future-gated unless explicitly implemented in a later gate;
 - v0.4.8-alpha managed MCP profile trust store integration gate for `unlimited-skills mcp trust status|list|import|revoke|doctor`. It proves local/offline public-key import, key listing with abbreviated fingerprints, append-only local CRL revocation, doctor checks for corrupt trust store files, managed trusted-key verification, revoked key refusal, missing trust store refusal, explicit trusted-keys override behavior, unreadable CRL fail-closed behavior, and audit provenance with no hosted trust fetch, no registry sync, no production signing keys, no private key storage, no OAuth, no resources, and no prompts;
+- v0.4.9-alpha MCP profile rollout simulator final publication gate for `unlimited-skills mcp profiles rollout-plan|doctor`. It proves raw profile rollout plan, signed bundle rollout plan, trust-store-backed rollout plan, missing trust store, corrupt trust store, expired key, revoked key, wrong audience, namespace violation, hide-all-tools, shadowed tool, signed-required unsigned-source, and no upstream spawn / no network / no mutation boundaries;
 - private team pack setup, service diagnostics, doctor, and redacted support bundle summaries;
 - native skill sync for Codex, Claude Code, Hermes, and OpenClaw roots;
 - public repo self-update checks and applies latest releases/tags;
@@ -112,7 +113,7 @@ In development:
 - v0.4 readiness audit and SkillOps architecture RFC for governed delivery, eval-driven release gates, maintainer improvement queues, governance dashboards, optional self-hosted registry mode, and future human-reviewed automatic improvement proposals;
 - v0.4 cross-repo readiness suite that verifies public client and private registry readiness contracts in fixture mode or against a local private registry checkout without production hosted calls, production signing keys, live billing, PyPI publication, full catalog distribution, automatic install/update/remove, automatic skill rewriting, or auto-publish;
 - v0.4 go/no-go decision package that recommends GO for the first four implementation epics after review and merge while keeping production rollout behind per-epic review gates;
-- v0.4.8-alpha managed profile trust store integration is the active release gate for the MCP profile distribution milestone;
+- v0.4.9-alpha MCP profile rollout simulator is the active release gate for the MCP profile distribution milestone;
 - persistent warm daemon as the default agent retrieval path;
 - richer learning loop for accepted/rejected matches;
 - automatic skill drafting from repeated task patterns;
@@ -160,6 +161,11 @@ unlimited-skills support bundle --out support-bundle.zip
 
 See [docs/support-bundle.md](docs/support-bundle.md) for the privacy boundary.
 
+For the v0.4.9-alpha MCP profile rollout simulator milestone,
+see [docs/releases/v0.4.9-alpha.md](docs/releases/v0.4.9-alpha.md),
+[docs/releases/v0.4.9-alpha-checklist.md](docs/releases/v0.4.9-alpha-checklist.md),
+[docs/releases/v0.4.9-alpha-upgrade-notes.md](docs/releases/v0.4.9-alpha-upgrade-notes.md),
+and [docs/releases/v0.4.9-alpha-known-issues.md](docs/releases/v0.4.9-alpha-known-issues.md).
 For the v0.4.8-alpha managed MCP profile trust store integration milestone,
 see [docs/releases/v0.4.8-alpha.md](docs/releases/v0.4.8-alpha.md),
 [docs/releases/v0.4.8-alpha-checklist.md](docs/releases/v0.4.8-alpha-checklist.md),

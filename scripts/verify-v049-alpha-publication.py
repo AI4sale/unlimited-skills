@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import importlib.util
 import json
 import re
 import subprocess
@@ -10,23 +11,24 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RELEASE = "v0.4.8-alpha"
-VERSION = "0.4.8"
-MANIFEST = ROOT / "docs" / "releases" / "v0.4.8-alpha.release-manifest.json"
+RELEASE = "v0.4.9-alpha"
+VERSION = "0.4.9"
+MANIFEST = ROOT / "docs" / "releases" / "v0.4.9-alpha.release-manifest.json"
 RELEASE_DOCS = [
-    ROOT / "docs" / "releases" / "v0.4.8-alpha.md",
-    ROOT / "docs" / "releases" / "v0.4.8-alpha-checklist.md",
-    ROOT / "docs" / "releases" / "v0.4.8-alpha-upgrade-notes.md",
-    ROOT / "docs" / "releases" / "v0.4.8-alpha-known-issues.md",
+    ROOT / "docs" / "releases" / "v0.4.9-alpha.md",
+    ROOT / "docs" / "releases" / "v0.4.9-alpha-checklist.md",
+    ROOT / "docs" / "releases" / "v0.4.9-alpha-upgrade-notes.md",
+    ROOT / "docs" / "releases" / "v0.4.9-alpha-known-issues.md",
     MANIFEST,
 ]
 PUBLIC_DOCS = RELEASE_DOCS + [
     ROOT / "README.md",
-    ROOT / "SECURITY.md",
     ROOT / "CHANGELOG.md",
+    ROOT / "SECURITY.md",
+    ROOT / "docs" / "mcp-profile-rollout.md",
     ROOT / "docs" / "mcp-trust-store.md",
     ROOT / "docs" / "mcp-signed-profile-bundles.md",
-    ROOT / "docs" / "mcp-gateway.md",
+    ROOT / "docs" / "mcp-permissioned-tool-profiles.md",
     ROOT / "docs" / "unlimited-tools.md",
 ]
 PRIVATE_MATERIAL_PATTERNS = {
@@ -86,10 +88,14 @@ def plugin_versions() -> tuple[str, str]:
     return str(plugin["version"]), str(marketplace["plugins"][0]["version"])
 
 
-def version_tuple(value: str) -> tuple[int, int, int]:
-    parts = value.split(".")
-    require(len(parts) == 3 and all(part.isdigit() for part in parts), f"invalid version: {value}")
-    return tuple(int(part) for part in parts)  # type: ignore[return-value]
+def load_integration_smoke():
+    path = ROOT / "scripts" / "run-v049-alpha-profile-rollout-smoke.py"
+    spec = importlib.util.spec_from_file_location("run_v049_alpha_profile_rollout_smoke", path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"Unable to load integration smoke runner: {path}")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def git_head() -> str:
@@ -117,31 +123,28 @@ def assert_manifest() -> dict[str, Any]:
     require(payload.get("distribution") == "github-clone-alpha", "GitHub clone must remain distribution path")
     git = payload.get("git") if isinstance(payload.get("git"), dict) else {}
     require(git.get("base_branch") == "main", "base branch mismatch")
-    require(git.get("publication_branch") == "release/v0.4.8-alpha-final-publication", "publication branch mismatch")
+    require(git.get("publication_branch") == "release/v0.4.9-alpha-final-publication", "publication branch mismatch")
     require(git.get("tag") == RELEASE, "manifest tag mismatch")
     require(git.get("tag_status") == "pending_codex_publication_after_verifier", "manifest tag status mismatch")
     require("after final publication verifier passes" in str(git.get("tag_target_sha_policy", "")).lower(), "tag policy must require final verifier")
     prs = payload.get("required_prs") if isinstance(payload.get("required_prs"), dict) else {}
     public_numbers = [item.get("number") for item in prs.get("public", []) if isinstance(item, dict)]
-    for number in (102, 103, 105, 106, 107, 108):
+    for number in (107, 108, 109, 110, 112):
         require(number in public_numbers, f"manifest missing public PR #{number}")
-    private_numbers = [item.get("number") for item in prs.get("private_registry", []) if isinstance(item, dict)]
-    for number in (50, 51):
-        require(number in private_numbers, f"manifest missing private registry PR #{number}")
     boundary = payload.get("safety_boundary") if isinstance(payload.get("safety_boundary"), dict) else {}
     for key in (
         "alpha_only",
         "fixture_mode",
-        "profile_trust_store_integration",
-        "local_offline_trust_store",
-        "public_keys_only",
-        "raw_local_profiles_still_allowed_by_default",
+        "profile_rollout_integration",
+        "dry_run_only",
         "codex_pushes_tag",
     ):
         require(boundary.get(key) is True, f"safety boundary must set {key}")
     require(boundary.get("codex_must_not_push_tag") is False, "final publication gate should own Codex tag push")
     for key in (
         "production_rollout",
+        "profile_activation",
+        "trust_store_mutation",
         "production_hosted_calls",
         "hosted_trust_fetch",
         "registry_sync",
@@ -161,8 +164,8 @@ def assert_manifest() -> dict[str, Any]:
     for key in (
         "release_smoke_runner",
         "publication_verifier",
-        "trust_store_smoke_runner",
-        "trust_store_verifier",
+        "rollout_smoke_runner",
+        "rollout_verifier",
         "integration_test",
     ):
         require(key in evidence, f"manifest missing evidence pointer: {key}")
@@ -174,28 +177,53 @@ def assert_docs() -> None:
         require(path.is_file(), f"missing release doc: {path.relative_to(ROOT)}")
     text = "\n".join(read(path) for path in PUBLIC_DOCS if path.exists()).lower()
     for required in (
-        "v0.4.8-alpha",
-        "managed mcp profile trust store",
+        "v0.4.9-alpha",
+        "mcp profile rollout simulator",
         "final publication gate",
-        "git tag -a v0.4.8-alpha",
+        "git tag -a v0.4.9-alpha",
         "after the final publication verifier passes",
+        "rollout-plan",
+        "policy doctor",
+        "dry-run",
+        "raw profile rollout plan",
+        "signed bundle rollout plan",
+        "trust-store-backed rollout plan",
+        "no upstream spawn",
+        "no network",
+        "no mutation",
+        "no profile activation",
+        "no trust-store mutation",
         "no hosted trust fetch",
         "no registry sync",
         "no production signing keys",
-        "no private key storage",
         "no oauth",
         "no resources",
         "no prompts",
-        "public keys only",
-        "trust status",
-        "trust list",
-        "trust import",
-        "trust revoke",
-        "trust doctor",
-        "local trust store",
-        "audit provenance",
     ):
         require(required in text, f"docs missing required wording: {required}")
+
+
+def assert_smoke(report: dict[str, Any]) -> None:
+    require(report.get("status") == "passed", "integration smoke status mismatch")
+    require(report.get("release") == RELEASE, "integration smoke release mismatch")
+    for key in (
+        "production_hosted_calls",
+        "hosted_trust_fetch",
+        "registry_sync",
+        "profile_activation",
+        "trust_store_mutation",
+        "oauth",
+        "remote_upstreams",
+        "mcp_resources",
+        "mcp_prompts",
+        "production_signing_keys",
+        "private_key_storage",
+        "telemetry",
+    ):
+        require(report.get(key) is False, f"integration smoke must disable {key}")
+    proofs = report.get("proofs") if isinstance(report.get("proofs"), dict) else {}
+    for key in ("no_upstream_spawn", "no_network", "no_mutation"):
+        require(proofs.get(key) is True, f"integration smoke proof missing: {key}")
 
 
 def assert_no_private_material() -> None:
@@ -213,7 +241,7 @@ def assert_no_private_material() -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Verify v0.4.8-alpha publication before Codex tagging.")
+    parser = argparse.ArgumentParser(description="Verify v0.4.9-alpha publication before Codex tagging.")
     parser.add_argument("--expected-sha", help="Final tag target SHA to compare with the current checkout")
     parser.add_argument("--allow-existing-tag", action="store_true", help="Post-publication mode: allow an existing release tag.")
     parser.add_argument("--expected-tag-sha", help="Expected commit for the existing release tag in post-publication mode")
@@ -221,16 +249,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     assert_clean_worktree()
-    pkg_version = package_version()
-    init_ver = init_version()
-    plugin_ver, marketplace_ver = plugin_versions()
-    require(version_tuple(pkg_version) >= version_tuple(VERSION), f"pyproject version must be >= {VERSION}")
-    require(version_tuple(init_ver) >= version_tuple(VERSION), f"__version__ must be >= {VERSION}")
-    require(
-        version_tuple(plugin_ver) >= version_tuple(VERSION)
-        and version_tuple(marketplace_ver) >= version_tuple(VERSION),
-        "Claude plugin and marketplace versions must be >= release version",
-    )
+    require(package_version() == VERSION, f"pyproject version must be {VERSION}")
+    require(init_version() == VERSION, f"__version__ must be {VERSION}")
+    require(plugin_versions() == (VERSION, VERSION), "Claude plugin and marketplace versions must match package version")
     existing_tag = tag_exists(RELEASE)
     if args.allow_existing_tag:
         require(args.expected_tag_sha is not None, "--expected-tag-sha is required with --allow-existing-tag")
@@ -242,6 +263,8 @@ def main(argv: list[str] | None = None) -> int:
         require(not existing_tag, f"tag {RELEASE} already exists locally; use --allow-existing-tag for post-publication verification")
     manifest = assert_manifest()
     assert_docs()
+    smoke = load_integration_smoke().collect_evidence()
+    assert_smoke(smoke)
     assert_no_private_material()
     current_head = git_head()
     if args.expected_sha:
@@ -253,12 +276,13 @@ def main(argv: list[str] | None = None) -> int:
         "manifest": str(MANIFEST.relative_to(ROOT)),
         "current_checkout_sha": current_head,
         "required_prs": manifest.get("required_prs", {}),
-        "profile_trust_store_integration": True,
-        "local_offline_trust_store": True,
-        "public_keys_only": True,
+        "profile_rollout_integration": True,
+        "dry_run_only": True,
         "production_hosted_calls": False,
         "hosted_trust_fetch": False,
         "registry_sync": False,
+        "profile_activation": False,
+        "trust_store_mutation": False,
         "production_signing_keys": False,
         "private_key_storage": False,
         "oauth_resources_prompts": False,
@@ -274,10 +298,11 @@ def main(argv: list[str] | None = None) -> int:
         if args.allow_existing_tag:
             print(f"existing tag target verified: {args.expected_tag_sha}")
         print("distribution path: GitHub clone")
-        print("managed MCP profile trust store integration: passed")
+        print("MCP profile rollout simulator integration: passed")
         print("hosted trust fetch: false")
         print("registry sync: false")
-        print("production signing keys: false")
+        print("profile activation: false")
+        print("trust-store mutation: false")
         print("private key/token/proof/prompt/skill-body/local-path scan: passed")
         print("tag command:")
         print(report["tag_command"])
