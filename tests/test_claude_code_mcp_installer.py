@@ -220,6 +220,136 @@ def test_install_status_reports_project_and_global(tmp_path: Path, capsys) -> No
     assert by_scope["global"]["configured"] is True
 
 
+def test_dry_run_diff_hides_foreign_server_content_entirely(tmp_path: Path, capsys) -> None:
+    """P0 regression: secrets in FOREIGN server args must never reach output.
+
+    Foreign servers may appear in the diff by NAME only; none of their
+    content (command, args, env, anything) may be rendered under any key.
+    """
+    secret = "SECRET_TOKEN_XYZ123"
+    (tmp_path / ".mcp.json").write_text(
+        json.dumps(
+            {
+                "mcpServers": {
+                    "foreign": {
+                        "command": "node",
+                        "args": ["server.js", "--token", secret],
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    human_code, human_out, human_err = run_cli(
+        ["mcp", "install", "--claude-code", "--project-root", str(tmp_path), "--dry-run"],
+        capsys,
+    )
+    assert human_code == 0, human_err
+    assert secret not in human_out
+    assert "server.js" not in human_out
+    assert "node" not in human_out
+    assert "foreign" in human_out  # summarized by name only
+
+    json_code, json_out, json_err = run_cli(
+        ["mcp", "install", "--claude-code", "--project-root", str(tmp_path), "--dry-run", "--json"],
+        capsys,
+    )
+    assert json_code == 0, json_err
+    assert secret not in json_out
+    assert "server.js" not in json_out
+    assert "node" not in json_out
+    report = json.loads(json_out)
+    assert "foreign" in report["diff"]
+    assert "unlimited-tools" in report["diff"]
+
+
+def test_force_replace_hides_same_named_foreign_entry_content(tmp_path: Path, capsys) -> None:
+    secret = "SECRET_TOKEN_XYZ123"
+    (tmp_path / ".mcp.json").write_text(
+        json.dumps(
+            {
+                "mcpServers": {
+                    "unlimited-tools": {
+                        "command": "node",
+                        "args": ["server.js", "--token", secret],
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    code, out, err = run_cli(
+        ["mcp", "install", "--claude-code", "--force", "--project-root", str(tmp_path), "--dry-run"],
+        capsys,
+    )
+    assert code == 0, err
+    assert secret not in out
+    assert "server.js" not in out
+    assert "node" not in out
+    assert "content hidden" in out
+
+
+def test_global_install_default_gateway_config_writes_portable_home_literal(
+    tmp_path: Path, capsys, monkeypatch
+) -> None:
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("USERPROFILE", str(home))
+    claude_config = tmp_path / ".claude.json"
+
+    code, out, err = run_cli(
+        [
+            "mcp",
+            "install",
+            "--claude-code",
+            "--global",
+            "--claude-config",
+            str(claude_config),
+            "--json",
+        ],
+        capsys,
+    )
+    assert code == 0, err
+    server = read_json(claude_config)["mcpServers"]["unlimited-tools"]
+    assert server["args"][-1] == "~/.unlimited-skills/mcp/claude-code-gateway.json"
+    assert str(home) not in json.dumps(server)
+
+    gateway_file = home / ".unlimited-skills" / "mcp" / "claude-code-gateway.json"
+    assert read_json(gateway_file) == {"schema_version": 1, "upstreams": []}
+
+    # The gateway loader itself must expand the "~/..." literal.
+    from unlimited_skills.mcp.gateway import load_gateway_config
+
+    config = load_gateway_config(Path("~/.unlimited-skills/mcp/claude-code-gateway.json"))
+    assert config["upstreams"] == []
+
+
+def test_install_human_output_prints_backup_path(tmp_path: Path, capsys) -> None:
+    (tmp_path / ".mcp.json").write_text(
+        json.dumps({"mcpServers": {"github": {"command": "npx", "args": ["github-server"]}}}),
+        encoding="utf-8",
+    )
+
+    code, out, err = run_cli(
+        ["mcp", "install", "--claude-code", "--project-root", str(tmp_path)],
+        capsys,
+    )
+    assert code == 0, err
+    backups = list(tmp_path.glob(".mcp.json.*.back"))
+    assert len(backups) == 1
+    assert str(backups[0]) in out
+
+    uninstall_code, uninstall_out, uninstall_err = run_cli(
+        ["mcp", "uninstall", "--claude-code", "--project-root", str(tmp_path)],
+        capsys,
+    )
+    assert uninstall_code == 0, uninstall_err
+    assert any(str(path) in uninstall_out for path in tmp_path.glob(".mcp.json.*.back"))
+
+
 def test_project_backup_names_do_not_collide_with_same_timestamp(
     tmp_path: Path, capsys, monkeypatch
 ) -> None:
