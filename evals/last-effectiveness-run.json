@@ -1,0 +1,24 @@
+{
+  "version": "0.4.9",
+  "date": "2026-06-12T06:23:14+00:00",
+  "scenarios_file": "evals/invocation-scenarios.json",
+  "root": "packs",
+  "scenario_count": 35,
+  "results": {
+    "top1_hit_rate": 0.821,
+    "top3_hit_rate": 0.821,
+    "false_positive_rate": 0.0,
+    "forbidden_top1_violations": [],
+    "latency_ms": {
+      "p50": 427.4,
+      "p90": 458.6,
+      "max": 466.1
+    }
+  },
+  "thresholds": {
+    "min_top3": 0.6,
+    "max_fp": 0.1,
+    "max_p90_ms": 1500.0
+  },
+  "pass": true
+}

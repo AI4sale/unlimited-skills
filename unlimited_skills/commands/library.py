@@ -55,6 +55,21 @@ def cmd_search(args: argparse.Namespace) -> int:
     return cli.emit_hits(hits, args.json)
 
 
+def cmd_suggest(args: argparse.Namespace) -> int:
+    # Delegate to the import-cheap suggest module so the classic CLI and the
+    # fast `python -m unlimited_skills suggest` path share one implementation.
+    from unlimited_skills import suggest as suggest_mod
+
+    argv = [args.query, "--root", str(args.root), "--limit", str(args.limit)]
+    if args.floor is not None:
+        argv.extend(["--floor", str(args.floor)])
+    if args.collection:
+        argv.extend(["--collection", args.collection])
+    if args.json:
+        argv.append("--json")
+    return suggest_mod.main(argv)
+
+
 def cmd_list(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     cli.enforce_local_root(root, action="list library root")

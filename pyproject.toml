@@ -44,7 +44,7 @@ all = [
 ]
 
 [project.scripts]
-unlimited-skills = "unlimited_skills.cli:main"
+unlimited-skills = "unlimited_skills.__main__:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["unlimited_skills"]

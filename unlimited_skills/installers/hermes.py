@@ -174,7 +174,7 @@ def _write_launchers(sh_launcher: Path, ps_launcher: Path, repo_root: Path, libr
         "else\n"
         f"  export PYTHONPATH={sh_repo_root}\n"
         "fi\n"
-        f"exec {sh_python} -m unlimited_skills.cli --root {sh_library_root} \"$@\"\n",
+        f"exec {sh_python} -m unlimited_skills --root {sh_library_root} \"$@\"\n",
         encoding="utf-8",
     )
     try:
@@ -188,7 +188,7 @@ def _write_launchers(sh_launcher: Path, ps_launcher: Path, repo_root: Path, libr
         ")\n\n"
         "$ErrorActionPreference = \"Stop\"\n"
         f"$env:PYTHONPATH = {json.dumps(str(repo_root))} + [System.IO.Path]::PathSeparator + $env:PYTHONPATH\n"
-        f"& {json.dumps(python_executable)} -m unlimited_skills.cli --root {json.dumps(str(library_root))} @Args\n",
+        f"& {json.dumps(python_executable)} -m unlimited_skills --root {json.dumps(str(library_root))} @Args\n",
         encoding="utf-8",
     )
 

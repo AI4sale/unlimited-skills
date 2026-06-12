@@ -76,7 +76,7 @@ param(
 `$env:PYTHONPATH = "$RepoRoot;`$env:PYTHONPATH"
 `$env:UNLIMITED_SKILLS_HOME = "$InstallRoot"
 `$env:UNLIMITED_SKILLS_ROOT = "$libraryRoot"
-& "$cliPython" -m unlimited_skills.cli --root "$libraryRoot" @Args
+& "$cliPython" -m unlimited_skills --root "$libraryRoot" @Args
 "@ | Set-Content -LiteralPath $launcher -Encoding UTF8
 
 $skillFile = Join-Path $skillTarget "SKILL.md"
@@ -130,25 +130,27 @@ if (-not $NoAgentsPatch) {
 <!-- BEGIN UNLIMITED SKILLS -->
 ## Unlimited Skills Library
 
-Unlimited Skills is the external skill memory for this agent. Treat it as the first place to ask for task-specific skills, workflows, checklists, procedures, and regression recipes.
+A local library of 250+ proven skills (checklists, workflows, regression recipes) that are deliberately NOT in the visible skill list. A 1-second lookup often replaces 20 minutes of rediscovery — the library has shipped-and-tested procedures for most recurring tasks.
 
-Before doing substantive work, check whether Unlimited Skills has a relevant skill. This includes writing, editing, coding, review, debugging, research, documentation, operations, planning, and design tasks. Skip this check only when a relevant skill is already active in the current context and it is clear why that skill applies.
-
-Before saying a skill is unavailable, query the library:
+RUN this single command BEFORE starting any task that matches a trigger below. It costs ~1 second and returns at most 3 one-liners (or nothing):
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File "{LAUNCHER}" search "<task or skill name>" --mode hybrid --limit 8
-powershell -NoProfile -ExecutionPolicy Bypass -File "{LAUNCHER}" where <skill-name>
-powershell -NoProfile -ExecutionPolicy Bypass -File "{LAUNCHER}" view <skill-name>
+powershell -NoProfile -ExecutionPolicy Bypass -File "{LAUNCHER}" suggest "<task in 3-8 keywords>"
 ```
 
-For inventory questions, query the library before answering:
+TRIGGERS (any one suffices):
 
-```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File "{LAUNCHER}" list --limit 80
-```
+- writing or reviewing code in a named language/framework (React, Python, Go, n8n, ...)
+- review, audit, or security check of any artifact
+- writing tests, fixing a bug, or debugging a failure
+- git/GitHub workflows: branches, PRs, releases, changelogs
+- writing prose: docs, posts, outreach, marketing, research reports
+- planning, refactoring, migrations, deployments, ops procedures
+- the user names a skill, workflow, or asks "what can you do"
 
-Do not rely only on `.agents/skills`, `.codex/skills`, or the visible skill list. The library may contain skills that are intentionally not loaded into context.
+ACT on the result: if a suggestion looks relevant, run `view <skill-name>` with the same launcher and follow it. If `suggest` returns nothing, proceed — do not search again with synonyms. For deeper retrieval use `search "<query>" --mode hybrid --limit 8`; for inventory questions use `list --limit 80`.
+
+SKIP only when a relevant skill is already active in the current context.
 <!-- END UNLIMITED SKILLS -->
 '@.Replace("{LAUNCHER}", $launcher)
   $env:AGENTS_BLOCK = $agentsBlock

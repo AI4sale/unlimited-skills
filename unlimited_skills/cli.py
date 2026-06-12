@@ -28,7 +28,36 @@ from .community import (
 from .billing_status import doctor as billing_doctor
 from .billing_status import format_billing_status, redacted_billing_summary, refresh_billing_status
 from .doctor import build_doctor_report, doctor_json, format_doctor_text
-from .frontmatter import split_frontmatter as _shared_split_frontmatter
+from .search_core import (  # noqa: F401 - re-exported for backwards compatibility
+    DEFAULT_ROOT,
+    ECOSYSTEM_PENALTY,
+    ECOSYSTEM_TOKEN_GROUPS,
+    EVENT_LOG,
+    IGNORED_SKILL_PATH_PARTS,
+    INDEX_NAME,
+    QUERY_EXPANSIONS,
+    WORD_RE,
+    SkillHit,
+    build_index,
+    collection_for,
+    ecosystem_factor,
+    expanded_query,
+    find_by_name,
+    first_body_line,
+    index_path,
+    iter_skills,
+    lexical_search,
+    load_records,
+    log_event,
+    read_text,
+    save_index,
+    score_skill,
+    skill_identity,
+    skill_priority,
+    split_frontmatter,
+    tokens,
+    write_jsonl,
+)
 from .hub import (
     HUB_DEFAULT_PORT,
     cmd_hub_clients,
@@ -116,199 +145,15 @@ if hasattr(sys.stderr, "reconfigure"):
 # of re-executing cli.py against partially initialized command modules.
 sys.modules.setdefault("unlimited_skills.cli", sys.modules[__name__])
 
-DEFAULT_ROOT = Path(os.environ.get("UNLIMITED_SKILLS_ROOT", Path.home() / ".unlimited-skills" / "library"))
-INDEX_NAME = ".unlimited-skills-index.json"
 VECTOR_META_NAME = ".unlimited-skills-vector.json"
 VECTOR_SIDECAR_NAME = ".unlimited-skills-vectors.json"
 CHROMA_DIR_NAME = ".chroma-skills"
 CHROMA_COLLECTION = "unlimited_skills_v1"
-EVENT_LOG = "events.jsonl"
 FEEDBACK_LOG = "feedback.jsonl"
-WORD_RE = re.compile(r"[a-zA-Z0-9][a-zA-Z0-9_+.#/-]*")
-IGNORED_SKILL_PATH_PARTS = {
-    ".chroma-skills",
-    ".git",
-    ".learning",
-    "duplicates",
-    ".mypy_cache",
-    ".pytest_cache",
-    ".ruff_cache",
-    ".venv",
-    "__pycache__",
-    "node_modules",
-}
 DEFAULT_EMBED_MODEL = os.environ.get(
     "UNLIMITED_SKILLS_EMBED_MODEL",
     "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
 )
-QUERY_EXPANSIONS = {
-    "rerender": "re-render render rendering react component performance memo memoization",
-    "re-render": "rerender render rendering react component performance memo memoization",
-    "memoization": "memo usememo usecallback react performance",
-    "component": "components react jsx tsx frontend",
-    "components": "component react jsx tsx frontend",
-    "oauth": "auth authentication authorization credentials token secret",
-    "\u0442\u043e\u043a\u0435\u043d\u044b": "token tokens oauth credentials auth secret",
-    "\u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e": "security secure secrets credentials auth",
-    "\u0441\u043a\u0438\u043b": "skill procedure workflow",
-    "\u0441\u043a\u0438\u043b\u044b": "skills procedures workflows",
-}
-
-
-@dataclass
-class SkillHit:
-    name: str
-    description: str
-    collection: str
-    path: str
-    score: float = 0.0
-
-
-def read_text(path: Path) -> str:
-    return path.read_text(encoding="utf-8", errors="replace").lstrip("\ufeff")
-
-
-def write_jsonl(path: Path, row: dict) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
-
-
-def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
-    return _shared_split_frontmatter(text, lower_keys=True)
-
-
-def first_body_line(body: str) -> str:
-    for line in body.splitlines():
-        line = line.strip(" #\t")
-        if line:
-            return line[:240]
-    return ""
-
-
-def tokens(text: str) -> set[str]:
-    result: set[str] = set()
-    for match in WORD_RE.finditer(text or ""):
-        raw = match.group(0).lower().strip("-_/")
-        if len(raw) > 1:
-            result.add(raw)
-        for part in re.split(r"[-_/]+", raw):
-            if len(part) > 1:
-                result.add(part)
-    return result
-
-
-def expanded_query(query: str) -> str:
-    q_tokens = tokens(query)
-    extras = [QUERY_EXPANSIONS[tok] for tok in q_tokens if tok in QUERY_EXPANSIONS]
-    return query + (" " + " ".join(extras) if extras else "")
-
-
-def collection_for(root: Path, skill_file: Path) -> str:
-    rel = skill_file.relative_to(root)
-    if len(rel.parts) > 3 and rel.parts[0] == "registry":
-        return rel.parts[1]
-    if len(rel.parts) > 2 and rel.parts[0] == "local":
-        return "local"
-    return rel.parts[0] if len(rel.parts) > 1 else "default"
-
-
-def skill_identity(name: str) -> str:
-    return re.sub(r"[^a-z0-9._-]+", "-", str(name or "").strip().lower()).strip("-")
-
-
-def skill_priority(root: Path, skill_file: Path, collection: str) -> tuple[int, str]:
-    rel = skill_file.relative_to(root)
-    parts = rel.parts
-    if len(parts) > 2 and parts[0] == "local" and parts[1] == "skills":
-        return (0, str(rel).lower())
-    if collection == "ecc":
-        return (10, str(rel).lower())
-    if collection == "superpowers":
-        return (20, str(rel).lower())
-    if len(parts) > 1 and parts[0] == "registry":
-        return (30, str(rel).lower())
-    if len(parts) > 1 and parts[0] == "local":
-        return (40, str(rel).lower())
-    return (50, str(rel).lower())
-
-
-def iter_skills(root: Path) -> Iterable[tuple[SkillHit, str]]:
-    if not root.exists():
-        return
-    candidates = []
-    for skill_file in root.rglob("SKILL.md"):
-        rel_parts = skill_file.relative_to(root).parts
-        if any(part in IGNORED_SKILL_PATH_PARTS for part in rel_parts):
-            continue
-        try:
-            text = read_text(skill_file)
-        except OSError:
-            continue
-        meta, body = split_frontmatter(text)
-        name = meta.get("name") or skill_file.parent.name
-        desc = meta.get("description") or first_body_line(body)
-        collection = collection_for(root, skill_file)
-        candidates.append((skill_priority(root, skill_file, collection), skill_identity(name), SkillHit(name=name, description=desc, collection=collection, path=str(skill_file)), body))
-
-    seen: set[str] = set()
-    for _priority, identity, hit, body in sorted(candidates, key=lambda item: (item[0], item[2].collection, item[2].name)):
-        if identity in seen:
-            continue
-        seen.add(identity)
-        yield hit, body
-
-
-def index_path(root: Path) -> Path:
-    return root / INDEX_NAME
-
-
-def build_index(root: Path) -> list[dict]:
-    records = []
-    for hit, body in iter_skills(root):
-        records.append(
-            {
-                "name": hit.name,
-                "description": hit.description,
-                "collection": hit.collection,
-                "path": hit.path,
-                "search_text": body[:12000],
-            }
-        )
-    return sorted(records, key=lambda row: (row["collection"], row["name"]))
-
-
-def save_index(root: Path) -> Path:
-    root.mkdir(parents=True, exist_ok=True)
-    path = index_path(root)
-    path.write_text(json.dumps(build_index(root), ensure_ascii=False, indent=2), encoding="utf-8")
-    return path
-
-
-def load_records(root: Path, fresh: bool = False) -> list[tuple[SkillHit, str]]:
-    path = index_path(root)
-    if not fresh and path.is_file():
-        try:
-            raw = json.loads(read_text(path))
-            records = []
-            for row in raw if isinstance(raw, list) else []:
-                if not isinstance(row, dict):
-                    continue
-                records.append(
-                    (
-                        SkillHit(
-                            name=str(row.get("name") or ""),
-                            description=str(row.get("description") or ""),
-                            collection=str(row.get("collection") or "default"),
-                            path=str(row.get("path") or ""),
-                        ),
-                        str(row.get("search_text") or ""),
-                    )
-                )
-            return records
-        except (OSError, json.JSONDecodeError):
-            pass
-    return list(iter_skills(root))
 
 
 def vector_text(hit: SkillHit, body: str) -> str:
@@ -451,57 +296,6 @@ def vector_search_sidecar(root: Path, query: str, limit: int, model: str, collec
     return scored[:limit]
 
 
-def score_skill(query: str, hit: SkillHit, body: str) -> float:
-    expanded = expanded_query(query)
-    query_tokens = tokens(expanded)
-    if not query_tokens:
-        return 0.0
-
-    name_tokens = tokens(hit.name)
-    desc_tokens = tokens(hit.description)
-    body_tokens = tokens(body[:12000])
-
-    score = 0.0
-    score += 6.0 * len(query_tokens & name_tokens)
-    score += 3.0 * len(query_tokens & desc_tokens)
-    score += 1.0 * len(query_tokens & body_tokens)
-
-    q_lower = expanded.lower()
-    if q_lower and q_lower in hit.name.lower():
-        score += 8.0
-    if q_lower and q_lower in hit.description.lower():
-        score += 5.0
-    if hit.name.lower() in q_lower:
-        score += 10.0
-    if "react" in query_tokens and hit.name.lower().startswith("react-"):
-        score += 8.0
-    if "n8n" in query_tokens and hit.name.lower().startswith("n8n-"):
-        score += 8.0
-    return score
-
-
-def find_by_name(root: Path, name: str) -> Path | None:
-    wanted = name.lower()
-    candidates = []
-    for hit, _ in iter_skills(root):
-        if hit.name.lower() == wanted or Path(hit.path).parent.name.lower() == wanted:
-            candidates.append(Path(hit.path))
-    candidates.sort(key=lambda path: (len(str(path)), str(path).lower()))
-    return candidates[0] if candidates else None
-
-
-def lexical_search(root: Path, query: str, limit: int, collection: str | None = None, fresh: bool = False) -> list[SkillHit]:
-    hits = []
-    for hit, body in load_records(root, fresh=fresh):
-        if collection and hit.collection != collection:
-            continue
-        hit.score = score_skill(query, hit, body)
-        if hit.score > 0:
-            hits.append(hit)
-    hits.sort(key=lambda item: (-item.score, item.collection, item.name))
-    return hits[:limit]
-
-
 def vector_search(root: Path, query: str, limit: int, model: str, collection_name: str | None = None) -> list[SkillHit]:
     sidecar_hits = vector_search_sidecar(root, query, limit, model, collection_name=collection_name)
     if sidecar_hits is not None:
@@ -613,13 +407,6 @@ def collection_counts(hits: list[SkillHit]) -> dict[str, int]:
     return dict(sorted(counts.items()))
 
 
-def log_event(root: Path, event_type: str, payload: dict) -> None:
-    write_jsonl(
-        root / ".learning" / EVENT_LOG,
-        {"ts": time.time(), "type": event_type, "payload": payload},
-    )
-
-
 def _native_sync_disabled(args: argparse.Namespace) -> bool:
     env_value = os.environ.get("UNLIMITED_SKILLS_DISABLE_NATIVE_SYNC", "").strip().lower()
     return bool(getattr(args, "no_native_sync", False) or env_value in {"1", "true", "yes", "on"})
@@ -695,6 +482,14 @@ def build_parser() -> argparse.ArgumentParser:
     search.add_argument("--require-vector", action="store_true")
     add_native_sync_options(search)
     search.set_defaults(func=library_cmds.cmd_search)
+
+    suggest = sub.add_parser("suggest", help="Fast lexical skill probe: top-3 one-liners or silence.")
+    suggest.add_argument("query")
+    suggest.add_argument("--limit", type=int, default=3)
+    suggest.add_argument("--floor", type=float, default=None, help="Suppress hits scoring below this floor.")
+    suggest.add_argument("--collection")
+    suggest.add_argument("--json", action="store_true")
+    suggest.set_defaults(func=library_cmds.cmd_suggest)
 
     list_parser = sub.add_parser("list", help="List available skills in the library.")
     list_parser.add_argument("--collection", help="Only list one collection.")

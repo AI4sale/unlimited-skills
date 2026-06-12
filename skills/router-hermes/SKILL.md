@@ -11,18 +11,19 @@ Unlimited Skills is an external skill memory and retrieval layer. It keeps large
 
 ## When to Use
 
-Use this router before doing substantive work unless an already-loaded skill is clearly relevant and already being used for the current task.
+RUN the single `suggest` command BEFORE starting any task that matches a trigger below. It costs ~1 second and returns at most 3 one-liners (or nothing). A 1-second lookup often replaces 20 minutes of rediscovery.
 
-Use this router first when:
+TRIGGERS (any one suffices):
 
-- the user asks what skills, abilities, workflows, procedures, agents, or checklists are available;
-- the user names a skill that is not currently loaded;
-- the task is content writing, editing, coding, review, debugging, research, documentation, operations, planning, or design and no clearly relevant loaded skill is already active;
-- the task may benefit from specialized domain knowledge, a review checklist, a workflow, a tool procedure, or a regression-test recipe;
-- the task is security, testing, debugging, frontend, backend, infrastructure, documentation, research, data, agent, or workflow related.
+- writing or reviewing code in a named language/framework (React, Python, Go, n8n, ...)
+- review, audit, or security check of any artifact
+- writing tests, fixing a bug, or debugging a failure
+- git/GitHub workflows: branches, PRs, releases, changelogs
+- writing prose: docs, posts, outreach, marketing, research reports
+- planning, refactoring, migrations, deployments, ops procedures
+- the user names a skill, workflow, or asks "what can you do"
 
-Do not conclude that a skill is missing just because it is absent from Hermes' visible skill list. Query Unlimited Skills first and report what the library returns.
-Do not skip this router just because the task looks simple; skip it only when a relevant skill is already active in context and the reason for using that skill is clear.
+SKIP only when a relevant skill is already active in the current context. Do not conclude that a skill is missing just because it is absent from Hermes' visible skill list — query the library first and report what it returns.
 
 ## Installed Paths
 
@@ -35,27 +36,25 @@ Library root:
 Hermes launcher for bash, Git Bash, macOS, or Linux:
 
 ```bash
-"{{HERMES_SH_LAUNCHER}}" search "<query>" --mode hybrid --limit 8
+"{{HERMES_SH_LAUNCHER}}" suggest "<task in 3-8 keywords>"
 "{{HERMES_SH_LAUNCHER}}" view <skill-name>
 ```
 
 Hermes launcher for Windows PowerShell:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File "{{HERMES_PS_LAUNCHER}}" search "<query>" --mode hybrid --limit 8
+powershell -NoProfile -ExecutionPolicy Bypass -File "{{HERMES_PS_LAUNCHER}}" suggest "<task in 3-8 keywords>"
 powershell -NoProfile -ExecutionPolicy Bypass -File "{{HERMES_PS_LAUNCHER}}" view <skill-name>
 ```
 
 ## Workflow
 
-1. If the user asks what skills are available, run `list --limit 80` and summarize the relevant collections or names.
-2. If the user names a specific skill, run `where <skill-name>` or `view <skill-name>` before saying it is unavailable.
-3. Otherwise, build a short search query from the user's request, project stack, error text, framework names, and domain terms.
-4. Run `search "<query>" --mode hybrid --limit 8` with the launcher above.
-5. Pick a skill only when the result is concrete enough to change the work.
-6. Run `view <skill-name>` and follow only the relevant instructions.
-7. Record usage with `use <skill-name> --query "<query>" --task "<short task>"`.
-8. If the selected skill was wrong or especially useful, record feedback with the `feedback` command.
+1. Run `suggest "<task in 3-8 keywords>"` with the launcher above.
+2. If a suggestion looks relevant, run `view <skill-name>` and follow only the relevant instructions.
+3. If `suggest` returns nothing, proceed with the task — do not search again with synonyms. For unusual or high-stakes tasks you may escalate once to `search "<query>" --mode hybrid --limit 8`.
+4. If the user asks what skills are available, run `list --limit 80` and summarize the relevant collections or names.
+5. If the user names a specific skill, run `where <skill-name>` or `view <skill-name>` before saying it is unavailable.
+6. Optionally enrich the learning loop with `use <skill-name> --query "<query>" --task "<short task>"` and the `feedback` command — helpful, never required.
 
 {{REMOTE_HUB_ROUTER_BLOCK}}
 

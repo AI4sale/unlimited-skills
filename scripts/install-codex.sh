@@ -194,12 +194,12 @@ set -euo pipefail
 if [[ -x "$venv_python" ]]; then
   export UNLIMITED_SKILLS_HOME="$install_root"
   export UNLIMITED_SKILLS_ROOT="$library_root"
-  exec "$venv_python" -m unlimited_skills.cli --root "$library_root" "\$@"
+  exec "$venv_python" -m unlimited_skills --root "$library_root" "\$@"
 fi
 export PYTHONPATH="$repo_root:\${PYTHONPATH:-}"
 export UNLIMITED_SKILLS_HOME="$install_root"
 export UNLIMITED_SKILLS_ROOT="$library_root"
-exec "$python_cmd" -m unlimited_skills.cli --root "$library_root" "\$@"
+exec "$python_cmd" -m unlimited_skills --root "$library_root" "\$@"
 EOF
 chmod +x "$launcher"
 
@@ -257,25 +257,27 @@ if [[ "$no_agents_patch" -eq 0 ]]; then
 <!-- BEGIN UNLIMITED SKILLS -->
 ## Unlimited Skills Library
 
-Unlimited Skills is the external skill memory for this agent. Treat it as the first place to ask for task-specific skills, workflows, checklists, procedures, and regression recipes.
+A local library of 250+ proven skills (checklists, workflows, regression recipes) that are deliberately NOT in the visible skill list. A 1-second lookup often replaces 20 minutes of rediscovery — the library has shipped-and-tested procedures for most recurring tasks.
 
-Before doing substantive work, check whether Unlimited Skills has a relevant skill. This includes writing, editing, coding, review, debugging, research, documentation, operations, planning, and design tasks. Skip this check only when a relevant skill is already active in the current context and it is clear why that skill applies.
-
-Before saying a skill is unavailable, query the library:
+RUN this single command BEFORE starting any task that matches a trigger below. It costs ~1 second and returns at most 3 one-liners (or nothing):
 
 \`\`\`bash
-"$launcher" search "<task or skill name>" --mode hybrid --limit 8
-"$launcher" where <skill-name>
-"$launcher" view <skill-name>
+"$launcher" suggest "<task in 3-8 keywords>"
 \`\`\`
 
-For inventory questions, query the library before answering:
+TRIGGERS (any one suffices):
 
-\`\`\`bash
-"$launcher" list --limit 80
-\`\`\`
+- writing or reviewing code in a named language/framework (React, Python, Go, n8n, ...)
+- review, audit, or security check of any artifact
+- writing tests, fixing a bug, or debugging a failure
+- git/GitHub workflows: branches, PRs, releases, changelogs
+- writing prose: docs, posts, outreach, marketing, research reports
+- planning, refactoring, migrations, deployments, ops procedures
+- the user names a skill, workflow, or asks "what can you do"
 
-Do not rely only on .agents/skills, .codex/skills, or the visible skill list. The library may contain skills that are intentionally not loaded into context.
+ACT on the result: if a suggestion looks relevant, run \`view <skill-name>\` with the same launcher and follow it. If \`suggest\` returns nothing, proceed — do not search again with synonyms. For deeper retrieval use \`search "<query>" --mode hybrid --limit 8\`; for inventory questions use \`list --limit 80\`.
+
+SKIP only when a relevant skill is already active in the current context.
 <!-- END UNLIMITED SKILLS -->
 EOF
 )"

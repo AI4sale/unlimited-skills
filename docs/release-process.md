@@ -2,6 +2,23 @@
 
 Use this checklist before tagging a public alpha release.
 
+## Skill Effectiveness Cadence Gate
+
+Before tagging ANY release, run the cadence gate:
+
+```bash
+python scripts/check-skill-effectiveness.py --cadence-check
+```
+
+It fails when 10 or more releases have shipped since the last recorded effectiveness run («каждые 10 релизов прогоняется проверка эффективности скилла»). When it fails, run the full check against the bundled library, fix any regression, and commit the refreshed record:
+
+```bash
+python scripts/check-skill-effectiveness.py
+git add evals/last-effectiveness-run.json
+```
+
+Thresholds, measured baselines, and rules live in [adoption/skill-effectiveness-standard.md](adoption/skill-effectiveness-standard.md).
+
 ## Version Bump Checklist
 
 - Update `pyproject.toml`.
