@@ -140,7 +140,9 @@ unlimited-skills mcp bundle verify --bundle ./dist/team.bundle.json \
 A thin wrapper over the REAL E14 verification (`resolve_bundle_state`):
 exit 0 with the resolved profile and provenance, or exit 1 with the exact
 refusal code and name (`-32013`..`-32019`). This is the same call `publish`
-runs automatically post-package.
+runs automatically post-package, and at the consuming gateway every one of
+these verification failures stays **fail-closed refuse-all** — a bundle
+that does not verify never falls back to unsigned or open behavior.
 
 ### 5. distribute -- the handoff
 

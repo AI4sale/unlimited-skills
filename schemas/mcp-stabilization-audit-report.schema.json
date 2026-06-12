@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AI4sale/unlimited-skills/schemas/mcp-stabilization-audit-report.schema.json",
+  "title": "MCP profile stack stabilization audit report",
+  "description": "The single JSON document produced by `python scripts/run-mcp-profile-stack-stabilization-audit.py --json` (E22): a read-only consistency map of the MCP profile stack across six dimensions (refusal-code registry, CLI taxonomy, schema inventory, docs map, audit field names, security boundaries). Findings carry severities info/warning/problem; exit code 0 means no problems (warnings allowed). Subjects and messages are repo-relative names, command paths, field names, or code numbers only -- never absolute local paths, key material, or hashes.",
+  "type": "object",
+  "required": ["report_type", "schema_version", "generated_at", "mode", "dimensions", "summary", "exit_code"],
+  "additionalProperties": false,
+  "properties": {
+    "report_type": { "const": "mcp-stabilization-audit-report" },
+    "schema_version": { "const": 1 },
+    "generated_at": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}Z$",
+      "description": "UTC timestamp of report generation -- the only wall-clock field; everything else is deterministic for the same repository state."
+    },
+    "mode": {
+      "enum": ["fixture", "repo"],
+      "description": "`fixture` when --fixture-mode was given (determinism pinned for CI); the audit is read-only over the repository either way."
+    },
+    "dimensions": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "description": "One entry per audited dimension, in the fixed audit order.",
+      "items": { "$ref": "#/$defs/dimension" }
+    },
+    "summary": {
+      "type": "object",
+      "required": ["dimensions", "checks_total", "findings_total", "info", "warning", "problem", "ok"],
+      "additionalProperties": false,
+      "properties": {
+        "dimensions": { "const": 6 },
+        "checks_total": { "type": "integer", "minimum": 0 },
+        "findings_total": { "type": "integer", "minimum": 0 },
+        "info": { "type": "integer", "minimum": 0 },
+        "warning": { "type": "integer", "minimum": 0 },
+        "problem": { "type": "integer", "minimum": 0 },
+        "ok": {
+          "type": "boolean",
+          "description": "True exactly when no problem-severity finding exists (warnings allowed)."
+        }
+      }
+    },
+    "exit_code": {
+      "enum": [0, 1],
+      "description": "0 when summary.ok is true, 1 otherwise."
+    }
+  },
+  "$defs": {
+    "dimension": {
+      "type": "object",
+      "required": ["name", "checks", "counts", "findings"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "enum": ["refusal_codes", "cli_taxonomy", "schemas", "docs_map", "audit_fields", "security_boundaries"]
+        },
+        "checks": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "How many individual assertions this dimension ran (a finding-free check is silent)."
+        },
+        "counts": {
+          "type": "object",
+          "required": ["info", "warning", "problem"],
+          "additionalProperties": false,
+          "properties": {
+            "info": { "type": "integer", "minimum": 0 },
+            "warning": { "type": "integer", "minimum": 0 },
+            "problem": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "findings": {
+          "type": "array",
+          "description": "Sorted: problems first, then warnings, then info; stable within a severity.",
+          "items": { "$ref": "#/$defs/finding" }
+        }
+      }
+    },
+    "finding": {
+      "type": "object",
+      "required": ["severity", "check", "subject", "message"],
+      "additionalProperties": false,
+      "properties": {
+        "severity": { "enum": ["info", "warning", "problem"] },
+        "check": {
+          "type": "string",
+          "pattern": "^[a-z][a-z0-9_]*$",
+          "description": "Machine name of the assertion that produced this finding."
+        },
+        "subject": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^[^\\\\]*$",
+          "description": "What the finding is about: a repo-relative path (forward slashes), an `mcp ...` command path, a flag, a field name, or a refusal code. Never an absolute local path."
+        },
+        "message": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

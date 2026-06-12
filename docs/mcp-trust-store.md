@@ -4,11 +4,14 @@
 MCP profile bundle artifacts of
 [mcp-signed-profile-bundles.md](mcp-signed-profile-bundles.md) (E13 design,
 E14 verification): trusted PUBLIC keys, key scopes, rotation, revocation,
-expiry — managed by CLI instead of hand-editing JSON. The store is a
-**management layer over the E14 files, never a bypass**: every trust
-decision is still made by the unchanged verifier
-(`unlimited_skills/mcp/bundles.py`, refusal codes `-32015`…`-32019`), and
-the store only manages WHICH local files exist and what they contain.
+expiry — managed by CLI instead of hand-editing JSON. The store
+(`unlimited_skills/mcp/trust_store.py`) is a **management layer over the
+E14 files, never a bypass**: every trust decision is still made by the
+unchanged verifier (`unlimited_skills/mcp/bundles.py`, refusal codes
+`-32015`…`-32019`), the store only manages WHICH local files exist and what
+they contain, and every E14 verification failure stays **fail-closed
+refuse-all** — a broken or missing store file is never a fallback to
+unsigned or open behavior.
 
 Everything is **offline**: no network, no registry sync, no hosted calls.
 The store holds **public keys only** — `import` refuses anything that looks

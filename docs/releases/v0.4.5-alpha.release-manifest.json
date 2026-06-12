@@ -6,10 +6,10 @@
   "distribution": "github-clone-alpha",
   "git": {
     "base_branch": "main",
-    "publication_branch": "release/v0.4.5-alpha-mcp-audit-inspector-integration",
+    "publication_branch": "release/v0.4.5-alpha-final-publication",
     "tag": "v0.4.5-alpha",
-    "tag_status": "not_created_by_codex",
-    "tag_target_sha_policy": "This is an integration gate. Codex must not create or push v0.4.5-alpha until a later final publication verifier selects the main SHA."
+    "tag_status": "pending_codex_publication_after_verifier",
+    "tag_target_sha_policy": "Codex may create and push v0.4.5-alpha only after the final publication verifier passes on the selected main SHA."
   },
   "required_prs": {
     "public": [
@@ -23,6 +23,12 @@
         "number": 95,
         "epic": "E11",
         "title": "MCP audit inspector v1",
+        "status": "merged"
+      },
+      {
+        "number": 98,
+        "epic": "v0.4.5",
+        "title": "v0.4.5-alpha MCP audit inspector integration gate",
         "status": "merged"
       }
     ]
@@ -49,7 +55,7 @@
     "live_billing": false,
     "pypi": false,
     "full_catalog_distribution": false,
-    "codex_pushes_tag": false
+    "codex_pushes_tag": true
   },
   "integration_evidence": {
     "release_manifest": "docs/releases/v0.4.5-alpha.release-manifest.json",
@@ -59,6 +65,8 @@
     "report_schema": "schemas/mcp-audit-report.schema.json",
     "audit_inspector_smoke_runner": "scripts/run-v045-alpha-mcp-audit-inspector-smoke.py",
     "audit_inspector_verifier": "scripts/verify-v045-alpha-mcp-audit-inspector.py",
+    "publication_smoke_runner": "scripts/run-v045-alpha-release-smoke.py",
+    "publication_verifier": "scripts/verify-v045-alpha-publication.py",
     "integration_test": "tests/integration/test_v045_alpha_mcp_audit_inspector.py"
   }
 }

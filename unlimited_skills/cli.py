@@ -1090,6 +1090,14 @@ def build_parser() -> argparse.ArgumentParser:
     mcp_gateway.add_argument("--trusted-keys", default="", help="Path to the local trusted-keys JSON file (key_id -> base64 Ed25519 public key, optional not_after) used to verify --profile-bundle. No PKI, no network fetch.")
     mcp_gateway.add_argument("--audience-id", action="append", default=None, metavar="ID", help="This consumer's audience identifier ('team:NAME', 'org:NAME', or 'host:NAME') matched against the bundle's audience. Repeatable; beats the comma-separated UNLIMITED_SKILLS_MCP_AUDIENCE env var.")
     mcp_gateway.add_argument("--require-signed-profiles", action="store_true", help="Signed-required policy: refuse unsigned profile sources fail-closed with -32015 bundle_signature_invalid (a raw --profiles file alone, or no bundle at all). Default off pre-v0.6.")
+    mcp_gateway.add_argument(
+        "--index-cache",
+        nargs="?",
+        const="",
+        default=None,
+        metavar="DIR",
+        help="Opt-in persistent tool-index cache (default OFF; without this flag behavior is unchanged). Caches each upstream's indexed tool names/descriptions/schemas keyed by config hash so a restarted gateway answers tools_schema/tools_search without spawning; tools_call still spawns lazily. Without a value the cache file is <root>/.learning/mcp-tool-index-cache.json; with DIR it is <DIR>/mcp-tool-index-cache.json.",
+    )
     mcp_gateway.set_defaults(func=mcp_cmds.cmd_mcp_gateway)
     mcp_trust = mcp_sub.add_parser(
         "trust",

@@ -1,0 +1,165 @@
+{
+  "dimensions": [
+    {
+      "checks": 147,
+      "counts": {
+        "info": 0,
+        "problem": 0,
+        "warning": 0
+      },
+      "findings": [],
+      "name": "refusal_codes"
+    },
+    {
+      "checks": 77,
+      "counts": {
+        "info": 1,
+        "problem": 0,
+        "warning": 0
+      },
+      "findings": [
+        {
+          "check": "inventory",
+          "message": "25 mcp subcommands, 39 distinct long flags, directory flags: --library-dir, --store-dir",
+          "severity": "info",
+          "subject": "mcp"
+        }
+      ],
+      "name": "cli_taxonomy"
+    },
+    {
+      "checks": 73,
+      "counts": {
+        "info": 2,
+        "problem": 0,
+        "warning": 10
+      },
+      "findings": [
+        {
+          "check": "schema_draft",
+          "message": "declares JSON Schema draft-07 instead of draft 2020-12 (straggler)",
+          "severity": "warning",
+          "subject": "schemas/mcp-server-config.schema.json"
+        },
+        {
+          "check": "schema_draft",
+          "message": "declares JSON Schema draft-07 instead of draft 2020-12 (straggler)",
+          "severity": "warning",
+          "subject": "schemas/mcp-tool-index.schema.json"
+        },
+        {
+          "check": "schema_example",
+          "message": "no example under examples/mcp/ maps to this schema",
+          "severity": "warning",
+          "subject": "schemas/mcp-audit-report.schema.json"
+        },
+        {
+          "check": "schema_example",
+          "message": "no example under examples/mcp/ maps to this schema",
+          "severity": "warning",
+          "subject": "schemas/mcp-perf-report.schema.json"
+        },
+        {
+          "check": "schema_example",
+          "message": "no example under examples/mcp/ maps to this schema",
+          "severity": "warning",
+          "subject": "schemas/mcp-server-config.schema.json"
+        },
+        {
+          "check": "schema_example",
+          "message": "no example under examples/mcp/ maps to this schema",
+          "severity": "warning",
+          "subject": "schemas/mcp-tool-index.schema.json"
+        },
+        {
+          "check": "schema_example",
+          "message": "no example under examples/mcp/ maps to this schema",
+          "severity": "warning",
+          "subject": "schemas/mcp-trust-store-metadata.schema.json"
+        },
+        {
+          "check": "schema_test_reference",
+          "message": "no test under tests/ references this schema by name",
+          "severity": "warning",
+          "subject": "schemas/mcp-server-config.schema.json"
+        },
+        {
+          "check": "schema_test_reference",
+          "message": "no test under tests/ references this schema by name",
+          "severity": "warning",
+          "subject": "schemas/mcp-tool-index.schema.json"
+        },
+        {
+          "check": "schema_test_reference",
+          "message": "no test under tests/ references this schema by name",
+          "severity": "warning",
+          "subject": "schemas/mcp-trust-store-metadata.schema.json"
+        },
+        {
+          "check": "unmapped_example",
+          "message": "example does not map to an mcp-*.schema.json by name (request fixtures and legacy examples)",
+          "severity": "info",
+          "subject": "examples/mcp/gateway-config.example.json"
+        },
+        {
+          "check": "unmapped_example",
+          "message": "example does not map to an mcp-*.schema.json by name (request fixtures and legacy examples)",
+          "severity": "info",
+          "subject": "examples/mcp/tools-call-request.example.json"
+        }
+      ],
+      "name": "schemas"
+    },
+    {
+      "checks": 89,
+      "counts": {
+        "info": 0,
+        "problem": 0,
+        "warning": 0
+      },
+      "findings": [],
+      "name": "docs_map"
+    },
+    {
+      "checks": 50,
+      "counts": {
+        "info": 1,
+        "problem": 0,
+        "warning": 0
+      },
+      "findings": [
+        {
+          "check": "reader_only_field",
+          "message": "read by the inspector/replay but never written by the gateway writer (forward-compatible accessor)",
+          "severity": "info",
+          "subject": "code"
+        }
+      ],
+      "name": "audit_fields"
+    },
+    {
+      "checks": 38,
+      "counts": {
+        "info": 0,
+        "problem": 0,
+        "warning": 0
+      },
+      "findings": [],
+      "name": "security_boundaries"
+    }
+  ],
+  "exit_code": 0,
+  "generated_at": "2026-06-12T00:16:35Z",
+  "mode": "fixture",
+  "report_type": "mcp-stabilization-audit-report",
+  "schema_version": 1,
+  "summary": {
+    "checks_total": 474,
+    "dimensions": 6,
+    "findings_total": 14,
+    "info": 4,
+    "ok": true,
+    "problem": 0,
+    "warning": 10
+  }
+}

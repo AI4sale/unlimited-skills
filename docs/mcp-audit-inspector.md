@@ -2,10 +2,11 @@
 
 The audit inspector turns the local redacted MCP audit JSONL log written by
 the gateway ([mcp-gateway.md](mcp-gateway.md) "Audit log") into actionable
-reports. It is strictly **read-only**: it never writes, rotates, or mutates
-audit files, never sends anything anywhere, and its output never contains
-argument values, error text bodies, secret values, or local filesystem paths
-(file references are basenames only).
+reports. It is strictly **read-only** and offline (local files only — no
+network, no telemetry): it never writes, rotates, or mutates audit files,
+never sends anything anywhere, and its output never contains argument
+values, error text bodies, secret values, or local filesystem paths (file
+references are basenames only).
 
 ## Running
 
@@ -43,17 +44,22 @@ Total/ok/refused call counts, per-tool and per-upstream splits (the
 empty-string upstream collects calls that have no upstream, e.g.
 `tools_search` without `refresh`), per-tool duration statistics
 (min / median / nearest-rank p95 / max in ms), the time range covered, and
-rotation coverage. `profile_loaded` lifecycle rows are not calls and are
-excluded from call counts (they appear in the profiles section).
+rotation coverage. Gateway lifecycle event rows are not calls and are
+excluded from call counts: `profile_loaded` (reported in the profiles
+section) and the E12B warm-cache events `cache_loaded`/`cache_refresh`.
 
 ### Refusals (`--section refusals`)
 
 Breakdown of `ok: false` rows by JSON-RPC refusal code with each code's
 NAME and meaning. Known codes are the gateway refusal family:
 `-32001`…`-32010` (the E07/E08 upstream security model — see the table in
-[mcp-gateway.md](mcp-gateway.md)) and `-32011`…`-32014` (the tool-profile
+[mcp-gateway.md](mcp-gateway.md)), `-32011`…`-32014` (the tool-profile
 family: `TOOL_NOT_VISIBLE`, `TOOL_NOT_CALLABLE`, `PROFILE_NOT_FOUND`,
-`PROFILE_INVALID`). Anything unattributable is reported as `unknown`.
+`PROFILE_INVALID`), and `-32015`…`-32019` (the signed-bundle family:
+`BUNDLE_SIGNATURE_INVALID`, `BUNDLE_EXPIRED`, `BUNDLE_REVOKED`,
+`BUNDLE_AUDIENCE_MISMATCH`, `BUNDLE_KEY_MISSING` — see
+[mcp-signed-profile-bundles.md](mcp-signed-profile-bundles.md)). Anything
+unattributable is reported as `unknown`.
 
 Audit rows carry a path-scrubbed error *string*, not a numeric code, so the
 inspector classifies refusals by the distinctive phrases each gateway

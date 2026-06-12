@@ -147,6 +147,7 @@ def cmd_mcp_audit_report(args: argparse.Namespace) -> int:
 def cmd_mcp_gateway(args: argparse.Namespace) -> int:
     from ..mcp.audit import AuditLog, default_audit_path
     from ..mcp.gateway import load_gateway_config, run_gateway
+    from ..mcp.index_cache import CACHE_FILE_NAME, IndexCache, default_index_cache_path
     from ..mcp.profiles import FailClosedProfile
 
     root = Path(args.root).expanduser()
@@ -158,13 +159,27 @@ def cmd_mcp_gateway(args: argparse.Namespace) -> int:
         # meta-tools (hosts often swallow startup stderr), refusing every
         # call -- but an interactive start also reports the condition.
         print(f"GatewayConfigError: {profile.message}", file=sys.stderr)
+    # Warm tool-index cache: strictly opt-in (docs/mcp-performance.md
+    # candidate 1). args.index_cache is None when the flag is absent --
+    # default OFF, behavior byte-for-byte unchanged.
+    index_cache = None
+    cache_note = ""
+    index_cache_arg = getattr(args, "index_cache", None)
+    if index_cache_arg is not None:
+        if str(index_cache_arg).strip():
+            cache_path = Path(index_cache_arg).expanduser() / CACHE_FILE_NAME
+        else:
+            cache_path = default_index_cache_path(root)
+        index_cache = IndexCache(cache_path)
+        index_cache.load()
+        cache_note = ", index cache enabled"
     upstream_count = len(config.get("upstreams", []))
     print(
         f"unlimited-tools MCP gateway: stdio, {upstream_count} upstream(s), lazy spawn, "
-        f"audit log enabled, {profile_note}",
+        f"audit log enabled, {profile_note}{cache_note}",
         file=sys.stderr,
     )
-    run_gateway(config, AuditLog(audit_path), profile=profile)
+    run_gateway(config, AuditLog(audit_path), profile=profile, index_cache=index_cache)
     return 0
 
 

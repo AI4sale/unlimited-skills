@@ -11,21 +11,19 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-RELEASE = "v0.4.4-alpha"
-VERSION = "0.4.4"
-MANIFEST = ROOT / "docs" / "releases" / "v0.4.4-alpha.release-manifest.json"
+RELEASE = "v0.4.6-alpha"
+VERSION = "0.4.6"
+MANIFEST = ROOT / "docs" / "releases" / "v0.4.6-alpha.release-manifest.json"
 RELEASE_DOCS = [
-    ROOT / "docs" / "releases" / "v0.4.4-alpha.md",
-    ROOT / "docs" / "releases" / "v0.4.4-alpha-checklist.md",
-    ROOT / "docs" / "releases" / "v0.4.4-alpha-known-issues.md",
+    ROOT / "docs" / "releases" / "v0.4.6-alpha.md",
+    ROOT / "docs" / "releases" / "v0.4.6-alpha-checklist.md",
+    ROOT / "docs" / "releases" / "v0.4.6-alpha-known-issues.md",
     MANIFEST,
 ]
 PUBLIC_DOCS = RELEASE_DOCS + [
     ROOT / "README.md",
-    ROOT / "SECURITY.md",
     ROOT / "CHANGELOG.md",
-    ROOT / "docs" / "mcp-gateway.md",
-    ROOT / "docs" / "mcp-permissioned-tool-profiles.md",
+    ROOT / "docs" / "mcp-performance.md",
     ROOT / "docs" / "unlimited-tools.md",
 ]
 PRIVATE_MATERIAL_PATTERNS = {
@@ -34,6 +32,7 @@ PRIVATE_MATERIAL_PATTERNS = {
     "github_pat": r"gh[pousr]_[A-Za-z0-9_]{20,}",
     "openai_key": r"sk-[A-Za-z0-9_\-]{20,}",
     "raw_uls_token": r"uls_(?:hub|token|license)_[A-Za-z0-9_\-]{16,}",
+    "prompt_body_field": r'"(?:prompt|prompts|task_text|customer_data)"\s*:\s*"[^"]+"',
     "local_windows_user_path": r"[A-Za-z]:\\Users\\tedja\\",
     "local_repo_path": r"D:\\git\\",
 }
@@ -44,7 +43,7 @@ def read(path: Path) -> str:
 
 
 def fail(message: str) -> None:
-    raise SystemExit(f"{RELEASE} MCP tool-profile verification failed: {message}")
+    raise SystemExit(f"{RELEASE} MCP performance benchmark verification failed: {message}")
 
 
 def require(condition: bool, message: str) -> None:
@@ -80,17 +79,9 @@ def plugin_versions() -> tuple[str, str]:
     return str(plugin["version"]), str(marketplace["plugins"][0]["version"])
 
 
-def version_tuple(value: str) -> tuple[int, ...]:
-    try:
-        return tuple(int(part) for part in value.split("."))
-    except ValueError as exc:
-        fail(f"invalid version: {value}")
-        raise AssertionError from exc
-
-
 def load_smoke():
-    path = ROOT / "scripts" / "run-v044-alpha-mcp-tool-profiles-smoke.py"
-    spec = importlib.util.spec_from_file_location("run_v044_alpha_mcp_tool_profiles_smoke", path)
+    path = ROOT / "scripts" / "run-v046-alpha-mcp-performance-smoke.py"
+    spec = importlib.util.spec_from_file_location("run_v046_alpha_mcp_performance_smoke", path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"Unable to load smoke runner: {path}")
     module = importlib.util.module_from_spec(spec)
@@ -103,28 +94,26 @@ def assert_manifest() -> dict[str, Any]:
     payload = json.loads(read(MANIFEST))
     require(payload.get("release") == RELEASE, "manifest release mismatch")
     require(payload.get("package_version") == VERSION, "manifest package version mismatch")
+    require(payload.get("distribution") == "github-clone-alpha", "GitHub clone must remain distribution path")
     git = payload.get("git") if isinstance(payload.get("git"), dict) else {}
-    publication_branch = git.get("publication_branch")
-    require(
-        publication_branch
-        in {
-            "release/v0.4.4-alpha-mcp-tool-profile-integration",
-            "release/v0.4.4-alpha-final-publication",
-        },
-        "publication branch mismatch",
-    )
-    expected_tag_status = (
-        "pending_codex_publication_after_verifier"
-        if publication_branch == "release/v0.4.4-alpha-final-publication"
-        else "not_created_by_codex"
-    )
-    require(git.get("tag_status") == expected_tag_status, "v0.4.4-alpha tag status mismatch")
+    require(git.get("base_branch") == "main", "base branch mismatch")
+    require(git.get("publication_branch") == "release/v0.4.6-alpha-mcp-performance-benchmark-integration", "publication branch mismatch")
+    require(git.get("tag") == RELEASE, "manifest tag mismatch")
+    require(git.get("tag_status") == "not_created_by_codex", "integration gate must not create the v0.4.6-alpha tag")
     prs = payload.get("required_prs") if isinstance(payload.get("required_prs"), dict) else {}
     public_numbers = [item.get("number") for item in prs.get("public", []) if isinstance(item, dict)]
-    for number in (91, 92, 93, 94):
+    for number in (99, 100):
         require(number in public_numbers, f"manifest missing public PR #{number}")
     boundary = payload.get("safety_boundary") if isinstance(payload.get("safety_boundary"), dict) else {}
-    for key in ("alpha_only", "fixture_mode", "profile_runtime_enforcement", "mcp_tool_profile_integration"):
+    for key in (
+        "alpha_only",
+        "fixture_mode",
+        "mcp_performance_benchmark_integration",
+        "benchmark_fixture_only",
+        "schema_locked_report",
+        "warm_start_plan_only",
+        "codex_must_not_push_tag",
+    ):
         require(boundary.get(key) is True, f"safety boundary must set {key}")
     for key in (
         "production_rollout",
@@ -136,14 +125,14 @@ def assert_manifest() -> dict[str, Any]:
         "mcp_resources",
         "mcp_prompts",
         "arbitrary_shell_execution",
+        "runtime_default_changes",
+        "warm_start_implementation",
         "auto_publish",
         "live_billing",
         "pypi",
         "full_catalog_distribution",
     ):
         require(boundary.get(key) is False, f"safety boundary must disable {key}")
-    expected_codex_pushes_tag = publication_branch == "release/v0.4.4-alpha-final-publication"
-    require(boundary.get("codex_pushes_tag") is expected_codex_pushes_tag, "Codex tag publication policy mismatch")
     return payload
 
 
@@ -151,48 +140,55 @@ def assert_docs() -> None:
     for path in RELEASE_DOCS:
         require(path.is_file(), f"missing release doc: {path.relative_to(ROOT)}")
     text = "\n".join(read(path) for path in PUBLIC_DOCS if path.exists()).lower()
-    for phrase in (
-        "v0.4.4-alpha",
-        "permissioned mcp tool profile",
-        "default-deny",
-        "visible",
-        "callable",
-        "tool_not_visible",
-        "tool_not_callable",
-        "profile_not_found",
-        "profile_invalid",
-        "profile_loaded",
-        "sha-256",
+    for required in (
+        "v0.4.6-alpha",
+        "mcp performance benchmark",
+        "fixture-only",
+        "no runtime default changes",
+        "warm-start optimization plan",
+        "spawn vs reuse",
+        "context bytes",
+        "schemas/mcp-perf-report.schema.json",
+        "no production hosted calls",
+        "no hosted gateway",
         "no oauth",
-        "no remote upstream",
         "no resources",
         "no prompts",
-        "no hosted gateway",
-        "no production hosted calls",
         "no automatic telemetry",
+        "no full catalog distribution",
     ):
-        require(phrase in text, f"docs missing required wording: {phrase}")
+        require(required in text, f"docs missing required wording: {required}")
 
 
 def assert_smoke(report: dict[str, Any]) -> None:
     require(report.get("status") == "passed", "smoke status mismatch")
     require(report.get("release") == RELEASE, "smoke release mismatch")
-    for key in ("production_hosted_calls", "hosted_gateway", "oauth", "remote_upstreams", "mcp_resources", "mcp_prompts", "arbitrary_shell_execution", "automatic_telemetry"):
+    for key in (
+        "production_hosted_calls",
+        "hosted_gateway",
+        "oauth",
+        "remote_upstreams",
+        "mcp_resources",
+        "mcp_prompts",
+        "arbitrary_shell_execution",
+        "automatic_telemetry",
+        "runtime_default_changes",
+        "warm_start_implementation",
+    ):
         require(report.get(key) is False, f"smoke must disable {key}")
-    proofs = report.get("proofs") if isinstance(report.get("proofs"), dict) else {}
-    require(proofs.get("default_deny", {}).get("code") == -32011, "default-deny proof missing")
-    require(proofs.get("selected_profile_by_cli") is True, "CLI profile selection proof missing")
-    require(proofs.get("selected_profile_by_env") is True, "env profile selection proof missing")
-    require(proofs.get("visible_only_search", {}).get("hidden_hits") == [], "visible-only search proof missing")
-    require(proofs.get("hidden_schema_refusal", {}).get("code") == -32011, "hidden schema refusal proof missing")
-    require(proofs.get("non_callable_call_refusal", {}).get("code") == -32012, "non-callable refusal proof missing")
-    require(proofs.get("inheritance_narrowing", {}).get("code") == -32011, "inheritance narrowing proof missing")
-    require(proofs.get("fail_closed", {}).get("missing_code") == -32013, "missing profile fail-closed proof missing")
-    require(proofs.get("fail_closed", {}).get("invalid_code") == -32014, "invalid profile fail-closed proof missing")
-    audit = proofs.get("profile_audit", {})
-    require(audit.get("profile_loaded_row") is True, "profile_loaded audit proof missing")
-    require(audit.get("profile_sha256") == audit.get("profile_sha256_expected"), "profile SHA proof missing")
-    require(proofs.get("no_resources_or_prompts") is True, "resources/prompts proof missing")
+    benchmark = report.get("benchmark") if isinstance(report.get("benchmark"), dict) else {}
+    proofs = benchmark.get("proofs") if isinstance(benchmark.get("proofs"), dict) else {}
+    for key in (
+        "schema_valid",
+        "sections_present",
+        "raw_samples_present",
+        "spawn_slower_than_reuse",
+        "context_bytes_consistent",
+        "memory_best_effort",
+        "report_files_written",
+        "no_secret_or_local_path_leaks",
+    ):
+        require(proofs.get(key) is True, f"benchmark proof missing: {key}")
 
 
 def assert_no_private_material() -> None:
@@ -208,13 +204,8 @@ def assert_no_private_material() -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Verify v0.4.4-alpha MCP tool-profile integration gate.")
+    parser = argparse.ArgumentParser(description="Verify v0.4.6-alpha MCP performance benchmark integration gate.")
     parser.add_argument("--expected-sha", help="Expected checkout SHA for the integration gate")
-    parser.add_argument(
-        "--allow-newer-package",
-        action="store_true",
-        help="Compatibility mode for later release branches: require package/plugin versions to match each other and be >= 0.4.4.",
-    )
     parser.add_argument("--json", action="store_true", help="Print JSON evidence")
     args = parser.parse_args(argv)
 
@@ -222,17 +213,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.expected_sha:
         require(re.fullmatch(r"[0-9a-f]{40}", args.expected_sha) is not None, "--expected-sha must be 40 lowercase hex")
         require(current_head == args.expected_sha, f"current checkout {current_head} does not match {args.expected_sha}")
-    pkg_version = package_version()
-    init_ver = init_version()
-    plugin_ver, marketplace_ver = plugin_versions()
-    if args.allow_newer_package:
-        require(version_tuple(pkg_version) >= version_tuple(VERSION), f"pyproject version must be >= {VERSION}")
-        require(init_ver == pkg_version, "__version__ must match pyproject version")
-        require((plugin_ver, marketplace_ver) == (pkg_version, pkg_version), "Claude plugin and marketplace versions must match package version")
-    else:
-        require(pkg_version == VERSION, f"pyproject version must be {VERSION}")
-        require(init_ver == VERSION, f"__version__ must be {VERSION}")
-        require((plugin_ver, marketplace_ver) == (VERSION, VERSION), "Claude plugin and marketplace versions must match package version")
+    require(package_version() == VERSION, f"pyproject version must be {VERSION}")
+    require(init_version() == VERSION, f"__version__ must be {VERSION}")
+    require(plugin_versions() == (VERSION, VERSION), "Claude plugin and marketplace versions must match package version")
     manifest = assert_manifest()
     assert_docs()
     smoke = load_smoke().collect_evidence(run_pytest=False)
@@ -246,22 +229,18 @@ def main(argv: list[str] | None = None) -> int:
         "required_prs": manifest.get("required_prs", {}),
         "smoke": smoke,
         "production_hosted_calls": False,
-        "codex_pushes_tag": manifest.get("safety_boundary", {}).get("codex_pushes_tag"),
+        "codex_pushes_tag": False,
     }
     if args.json:
-        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+        print(json.dumps(report, indent=2, sort_keys=True))
     else:
-        print(f"{RELEASE} MCP tool-profile integration verification passed")
+        print(f"{RELEASE} MCP performance benchmark integration verification passed")
         print(f"manifest: {MANIFEST.relative_to(ROOT)}")
         print(f"current checkout sha: {current_head}")
-        print("default-deny / visible-only / non-callable / fail-closed proofs: passed")
-        print("profile audit row and SHA proof: passed")
-        print("no OAuth/resources/prompts/hosted gateway: passed")
-        print("private material scan: passed")
-        if report["codex_pushes_tag"] is True:
-            print("tag status: pending Codex publication after final verifier")
-        else:
-            print("tag status: Codex must not create or push v0.4.4-alpha")
+        print("fixture benchmark schema/report/leak checks: passed")
+        print("warm-start implementation: absent (plan only)")
+        print("runtime default changes: false")
+        print("tag status: Codex must not create or push v0.4.6-alpha")
     return 0
 
 

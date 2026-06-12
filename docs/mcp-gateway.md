@@ -222,6 +222,21 @@ Rotation: when the active JSONL file exceeds `audit_max_bytes` (default
 `audit_max_files` (default 5) are deleted. Local renames only — no
 compression, no upload, no telemetry.
 
+Lifecycle event rows (not calls) and their extra fields, all non-sensitive
+by construction:
+
+- `profile_loaded` (E10/E14): `profile_sha256`, `visible_rules`,
+  `callable_rules`, `profile_source` (`raw_file`/`signed_bundle`) and, for
+  verified bundles, `bundle_sha256`, `issuer_key_id`, `issuer_display`,
+  `audience`, `expires_at`, `verification`, plus `local_profile_sha256`
+  when a local narrow-only override file is active — hashes, key ids, and
+  counts only, never key material or signature values;
+- `cache_loaded` / `cache_refresh` (E12B, only with `--index-cache`):
+  `cache_file` (basename), `cache_sha256`, `upstreams_loaded`,
+  `tools_loaded`, `entries_corrupt`, `entries_expired`,
+  `oversized_dropped`, `tool_count`, `server_version` — counts, names, and
+  the cache file hash only, never schema bodies or local paths.
+
 ## Upstream security model
 
 Trust levels, the command allowlist, environment forwarding, size caps,
@@ -357,3 +372,56 @@ verification runs in dry-run), and the `profile_loaded` audit impact. Both
 commands are read-only and offline: they never spawn an upstream, never
 write audit rows, and change no runtime state. See
 [mcp-profile-rollout.md](mcp-profile-rollout.md).
+
+## Warm tool-index cache (`--index-cache`, opt-in)
+
+Implements candidate 1 of the warm-start plan in
+[mcp-performance.md](mcp-performance.md). **Default OFF**: without the flag
+the gateway behaves byte-for-byte as documented above — no cache file is
+ever read or written.
+
+```bash
+unlimited-skills mcp gateway --config cfg.json --index-cache
+unlimited-skills mcp gateway --config cfg.json --index-cache D:\cache\mcp
+```
+
+- **What it does**: persists each upstream's indexed tool entries (names,
+  descriptions, `inputSchema`s, oversized markers) to one local JSON file —
+  `<library root>/.learning/mcp-tool-index-cache.json` by default, or
+  `<DIR>/mcp-tool-index-cache.json` when the flag is given a directory. On
+  the next gateway start with the flag, valid entries are loaded into the
+  in-memory index **without spawning anything**: `tools_search` matches the
+  cached tools and `tools_schema` answers from the cache at roughly the
+  reuse cost (~1 ms) instead of paying the ~150 ms first-touch spawn.
+  `tools_call` still spawns lazily exactly as before — a live process is
+  created only when a call actually needs one.
+- **Keying and invalidation**: each entry is keyed by the SHA-256 of the
+  upstream's canonical spec (name, command, args, `env_allowlist`, `cwd`,
+  trust level, enabled, size limits) plus the upstream's `serverInfo`
+  name/version captured at index time. Any config change yields a different
+  hash, so the stale entry is simply never matched. Every live spawn
+  re-indexes from the real `tools/list` and overwrites the entry (this is
+  also how a changed `serverInfo` version is resolved); `tools_search` with
+  `refresh: true` spawns, re-indexes, and rewrites entries; entries older
+  than 7 days are ignored at load; a corrupt or unknown-`schema_version`
+  cache file is ignored and counted, never a crash and never a silent
+  migration.
+- **Safety**: cached entries are untrusted input — schemas are re-validated
+  against the same `max_schema_bytes` ceilings as a live index at load
+  (oversized → searchable name-only marker, schema refused with `-32008`,
+  never truncated). The cache contains only what the gateway already held
+  in memory (tool names, descriptions, input schemas from upstreams) —
+  never environment values, credentials, call arguments, or results.
+  Disabled and `future-remote-placeholder` upstreams never receive cached
+  tools. Writes are atomic (temp file + `os.replace`) and best-effort: a
+  cache write failure never breaks a live call.
+- **Audit**: with the cache enabled, startup appends one `cache_loaded` row
+  (counts of loaded/corrupt/expired entries, loaded upstream names, the
+  cache file's basename and SHA-256) and every cache rewrite appends a
+  `cache_refresh` row (upstream, tool count, upstream server version, new
+  file SHA-256). Schema bodies and local paths are never written.
+
+Proven by `tests/test_mcp_warm_cache.py`, including the default-off proof
+(no cache file is touched without the flag) and the no-spawn cache-hit
+proof (the spawn marker stays absent while `tools_search`/`tools_schema`
+answer from cache).

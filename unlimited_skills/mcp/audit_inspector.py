@@ -7,7 +7,7 @@ Pure, testable functions that turn the local audit log written by
 - **summary** -- call totals, ok/refused split, per-tool and per-upstream
   counts, duration percentiles, time range, rotation coverage;
 - **refusals** -- breakdown by JSON-RPC refusal code (named ``-32001`` ..
-  ``-32014``; anything else is reported as ``unknown``), per-upstream refusal
+  ``-32019``; anything else is reported as ``unknown``), per-upstream refusal
   counts, and the most recent refusals (timestamp + tool + upstream + code
   only -- never argument values);
 - **upstreams** -- per-upstream health: calls, refusal rate, timeout /
@@ -49,14 +49,27 @@ DEFAULT_REFUSAL_RATE_THRESHOLD = 0.5
 # not meta-tool calls; they are reported in the profiles section only.
 PROFILE_EVENT_TOOL = "profile_loaded"
 
-# Keys whose values are documented non-sensitive hashes (the profile file's
-# SHA-256 pinned by the E10 ``profile_loaded`` row). They are hex blobs by
-# nature, so the redaction self-check must not flag them as secrets.
-KNOWN_HASH_KEYS = frozenset({"profile_sha256"})
+# All gateway lifecycle event rows: the E10 ``profile_loaded`` row plus the
+# E12B warm-cache events. None of them is a meta-tool call, so they are
+# excluded from the call summary, refusal breakdown, and upstream health
+# (cache events carry no per-call semantics; profile events feed the
+# profiles section).
+EVENT_TOOLS = frozenset({PROFILE_EVENT_TOOL, "cache_loaded", "cache_refresh"})
+
+# Keys whose values are documented non-sensitive hashes: the profile file's
+# SHA-256 pinned by the E10 ``profile_loaded`` row, the E14 bundle and
+# local-override file hashes on the same row, and the E12B cache file
+# SHA-256 on cache event rows. They are hex blobs by nature, so the
+# redaction self-check must not flag them as secrets.
+KNOWN_HASH_KEYS = frozenset(
+    {"profile_sha256", "bundle_sha256", "local_profile_sha256", "cache_sha256"}
+)
 
 # Gateway refusal codes -> (NAME, meaning). -32001..-32010 are the E07/E08
 # upstream security model family (unlimited_skills/mcp/gateway.py);
-# -32011..-32014 are the E09/E10 tool-profile family. The table is kept
+# -32011..-32014 are the E09/E10 tool-profile family
+# (unlimited_skills/mcp/profiles.py); -32015..-32019 are the E13/E14 signed
+# profile bundle family (unlimited_skills/mcp/bundles.py). The table is kept
 # locally so the inspector reads logs from any gateway version without
 # importing (or requiring) the profile machinery.
 REFUSAL_CODES: dict[int, tuple[str, str]] = {
@@ -107,6 +120,26 @@ REFUSAL_CODES: dict[int, tuple[str, str]] = {
         "PROFILE_INVALID",
         "profile file fails schema validation or a static load check",
     ),
+    -32015: (
+        "BUNDLE_SIGNATURE_INVALID",
+        "signed bundle signature does not verify (or is absent under the signed-required policy)",
+    ),
+    -32016: (
+        "BUNDLE_EXPIRED",
+        "signed bundle outside its validity window (expired or not yet valid)",
+    ),
+    -32017: (
+        "BUNDLE_REVOKED",
+        "bundle SHA-256 or signing key id in the local CRL (or declared CRL unreadable)",
+    ),
+    -32018: (
+        "BUNDLE_AUDIENCE_MISMATCH",
+        "bundle audience does not include this consumer (or namespace ceiling violated)",
+    ),
+    -32019: (
+        "BUNDLE_KEY_MISSING",
+        "signing key not present and valid in the local trusted-keys file",
+    ),
 }
 PROFILE_REFUSAL_CODES = (-32011, -32012, -32013, -32014)
 UNKNOWN_CODE_NAME = "unknown"
@@ -132,6 +165,11 @@ _ERROR_TEXT_MARKERS: tuple[tuple[str, int], ...] = (
     ("(tool_not_callable)", -32012),
     ("(profile_not_found)", -32013),
     ("(profile_invalid)", -32014),
+    ("(bundle_signature_invalid)", -32015),
+    ("(bundle_expired)", -32016),
+    ("(bundle_revoked)", -32017),
+    ("(bundle_audience_mismatch)", -32018),
+    ("(bundle_key_missing)", -32019),
     ("refused, never truncated", -32008),
     ("dropped, never truncated", -32009),
     ("all i/o is refused", -32010),
@@ -253,7 +291,7 @@ def percentile(values: Iterable[float], fraction: float) -> float | None:
 
 
 def _is_call_row(row: dict) -> bool:
-    return row.get("tool") != PROFILE_EVENT_TOOL
+    return row.get("tool") not in EVENT_TOOLS
 
 
 def _duration_of(row: dict) -> float | None:
@@ -396,7 +434,8 @@ def profile_report(rows: list[tuple[str, int, dict]]) -> dict | None:
     produce no section at all -- the fields are accepted, never required.
     """
     has_profile_fields = any(
-        "profile" in row or not _is_call_row(row) for _, _, row in rows
+        "profile" in row or row.get("tool") == PROFILE_EVENT_TOOL
+        for _, _, row in rows
     )
     if not has_profile_fields:
         return None
@@ -404,7 +443,7 @@ def profile_report(rows: list[tuple[str, int, dict]]) -> dict | None:
     loaded_events = []
     profile_refusals: dict[int, int] = {code: 0 for code in PROFILE_REFUSAL_CODES}
     for _, _, row in rows:
-        if not _is_call_row(row):
+        if row.get("tool") == PROFILE_EVENT_TOOL:
             loaded_events.append(
                 {
                     "ts": row.get("ts") if isinstance(row.get("ts"), (int, float)) else None,
@@ -429,6 +468,8 @@ def profile_report(rows: list[tuple[str, int, dict]]) -> dict | None:
                 }
             )
             continue
+        if not _is_call_row(row):
+            continue  # cache events are neither calls nor profile events
         if "profile" in row:
             name = str(row.get("profile") or "")
             per_profile[name] = per_profile.get(name, 0) + 1
