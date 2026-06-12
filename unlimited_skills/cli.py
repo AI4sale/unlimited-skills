@@ -333,11 +333,17 @@ def vector_text(hit: SkillHit, body: str) -> str:
     )[:5000]
 
 
+# A3-PYPI-FLIP: not on PyPI yet; flip these hints back to
+# `pip install 'unlimited-skills[vector]'` when the v0.5 publication gate (A3) lands.
 def ensure_embedding_deps():
     try:
         from fastembed import TextEmbedding  # type: ignore
     except ImportError as exc:
-        raise RuntimeError("Install vector dependencies with: pip install 'unlimited-skills[vector]'") from exc
+        raise RuntimeError(
+            "Install vector dependencies with: pip install \"unlimited-skills[vector] @ "
+            "git+https://github.com/AI4sale/unlimited-skills.git\" "
+            "(or, from a repo clone: pip install -e \".[vector]\")"
+        ) from exc
     return TextEmbedding
 
 
@@ -345,7 +351,11 @@ def ensure_chroma_deps():
     try:
         import chromadb  # type: ignore
     except ImportError as exc:
-        raise RuntimeError("Install vector dependencies with: pip install 'unlimited-skills[vector]'") from exc
+        raise RuntimeError(
+            "Install vector dependencies with: pip install \"unlimited-skills[vector] @ "
+            "git+https://github.com/AI4sale/unlimited-skills.git\" "
+            "(or, from a repo clone: pip install -e \".[vector]\")"
+        ) from exc
     return chromadb
 
 

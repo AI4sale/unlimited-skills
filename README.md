@@ -487,10 +487,14 @@ Restart Codex after installing the router skill.
 
 Since v0.3.12 the router ships as a native Claude Code plugin with a `SessionStart` hook, so the router contract is injected into every session deterministically instead of relying on `CLAUDE.md` or skill-list visibility. Install the CLI, then add the plugin inside Claude Code:
 
+<!-- A3-PYPI-FLIP: the package is not on PyPI yet; switch this back to `pip install unlimited-skills` when the v0.5 PyPI publication gate (A3) lands. -->
+
 ```bash
-pip install unlimited-skills
+pip install "git+https://github.com/AI4sale/unlimited-skills.git"
 unlimited-skills setup --local-only
 ```
+
+This installs the light lexical-only core straight from GitHub (the package is not published on PyPI yet). For vector/hybrid search, install from a clone with the `[all]` extras instead — see [Install](#install) above.
 
 ```text
 /plugin marketplace add AI4sale/unlimited-skills

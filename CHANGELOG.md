@@ -81,6 +81,10 @@
 - v0.4.1-alpha Reliability publication package: release notes, checklist, upgrade notes, known issues, release manifest, reliability smoke runner, release smoke runner, and publication verifier.
 - Post-tag `v0.4.0-alpha` release smoke compatibility: the v0.4.0 smoke can verify that the published tag points to the expected release-owner commit without letting Codex create or overwrite tags.
 
+### Fixed
+
+- A1: the recommended Claude Code install path no longer points at the unpublished `unlimited-skills` PyPI package (a guaranteed 404 for every new user). README Option A, `docs/claude-code-plugin.md`, the plugin router `plugin/skills/unlimited-skills/SKILL.md`, `.claude-plugin/marketplace.json`, the SessionStart hook's missing-CLI hint (`plugin/hooks/session_start.py`), and the runtime `[vector]`/`[server]` extras hints (`unlimited_skills/cli.py`, `unlimited_skills/hub.py`, `unlimited_skills/commands/library.py`) now give the verified Git install: `pip install "git+https://github.com/AI4sale/unlimited-skills.git"` (light core; clone + `pip install -e ".[all]"` for vector search). Every touched site carries an `A3-PYPI-FLIP` marker so the v0.5 PyPI publication gate can flip them back mechanically, and a new guard test (`tests/test_install_path_docs.py`) fails if the unpublished install command reappears without the marker.
+
 ### Security
 
 - MCP servers are stdio-only and local-only: no network listeners, no OAuth upstreams, no MCP resources/prompts in v1.

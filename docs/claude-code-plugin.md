@@ -9,12 +9,16 @@ Since v0.3.12 Unlimited Skills ships as a native Claude Code plugin. The plugin 
 
 ## Install
 
-The plugin needs the CLI for actual retrieval:
+The plugin needs the CLI for actual retrieval. The package is not published on PyPI yet, so install it straight from GitHub:
+
+<!-- A3-PYPI-FLIP: switch this back to `pip install unlimited-skills` when the v0.5 PyPI publication gate (A3) lands. -->
 
 ```bash
-pip install unlimited-skills
+pip install "git+https://github.com/AI4sale/unlimited-skills.git"
 unlimited-skills setup --local-only
 ```
+
+This is the light lexical-only core. For vector/hybrid search, clone the repo and install `python -m pip install -e ".[all]"` instead (see `docs/install.md`).
 
 Then, inside Claude Code:
 

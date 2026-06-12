@@ -20,10 +20,12 @@ Do not conclude that a skill is missing just because it is absent from `~/.claud
 
 ## Requirements
 
-This plugin drives the `unlimited-skills` CLI, installed separately:
+This plugin drives the `unlimited-skills` CLI, installed separately. The package is not published on PyPI yet, so install it from GitHub:
+
+<!-- A3-PYPI-FLIP: switch this back to `pip install unlimited-skills` when the v0.5 PyPI publication gate (A3) lands. -->
 
 ```bash
-pip install unlimited-skills
+pip install "git+https://github.com/AI4sale/unlimited-skills.git"
 ```
 
 If the `unlimited-skills` command is not found, tell the user to install the CLI (or activate the environment where it is installed) instead of silently skipping the library.
