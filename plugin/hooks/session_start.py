@@ -2,53 +2,64 @@
 
 Prints a short, deterministic contract so every session knows the external
 skill library exists, regardless of CLAUDE.md state or model routing mood.
-Never fails the session: exits 0 on every path and prints nothing heavier
-than a few lines. No skill bodies, prompts, or private data are emitted.
+Resolves the CLI through the shared fallback chain (PATH -> install venv ->
+rendered launchers), so a working install never gets the "install the CLI"
+nag just because the entry point is not on PATH. Never fails the session:
+exits 0 on every path and prints nothing heavier than a few lines. No skill
+bodies, prompts, or private data are emitted.
 """
 from __future__ import annotations
 
-import shutil
 import sys
+from pathlib import Path
 
-CONTRACT = """## Unlimited Skills Library (plugin)
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
-Unlimited Skills is the external skill memory for this session. The visible
-skill list is NOT the full inventory: the library intentionally keeps skills
-out of context until needed.
+from _cli_resolve import display_command, resolve_cli_command  # noqa: E402
 
-- Before substantive work (coding, review, writing, research, ops, planning),
-  check the library: `unlimited-skills search "<task>" --mode hybrid --limit 8`
-- For inventory questions ("what skills do you have?"), query the library
-  before answering: `unlimited-skills list --limit 80`
-- Load a skill body only after selecting it: `unlimited-skills view <name>`
-- Never conclude a skill is missing without querying the library first.
+CONTRACT_TEMPLATE = """## Unlimited Skills Library (plugin)
+
+A local library of 250+ proven skills (checklists, workflows, regression
+recipes) that are deliberately NOT in the visible skill list. A 1-second
+lookup often replaces 20 minutes of rediscovery.
+
+RUN this single command BEFORE starting any task that matches a trigger
+below. It costs ~1 second and returns at most 3 one-liners (or nothing):
+
+    {cli} suggest "<task in 3-8 keywords>"
+
+TRIGGERS (any one suffices): writing or reviewing code in a named
+language/framework; review, audit, or security check of any artifact;
+writing tests, fixing a bug, or debugging a failure; git/GitHub workflows
+(branches, PRs, releases, changelogs); writing prose (docs, posts, outreach,
+marketing, research); planning, refactoring, migrations, deployments, ops;
+the user names a skill or asks "what can you do".
+
+ACT on the result: if a suggestion looks relevant, run `{cli} view
+<skill-name>` and follow it. If `suggest` returns nothing, proceed — do not
+search again with synonyms. For inventory questions run `{cli} list
+--limit 80` before answering.
+
+SKIP only when a relevant skill is already active in the current context.
 """
 
-# A3-PYPI-FLIP: the `unlimited-skills` package is NOT published on PyPI yet,
-# so every user-facing install hint must point at the Git install below. When
-# the v0.5 PyPI publication gate (A3) lands, flip every site carrying the
-# A3-PYPI-FLIP marker back to `pip install unlimited-skills`. Greppable
-# inventory of touched sites (search the repo for "A3-PYPI-FLIP"):
-#   README.md (Claude Code Option A), docs/claude-code-plugin.md,
-#   plugin/skills/unlimited-skills/SKILL.md, plugin/hooks/session_start.py,
-#   unlimited_skills/cli.py, unlimited_skills/hub.py,
-#   unlimited_skills/commands/library.py,
-#   .claude-plugin/marketplace.json (JSON cannot carry comments — update the
-#   plugin description string there manually), and the guard test
-#   tests/test_install_path_docs.py.
 MISSING_CLI = """## Unlimited Skills Library (plugin)
 
-The unlimited-skills plugin is installed, but the `unlimited-skills` CLI was
-not found on PATH. If the user asks about skills or the library, tell them to
-run `pip install "git+https://github.com/AI4sale/unlimited-skills.git"` (or
-activate the environment where it is installed) so the router can query the
-library.
+The unlimited-skills plugin is installed, but no unlimited-skills CLI was
+found on PATH, in ~/.unlimited-skills/.venv, or among the rendered launchers
+under ~/.claude/skills/unlimited-skills/scripts/. If the user asks about
+skills or the library, tell them to install Unlimited Skills (see the
+project README install instructions) so the router can query the library.
 """
 
 
 def main() -> int:
-    if shutil.which("unlimited-skills"):
-        sys.stdout.write(CONTRACT)
+    try:
+        command = resolve_cli_command()
+    except Exception:
+        command = None
+    if command:
+        sys.stdout.write(CONTRACT_TEMPLATE.format(cli=display_command(command)))
     else:
         sys.stdout.write(MISSING_CLI)
     return 0

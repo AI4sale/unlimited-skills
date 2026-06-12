@@ -55,6 +55,49 @@ def cmd_search(args: argparse.Namespace) -> int:
     return cli.emit_hits(hits, args.json)
 
 
+def cmd_suggest(args: argparse.Namespace) -> int:
+    # Delegate to the import-cheap suggest module so the classic CLI and the
+    # fast `python -m unlimited_skills suggest` path share one implementation.
+    from unlimited_skills import suggest as suggest_mod
+
+    argv = [args.query, "--root", str(args.root), "--limit", str(args.limit)]
+    if args.floor is not None:
+        argv.extend(["--floor", str(args.floor)])
+    if args.collection:
+        argv.extend(["--collection", args.collection])
+    if args.json:
+        argv.append("--json")
+    return suggest_mod.main(argv)
+
+
+def cmd_skills_check_effectiveness(args: argparse.Namespace) -> int:
+    # Alias for the CI script: `unlimited-skills skills check-effectiveness`
+    # loads scripts/check-skill-effectiveness.py and runs its main(), so the
+    # CLI and CI share ONE implementation (the script stays the CI entry
+    # point). Requires a source checkout: the script and the frozen eval set
+    # are not shipped inside the installed package.
+    import importlib.util
+
+    script = Path(__file__).resolve().parents[2] / "scripts" / "check-skill-effectiveness.py"
+    if not script.is_file():
+        print(
+            "skills check-effectiveness requires a source checkout: scripts/check-skill-effectiveness.py was not found.",
+            file=sys.stderr,
+        )
+        return 2
+    spec = importlib.util.spec_from_file_location("check_skill_effectiveness", script)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    argv: list[str] = []
+    if args.json:
+        argv.append("--json")
+    if args.cadence_check:
+        argv.append("--cadence-check")
+    if args.no_record:
+        argv.append("--no-record")
+    return int(module.main(argv))
+
+
 def cmd_list(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     cli.enforce_local_root(root, action="list library root")

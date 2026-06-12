@@ -31,6 +31,10 @@ def make_repo(root: Path) -> Path:
     )
     write_skill(root / "packs" / "ecc" / "skills", "security-review")
     write_skill(root / "packs" / "superpowers" / "skills", "systematic-debugging")
+    hooks_dir = root / "plugin" / "hooks"
+    hooks_dir.mkdir(parents=True)
+    for script in ("_cli_resolve.py", "session_start.py", "user_prompt_submit.py"):
+        (hooks_dir / script).write_text(f"# stub {script}\n", encoding="utf-8")
     return root
 
 
@@ -80,13 +84,24 @@ def test_claude_code_install_bundled_imports_personal_and_project_skills(tmp_pat
 
     claude_text = (project_root / "CLAUDE.md").read_text(encoding="utf-8")
     assert "<!-- BEGIN UNLIMITED SKILLS -->" in claude_text
-    assert "Claude Code's current skill listing" in claude_text
+    assert 'suggest "<task in 3-8 keywords>"' in claude_text
+    assert "TRIGGERS (any one suffices):" in claude_text
+    assert "SKIP only when a relevant skill is already active" in claude_text
     assert "scripts/unlimited-skills.sh" in claude_text
     assert "scripts/unlimited-skills.ps1" in claude_text
 
     global_claude_text = (claude_home / "CLAUDE.md").read_text(encoding="utf-8")
     assert "<!-- BEGIN UNLIMITED SKILLS -->" in global_claude_text
     assert "scripts/unlimited-skills.sh" in global_claude_text
+
+    settings = json.loads((claude_home / "settings.json").read_text(encoding="utf-8"))
+    assert report.hooks_registered is True
+    for event, script in (("SessionStart", "session_start.py"), ("UserPromptSubmit", "user_prompt_submit.py")):
+        commands = [hook["command"] for entry in settings["hooks"][event] for hook in entry["hooks"]]
+        assert any(script in command for command in commands), event
+    hooks_dir = router_target / "hooks"
+    for script in ("_cli_resolve.py", "session_start.py", "user_prompt_submit.py"):
+        assert (hooks_dir / script).is_file()
 
     assert (library / "registry" / "ecc" / "skills" / "security-review" / "SKILL.md").is_file()
     assert (library / "registry" / "superpowers" / "skills" / "systematic-debugging" / "SKILL.md").is_file()
@@ -182,6 +197,62 @@ def test_claude_code_install_patches_global_claude_even_when_same_as_project_fil
     assert report.global_claude_patched is True
     text = (claude_home / "CLAUDE.md").read_text(encoding="utf-8")
     assert text.count("<!-- BEGIN UNLIMITED SKILLS -->") == 1
+
+
+def test_claude_code_install_hooks_can_be_skipped_and_merge_is_idempotent(tmp_path: Path) -> None:
+    repo_root = make_repo(tmp_path / "repo")
+    claude_home = tmp_path / ".claude-home"
+    project_root = tmp_path / "project"
+    install_root = tmp_path / ".unlimited-skills"
+
+    options = ClaudeCodeInstallOptions(
+        claude_home=claude_home,
+        project_root=project_root,
+        install_root=install_root,
+        repo_root=repo_root,
+        register_hooks=False,
+        skip_reindex=True,
+    )
+    report = install_claude_code(options)
+    assert report.hooks_registered is False
+    assert not (claude_home / "settings.json").exists()
+
+    # Pre-existing user settings survive, and re-installs do not duplicate entries.
+    (claude_home / "settings.json").write_text(
+        json.dumps({"enabledPlugins": {"other@other": True}, "hooks": {"SessionStart": [{"hooks": [{"type": "command", "command": "echo hi"}]}]}}),
+        encoding="utf-8",
+    )
+    options.register_hooks = True
+    install_claude_code(options)
+    install_claude_code(options)
+    settings = json.loads((claude_home / "settings.json").read_text(encoding="utf-8"))
+    assert settings["enabledPlugins"] == {"other@other": True}
+    session_start_commands = [hook["command"] for entry in settings["hooks"]["SessionStart"] for hook in entry["hooks"]]
+    assert session_start_commands.count("echo hi") == 1
+    assert sum("session_start.py" in command for command in session_start_commands) == 1
+    prompt_commands = [hook["command"] for entry in settings["hooks"]["UserPromptSubmit"] for hook in entry["hooks"]]
+    assert sum("user_prompt_submit.py" in command for command in prompt_commands) == 1
+
+
+def test_claude_code_install_hooks_fail_soft_on_invalid_settings(tmp_path: Path) -> None:
+    repo_root = make_repo(tmp_path / "repo")
+    claude_home = tmp_path / ".claude-home"
+    claude_home.mkdir(parents=True)
+    (claude_home / "settings.json").write_text("{not json", encoding="utf-8")
+
+    report = install_claude_code(
+        ClaudeCodeInstallOptions(
+            claude_home=claude_home,
+            project_root=tmp_path / "project",
+            install_root=tmp_path / ".unlimited-skills",
+            repo_root=repo_root,
+            skip_reindex=True,
+        )
+    )
+    assert report.hooks_registered is False
+    assert any("not valid JSON" in message for message in report.messages)
+    # The broken file is left untouched, never overwritten.
+    assert (claude_home / "settings.json").read_text(encoding="utf-8") == "{not json"
 
 
 def test_claude_code_remote_first_router_config_uses_token_env(tmp_path: Path) -> None:
