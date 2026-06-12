@@ -101,11 +101,24 @@ from unlimited_skills.mcp.bundles import (  # noqa: E402
     BUNDLE_EXPIRED,
     BUNDLE_REVOKED,
     BUNDLE_SIGNATURE_INVALID,
-    CryptographyEd25519Backend,
-    _load_crl,
     _parse_timestamp,
     canonical_bundle_bytes,
     load_trusted_keys,
+)
+
+# E27: the routing-document loaders, the strict/forbidden-field checks, the
+# E23 decision-6 conflict resolution, and the carrier-summary loader are the
+# REAL client module now (unlimited_skills/mcp/managed_sync.py) -- the
+# harness imports them back, exactly as docs/mcp-distribution-e2e-harness.md
+# promised, and this abuse battery is their regression suite.
+from unlimited_skills.mcp.managed_sync import (  # noqa: E402
+    FORBIDDEN_FIELDS,
+    SCHEME_RANK,
+    DistributionRefusal,
+    forbidden_field_names,
+    load_summary_document,
+    resolve_assignments,
+    verify_routing_document,
 )
 from unlimited_skills.mcp.profile_rollout import plan_rollout  # noqa: E402
 from unlimited_skills.mcp.profiles import ActiveProfile, FailClosedProfile  # noqa: E402
@@ -139,88 +152,9 @@ MEMBER_UNKNOWN = "member-unknown"
 SHA_PREFIX = 12
 MAX_ERROR_CHARS = 512
 
-# The E23 conflict-resolution scheme specificity (decision 6, rung a).
-SCHEME_RANK = {"host": 3, "team": 2, "org": 1}
-
-# The E24 decision-20 forbidden-field denylist, encoded LOCALLY (the private
-# registry contract is never read at run time). No fixture payload, request,
-# or response in this harness may carry one of these property names at any
-# depth -- the same boundary check the future hosted carrier must enforce.
-FORBIDDEN_FIELDS = frozenset(
-    {
-        "prompt",
-        "prompts",
-        "task_text",
-        "query",
-        "messages",
-        "tool_arguments",
-        "tool_args",
-        "tool_input",
-        "tool_inputs",
-        "tool_output",
-        "tool_outputs",
-        "tool_results",
-        "tool_calls",
-        "profile_rules",
-        "profile_body",
-        "bundle_body",
-        "skill_body",
-        "skill_bodies",
-        "audit_log",
-        "usage",
-        "telemetry",
-        "activation_history",
-        "private_key",
-        "private_keys",
-        "signing_key",
-        "key_material",
-        "license_token",
-        "registration_token",
-        "device_proof",
-        "join_code",
-        "team_token",
-        "local_path",
-        "local_paths",
-        "env",
-        "env_values",
-        "secret",
-        "secrets",
-    }
-)
-
-# Strict top-level vocabularies (closed-schema stance: unknown keys refuse).
-_CHANNEL_KEYS = frozenset(
-    {"channel_version", "comment", "name", "revision", "owner", "history", "current", "signature"}
-)
-_ASSIGNMENT_KEYS = frozenset(
-    {
-        "assignment_version",
-        "comment",
-        "audience",
-        "channel",
-        "mode",
-        "bundle_sha256",
-        "issuer",
-        "revision",
-        "issued_at",
-        "expires_at",
-        "signature",
-    }
-)
-_SUMMARY_KEYS = frozenset(
-    {
-        "summary_version",
-        "comment",
-        "bundle_sha256",
-        "issuer_key_id",
-        "audience_schemes",
-        "published_at",
-        "expires_at",
-        "size_bytes",
-        "status",
-        "signature",
-    }
-)
+# SCHEME_RANK (the E23 decision-6 specificity), FORBIDDEN_FIELDS (the E24
+# decision-20 denylist), and the strict routing-document vocabularies live
+# in unlimited_skills/mcp/managed_sync.py (E27) and are imported above.
 
 # Profile-affecting env vars are neutralized for the duration of one run so
 # the workflow is deterministic regardless of the operator's shell.
@@ -250,14 +184,6 @@ class StepError(AssertionError):
     """One harness step's assertion failed (the workflow stops)."""
 
 
-class DistributionRefusal(ValueError):
-    """A fixture distribution-layer refusal with a stable reason name."""
-
-    def __init__(self, reason: str, message: str) -> None:
-        super().__init__(message)
-        self.reason = reason
-
-
 def _require(condition: bool, message: str) -> None:
     if not condition:
         raise StepError(message)
@@ -269,20 +195,6 @@ def _prefix(sha256: str) -> str:
 
 def _utc(epoch: float) -> str:
     return time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(epoch))
-
-
-def forbidden_field_names(value: object) -> set[str]:
-    """Every E24 decision-20 denylisted property name present at any depth."""
-    found: set[str] = set()
-    if isinstance(value, dict):
-        for key, item in value.items():
-            if key in FORBIDDEN_FIELDS:
-                found.add(key)
-            found |= forbidden_field_names(item)
-    elif isinstance(value, (list, tuple)):
-        for item in value:
-            found |= forbidden_field_names(item)
-    return found
 
 
 # ---------------------------------------------------------------------------
@@ -348,171 +260,10 @@ def build_assignment(
     return sign_routing_document(document, issuer)
 
 
-def _strict_document(document: object, allowed: frozenset[str], label: str) -> dict:
-    if not isinstance(document, dict):
-        raise DistributionRefusal("schema_invalid", f"{label}: not a JSON object")
-    # The decision-20 boundary check runs FIRST: a denylisted name refuses
-    # with the specific code even when it is also an unknown key.
-    found = forbidden_field_names(document)
-    if found:
-        raise DistributionRefusal(
-            "forbidden_field_rejected",
-            f"{label}: forbidden field names refused: {', '.join(sorted(found))}",
-        )
-    unknown = sorted(set(document) - allowed)
-    if unknown:
-        raise DistributionRefusal(
-            "schema_invalid", f"{label}: unknown keys refused: {', '.join(unknown)}"
-        )
-    return document
-
-
-def channel_semantic_errors(document: dict) -> list[str]:
-    """The E23 semantic load rules (tests/test_mcp_distribution_schemas.py)."""
-    errors: list[str] = []
-    if document.get("channel_version") != 1:
-        errors.append("channel_version must be the const 1")
-    history = document.get("history")
-    if not isinstance(history, list) or not history:
-        return errors + ["history must be a non-empty array"]
-    active = [record for record in history if record.get("status") == "active"]
-    if len(active) != 1:
-        errors.append(f"history must contain exactly one active record, found {len(active)}")
-    elif document.get("current") != active[0].get("bundle_sha256"):
-        errors.append("current must equal the active record's bundle_sha256")
-    stamps = [record.get("published_at", "") for record in history]
-    if any(later < earlier for earlier, later in zip(stamps, stamps[1:])):
-        errors.append("history published_at must be non-decreasing")
-    return errors
-
-
-def assignment_semantic_errors(document: dict) -> list[str]:
-    errors: list[str] = []
-    if document.get("assignment_version") != 1:
-        errors.append("assignment_version must be the const 1")
-    mode = document.get("mode")
-    if mode == "pin" and "bundle_sha256" not in document:
-        errors.append("pin mode requires bundle_sha256")
-    if mode == "follow" and "bundle_sha256" in document:
-        errors.append("follow mode forbids bundle_sha256 (the channel owns the pointer)")
-    if not document.get("issued_at", "") < document.get("expires_at", ""):
-        errors.append("issued_at must be strictly before expires_at")
-    return errors
-
-
-def verify_routing_document(
-    document: dict,
-    kind: str,
-    trusted_keys_path: Path,
-    crl_path: Path,
-    now: float,
-) -> str:
-    """Fixture client check of one routing file under the SIGNED-DISTRIBUTION
-    policy (E23 decision 1, registered tier): strict keys, the semantic load
-    rules, a REQUIRED signature whose key_id equals the owner/issuer key_id,
-    the key present and unexpired in the member's E15 trusted-keys file, not
-    revoked by the local CRL, and a valid detached Ed25519 signature over the
-    canonical JSON. Returns the verified key_id or raises DistributionRefusal
-    -- routing files grant no capability either way (the routed bundle still
-    passes the unchanged E14 verification)."""
-    if kind == "channel":
-        _strict_document(document, _CHANNEL_KEYS, "channel")
-        errors = channel_semantic_errors(document)
-        owner_key_id = str(document.get("owner", {}).get("key_id", ""))
-    else:
-        _strict_document(document, _ASSIGNMENT_KEYS, "assignment")
-        errors = assignment_semantic_errors(document)
-        owner_key_id = str(document.get("issuer", {}).get("key_id", ""))
-    if errors:
-        raise DistributionRefusal("schema_invalid", f"{kind}: {errors[0]}")
-    signature = document.get("signature")
-    if not isinstance(signature, dict):
-        raise DistributionRefusal(
-            "routing_unsigned",
-            f"{kind} is unsigned; the signed-distribution policy refuses unsigned "
-            "routing files outright",
-        )
-    if signature.get("key_id") != owner_key_id:
-        raise DistributionRefusal(
-            "routing_signature_invalid",
-            f"{kind} signature key_id does not equal the owner/issuer key_id",
-        )
-    keys = load_trusted_keys(trusted_keys_path)
-    entry = keys.get(owner_key_id)
-    if entry is None or (entry.not_after is not None and now > entry.not_after):
-        raise DistributionRefusal(
-            "routing_key_missing",
-            f"{kind} signing key is not in the member's trusted-keys file (or expired)",
-        )
-    _, revoked_key_ids = _load_crl(crl_path)
-    if owner_key_id in revoked_key_ids:
-        raise DistributionRefusal(
-            "routing_key_revoked", f"{kind} signing key is revoked by the local CRL"
-        )
-    try:
-        raw_signature = base64.b64decode(str(signature.get("value", "")), validate=True)
-    except (ValueError, TypeError):
-        raise DistributionRefusal(
-            "routing_signature_invalid", f"{kind} signature value is not valid base64"
-        ) from None
-    backend = CryptographyEd25519Backend()
-    if not backend.verify(entry.public_key, canonical_bundle_bytes(document), raw_signature):
-        raise DistributionRefusal(
-            "routing_signature_invalid",
-            f"{kind} signature does not verify (tampered after signing)",
-        )
-    return owner_key_id
-
-
-def resolve_assignments(
-    entries: list[tuple[str, dict]], member_ids: list[str], now: float
-) -> tuple[str, str, list[str]]:
-    """The E23 decision-6 deterministic conflict resolution.
-
-    ``entries`` are ``(label, assignment document)`` pairs that already
-    passed :func:`verify_routing_document`. Returns ``(status, winner_label,
-    detail_labels)`` with status ``none`` (no assignment matches the member),
-    ``expired`` (matches exist but every one is expired -- no NEW activation
-    is directed, named loudly), ``tie`` (residual exact tie, refused loudly
-    with both labels), or ``ok`` with the single deterministic winner:
-    host: beats team: beats org:, then pin beats follow, then highest
-    revision, then latest issued_at.
-    """
-    member = set(member_ids)
-    matching = [
-        (label, document)
-        for label, document in entries
-        if set(document.get("audience", [])) & member
-    ]
-    if not matching:
-        return ("none", "", [])
-    live = [
-        (label, document)
-        for label, document in matching
-        if now < _parse_timestamp(document["expires_at"])
-    ]
-    if not live:
-        return ("expired", "", sorted(label for label, _ in matching))
-
-    def sort_key(label: str, document: dict) -> tuple:
-        specificity = max(
-            SCHEME_RANK[identifier.split(":", 1)[0]]
-            for identifier in set(document["audience"]) & member
-        )
-        return (
-            specificity,
-            1 if document["mode"] == "pin" else 0,
-            document["revision"],
-            document["issued_at"],
-        )
-
-    best = max(sort_key(label, document) for label, document in live)
-    winners = sorted(
-        label for label, document in live if sort_key(label, document) == best
-    )
-    if len(winners) > 1:
-        return ("tie", "", winners)
-    return ("ok", winners[0], [])
+# verify_routing_document (the SIGNED-DISTRIBUTION client check) and
+# resolve_assignments (the E23 decision-6 conflict resolution) are imported
+# from unlimited_skills/mcp/managed_sync.py (E27): the abuse battery below
+# is their regression suite.
 
 
 # ---------------------------------------------------------------------------
@@ -745,38 +496,8 @@ class FixtureRegistry:
         return destination
 
 
-def load_summary_document(raw: object, carrier_public_keys: dict[str, bytes]) -> dict:
-    """Strict client-side loader for the carrier-signed summary: closed key
-    set, forbidden-field boundary, and a REQUIRED carrier signature verified
-    against the fixture registry's public keys (never the member's trust
-    store -- carrier trust and capability trust stay separate)."""
-    document = _strict_document(raw, _SUMMARY_KEYS, "summary")
-    if document.get("summary_version") != 1:
-        raise DistributionRefusal("schema_invalid", "summary_version must be the const 1")
-    signature = document.get("signature")
-    if not isinstance(signature, dict):
-        raise DistributionRefusal(
-            "unsigned_artifact_rejected",
-            "summary is unsigned; the carrier envelope signature is required "
-            "(downgrade-to-unsigned refused)",
-        )
-    public_key = carrier_public_keys.get(str(signature.get("key_id", "")))
-    if public_key is None:
-        raise DistributionRefusal(
-            "routing_key_missing", "summary signed by an unknown carrier key"
-        )
-    try:
-        raw_signature = base64.b64decode(str(signature.get("value", "")), validate=True)
-    except (ValueError, TypeError):
-        raise DistributionRefusal(
-            "routing_signature_invalid", "summary signature value is not valid base64"
-        ) from None
-    backend = CryptographyEd25519Backend()
-    if not backend.verify(public_key, canonical_bundle_bytes(document), raw_signature):
-        raise DistributionRefusal(
-            "routing_signature_invalid", "summary signature does not verify"
-        )
-    return document
+# load_summary_document (the strict carrier-summary loader) is imported
+# from unlimited_skills/mcp/managed_sync.py (E27).
 
 
 # ---------------------------------------------------------------------------

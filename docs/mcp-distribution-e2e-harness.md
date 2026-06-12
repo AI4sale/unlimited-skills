@@ -218,3 +218,19 @@ so each fixture piece can be replaced WITHOUT changing the steps around it:
   composition style the harness extends.
 - [mcp-incident-runbook.md](mcp-incident-runbook.md) — the E18 recovery
   semantics the incident steps reuse.
+
+## Managed sync client prototype (E27)
+
+The promise above is now kept: the routing-file loaders, the strict
+closed-schema and forbidden-field checks, the decision-6 conflict
+resolution, and the carrier-summary loader live in
+`unlimited_skills/mcp/managed_sync.py` (the fixture-only managed profile
+sync client behind `unlimited-skills mcp profiles managed
+sync|status|last-good|doctor`), and this harness imports them — the abuse
+battery is their regression suite. The fixture-registry directory this
+harness builds is byte-compatible with the sync client's `--source`
+layout, so an operator can point `managed sync --source` at a harness-style
+directory and walk the same flow interactively (dry-run by default; no
+hosted calls, no network, no production keys; staging only — activation
+stays the explicit E20 library step). See
+[mcp-managed-sync.md](mcp-managed-sync.md).

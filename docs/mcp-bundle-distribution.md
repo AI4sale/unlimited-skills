@@ -443,3 +443,17 @@ what the harness proves, what it deliberately does not, the per-step E25
 behind the same step interfaces. The machine report validates against
 `schemas/mcp-distribution-e2e-report.schema.json` and is re-checked by
 `scripts/verify-mcp-profile-distribution-e2e.py`.
+
+## Managed sync client prototype (E27)
+
+The member-side client behavior specified above ("resolve my assignment,
+fetch the named sha, run `library add`, activate explicitly") now exists
+as a real fixture-only runtime module:
+`unlimited_skills/mcp/managed_sync.py` and the
+`unlimited-skills mcp profiles managed sync|status|last-good|doctor` CLI —
+dry-run by default, staging via the E20 library with NO silent activation,
+anti-rollback revision watermarks per channel identity, and the decision-6
+conflict resolution as importable code (the E26 harness imports it back).
+Hosted sync remains unimplemented and design-gated: the client consumes a
+LOCAL fixture-source directory only and refuses URL-shaped sources. See
+[mcp-managed-sync.md](mcp-managed-sync.md).

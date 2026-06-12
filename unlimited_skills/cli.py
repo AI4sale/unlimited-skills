@@ -1235,6 +1235,35 @@ def build_parser() -> argparse.ArgumentParser:
     library_doctor = mcp_library_sub.add_parser("doctor", help="Re-verify EVERY entry against the current trust store/CRL and check the library invariants: per-entry problems (expired/revoked/key-missing -- warnings unless ACTIVE), active-bundle-invalid (problem, exit 1), corrupt state file (rebuild guidance), missing/corrupt stored files, stale active pointer, orphan files, history consistency. Exit 0 ok / 1 problems.")
     add_library_common(library_doctor)
     library_doctor.set_defaults(func=mcp_cmds.cmd_mcp_library_doctor)
+    mcp_managed = mcp_profiles_sub.add_parser(
+        "managed",
+        help="Managed profile sync client PROTOTYPE (fixture-only): simulate how a future registered/team assignment would be received, verified, stored, previewed, and optionally staged -- from a LOCAL fixture-source directory in the E26 registry layout. NO hosted sync, no registry API calls, no entitlement server calls, no network, no telemetry, no production keys; URL sources refuse outright (hosted sync not implemented; design gated). DEFAULT IS DRY-RUN; --apply stages into the bundle library but NEVER activates (activation stays the explicit 'library activate' step). Fail-closed: routing refusals carry the E26 fixture reason names, bundle refusals the reserved -32014..-32019 codes.",
+    )
+    mcp_managed_sub = mcp_managed.add_subparsers(dest="managed_command", required=True)
+
+    def add_managed_common(command: argparse.ArgumentParser) -> None:
+        command.add_argument("--library-dir", default="", help="Bundle library directory. Defaults to <root>/.unlimited-skills-bundles (E20). The sync state lives at <library>/.unlimited-skills-managed-sync/state.json.")
+        command.add_argument("--trusted-keys", default="", help="Trusted-keys JSON file verifying routing documents AND bundles. Omitted: defaults to the managed trust store's trusted-keys.json under <root>/.unlimited-skills-trust when it exists (E15).")
+        command.add_argument("--audience-id", action="append", default=None, metavar="ID", help="This member's audience identifier ('team:NAME', 'org:NAME', or 'host:NAME'). Repeatable; beats UNLIMITED_SKILLS_MCP_AUDIENCE.")
+        command.add_argument("--json", action="store_true", help="Print a machine-readable JSON report.")
+
+    managed_sync_cmd = mcp_managed_sub.add_parser("sync", help="One sync pass against a fixture-source DIRECTORY (E26 layout): verify every assignment (E15-signed routing), resolve the member's assignment with the E23 decision-6 conflict rules, verify the channel and enforce the anti-rollback revision watermark, check the carrier-signed metadata-only summary, run the FULL real E14 verification on the candidate bundle, and report what would change. DRY-RUN by default -- zero mutation; --apply stages via the real library add and records the sync state atomically. Never activates.")
+    add_managed_common(managed_sync_cmd)
+    managed_sync_cmd.add_argument("--source", required=True, metavar="DIR", help="LOCAL fixture-source directory in the E26 fixture-registry layout (bundles/, summaries/, channels/, assignments/, public-keys.json). Anything URL-shaped refuses: hosted sync is not implemented; design gated.")
+    managed_sync_cmd.add_argument("--apply", action="store_true", help="Stage the verified candidate into the bundle library and record the sync state. Still NO activation -- run 'mcp profiles library activate' explicitly after review.")
+    managed_sync_cmd.set_defaults(func=mcp_cmds.cmd_mcp_managed_sync)
+    managed_status_cmd = mcp_managed_sub.add_parser("status", help="Show the recorded sync state offline: source id/fingerprint, per-channel revision watermarks, last sync result, last-good bundle, staged-but-not-activated bundles, and drift (the assignment expects one bundle, another is active).")
+    add_managed_common(managed_status_cmd)
+    managed_status_cmd.set_defaults(func=mcp_cmds.cmd_mcp_managed_status)
+    managed_last_good_cmd = mcp_managed_sub.add_parser("last-good", help="Show the last-good bundle recorded by the sync history (re-verified through the real E14 path); --restore re-stages it through the real library add when it is missing (needs --source). Verification is never bypassed; activation stays the explicit library step. Exit 1 when none is recorded or it no longer verifies.")
+    add_managed_common(managed_last_good_cmd)
+    managed_last_good_cmd.add_argument("--restore", action="store_true", help="Re-stage the last-good bundle into the library (real add, verify-before-store). Never activates.")
+    managed_last_good_cmd.add_argument("--source", default="", metavar="DIR", help="Fixture-source directory to re-fetch the bundle body from when it is no longer in the library. URL-shaped values refuse.")
+    managed_last_good_cmd.set_defaults(func=mcp_cmds.cmd_mcp_managed_last_good)
+    managed_doctor_cmd = mcp_managed_sub.add_parser("doctor", help="Offline managed-sync self-checks: state file shape, sync-staged bundles still verify (real E14), drift report, and -- with --source -- watermark monotonicity vs the source (replay detection) and assignment expiry warnings. Exit 0 ok / 1 problems.")
+    add_managed_common(managed_doctor_cmd)
+    managed_doctor_cmd.add_argument("--source", default="", metavar="DIR", help="Optional fixture-source directory for replay detection and assignment-expiry checks. URL-shaped values refuse.")
+    managed_doctor_cmd.set_defaults(func=mcp_cmds.cmd_mcp_managed_doctor)
     mcp_audit_report = mcp_sub.add_parser(
         "audit-report",
         help="Inspect the local redacted MCP audit JSONL log (including rotated generations): summary, refusals, upstream health, profile usage, redaction self-check.",

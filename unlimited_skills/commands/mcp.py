@@ -635,6 +635,101 @@ def cmd_mcp_library_doctor(args: argparse.Namespace) -> int:
     return int(report["exit_code"])
 
 
+# ---------------------------------------------------------------------------
+# E27: managed profile sync client PROTOTYPE (`unlimited-skills mcp profiles
+# managed sync|status|last-good|doctor`). Fixture-ONLY: the source is a local
+# directory in the E26 fixture-registry layout; anything URL-shaped refuses
+# (hosted sync is not implemented; design gated behind E23/E24). Offline by
+# construction -- no network, no hosted calls, no telemetry, no production
+# keys. DEFAULT IS DRY-RUN; --apply stages into the E20 library but NEVER
+# activates (activation stays the explicit `library activate` step).
+# Verification is the REAL E14 path; routing files verify against the E15
+# trust store; refusals reuse the E26 reason names and the reserved codes
+# -32014..-32019 -- no new numeric codes.
+
+
+def _managed_crl_path(args: argparse.Namespace) -> str:
+    """The member's local CRL for ROUTING-document checks: the E15 managed
+    store's crl.json under the library root when it exists, else none."""
+    from ..mcp.trust_store import TrustStore, default_store_dir
+
+    store = TrustStore(default_store_dir(Path(args.root).expanduser()))
+    return str(store.crl_path) if store.crl_path.is_file() else ""
+
+
+def cmd_mcp_managed_sync(args: argparse.Namespace) -> int:
+    from ..mcp.managed_sync import (
+        DistributionRefusal,
+        format_sync,
+        sync_managed_profile,
+    )
+
+    try:
+        report = sync_managed_profile(
+            _bundle_library_from_args(args),
+            args.source,
+            crl_path=_managed_crl_path(args),
+            apply=bool(getattr(args, "apply", False)),
+            **_library_common(args),
+        )
+    except DistributionRefusal as exc:
+        code = f" ({exc.code})" if exc.code else ""
+        print(f"managed sync refused [{exc.reason}{code}]: {exc}", file=sys.stderr)
+        return 1
+    _print_report(args, report, format_sync)
+    return 0
+
+
+def cmd_mcp_managed_status(args: argparse.Namespace) -> int:
+    from ..mcp.managed_sync import format_managed_status, managed_status_report
+
+    report = managed_status_report(_bundle_library_from_args(args), **_library_common(args))
+    _print_report(args, report, format_managed_status)
+    return 0
+
+
+def cmd_mcp_managed_last_good(args: argparse.Namespace) -> int:
+    from ..mcp.managed_sync import (
+        DistributionRefusal,
+        format_last_good,
+        last_good_report,
+    )
+
+    try:
+        report = last_good_report(
+            _bundle_library_from_args(args),
+            restore=bool(getattr(args, "restore", False)),
+            source=getattr(args, "source", "") or "",
+            **_library_common(args),
+        )
+    except DistributionRefusal as exc:
+        code = f" ({exc.code})" if exc.code else ""
+        print(f"managed last-good refused [{exc.reason}{code}]: {exc}", file=sys.stderr)
+        return 1
+    _print_report(args, report, format_last_good)
+    return int(report["exit_code"])
+
+
+def cmd_mcp_managed_doctor(args: argparse.Namespace) -> int:
+    from ..mcp.managed_sync import (
+        DistributionRefusal,
+        format_managed_doctor,
+        managed_doctor_report,
+    )
+
+    try:
+        report = managed_doctor_report(
+            _bundle_library_from_args(args),
+            source=getattr(args, "source", "") or "",
+            **_library_common(args),
+        )
+    except DistributionRefusal as exc:
+        print(f"managed doctor refused [{exc.reason}]: {exc}", file=sys.stderr)
+        return 1
+    _print_report(args, report, format_managed_doctor)
+    return int(report["exit_code"])
+
+
 def cmd_mcp_profiles_replay_audit(args: argparse.Namespace) -> int:
     """E17: replay the historical audit log against a PROPOSED policy.
 
