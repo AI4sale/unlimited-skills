@@ -481,6 +481,26 @@ def cmd_setup(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_quickstart(args: argparse.Namespace) -> int:
+    """A1 golden path: bundled import (when empty) -> first search -> MCP savings."""
+    from unlimited_skills.quickstart import format_quickstart_text, run_quickstart
+
+    root = Path(args.root).expanduser()
+    cli.enforce_local_root(root, action="quickstart library root")
+    report = run_quickstart(
+        root,
+        query=args.query,
+        claude_config=Path(args.claude_config).expanduser() if args.claude_config else None,
+        timeout=args.timeout,
+        skip_mcp_check=args.skip_mcp_check,
+    )
+    if args.json:
+        print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(format_quickstart_text(report))
+    return 0
+
+
 def cmd_support_bundle(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     out = Path(args.out).expanduser() if args.out else None
