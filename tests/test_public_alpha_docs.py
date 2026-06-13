@@ -213,3 +213,53 @@ def test_marketplace_submission_tracker_requires_evidence_and_fresh_rule_checks(
     assert "marketplace-submission-runbook.md" in launch_pack
     assert "marketplace-submission-tracker.md" in listing_copy
     assert "marketplace-submission-runbook.md" in listing_copy
+
+
+def test_roadmap_reset_prioritizes_adoption_and_keeps_trust_layer_behind_demand() -> None:
+    roadmap = read("docs/roadmap.md").lower()
+    adoption = read("docs/adoption-roadmap.md").lower()
+    trust = read("docs/enterprise-trust-stack-status.md").lower()
+    strategy = read("docs/product-strategy.md").lower()
+    template = read(".github/ISSUE_TEMPLATE/trust-layer-proposal.yml").lower()
+    changelog = read("CHANGELOG.md").lower()
+
+    combined = "\n".join([roadmap, adoption, trust, strategy, template, changelog])
+
+    for required in [
+        "public-alpha adoption first",
+        "first value",
+        "no new e28+ hosted/team/trust implementation",
+        "real user feedback demands it",
+        "team or customer asks for it",
+        "adoption data shows trust is blocking use",
+        "owner explicitly reopens",
+        "#119 remains background",
+        "blocked_pending_owner_approval",
+        "a3.4 actual submission evidence",
+        "exact destinations",
+        "exact submission owner",
+        "exact listing copy",
+    ]:
+        assert required in combined
+
+    for path in [
+        "docs/roadmap.md",
+        "docs/adoption-roadmap.md",
+        "docs/enterprise-trust-stack-status.md",
+        "docs/product-strategy.md",
+        ".github/issue_template/trust-layer-proposal.yml",
+    ]:
+        assert path in combined
+
+    forbidden_claims = [
+        "no hosted readiness claim",
+        "no team readiness claim",
+        "no enterprise readiness claim",
+        "no paid product claim",
+        "no payment link",
+        "no sales promise",
+    ]
+    for phrase in forbidden_claims:
+        assert phrase in combined
+
+    assert "existing trust stack is not deleted" in combined or "not deleted" in combined
