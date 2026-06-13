@@ -15,6 +15,11 @@
 
 ### Added
 
+- A3.4-prep owner approval packet: added a submission approval template and
+  wired the marketplace tracker, runbook, listing copy, and launch pack so
+  external submissions remain `blocked_pending_owner_approval` until the owner
+  names the exact destination, listing copy, submitter, evidence requirements,
+  blocked-claims acknowledgment, fallback, and `permission_to_submit: yes`.
 - v0.5.3-alpha local event privacy hardening release gate: package/plugin
   versions move to `0.5.3`; release docs, checklist, manifest, PyPI Trusted
   Publishing notes, package smoke, and publication verifier now require the

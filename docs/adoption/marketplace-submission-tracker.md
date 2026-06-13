@@ -18,7 +18,10 @@ before sending anything.
 
 ## Required Fields
 
-Every row must carry these fields:
+Every row must carry these fields. A submission also requires a completed owner
+approval packet in
+[submission-owner-approval-packet.md](submission-owner-approval-packet.md)
+before `date_submitted` can be filled.
 
 | Field | Required meaning |
 | --- | --- |
@@ -33,13 +36,31 @@ Every row must carry these fields:
 | `evidence_link` | URL, PR, issue, release, screenshot reference, or `none`. |
 | `notes` | Short factual note; no unsupported claims. |
 
+## Owner Approval Packet Fields
+
+A3.4 remains `blocked_pending_owner_approval` until the owner completes these
+fields for the exact destination:
+
+| Field | Required meaning |
+| --- | --- |
+| `destination` | Exact marketplace, registry, directory, or discovery surface. |
+| `current_rule_check_date` | Date when the current rules were checked; must be refreshed on the submission day. |
+| `submission_owner` | Person or role accountable for the submission and follow-up. |
+| `exact_listing_copy_reference` | Exact repo file, section, commit, or external draft used as listing copy. |
+| `submitter` | One of `owner`, `Codex`, or `human_delegate`. |
+| `permission_to_submit` | One of `yes` or `no`; default is `no`. |
+| `evidence_required_after_submission` | Evidence to capture after sending, such as submission URL, issue, screenshot reference, rejection summary, or accepted listing URL. |
+| `blocked_claims_acknowledged` | Confirmation that blocked claims are not used. |
+| `fallback_if_rejected` | Concrete fallback if the destination rejects, blocks, or ignores the listing. |
+
 ## Tracker
 
 Rollup status: as of
 [`public-alpha-signal-rollup-001.md`](public-alpha-signal-rollup-001.md), all
 tracked surfaces remain `not_submitted`. A3.4 actual submission evidence stays
 `blocked_pending_owner_approval` until the owner approves exact destinations,
-submission owner, listing copy, and Codex submission permission.
+submission owner, listing copy, submitter, and Codex submission permission in
+the owner approval packet.
 
 | surface | submission_url | submission_owner | date_checked | date_submitted | status | blocker | next_action | evidence_link | notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
@@ -69,6 +90,21 @@ Blocked:
 - delivery promise;
 - unsupported claim that a surface accepted the project.
 
+## A3.4 Approval Rule
+
+Do not send a submission or claim submission evidence until:
+
+1. the destination row is current;
+2. the owner approval packet is complete;
+3. `permission_to_submit` is `yes`;
+4. `submitter` is explicit;
+5. `exact_listing_copy_reference` points to the exact copy being sent;
+6. every destination has a fresh current-rule check;
+7. evidence and fallback are written before sending.
+
+If the owner has not completed those fields, keep the row `not_submitted` and
+keep A3.4 `blocked_pending_owner_approval`.
+
 ## Update Rule
 
 When a submission changes state:
@@ -85,4 +121,5 @@ When a submission changes state:
 - [Marketplace/listing launch pack](marketplace-listing-launch-pack.md)
 - [Marketplace listing copy](marketplace-listing-copy.md)
 - [Marketplace submission runbook](marketplace-submission-runbook.md)
+- [Submission owner approval packet](submission-owner-approval-packet.md)
 - [Public-alpha feedback triage workflow](feedback-triage-workflow.md)
