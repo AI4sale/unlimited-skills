@@ -235,13 +235,14 @@ def cmd_use(args: argparse.Namespace) -> int:
 
 def cmd_feedback(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
-    row = {
+    raw_row = {
         "ts": time.time(),
         "name": args.name,
         "query": args.query,
         "verdict": args.verdict,
         "notes": args.notes,
     }
+    row = cli.event_safe_payload(root, "feedback", raw_row)
     cli.write_jsonl(root / ".learning" / cli.FEEDBACK_LOG, row)
     print(json.dumps(row, ensure_ascii=False, indent=2))
     return 0

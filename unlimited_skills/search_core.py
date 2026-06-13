@@ -178,6 +178,12 @@ def write_jsonl(path: Path, row: dict) -> None:
         handle.write(json.dumps(row, ensure_ascii=False, sort_keys=True) + "\n")
 
 
+def task_summary_hash(query: object) -> str:
+    """Short sha256 of normalized task/query text; never store the raw text."""
+    normalized = " ".join(str(query or "").split()).lower()
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:12]
+
+
 def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
     return _shared_split_frontmatter(text, lower_keys=True)
 
@@ -515,15 +521,92 @@ def margin_bucket(top: float | None, runner_up: float | None) -> str:
     return "dominant"
 
 
+def _relative_library_path(root: Path, path_text: object) -> str:
+    """Return a library-relative path, never an absolute local path."""
+    text = str(path_text or "").strip()
+    if not text:
+        return ""
+    try:
+        return Path(text).resolve().relative_to(Path(root).resolve()).as_posix()
+    except (OSError, ValueError):
+        return ""
+
+
+def _notes_bucket(text: object) -> str:
+    length = len(str(text or ""))
+    if length <= 0:
+        return "empty"
+    if length <= 80:
+        return "short"
+    if length <= 400:
+        return "medium"
+    return "long"
+
+
+def _safe_hit_payload(root: Path, raw: object) -> dict:
+    if isinstance(raw, SkillHit):
+        source = {
+            "name": raw.name,
+            "collection": raw.collection,
+            "description": raw.description,
+            "score": raw.score,
+            "path": raw.path,
+        }
+    elif isinstance(raw, dict):
+        source = raw
+    else:
+        return {}
+    payload = {
+        "name": str(source.get("name") or ""),
+        "collection": str(source.get("collection") or source.get("source") or ""),
+    }
+    if source.get("description"):
+        payload["description"] = str(source.get("description") or "")
+    if "score" in source:
+        try:
+            payload["score_bucket"] = score_bucket(float(source.get("score")))
+        except (TypeError, ValueError):
+            payload["score_bucket"] = "none"
+    library_path = _relative_library_path(root, source.get("path") or source.get("library_path"))
+    if library_path:
+        payload["library_path"] = library_path
+    return {key: value for key, value in payload.items() if value not in {"", None}}
+
+
+def event_safe_payload(root: Path, event_type: str, payload: dict) -> dict:
+    """Sanitize local event payloads before writing ``events.jsonl``.
+
+    Local event logs are diagnostics, not support artifacts. They must never
+    persist raw task/query text, freeform notes, or absolute filesystem paths.
+    """
+    safe = dict(payload)
+    for field in ("query", "task", "filter"):
+        value = safe.pop(field, "")
+        if value:
+            safe[f"{field}_summary_hash"] = task_summary_hash(value)
+            safe[f"{field}_present"] = True
+    notes = safe.pop("notes", "")
+    if notes:
+        safe["notes_present"] = True
+        safe["notes_length_bucket"] = _notes_bucket(notes)
+    path_value = safe.pop("path", "")
+    library_path = _relative_library_path(root, path_value)
+    if library_path:
+        safe["library_path"] = library_path
+    if isinstance(safe.get("hits"), list):
+        safe["hits"] = [_safe_hit_payload(root, hit) for hit in safe["hits"]]
+    return safe
+
+
 def log_event(root: Path, event_type: str, payload: dict) -> None:
     # A3.1.1: stamp every event with the hashed session id (when the harness
     # exports one) so suggest -> view -> use can be correlated within a session
     # WITHOUT ever storing the raw id. Env-gated: outside a session no key is
     # added, so callers and tests that don't set it see the original payload.
-    enriched = payload
+    enriched = event_safe_payload(root, event_type, payload)
     correlation = session_correlation_id()
-    if correlation and "session_correlation_id" not in payload:
-        enriched = {**payload, "session_correlation_id": correlation}
+    if correlation and "session_correlation_id" not in enriched:
+        enriched = {**enriched, "session_correlation_id": correlation}
     write_jsonl(
         root / ".learning" / EVENT_LOG,
         {"ts": time.time(), "type": event_type, "payload": enriched},

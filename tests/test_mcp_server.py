@@ -11,6 +11,7 @@ from unlimited_skills.mcp.server import (
     VIEW_CHAR_CAP,
     build_skills_registry,
 )
+from unlimited_skills.search_core import task_summary_hash
 
 BODY_MARKER = "BODYSECRETMARKER-not-for-search-results"
 
@@ -97,7 +98,13 @@ def test_skills_use_logs_event_and_never_executes(library: Path) -> None:
     assert used, "skills_use must log a skill_used event"
     payload = used[-1]["payload"]
     assert payload["name"] == "debug-build"
-    assert payload["query"] == "fix the build"
+    assert payload["query_summary_hash"] == task_summary_hash("fix the build")
+    assert payload["query_present"] is True
+    assert payload["task_summary_hash"] == task_summary_hash("ci")
+    assert "query" not in payload
+    assert "task" not in payload
+    assert "path" not in payload
+    assert str(library) not in json.dumps(payload)
     assert payload["source"] == "mcp"
 
 
