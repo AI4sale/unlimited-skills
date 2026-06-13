@@ -1,7 +1,7 @@
 # Local Event Privacy Policy
 
-Status: active policy draft for A4.9; implementation enforcement continues in
-A4.10.
+Status: active policy. A4.10 adds runtime enforcement for local event and
+feedback rows.
 
 Unlimited Skills may write local diagnostic events so the local operator can
 understand whether search, skill routing, MCP savings, and feedback workflows
@@ -35,6 +35,27 @@ uploaded by the public core. In short: not uploaded.
 10. MCP audit replay/inspector tools must keep raw imported `tools_schema` and
     `tools_call` rows out of public/support reports. Summaries and counts are
     acceptable.
+
+## A4.10 Runtime Enforcement
+
+Runtime writers now sanitize local `.learning/events.jsonl` and
+`.learning/feedback.jsonl` rows before persistence:
+
+- raw `query`, `task`, and `filter` fields are replaced with
+  `query_summary_hash`, `task_summary_hash`, or `filter_summary_hash` plus a
+  `*_present` boolean;
+- raw freeform `notes` are replaced with `notes_present` and
+  `notes_length_bucket`;
+- absolute `path` fields are replaced with `library_path` only when the path
+  is inside the configured library root;
+- search hit metadata keeps name/collection/description and converts exact
+  scores to `score_bucket`; raw `score` and `path` are not persisted in event
+  hit rows;
+- MCP server names remain documented-local-only operator diagnostics for MCP
+  savings; support workflows still prefer redacted `feedback prepare` output.
+
+This enforcement does not add telemetry, uploads, hosted calls, or any support
+bundle that treats raw local logs as paste-safe.
 
 ## Paste-Safe Surfaces
 
@@ -77,10 +98,10 @@ Docs and tests must preserve these guards:
 
 | risk | owner | action | fallback |
 |---|---|---|---|
-| Raw query/task text in event rows | Codex | A4.10 replaces with `task_summary_hash` or removes. | Disable writing the risky field. |
-| Local absolute paths in event rows | Codex | A4.10 replaces with library-relative path, basename, scope label, or removes. | Keep only skill name/collection. |
-| Freeform feedback notes | Codex | A4.10 redacts daemon-captured notes and documents explicit local-only feedback notes. | Keep verdict counts only. |
-| MCP server names | Codex | A4.10 decides document-local-only vs hash. | Hash server names and keep counts. |
+| Raw query/task text in event rows | Codex | A4.10 replaces with `query_summary_hash` / `task_summary_hash` or removes. | Disable writing the risky field. |
+| Local absolute paths in event rows | Codex | A4.10 replaces with library-relative `library_path` when safe, otherwise removes. | Keep only skill name/collection. |
+| Freeform feedback notes | Codex | A4.10 stores only note presence and length bucket. | Keep verdict counts only. |
+| MCP server names | Codex | A4.10 keeps them documented-local-only for MCP savings diagnostics. | Hash server names and keep counts in a future stricter mode. |
 | Team/policy operational ids | Codex | Keep local-only; never include tokens/auth/private keys/paths. | Hash ids in exported support summaries. |
 | Raw MCP audit rows | Codex | Keep out of support/public reports. | Summaries only. |
 

@@ -5,6 +5,13 @@
 ### Changed
 
 - A2 README repositioning: the README top is rewritten around the context-flooding pain and the search-first/load-one model, leads with measured numbers only (lab gateway benchmark 90,420 -> 1,268 bytes standing cost, `unlimited-skills mcp savings` for on-your-machine measurement, sub-second `suggest` probe, 0.967 top-3 hit rate on the frozen eval set) framed as "measured, not promised", adds an explicit install -> quickstart -> docs reading order, and moves the registered/governed surfaces (editions, registration, hosted catalogs, teams, hub, policy, release gates) under a single bottom "Enterprise & trust layer" section with a docs/ link map. No content was removed and no paid/hosted offers were added; the single A3-PYPI-FLIP install marker moved next to the canonical top install block.
+- A4.10 local event privacy hardening: local `events.jsonl` and
+  `feedback.jsonl` writers now replace raw query/task/filter text with summary
+  hashes, replace freeform notes with presence/length buckets, replace absolute
+  skill paths with library-relative paths when safe, and bucket search hit
+  scores before persistence. The public stdout/API search/view outputs remain
+  unchanged, `learning-summary --events` remains aggregate-only, and `feedback
+  prepare` remains the redacted support surface.
 
 ### Added
 

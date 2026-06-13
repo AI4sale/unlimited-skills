@@ -42,6 +42,7 @@ from .search_core import (  # noqa: F401 - re-exported for backwards compatibili
     collection_for,
     ecosystem_factor,
     expanded_query,
+    event_safe_payload,
     find_by_name,
     first_body_line,
     hash_session_id,
