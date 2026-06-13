@@ -56,7 +56,7 @@ fields for the exact destination:
 ## Tracker
 
 Rollup status: as of
-[`public-alpha-signal-rollup-001.md`](public-alpha-signal-rollup-001.md), all
+[`public-alpha-signal-rollup-002.md`](public-alpha-signal-rollup-002.md), all
 tracked surfaces remain `not_submitted`. A3.4 actual submission evidence stays
 `blocked_pending_owner_approval` until the owner approves exact destinations,
 submission owner, listing copy, submitter, and Codex submission permission in
@@ -76,8 +76,8 @@ Allowed:
 - local-first;
 - no telemetry;
 - no auto-upload;
-- PyPI package `unlimited-skills==0.5.1`;
-- GitHub release `v0.5.1-alpha`;
+- PyPI package `unlimited-skills==0.5.3`;
+- GitHub release `v0.5.3-alpha`;
 - measured MCP savings and frozen eval numbers already present in the repo.
 
 Blocked:

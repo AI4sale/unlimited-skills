@@ -109,6 +109,16 @@ local aggregate social input with `--social-json`. Do not use the generator to
 claim private usage, marketplace acceptance, hosted readiness, paid readiness,
 or social engagement that the owner did not provide.
 
+## Rollup 002
+
+The second generated snapshot is
+[`public-alpha-signal-rollup-002.md`](public-alpha-signal-rollup-002.md).
+It records a `low_signal` / `no_feedback_yet` public/manual aggregate state
+after `v0.5.3-alpha`: PyPI exposes `unlimited-skills==0.5.3`, the GitHub
+`v0.5.3-alpha` prerelease exists, public GitHub issues are still empty, the
+only open public PR is parked #119, marketplace rows remain `not_submitted`,
+and A3.4 remains `blocked_pending_owner_approval`.
+
 ## Owner actions and fallback
 
 | Condition | Owner | Action | Fallback if signal is low |

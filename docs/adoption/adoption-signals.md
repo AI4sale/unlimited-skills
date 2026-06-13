@@ -90,6 +90,13 @@ records a `low_signal` / `no_feedback_yet` baseline after `v0.5.1-alpha`:
 PyPI and GitHub release discovery are live, but no manual first-value reports
 were visible in the checked public sources.
 
+The second generated rollup is
+[`public-alpha-signal-rollup-002.md`](public-alpha-signal-rollup-002.md). It
+records the public/manual aggregate state after `v0.5.3-alpha`: PyPI exposes
+`unlimited-skills==0.5.3`, the GitHub `v0.5.3-alpha` prerelease exists,
+marketplace rows remain `not_submitted`, A3.4 remains
+`blocked_pending_owner_approval`, and #119 remains parked.
+
 Use `scripts/generate-public-alpha-signal-rollup.py` for later rollups. The
 generator has a deterministic offline fixture mode for CI and a live mode that
 uses only public aggregate sources plus optional owner-provided local aggregate

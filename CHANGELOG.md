@@ -15,6 +15,14 @@
 
 ### Added
 
+- A4.8 public-alpha signal rollup #002: generated
+  `docs/adoption/public-alpha-signal-rollup-002.md` through the public-alpha
+  rollup generator after `v0.5.3-alpha`, updated adoption signal and first-week
+  measurement docs, kept marketplace rows `not_submitted`, kept A3.4
+  `blocked_pending_owner_approval`, kept #119 parked, and refreshed the
+  generator fixture/default release target to `unlimited-skills==0.5.3` /
+  `v0.5.3-alpha` without adding telemetry, private data collection,
+  paid/hosted/team/enterprise claims, or marketplace acceptance claims.
 - A3.4-prep owner approval packet: added a submission approval template and
   wired the marketplace tracker, runbook, listing copy, and launch pack so
   external submissions remain `blocked_pending_owner_approval` until the owner

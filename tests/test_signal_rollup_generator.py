@@ -31,18 +31,21 @@ def test_fixture_mode_generates_reproducible_rollup_without_tracking(tmp_path: P
 
     for required in [
         "# public-alpha signal rollup 002",
-        "unlimited-skills==0.5.1",
-        "v0.5.1-alpha",
+        "unlimited-skills==0.5.3",
+        "v0.5.3-alpha",
         "5 stars",
         "0 forks",
         "not_submitted",
+        "marketplace state: not_submitted=3",
         "blocked_pending_owner_approval",
         "low_signal",
         "no_feedback_yet",
         "owner-provided manual social input: not provided",
         "parked pr #119",
+        "permission_to_submit: yes",
     ]:
         assert required in text
+    assert "unknown=19" not in text
 
     for privacy_boundary in [
         "no telemetry",
