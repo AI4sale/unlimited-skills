@@ -15,6 +15,11 @@
 
 ### Added
 
+- v0.5.3-alpha local event privacy hardening release gate: package/plugin
+  versions move to `0.5.3`; release docs, checklist, manifest, PyPI Trusted
+  Publishing notes, package smoke, and publication verifier now require the
+  A4.10 local event privacy hardening from PR #151 before the
+  `v0.5.3-alpha` tag can be created.
 - A4.9 local event privacy audit: documented the local event log surfaces,
   field-level risk classification, paste-safe support boundary, and A4.10
   handoff for removing raw task/query/path persistence from local events.
