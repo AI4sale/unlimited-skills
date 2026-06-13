@@ -117,7 +117,8 @@ welcome through GitHub issues:
 Honest alpha limitations (interfaces may change before 0.6, Windows-first
 testing, optional model download for vector search, MCP gateway v1
 boundaries, and more) are listed in
-[docs/releases/v0.5.0-alpha-known-issues.md](../releases/v0.5.0-alpha-known-issues.md).
+[docs/releases/v0.5.0-alpha-known-issues.md](../releases/v0.5.0-alpha-known-issues.md)
+and [docs/releases/v0.5.1-alpha.md](../releases/v0.5.1-alpha.md).
 
 ## Nothing for sale
 
