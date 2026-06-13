@@ -44,7 +44,7 @@ Paste-safe by design:
 - `unlimited-skills feedback prepare --format markdown`;
 - `unlimited-skills feedback prepare --include-usage-snapshot --format markdown`;
 - `unlimited-skills learning-summary --events` aggregate output;
-- future `unlimited-skills roi receipt` output when implemented according to
+- `unlimited-skills roi receipt` output when generated according to
   [roi-receipt.md](roi-receipt.md);
 - redacted command names, step names, OS family, Python family, install method,
   and trimmed errors with usernames, local paths, tokens, keys, and secrets
@@ -84,8 +84,8 @@ local paths, prompts, tool inputs, tool outputs, skill bodies, or MCP schemas.
 
 ## ROI Receipt Boundary
 
-The future local ROI receipt must use the post-v0.5.3 local event privacy
-contract. Legacy pre-v0.5.3 rows are not automatically rewritten; receipt
+The local ROI receipt uses the post-v0.5.3 local event privacy contract.
+Legacy pre-v0.5.3 rows are not automatically rewritten; receipt
 generation must skip unsafe raw legacy fields or mark affected metrics as
 unavailable instead of copying raw values into output.
 

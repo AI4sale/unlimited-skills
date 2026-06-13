@@ -1,12 +1,12 @@
 # Local ROI Receipt
 
-Local ROI receipt is a v0.6 specification for a future local-only command that
-summarizes the value a user has already measured on their own machine.
+`unlimited-skills roi receipt` prints a local, screenshot-friendly receipt that
+summarizes aggregate value signals from your own machine.
 
-It is not implemented yet. The development-ready spec is
-[releases/v0.6-local-roi-receipt-spec.md](releases/v0.6-local-roi-receipt-spec.md).
+The command is local-only. It does not upload data, contact a hosted service,
+enable telemetry, add analytics, or read private skill bodies into the output.
 
-## Planned Commands
+## Commands
 
 ```bash
 unlimited-skills roi receipt
@@ -16,6 +16,18 @@ unlimited-skills roi receipt --since 7d
 unlimited-skills roi receipt --out roi-receipt.md
 ```
 
+Default output is screenshot-friendly Markdown. The footer includes:
+`Local-only: yes. Upload: no. Telemetry: no.`
+
+`--format json` emits the schema-versioned JSON contract in
+[schemas/roi-receipt.schema.json](../schemas/roi-receipt.schema.json). A
+paste-safe example lives at
+[examples/roi-receipt.example.json](../examples/roi-receipt.example.json).
+The boundary verifier is
+[scripts/verify-roi-receipt-boundaries.py](../scripts/verify-roi-receipt-boundaries.py).
+`--out` writes the selected format to a local file and prints only a short
+write status; it does not print the local output path.
+
 ## What The Receipt May Show
 
 Only aggregate or derived local-safe values:
@@ -23,7 +35,8 @@ Only aggregate or derived local-safe values:
 - installed Unlimited Skills version;
 - local library skill count;
 - quickstart status;
-- MCP savings summary from `mcp savings`;
+- MCP savings summary from the latest local `mcp savings` event, or a lab
+  fallback summary when no local savings event exists;
 - suggest count;
 - skill view/use count;
 - suggest-to-view/use aggregate conversion;
@@ -50,15 +63,21 @@ Only aggregate or derived local-safe values:
 - user identifiers;
 - tracking identifiers.
 
+## Legacy Logs
+
+Post-v0.5.3 local events are sanitized before they are written. If the receipt
+sees legacy pre-v0.5.3 rows with unsafe raw fields, it skips those rows and
+marks the window as `unavailable_legacy_logs` instead of copying raw values.
+
 ## Required Notice
 
-Every receipt must carry this wording:
+Every receipt carries this wording:
 
 > This receipt is a local estimate from your own machine. It is not telemetry,
 > not a benchmark guarantee, and not a paid ROI promise.
 
-## Status
+## Boundary
 
-This is a local-first adoption spec. It does not add telemetry, upload,
-analytics, tracking pixels, sales/payment flows, hosted readiness, team
-readiness, enterprise readiness, universal savings promises, or #119/E19 work.
+This command does not add upload, telemetry, analytics, tracking pixels,
+sales/payment flows, hosted readiness, team readiness, enterprise readiness,
+universal savings promises, ROI guarantees, or #119/E19 work.

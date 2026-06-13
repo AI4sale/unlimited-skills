@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AI4sale/unlimited-skills/schemas/roi-receipt.schema.json",
+  "title": "Unlimited Skills local ROI receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "report_type",
+    "generated_at",
+    "window",
+    "unlimited_skills_version",
+    "library",
+    "quickstart_status",
+    "mcp_savings_summary",
+    "skill_routing",
+    "learning_summary_events",
+    "feedback_prepare_status",
+    "privacy_notice",
+    "privacy"
+  ],
+  "properties": {
+    "schema_version": {"type": "integer", "const": 1},
+    "report_type": {"type": "string", "const": "local_roi_receipt"},
+    "generated_at": {"type": "string"},
+    "window": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requested", "effective", "unsafe_legacy_rows_skipped", "legacy_status"],
+      "properties": {
+        "requested": {"type": "string"},
+        "effective": {"type": "string"},
+        "unsafe_legacy_rows_skipped": {"type": "integer", "minimum": 0},
+        "legacy_status": {"type": "string", "enum": ["safe_aggregates", "unavailable_legacy_logs"]}
+      }
+    },
+    "unlimited_skills_version": {"type": "string"},
+    "library": {"type": "object"},
+    "quickstart_status": {"type": "object"},
+    "mcp_savings_summary": {"type": "object"},
+    "skill_routing": {"type": "object"},
+    "learning_summary_events": {"type": "object"},
+    "feedback_prepare_status": {"type": "object"},
+    "privacy_notice": {
+      "type": "string",
+      "const": "This receipt is a local estimate from your own machine. It is not telemetry, not a benchmark guarantee, and not a paid ROI promise."
+    },
+    "privacy": {
+      "type": "object",
+      "required": ["local_only", "telemetry", "upload", "analytics", "tracking_pixel"],
+      "properties": {
+        "local_only": {"type": "boolean", "const": true},
+        "telemetry": {"type": "boolean", "const": false},
+        "upload": {"type": "boolean", "const": false},
+        "analytics": {"type": "boolean", "const": false},
+        "tracking_pixel": {"type": "boolean", "const": false}
+      }
+    }
+  }
+}

@@ -1,0 +1,104 @@
+{
+  "feedback_prepare_status": {
+    "available": true,
+    "paste_safe": true,
+    "raw_feedback_included": false,
+    "safe_invocation": "unlimited-skills feedback prepare"
+  },
+  "generated_at": "2026-06-14T00:00:00Z",
+  "learning_summary_events": {
+    "aggregate_only": true,
+    "available": true,
+    "injection_rate": 0.5,
+    "margin_bucket_counts": {
+      "clear": 1
+    },
+    "post_suggest_use_rate": 1.0,
+    "post_suggest_view_rate": 1.0,
+    "raw_queries_included": false,
+    "raw_tasks_included": false,
+    "score_bucket_counts": {
+      "high": 1
+    },
+    "session_ids_included": false,
+    "suggest_sessions": 1,
+    "tier_counts": {
+      "3": 1
+    }
+  },
+  "library": {
+    "collection_count": 1,
+    "index_present": true,
+    "local_paths_included": false,
+    "skill_bodies_included": false,
+    "skill_count": 267,
+    "skill_names_included": false
+  },
+  "mcp_savings_summary": {
+    "commands_included": false,
+    "env_included": false,
+    "gateway_bytes": 1268,
+    "gateway_est_tokens": 317,
+    "measured_servers": 0,
+    "savings_bytes": 0,
+    "savings_pct": 98.6,
+    "schema_contents_included": false,
+    "server_names_included": false,
+    "skipped_servers": 0,
+    "source": "benchmark_fallback",
+    "status": "no_local_mcp_savings_snapshot",
+    "total_bytes": 0,
+    "total_est_tokens": 0
+  },
+  "privacy": {
+    "analytics": false,
+    "env_names_included": false,
+    "env_values_included": false,
+    "local_only": true,
+    "local_paths_included": false,
+    "mcp_schemas_included": false,
+    "prompts_included": false,
+    "raw_configs_included": false,
+    "raw_logs_included": false,
+    "raw_queries_included": false,
+    "raw_tasks_included": false,
+    "skill_bodies_included": false,
+    "telemetry": false,
+    "tokens_included": false,
+    "tool_inputs_included": false,
+    "tool_outputs_included": false,
+    "tracking_identifiers_included": false,
+    "tracking_pixel": false,
+    "upload": false,
+    "user_identifiers_included": false
+  },
+  "privacy_notice": "This receipt is a local estimate from your own machine. It is not telemetry, not a benchmark guarantee, and not a paid ROI promise.",
+  "quickstart_status": {
+    "had_mcp_savings": false,
+    "had_search_result": false,
+    "latest_run_present": false,
+    "raw_output_included": false,
+    "status": "unknown",
+    "step_count": 0
+  },
+  "report_type": "local_roi_receipt",
+  "schema_version": 1,
+  "skill_routing": {
+    "local_paths_included": false,
+    "raw_queries_included": false,
+    "raw_tasks_included": false,
+    "skill_bodies_included": false,
+    "suggest_count": 4,
+    "suggest_to_use_rate": 0.5,
+    "suggest_to_view_rate": 0.25,
+    "use_count": 2,
+    "view_count": 1
+  },
+  "unlimited_skills_version": "0.6.x",
+  "window": {
+    "effective": "7d",
+    "legacy_status": "safe_aggregates",
+    "requested": "7d",
+    "unsafe_legacy_rows_skipped": 0
+  }
+}

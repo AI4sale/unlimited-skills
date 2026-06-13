@@ -443,6 +443,7 @@ def build_parser() -> argparse.ArgumentParser:
     from .commands import mcp as mcp_cmds
     from .commands import policy as policy_cmds
     from .commands import private_packs as private_packs_cmds
+    from .commands import roi as roi_cmds
     from .commands import service as service_cmds
     from .commands import skillops as skillops_cmds
     from .commands import team as team_cmds
@@ -548,6 +549,15 @@ def build_parser() -> argparse.ArgumentParser:
     feedback.add_argument("--out", default="", help="Write the prepared report to this file instead of stdout.")
     feedback.add_argument("--json", action="store_true", help="Machine-readable doctor/write status output where supported.")
     feedback.set_defaults(func=feedback_cmds.cmd_feedback)
+
+    roi = sub.add_parser("roi", help="Generate local-only value receipts.")
+    roi_sub = roi.add_subparsers(dest="roi_command", required=True)
+    roi_receipt = roi_sub.add_parser("receipt", help="Print a privacy-safe local ROI receipt.")
+    roi_receipt.add_argument("--format", choices=["markdown", "json"], default="markdown")
+    roi_receipt.add_argument("--since", default="all", help="Local aggregation window: all, <hours>h, <days>d, or <weeks>w.")
+    roi_receipt.add_argument("--out", default="", help="Write the receipt to this local file instead of stdout.")
+    roi_receipt.add_argument("--json", action="store_true", help="Machine-readable write status when --out is used.")
+    roi_receipt.set_defaults(func=roi_cmds.cmd_roi_receipt)
 
     summary = sub.add_parser("learning-summary", help="Summarize learning-loop feedback.")
     summary.add_argument(
