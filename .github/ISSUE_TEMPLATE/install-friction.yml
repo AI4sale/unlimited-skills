@@ -17,7 +17,8 @@ body:
     attributes:
       label: Which step failed?
       options:
-        - pip install (git+ URL)
+        - pip install unlimited-skills
+        - pip install unlimited-skills==0.5.0
         - Repo clone + pip install -e
         - unlimited-skills quickstart
         - unlimited-skills setup wizard
@@ -62,3 +63,10 @@ body:
       label: What did you expect to happen?
     validations:
       required: false
+  - type: checkboxes
+    id: privacy-check
+    attributes:
+      label: Privacy check
+      options:
+        - label: I redacted usernames, local paths, tokens, prompts, tool inputs, tool outputs, and raw MCP configuration.
+          required: true
