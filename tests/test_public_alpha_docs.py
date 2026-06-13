@@ -399,6 +399,7 @@ def test_roadmap_reset_prioritizes_adoption_and_keeps_trust_layer_behind_demand(
 
 def test_public_alpha_signal_rollup_records_low_signal_without_tracking() -> None:
     rollup = read("docs/adoption/public-alpha-signal-rollup-001.md").lower()
+    rollup_002 = read("docs/adoption/public-alpha-signal-rollup-002.md").lower()
     signals = read("docs/adoption/adoption-signals.md").lower()
     measurement = read("docs/adoption/first-week-adoption-measurement.md").lower()
     tracker = read("docs/adoption/marketplace-submission-tracker.md").lower()
@@ -419,6 +420,7 @@ def test_public_alpha_signal_rollup_records_low_signal_without_tracking() -> Non
         "## next actions",
     ]:
         assert required_section in rollup
+        assert required_section in rollup_002
 
     for required_fact in [
         "unlimited-skills==0.5.1",
@@ -434,6 +436,21 @@ def test_public_alpha_signal_rollup_records_low_signal_without_tracking() -> Non
     ]:
         assert required_fact in rollup
 
+    for required_fact in [
+        "unlimited-skills==0.5.3",
+        "v0.5.3-alpha",
+        "5 stars",
+        "0 forks",
+        "0 non-pr issues returned",
+        "open prs observed: #119",
+        "not_submitted=3",
+        "blocked_pending_owner_approval",
+        "permission_to_submit: yes",
+        "low_signal",
+        "no_feedback_yet",
+    ]:
+        assert required_fact in rollup_002
+
     for privacy_boundary in [
         "no telemetry",
         "tracking pixels",
@@ -445,6 +462,7 @@ def test_public_alpha_signal_rollup_records_low_signal_without_tracking() -> Non
         "hosted query forwarding",
     ]:
         assert privacy_boundary in rollup
+        assert privacy_boundary in rollup_002
 
     for blocked_claim in [
         "marketplace submission",
@@ -454,6 +472,7 @@ def test_public_alpha_signal_rollup_records_low_signal_without_tracking() -> Non
         "external acceptance claims",
     ]:
         assert blocked_claim in rollup
+        assert blocked_claim in rollup_002
 
     for owner_action_fallback in [
         "| blocker | owner | action | fallback |",
@@ -463,9 +482,14 @@ def test_public_alpha_signal_rollup_records_low_signal_without_tracking() -> Non
         "keep all marketplace rows `not_submitted`",
     ]:
         assert owner_action_fallback in rollup
+        assert owner_action_fallback in rollup_002
+
+    assert "unknown=19" not in rollup_002
+    assert "public-alpha-signal-rollup-003.md" in rollup_002
 
     combined = "\n".join([signals, measurement, tracker, changelog, template, generator])
     assert "public-alpha-signal-rollup-001.md" in combined
+    assert "public-alpha-signal-rollup-002.md" in combined
     assert "public-alpha-signal-rollup-template.md" in combined
     assert "scripts/generate-public-alpha-signal-rollup.py" in combined
     assert "--fixture-mode" in combined

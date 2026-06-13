@@ -14,7 +14,7 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_REPO = "AI4sale/unlimited-skills"
 DEFAULT_PACKAGE = "unlimited-skills"
-DEFAULT_RELEASE_TAG = "v0.5.1-alpha"
+DEFAULT_RELEASE_TAG = "v0.5.3-alpha"
 USER_AGENT = "unlimited-skills-public-alpha-rollup/1.0"
 
 
@@ -24,6 +24,22 @@ def _utc_date() -> str:
 
 def _read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace")
+
+
+def _doc_path(path: Path, repo_root: Path) -> str:
+    return path.relative_to(repo_root).as_posix()
+
+
+def _safe_text(value: Any) -> str:
+    return (
+        str(value)
+        .replace("\u2014", "-")
+        .replace("\u2013", "-")
+        .replace("\u2018", "'")
+        .replace("\u2019", "'")
+        .replace("\u201c", '"')
+        .replace("\u201d", '"')
+    )
 
 
 def _fetch_json(url: str, timeout: float) -> tuple[Any | None, str | None]:
@@ -56,7 +72,7 @@ def _parse_marketplace_tracker(repo_root: Path) -> dict[str, Any]:
     tracker_path = repo_root / "docs" / "adoption" / "marketplace-submission-tracker.md"
     if not tracker_path.exists():
         return {
-            "path": str(tracker_path.relative_to(repo_root)),
+            "path": _doc_path(tracker_path, repo_root),
             "rows": [],
             "status_counts": {},
             "error": "missing tracker file",
@@ -64,8 +80,16 @@ def _parse_marketplace_tracker(repo_root: Path) -> dict[str, Any]:
 
     rows: list[dict[str, str]] = []
     headers: list[str] | None = None
+    in_tracker_table = False
     for line in _read_text(tracker_path).splitlines():
         stripped = line.strip()
+        if stripped == "## Tracker":
+            in_tracker_table = True
+            continue
+        if in_tracker_table and stripped.startswith("## "):
+            break
+        if not in_tracker_table:
+            continue
         if not stripped.startswith("|") or "---" in stripped:
             continue
         cells = [cell.strip().strip("`") for cell in stripped.strip("|").split("|")]
@@ -83,7 +107,7 @@ def _parse_marketplace_tracker(repo_root: Path) -> dict[str, Any]:
         status_counts[status] = status_counts.get(status, 0) + 1
 
     return {
-        "path": str(tracker_path.relative_to(repo_root)),
+        "path": _doc_path(tracker_path, repo_root),
         "rows": rows,
         "status_counts": status_counts,
         "error": None,
@@ -111,17 +135,17 @@ def _fixture_snapshot(repo_root: Path) -> dict[str, Any]:
         "mode": "fixture",
         "package": {
             "name": DEFAULT_PACKAGE,
-            "latest": "0.5.1",
-            "releases": ["0.5.0", "0.5.1"],
+            "latest": "0.5.3",
+            "releases": ["0.5.0", "0.5.1", "0.5.2", "0.5.3"],
             "status": "available",
             "error": None,
         },
         "github_release": {
             "repo": DEFAULT_REPO,
             "tag": DEFAULT_RELEASE_TAG,
-            "name": "v0.5.1-alpha - adoption tools",
+            "name": "v0.5.3-alpha - local event privacy gate",
             "prerelease": True,
-            "published_at": "2026-06-13T04:05:42Z",
+            "published_at": "2026-06-13T20:05:42Z",
             "status": "available",
             "error": None,
         },
@@ -135,7 +159,7 @@ def _fixture_snapshot(repo_root: Path) -> dict[str, Any]:
         },
         "github_issues": {
             "public_issues_returned": 0,
-            "open_prs": ["#119 parked"],
+            "open_prs": ["#119 parked E19"],
             "status": "available",
             "error": None,
         },
@@ -192,7 +216,7 @@ def _live_snapshot(repo_root: Path, timeout: float) -> dict[str, Any]:
         "github_release": {
             "repo": DEFAULT_REPO,
             "tag": DEFAULT_RELEASE_TAG,
-            "name": release_data.get("name", "unknown") if isinstance(release_data, dict) else "unknown",
+            "name": _safe_text(release_data.get("name", "unknown")) if isinstance(release_data, dict) else "unknown",
             "prerelease": release_data.get("prerelease", "unknown") if isinstance(release_data, dict) else "unknown",
             "published_at": release_data.get("published_at", "unknown") if isinstance(release_data, dict) else "unknown",
             "status": "available" if release_data else "unavailable",
@@ -255,6 +279,11 @@ def render_rollup(snapshot: dict[str, Any], out_path: Path, social: dict[str, An
     open_pr_text = ", ".join(open_prs) if open_prs else "none returned"
     issue_count = issues.get("public_issues_returned", "unknown")
     latest = package.get("latest", "unknown")
+
+    try:
+        next_rollup_id = f"{int(rollup_id) + 1:03d}"
+    except ValueError:
+        next_rollup_id = "next"
 
     return f"""# Public-Alpha Signal Rollup {rollup_id}
 
@@ -323,8 +352,9 @@ Blocked data paths: no hosted query forwarding; no private social scraping.
 
 - Tracker statuses: {status_counts}.
 - A3.4 actual submission evidence remains `blocked_pending_owner_approval`
-  until the owner approves exact destinations, submission owner, listing copy,
-  and submission permission.
+  until the owner approval packet names exact destinations, submission owner,
+  exact listing copy reference, submitter, evidence requirements, fallback, and
+  `permission_to_submit: yes`.
 - Keep all marketplace rows `not_submitted` until there is a dated owner action
   and evidence link.
 
@@ -345,13 +375,13 @@ Blocked data paths: no hosted query forwarding; no private social scraping.
 | Blocker | Owner | Action | Fallback |
 | --- | --- | --- | --- |
 | No manual first-value reports | Release owner | Ask for three redacted first-value or install-friction reports | Publish a focused install/first-value request |
-| Marketplace submission evidence missing | Project owner | Approve exact destinations, owner, listing copy, and submission permission | Keep all marketplace rows `not_submitted` |
+| Marketplace submission evidence missing | Project owner | Complete the owner approval packet with exact destinations, submission owner, exact listing copy reference, submitter, evidence requirements, fallback, and `permission_to_submit: yes` | Keep all marketplace rows `not_submitted` |
 | Social signal not provided | Release owner | Add owner-provided aggregate social JSON if available | Keep `no_feedback_yet` |
 
 ## Next Actions
 
 1. Generate the next rollup with
-   `python scripts/generate-public-alpha-signal-rollup.py --out docs/adoption/public-alpha-signal-rollup-002.md`.
+   `python scripts/generate-public-alpha-signal-rollup.py --out docs/adoption/public-alpha-signal-rollup-{next_rollup_id}.md`.
 2. Attach optional owner-provided aggregate social input with `--social-json`
    only when the owner supplies it intentionally.
 3. Keep issue triage and support responses aligned with
