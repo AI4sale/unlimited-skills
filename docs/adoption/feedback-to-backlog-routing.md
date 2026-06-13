@@ -44,3 +44,9 @@ Close or route every report with one of these outcomes:
 
 The issue comment should name the outcome and the next owner action. It should
 not promise delivery dates, hosted services, paid plans, or enterprise support.
+Use [support-response-pack.md](support-response-pack.md) when replying so
+maintainers ask for redacted evidence only and keep response language aligned
+with the public-alpha privacy boundary.
+
+The closure outcome labels above are included in `.github/labels.yml` so the
+label verifier can keep docs, issue templates, and triage operations aligned.

@@ -11,6 +11,8 @@ without collecting telemetry. It applies to reports created from:
 
 ## Daily triage loop
 
+0. Run `python scripts/verify-feedback-labels.py` before a triage pass if label
+   docs, issue templates, or `.github/labels.yml` changed.
 1. Open new GitHub issues with any `feedback:*` label.
 2. Confirm the report type label matches the template or contact link.
 3. Confirm severity: `severity:p0-user-blocker`, `severity:p1-high-friction`,
@@ -20,6 +22,8 @@ without collecting telemetry. It applies to reports created from:
 5. Route the issue using
    [feedback-to-backlog-routing.md](feedback-to-backlog-routing.md).
 6. Leave a short maintainer comment naming the outcome and next owner action.
+   Use [support-response-pack.md](support-response-pack.md) for safe,
+   consistent public-alpha wording.
 7. Revisit P0/P1 issues within 24-48 hours until routed or closed.
 
 ## Severity definitions
@@ -91,3 +95,14 @@ claim, no payment link, and no delivery promise.
 Never ask users to paste prompts, tool inputs, tool outputs, raw MCP
 configuration, commands with secrets, environment values, tokens, private keys,
 or unredacted local paths. Prefer `unlimited-skills feedback prepare` output.
+
+Label sync is a maintainer operation, not telemetry. The verifier reads local
+docs/templates only, and the optional sync helper defaults to dry-run so CI and
+tests never mutate GitHub labels.
+
+Maintainer replies should follow
+[support-response-pack.md](support-response-pack.md). The pack asks only for
+redacted evidence, points users to `unlimited-skills feedback prepare`, and
+avoids prompts, tool I/O, raw MCP/Claude configuration, secrets, local paths,
+support guarantees, paid offers, hosted claims, team-readiness claims, and
+enterprise-readiness claims.
