@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "publish-pypi.yml"
-DOC = ROOT / "docs" / "releases" / "v0.5.1-alpha-pypi-publishing.md"
+DOC = ROOT / "docs" / "releases" / "v0.5.2-alpha-pypi-publishing.md"
 
 
 def read(path: Path) -> str:
@@ -27,14 +27,14 @@ def test_publish_workflow_is_manual_and_oidc_only() -> None:
     assert "password:" not in text
 
 
-def test_publish_workflow_requires_exact_v051_confirmation() -> None:
+def test_publish_workflow_requires_exact_v052_confirmation() -> None:
     text = read(WORKFLOW)
     assert "version" in text
     assert "expected_sha" in text
     assert "confirm_pypi_publish" in text
-    assert 'test "${{ github.event.inputs.version }}" = "0.5.1"' in text
+    assert 'test "${{ github.event.inputs.version }}" = "0.5.2"' in text
     assert (
-        'test "${{ github.event.inputs.confirm_pypi_publish }}" = "publish unlimited-skills 0.5.1 to PyPI"'
+        'test "${{ github.event.inputs.confirm_pypi_publish }}" = "publish unlimited-skills 0.5.2 to PyPI"'
         in text
     )
     assert 'test "$(git rev-parse HEAD)" = "${{ github.event.inputs.expected_sha }}"' in text

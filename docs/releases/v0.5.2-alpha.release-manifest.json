@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "release": "v0.5.2-alpha",
+  "package_version": "0.5.2",
+  "distribution": "adoption-instrumentation-public-alpha",
+  "git": {
+    "base_branch": "main",
+    "publication_branch": "release/v0.5.2-alpha-adoption-instrumentation",
+    "tag": "v0.5.2-alpha",
+    "tag_status": "blocked_until_pypi_upload_and_post_publish_smoke",
+    "tag_target_sha_policy": "Codex may create and push v0.5.2-alpha only after real PyPI upload, clean PyPI install smoke, and verify-v052-alpha-publication.py with package-availability=published pass on the selected release commit."
+  },
+  "required_prs": {
+    "public": [
+      {"number": 144, "title": "A2 README positioning around skills/tool-schema context flooding"},
+      {"number": 145, "title": "A4.6 public-alpha support response pack"},
+      {"number": 146, "title": "A4.7 public-alpha signal rollup generator"},
+      {"number": 147, "title": "A3.1.1 effectiveness v2 instrumentation"}
+    ]
+  },
+  "excluded_prs": [119],
+  "adoption_toolchain_requirements": {
+    "claude_code_mcp_installer": true,
+    "feedback_prepare": true,
+    "support_response_pack": true,
+    "first_week_measurement": true,
+    "signal_rollup_generator": true,
+    "effectiveness_v2_instrumentation": true,
+    "package_smoke": true
+  },
+  "package_evidence": {
+    "package_smoke_runner": "scripts/run-v052-alpha-package-smoke.py",
+    "publication_verifier": "scripts/verify-v052-alpha-publication.py",
+    "pypi_trusted_publishing": "docs/releases/v0.5.2-alpha-pypi-publishing.md",
+    "publication_verifier_modes": {
+      "prepublish": "Build-only release gate. Must not emit tag guidance.",
+      "published": "Requires real clean install from PyPI before passing."
+    },
+    "checklist": "docs/releases/v0.5.2-alpha-checklist.md"
+  },
+  "safety_boundary": {
+    "alpha_only": true,
+    "local_first": true,
+    "automatic_telemetry": false,
+    "analytics_sdk": false,
+    "tracking_pixel": false,
+    "automatic_upload": false,
+    "hosted_query_forwarding": false,
+    "private_social_scraping": false,
+    "paid_launch": false,
+    "payment_link": false,
+    "hosted_readiness_claim": false,
+    "team_readiness_claim": false,
+    "enterprise_readiness_claim": false,
+    "marketplace_submission_in_release_pr": false,
+    "pypi_availability": "blocked_until_trusted_publishing_and_clean_install_smoke"
+  }
+}

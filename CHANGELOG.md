@@ -8,6 +8,11 @@
 
 ### Added
 
+- v0.5.2-alpha adoption instrumentation release gate: package/plugin versions
+  move to `0.5.2`; release docs, checklist, manifest, PyPI Trusted Publishing
+  notes, package smoke, and publication verifier now cover the A4.7 signal
+  rollup generator and A3.1.1 local effectiveness v2 instrumentation before
+  the `v0.5.2-alpha` tag can be created.
 - A3.1.1 effectiveness v2 instrumentation for the next adoption maintenance
   release / `v0.5.2-alpha`: local `suggest -> view -> use` funnel metrics now
   use hashed/truncated session correlation only when a harness exports a
