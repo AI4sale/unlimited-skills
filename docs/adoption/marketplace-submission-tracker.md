@@ -35,6 +35,12 @@ Every row must carry these fields:
 
 ## Tracker
 
+Rollup status: as of
+[`public-alpha-signal-rollup-001.md`](public-alpha-signal-rollup-001.md), all
+tracked surfaces remain `not_submitted`. A3.4 actual submission evidence stays
+`blocked_pending_owner_approval` until the owner approves exact destinations,
+submission owner, listing copy, and Codex submission permission.
+
 | surface | submission_url | submission_owner | date_checked | date_submitted | status | blocker | next_action | evidence_link | notes |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Claude Code plugin marketplace | https://code.claude.com/docs/en/plugins | release owner | 2026-06-13 |  | not_submitted | current Claude Code CLI validation must be run immediately before submission | Run `claude plugin validate .`, re-check current submission docs, then submit with marketplace copy if still allowed. | none | Track as a plugin marketplace submission only after owner action. |

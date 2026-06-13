@@ -84,6 +84,12 @@ ask for redacted `feedback prepare` output instead of raw logs.
 
 ## Weekly rollup format
 
+The first dated rollup is
+[`public-alpha-signal-rollup-001.md`](public-alpha-signal-rollup-001.md). It
+records a `low_signal` / `no_feedback_yet` baseline after `v0.5.1-alpha`:
+PyPI and GitHub release discovery are live, but no manual first-value reports
+were visible in the checked public sources.
+
 Use this structure for the first-week summary:
 
 ```text
