@@ -6,7 +6,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PYPI_INSTALL = "pip install unlimited-skills"
-VERSIONED_PYPI_INSTALL = "pip install unlimited-skills==0.5.2"
+VERSIONED_PYPI_INSTALL = "pip install unlimited-skills==0.5.3"
 GIT_INSTALL = 'pip install "git+https://github.com/AI4sale/unlimited-skills.git"'
 MARKER = "A3-PYPI-FLIP"
 
@@ -41,5 +41,5 @@ def test_pypi_flip_markers_do_not_ship_in_publishable_surfaces() -> None:
 
 
 def test_final_publication_docs_pin_versioned_install_smoke() -> None:
-    text = read("docs/releases/v0.5.2-alpha-checklist.md")
+    text = read("docs/releases/v0.5.3-alpha-checklist.md")
     assert VERSIONED_PYPI_INSTALL in text
