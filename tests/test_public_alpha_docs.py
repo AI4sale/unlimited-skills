@@ -359,6 +359,78 @@ def test_local_event_privacy_support_runbook_blocks_raw_log_requests() -> None:
         assert phrase not in support
 
 
+def test_v06_contract_freeze_documents_public_alpha_contracts() -> None:
+    spec = read("docs/releases/v0.6-contract-freeze-spec.md").lower()
+    compatibility = read("docs/compatibility.md").lower()
+    cli_contracts = read("docs/cli-contracts.md").lower()
+    local_privacy = read("docs/local-event-privacy.md").lower()
+    feedback = read("docs/feedback.md").lower()
+    runbook = read("docs/adoption/local-event-privacy-support-runbook.md").lower()
+    changelog = read("CHANGELOG.md").lower()
+    combined = "\n".join([spec, compatibility, cli_contracts, local_privacy, feedback, runbook, changelog])
+
+    for path in [
+        "docs/releases/v0.6-contract-freeze-spec.md",
+        "docs/compatibility.md",
+        "docs/cli-contracts.md",
+        "docs/local-event-privacy.md",
+    ]:
+        assert path in combined
+
+    for command in [
+        "unlimited-skills quickstart",
+        "unlimited-skills suggest",
+        "unlimited-skills mcp savings",
+        "unlimited-skills mcp install --claude-code",
+        "unlimited-skills feedback prepare",
+        "unlimited-skills learning-summary --events",
+        "scripts/generate-public-alpha-signal-rollup.py",
+    ]:
+        assert command in combined
+
+    for required in [
+        "compatibility promise through the v0.7 adoption cycle",
+        "stdout json stability",
+        "feedback report schema",
+        "pypi trusted publishing",
+        "local event privacy behavior after `v0.5.3-alpha`",
+        "legacy pre-v0.5.3 local logs are not automatically rewritten",
+        "#119/e19",
+        "#119 remains parked",
+        "frozen contracts",
+        "still alpha before 1.0",
+        "optional fields may be added",
+        "documented fields must not be removed or repurposed",
+    ]:
+        assert required in combined
+
+    for privacy_boundary in [
+        "no telemetry",
+        "no analytics",
+        "tracking pixels",
+        "hosted query forwarding",
+        "prompts, tool inputs, tool outputs, skill bodies, or mcp schemas",
+        "raw `.learning/events.jsonl`",
+        "raw `.learning/feedback.jsonl`",
+        "raw `.learning/team-events.jsonl`",
+        "raw mcp audit jsonl logs",
+    ]:
+        assert privacy_boundary in combined
+
+    for forbidden_claim in [
+        "paid plan is ready",
+        "hosted service is ready",
+        "team mode is ready",
+        "enterprise is ready",
+        "marketplace acceptance is guaranteed",
+        "we will deliver",
+        "guaranteed support",
+        "payment link",
+        "checkout path",
+    ]:
+        assert forbidden_claim not in combined
+
+
 def test_marketplace_submission_tracker_requires_evidence_and_fresh_rule_checks() -> None:
     tracker = read("docs/adoption/marketplace-submission-tracker.md").lower()
     runbook = read("docs/adoption/marketplace-submission-runbook.md").lower()

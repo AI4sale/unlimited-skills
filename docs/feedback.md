@@ -111,6 +111,14 @@ The privacy contract stays unchanged:
 - no tool input collection;
 - no tool output collection.
 
+The v0.6 adoption-cycle contract freeze keeps `feedback prepare` and aggregate
+`learning-summary --events` as the paste-safe support path through v0.7. See
+[cli-contracts.md](cli-contracts.md),
+[compatibility.md](compatibility.md), and
+[local-event-privacy.md](local-event-privacy.md) for the frozen public-alpha
+contract. The freeze does not create hosted support, team readiness,
+enterprise readiness, payment handling, or a delivery commitment.
+
 ## Triage and labels
 
 Maintainers use the public-alpha triage workflow in
