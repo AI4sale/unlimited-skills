@@ -8,6 +8,15 @@
 
 ### Added
 
+- A4.7 public-alpha signal rollup generator: added
+  `scripts/generate-public-alpha-signal-rollup.py`, an offline fixture-mode and
+  public-aggregate live-mode generator for repeatable adoption signal rollups;
+  added `docs/adoption/public-alpha-signal-rollup-template.md` and linked the
+  generator from the adoption signal and first-week measurement docs. The
+  generator accepts optional owner-provided local aggregate social JSON, marks
+  it explicitly, and does not add telemetry, analytics, tracking pixels,
+  private social scraping, hosted query forwarding, paid/support claims,
+  marketplace acceptance claims, or hosted/team/enterprise readiness claims.
 - A4.6 public-alpha support response pack: added
   `docs/adoption/support-response-pack.md` with maintainer-ready templates for
   first-value success, install failure, quickstart failure, Claude Code MCP

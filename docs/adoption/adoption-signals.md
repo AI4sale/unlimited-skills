@@ -90,6 +90,12 @@ records a `low_signal` / `no_feedback_yet` baseline after `v0.5.1-alpha`:
 PyPI and GitHub release discovery are live, but no manual first-value reports
 were visible in the checked public sources.
 
+Use `scripts/generate-public-alpha-signal-rollup.py` for later rollups. The
+generator has a deterministic offline fixture mode for CI and a live mode that
+uses only public aggregate sources plus optional owner-provided local aggregate
+social JSON. The editable template is
+[`public-alpha-signal-rollup-template.md`](public-alpha-signal-rollup-template.md).
+
 Use this structure for the first-week summary:
 
 ```text

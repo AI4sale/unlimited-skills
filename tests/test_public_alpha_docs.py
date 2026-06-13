@@ -385,6 +385,8 @@ def test_public_alpha_signal_rollup_records_low_signal_without_tracking() -> Non
     measurement = read("docs/adoption/first-week-adoption-measurement.md").lower()
     tracker = read("docs/adoption/marketplace-submission-tracker.md").lower()
     changelog = read("CHANGELOG.md").lower()
+    template = read("docs/adoption/public-alpha-signal-rollup-template.md").lower()
+    generator = read("scripts/generate-public-alpha-signal-rollup.py").lower()
 
     for required_section in [
         "## rollup summary",
@@ -444,7 +446,13 @@ def test_public_alpha_signal_rollup_records_low_signal_without_tracking() -> Non
     ]:
         assert owner_action_fallback in rollup
 
-    combined = "\n".join([signals, measurement, tracker, changelog])
+    combined = "\n".join([signals, measurement, tracker, changelog, template, generator])
     assert "public-alpha-signal-rollup-001.md" in combined
+    assert "public-alpha-signal-rollup-template.md" in combined
+    assert "scripts/generate-public-alpha-signal-rollup.py" in combined
+    assert "--fixture-mode" in combined
+    assert "--social-json" in combined
+    assert "owner-provided" in combined
+    assert "public aggregate sources" in combined
     assert "low_signal" in combined
     assert "no_feedback_yet" in combined
