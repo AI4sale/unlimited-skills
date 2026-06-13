@@ -44,7 +44,17 @@ import sys
 import time
 from pathlib import Path
 
-from .search_core import DEFAULT_ROOT, SkillHit, lexical_search, load_records, log_event, read_text, split_frontmatter
+from .search_core import (
+    DEFAULT_ROOT,
+    SkillHit,
+    lexical_search,
+    load_records,
+    log_event,
+    margin_bucket,
+    read_text,
+    score_bucket,
+    split_frontmatter,
+)
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -270,6 +280,7 @@ def main(argv: list[str] | None = None) -> int:
 
     extra: dict | None = None
     tier = None
+    injected = False
     if args.card:
         tier = select_tier(hits, floor=args.floor, high_threshold=args.high_threshold, margin=args.high_margin)
         card_obj = None
@@ -279,6 +290,7 @@ def main(argv: list[str] | None = None) -> int:
                 card_obj = {"name": hits[0].name, "source": hits[0].collection, "card": card_text}
         if tier == TIER_CARD and card_obj is None:
             tier = TIER_HINT  # kill switch or unreadable SKILL.md: degrade, never block
+        injected = card_obj is not None
         extra = {"delivery_tier": tier}
         if card_obj is not None:
             extra["skill_card"] = card_obj
@@ -293,11 +305,18 @@ def main(argv: list[str] | None = None) -> int:
 
     try:
         # Local-only learning log (never printed, never uploaded).
+        # A3.1.1: delivery_tier + injected + coarse score/margin buckets feed the
+        # effectiveness funnel; session_correlation_id is stamped by log_event.
+        top_score = hits[0].score if hits else None
+        runner_up_score = hits[1].score if len(hits) > 1 else None
         event = {
             "query": args.query[:MAX_QUERY_CHARS],
             "floor": args.floor,
             "elapsed_ms": round(elapsed_ms, 1),
             "reason_code": reason_code,
+            "injected": injected,
+            "score_bucket": score_bucket(top_score),
+            "margin_bucket": margin_bucket(top_score, runner_up_score),
             "hits": [{"name": hit.name, "score": hit.score} for hit in display_hits],
         }
         if tier is not None:
