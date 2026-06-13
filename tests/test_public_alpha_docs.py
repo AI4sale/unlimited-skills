@@ -263,3 +263,74 @@ def test_roadmap_reset_prioritizes_adoption_and_keeps_trust_layer_behind_demand(
         assert phrase in combined
 
     assert "existing trust stack is not deleted" in combined or "not deleted" in combined
+
+
+def test_public_alpha_signal_rollup_records_low_signal_without_tracking() -> None:
+    rollup = read("docs/adoption/public-alpha-signal-rollup-001.md").lower()
+    signals = read("docs/adoption/adoption-signals.md").lower()
+    measurement = read("docs/adoption/first-week-adoption-measurement.md").lower()
+    tracker = read("docs/adoption/marketplace-submission-tracker.md").lower()
+    changelog = read("CHANGELOG.md").lower()
+
+    for required_section in [
+        "## rollup summary",
+        "## data sources checked",
+        "## installation/discovery signals",
+        "## first-value signals",
+        "## feedback/issues",
+        "## marketplace/listing status",
+        "## social/linkedin launch signal",
+        "## signal quality assessment",
+        "## blockers",
+        "## next actions",
+    ]:
+        assert required_section in rollup
+
+    for required_fact in [
+        "unlimited-skills==0.5.1",
+        "v0.5.1-alpha",
+        "5 stars",
+        "0 forks",
+        "no issues returned",
+        "only parked pr #119 is open",
+        "not_submitted",
+        "blocked_pending_owner_approval",
+        "low_signal",
+        "no_feedback_yet",
+    ]:
+        assert required_fact in rollup
+
+    for privacy_boundary in [
+        "no telemetry",
+        "tracking pixels",
+        "analytics sdk",
+        "private user data",
+        "prompt collection",
+        "tool input collection",
+        "tool output collection",
+        "hosted query forwarding",
+    ]:
+        assert privacy_boundary in rollup
+
+    for blocked_claim in [
+        "marketplace submission",
+        "paid outreach",
+        "payment links",
+        "hosted/team/enterprise readiness claims",
+        "external acceptance claims",
+    ]:
+        assert blocked_claim in rollup
+
+    for owner_action_fallback in [
+        "| blocker | owner | action | fallback |",
+        "release owner",
+        "project owner",
+        "ask for three redacted first-value or install-friction reports",
+        "keep all marketplace rows `not_submitted`",
+    ]:
+        assert owner_action_fallback in rollup
+
+    combined = "\n".join([signals, measurement, tracker, changelog])
+    assert "public-alpha-signal-rollup-001.md" in combined
+    assert "low_signal" in combined
+    assert "no_feedback_yet" in combined

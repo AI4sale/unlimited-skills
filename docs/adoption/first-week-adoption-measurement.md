@@ -86,6 +86,18 @@ During the first week:
 - End of week: publish a short public summary with numbers, what changed, what
   did not change, and the next corrective release plan.
 
+## Rollup 001
+
+The first manual snapshot is
+[`public-alpha-signal-rollup-001.md`](public-alpha-signal-rollup-001.md).
+It records a `low_signal` / `no_feedback_yet` baseline: PyPI exposes
+`unlimited-skills==0.5.1`, the GitHub `v0.5.1-alpha` prerelease exists, and no
+public feedback issues were visible during the check.
+
+PyPI download counts are intentionally not inferred from PyPI JSON because that
+endpoint does not expose download counts. Use only owner-approved aggregate
+download sources for that field.
+
 ## Owner actions and fallback
 
 | Condition | Owner | Action | Fallback if signal is low |

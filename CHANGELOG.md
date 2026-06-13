@@ -8,6 +8,13 @@
 
 ### Added
 
+- A4.4 first public-alpha signal rollup: added the first dated adoption
+  snapshot after `v0.5.1-alpha`, covering PyPI availability, GitHub release
+  and repository counters, empty public issue/feedback surfaces, marketplace
+  `not_submitted` status, missing owner-provided social signal, explicit
+  `low_signal` / `no_feedback_yet` assessment, and owner/action/fallback next
+  steps without telemetry, analytics, tracking, private user data, marketplace
+  submission, paid CTA, or hosted/team/enterprise readiness claims.
 - A5.1 roadmap reset and trust-layer moratorium: reset public roadmap and
   product strategy around adoption and first-value feedback after
   `v0.5.1-alpha`; added adoption roadmap, trust-stack status, and a
