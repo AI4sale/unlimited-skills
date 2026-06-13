@@ -8,6 +8,15 @@
 
 ### Added
 
+- A4.1 feedback prepare command: `unlimited-skills feedback prepare`,
+  `feedback prepare --include-usage-snapshot`, and `feedback doctor` generate
+  local-only, redacted reports for public GitHub issue templates. Reports map
+  to first-value, install-friction, skill-not-invoked, and MCP-savings issue
+  types and exclude prompts, tool I/O, skill bodies, MCP schemas, launch
+  commands, environment names/values, tokens, private keys, local paths, raw
+  `.mcp.json`, and raw `.claude.json`. The legacy local learning-loop record
+  path remains available as `feedback record <skill> --verdict ...` and as the
+  old `feedback <skill> --verdict ...` form.
 - v0.5.0-alpha package/public-alpha gate: package version raised to `0.5.0`; wheel builds now include bundled ECC + Superpowers packs as `unlimited_skills/bundled_packs`; `quickstart` imports those packaged packs when no repo checkout is present; package metadata now exposes project URLs and drops the deprecated MIT license classifier; added `scripts/run-v050-alpha-package-smoke.py` and `scripts/verify-v050-alpha-publication.py` to prove build, `twine check`, clean wheel install, `unlimited-skills --version`, `quickstart`, `suggest`, `mcp savings`, public feedback paths, and pre-publication `A3-PYPI-FLIP` discipline before tagging.
 - A1 golden path: `unlimited-skills quickstart [QUERY] [--json] [--skip-mcp-check] [--timeout SECONDS] [--claude-config PATH]` imports bundled packs when the local library is empty, runs a first non-empty search, measures MCP context savings, and prints real next-step commands without touching populated libraries.
 - A1 MCP savings demo: `unlimited-skills mcp savings [--json] [--timeout SECONDS] [--claude-config PATH]` measures the user's local Claude Code MCP configuration against the gateway meta-tool footprint using redacted counts and byte/token estimates only; remote/unreachable/unsupported servers become skipped rows, not failures.

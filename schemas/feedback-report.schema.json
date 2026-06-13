@@ -1,0 +1,66 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AI4sale/unlimited-skills/schemas/feedback-report.schema.json",
+  "title": "Unlimited Skills feedback prepare report",
+  "type": "object",
+  "additionalProperties": true,
+  "required": [
+    "schema_version",
+    "report_type",
+    "local_only",
+    "network_calls",
+    "upload_available",
+    "client",
+    "system",
+    "library",
+    "issue_template_mapping",
+    "privacy"
+  ],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "report_type": { "const": "feedback-prepare-report" },
+    "local_only": { "const": true },
+    "network_calls": { "const": false },
+    "hosted_calls": { "const": false },
+    "upload_available": { "const": false },
+    "client": {
+      "type": "object",
+      "required": ["name", "version", "install_method"],
+      "properties": {
+        "name": { "const": "unlimited-skills" },
+        "version": { "type": "string" },
+        "install_method": { "enum": ["pypi", "git", "editable", "direct-url", "unknown"] }
+      }
+    },
+    "system": {
+      "type": "object",
+      "required": ["os_family", "python_family"],
+      "properties": {
+        "os_family": { "enum": ["windows", "macos", "linux", "other"] },
+        "python_family": { "type": "string" }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "required": ["telemetry", "auto_upload", "prompts_included", "skill_bodies_included", "local_paths_included"],
+      "properties": {
+        "telemetry": { "const": false },
+        "auto_upload": { "const": false },
+        "network_calls": { "const": false },
+        "prompts_included": { "const": false },
+        "tool_inputs_included": { "const": false },
+        "tool_outputs_included": { "const": false },
+        "skill_bodies_included": { "const": false },
+        "mcp_schemas_included": { "const": false },
+        "launch_commands_included": { "const": false },
+        "env_names_included": { "const": false },
+        "env_values_included": { "const": false },
+        "tokens_included": { "const": false },
+        "private_keys_included": { "const": false },
+        "local_paths_included": { "const": false },
+        "raw_mcp_json_included": { "const": false },
+        "raw_claude_json_included": { "const": false }
+      }
+    }
+  }
+}

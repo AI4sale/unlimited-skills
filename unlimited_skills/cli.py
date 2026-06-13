@@ -435,6 +435,7 @@ def build_parser() -> argparse.ArgumentParser:
     from .commands import accounts as accounts_cmds
     from .commands import catalog as catalog_cmds
     from .commands import community as community_cmds
+    from .commands import feedback as feedback_cmds
     from .commands import library as library_cmds
     from .commands import mcp as mcp_cmds
     from .commands import policy as policy_cmds
@@ -530,12 +531,20 @@ def build_parser() -> argparse.ArgumentParser:
     add_native_sync_options(use)
     use.set_defaults(func=library_cmds.cmd_use)
 
-    feedback = sub.add_parser("feedback", help="Record accepted/rejected feedback for a skill match.")
-    feedback.add_argument("name")
+    feedback = sub.add_parser("feedback", help="Prepare privacy-safe GitHub feedback or record local learning-loop feedback.")
+    feedback.add_argument(
+        "feedback_args",
+        nargs="*",
+        help="Action: prepare, doctor, record <skill>, or legacy <skill>.",
+    )
     feedback.add_argument("--query", default="")
-    feedback.add_argument("--verdict", choices=["accepted", "rejected", "neutral"], required=True)
+    feedback.add_argument("--verdict", choices=["accepted", "rejected", "neutral"])
     feedback.add_argument("--notes", default="")
-    feedback.set_defaults(func=library_cmds.cmd_feedback)
+    feedback.add_argument("--include-usage-snapshot", action="store_true", help="Include local redacted usage and MCP savings counts.")
+    feedback.add_argument("--format", choices=["json", "markdown"], default="json", help="Output format for feedback prepare.")
+    feedback.add_argument("--out", default="", help="Write the prepared report to this file instead of stdout.")
+    feedback.add_argument("--json", action="store_true", help="Machine-readable doctor/write status output where supported.")
+    feedback.set_defaults(func=feedback_cmds.cmd_feedback)
 
     summary = sub.add_parser("learning-summary", help="Summarize learning-loop feedback.")
     summary.set_defaults(func=library_cmds.cmd_learning_summary)
