@@ -310,7 +310,9 @@ def main(argv: list[str] | None = None) -> int:
         top_score = hits[0].score if hits else None
         runner_up_score = hits[1].score if len(hits) > 1 else None
         event = {
-            "query": args.query[:MAX_QUERY_CHARS],
+            # A3.1.1 privacy gate: store ONLY the short hash of the query, never
+            # the raw prompt/task text. Identical queries still correlate by hash.
+            "task_summary_hash": task_summary_hash(args.query),
             "floor": args.floor,
             "elapsed_ms": round(elapsed_ms, 1),
             "reason_code": reason_code,
