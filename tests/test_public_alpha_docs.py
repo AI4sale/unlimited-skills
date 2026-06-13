@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 
@@ -185,6 +186,82 @@ def test_public_alpha_feedback_triage_labels_are_defined_and_routed() -> None:
     for phrase in forbidden_promises:
         assert phrase in triage_docs
     assert "does not promise delivery" not in triage_docs
+
+
+def test_public_alpha_support_response_pack_is_safe_and_routed() -> None:
+    pack = read("docs/adoption/support-response-pack.md")
+    pack_lower = pack.lower()
+    triage = read("docs/adoption/feedback-triage-workflow.md").lower()
+    routing = read("docs/adoption/feedback-to-backlog-routing.md").lower()
+    feedback = read("docs/feedback.md").lower()
+    changelog = read("CHANGELOG.md").lower()
+
+    for template in [
+        "first value succeeded",
+        "install failed",
+        "quickstart failed",
+        "claude code mcp install failed",
+        "skill was not invoked",
+        "wrong skill suggested",
+        "mcp savings confusing or low savings",
+        "feedback report attached",
+        "privacy concern",
+        "marketplace/listing discovery question",
+    ]:
+        assert template in pack_lower
+
+    for label in [
+        "feedback:first-value",
+        "feedback:install-friction",
+        "feedback:skill-invocation",
+        "feedback:mcp-savings",
+        "feedback:marketplace",
+        "severity:p1-high-friction",
+        "severity:p2-improvement",
+        "needs:repro",
+        "needs:maintainer-review",
+    ]:
+        assert label in pack_lower
+
+    for required in [
+        "unlimited-skills feedback prepare --format markdown",
+        "unlimited-skills feedback prepare --include-usage-snapshot --format markdown",
+        'pip install "unlimited-skills>=0.5.1"',
+        "frozen eval candidate",
+        "frozen effectiveness set",
+        "please share only names, counts",
+    ]:
+        assert required in pack_lower
+
+    combined_docs = "\n".join([triage, routing, feedback, changelog])
+    assert "support-response-pack.md" in combined_docs
+    assert "redacted evidence" in combined_docs
+    assert "support" in combined_docs
+
+    unsafe_request_patterns = [
+        r"please (share|paste|attach|send).{0,80}prompt",
+        r"please (share|paste|attach|send).{0,80}tool input",
+        r"please (share|paste|attach|send).{0,80}tool output",
+        r"please (share|paste|attach|send).{0,80}raw \\.mcp\\.json",
+        r"please (share|paste|attach|send).{0,80}raw \\.claude\\.json",
+        r"please (share|paste|attach|send).{0,80}env dump",
+        r"please (share|paste|attach|send).{0,80}unredacted",
+    ]
+    for pattern in unsafe_request_patterns:
+        assert re.search(pattern, pack_lower, flags=re.DOTALL) is None
+
+    forbidden_promises = [
+        "we will fix",
+        "we will deliver",
+        "guaranteed support",
+        "sla",
+        "paid plan is ready",
+        "hosted service is ready",
+        "team mode is ready",
+        "enterprise is ready",
+    ]
+    for phrase in forbidden_promises:
+        assert phrase not in pack_lower
 
 
 def test_marketplace_submission_tracker_requires_evidence_and_fresh_rule_checks() -> None:

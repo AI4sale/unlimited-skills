@@ -108,6 +108,10 @@ Maintainers use the public-alpha triage workflow in
 the label map in [adoption/feedback-labels.md](adoption/feedback-labels.md),
 and the backlog routing table in
 [adoption/feedback-to-backlog-routing.md](adoption/feedback-to-backlog-routing.md).
+Public replies use
+[adoption/support-response-pack.md](adoption/support-response-pack.md) so
+maintainers ask for redacted evidence only and do not invent support, SLA,
+hosted, team, enterprise, payment, or delivery promises.
 
 Every template carries a `feedback:*` type label, a severity label, and either
 `needs:repro` or `needs:maintainer-review`. The purpose is fast routing, not a
