@@ -8,6 +8,9 @@
 
 ### Added
 
+- A4.9 local event privacy audit: documented the local event log surfaces,
+  field-level risk classification, paste-safe support boundary, and A4.10
+  handoff for removing raw task/query/path persistence from local events.
 - v0.5.2-alpha adoption instrumentation release gate: package/plugin versions
   move to `0.5.2`; release docs, checklist, manifest, PyPI Trusted Publishing
   notes, package smoke, and publication verifier now cover the A4.7 signal
