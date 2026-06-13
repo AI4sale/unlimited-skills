@@ -1,7 +1,7 @@
 name: First-value feedback (quickstart)
 description: "Did `unlimited-skills quickstart` deliver value in under 5 minutes? Tell us either way."
 title: "[first-value] "
-labels: ["feedback", "adoption"]
+labels: ["feedback:first-value", "severity:p2-improvement", "needs:maintainer-review"]
 body:
   - type: markdown
     attributes:

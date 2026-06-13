@@ -1,7 +1,7 @@
 name: Install friction
 description: The install, setup, or plugin path failed or fought you. Report where.
 title: "[install] "
-labels: ["bug", "install"]
+labels: ["feedback:install-friction", "severity:p1-high-friction", "needs:repro"]
 body:
   - type: markdown
     attributes:

@@ -21,6 +21,10 @@
   triage cadence, owner/action/fallback rules, adoption signal vocabulary, and
   privacy-preserving issue-template updates for first-value, install-friction,
   skill-not-invoked, and MCP-savings reports.
+- A4.3 public-alpha feedback triage workflow: added label definitions,
+  24-48 hour triage workflow, feedback-to-backlog routing, marketplace/listing
+  feedback contact link, and issue-template label mappings for first-value,
+  install-friction, skill-invocation, and MCP-savings reports.
 - A4.1 feedback prepare command: `unlimited-skills feedback prepare`,
   `feedback prepare --include-usage-snapshot`, and `feedback doctor` generate
   local-only, redacted reports for public GitHub issue templates. Reports map
