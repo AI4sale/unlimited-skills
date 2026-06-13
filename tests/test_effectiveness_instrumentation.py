@@ -18,6 +18,8 @@ from unlimited_skills.search_core import (
     EVENT_LOG,
     SESSION_ID_ENV,
     SESSION_ID_FALLBACK_ENV,
+    SESSION_SALT_ENV,
+    _run_correlation_id,
     hash_session_id,
     log_event,
     margin_bucket,
@@ -74,13 +76,22 @@ def test_margin_bucket_boundaries() -> None:
 
 # --- session correlation: short hash, never the raw id -------------------
 
-def test_hash_session_id_is_short_deterministic_and_not_reversible() -> None:
+def test_hash_session_id_is_short_salted_and_not_reversible(monkeypatch: pytest.MonkeyPatch) -> None:
+    import hashlib
+
+    import unlimited_skills.search_core as _sc
+
+    monkeypatch.setenv(SESSION_SALT_ENV, "unit-test-pinned-salt")
+    monkeypatch.setattr(_sc, "_SALT_CACHE", None)  # force re-read of the pinned salt
     raw = "super-secret-session-id-123"
     digest = hash_session_id(raw)
     assert digest is not None and len(digest) == 12
     assert raw not in digest
     assert digest.split("super")[0] == digest  # the raw token is absent
-    assert hash_session_id(raw) == digest       # deterministic
+    # SALTED: not the plain unsalted sha256 of the raw id, so the token is not a
+    # globally-stable fingerprint (Hermes A3.1.1: unsalted hash is Unacceptable).
+    assert digest != hashlib.sha256(raw.encode("utf-8")).hexdigest()[:12]
+    assert hash_session_id(raw) == digest       # deterministic within a salt
     assert hash_session_id("") is None
     assert hash_session_id(None) is None
 
@@ -88,23 +99,27 @@ def test_hash_session_id_is_short_deterministic_and_not_reversible() -> None:
 def test_session_correlation_id_reads_env_with_priority(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv(SESSION_ID_ENV, raising=False)
     monkeypatch.delenv(SESSION_ID_FALLBACK_ENV, raising=False)
-    assert session_correlation_id() is None
+    # No harness session id -> degrade to a per-process local run correlation id
+    # (Hermes A3.1.1: "missing session id degrades to a generated local run id").
+    assert session_correlation_id() == _run_correlation_id()
     monkeypatch.setenv(SESSION_ID_FALLBACK_ENV, "claude-session-xyz")
     assert session_correlation_id() == hash_session_id("claude-session-xyz")
     monkeypatch.setenv(SESSION_ID_ENV, "hook-session-abc")
     assert session_correlation_id() == hash_session_id("hook-session-abc")  # primary wins
 
 
-# --- log_event env-gated stamping ----------------------------------------
+# --- log_event session-id stamping (salted; run-id fallback) --------------
 
-def test_log_event_omits_correlation_without_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_log_event_degrades_to_run_id_without_env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv(SESSION_ID_ENV, raising=False)
     monkeypatch.delenv(SESSION_ID_FALLBACK_ENV, raising=False)
     root = tmp_path / "lib"
     (root / ".learning").mkdir(parents=True)
     log_event(root, "suggest", {"a": 1})
     rec = json.loads((root / ".learning" / EVENT_LOG).read_text(encoding="utf-8").strip())
-    assert "session_correlation_id" not in rec["payload"]
+    # Spec: a standalone invocation still correlates its own events via a stable
+    # per-process run id (never None, never the raw id).
+    assert rec["payload"]["session_correlation_id"] == _run_correlation_id()
 
 
 def test_log_event_stamps_hash_never_raw(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -268,3 +283,24 @@ def test_learning_summary_events_output_is_aggregate_only(tmp_path: Path, capsys
     assert "private task text" not in output
     assert raw_session not in output
     assert hashed not in output
+
+
+# --- privacy grep gate (Hermes A3.1.1 required evidence) -----------------
+
+def test_events_jsonl_leaks_no_raw_identifiers(library: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """The event log must never contain the raw session id, the raw query/task
+    text, an env value, or a local absolute path — only the salted correlation
+    token and coarse buckets. This is the privacy gate, asserted by grep."""
+    raw_session = "raw-session-id-DO-NOT-PERSIST-42"
+    query_needle = "zphraseUniqueQueryNeedleX"  # lives in the query, must not be logged
+    env_needle = "env-value-should-never-appear"
+    monkeypatch.setenv(SESSION_ID_ENV, raw_session)
+    monkeypatch.setenv("UNLIMITED_SKILLS_SECRET_PROBE", env_needle)
+    suggest.main(["--root", str(library), f"python {query_needle} code review best practices", "--json"])
+    text = (library / ".learning" / EVENT_LOG).read_text(encoding="utf-8")
+    assert raw_session not in text          # raw session id never persisted
+    assert query_needle not in text         # raw query / task text never persisted
+    assert env_needle not in text           # env values never persisted
+    assert str(library) not in text         # no local absolute path
+    payload = json.loads(text.strip().splitlines()[-1])["payload"]
+    assert payload["session_correlation_id"] == hash_session_id(raw_session)  # salted token only

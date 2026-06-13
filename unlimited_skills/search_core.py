@@ -15,6 +15,7 @@ import hashlib
 import json
 import os
 import re
+import secrets
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -33,6 +34,15 @@ EVENT_LOG = "events.jsonl"
 SESSION_ID_ENV = "UNLIMITED_SKILLS_SESSION_ID"
 SESSION_ID_FALLBACK_ENV = "CLAUDE_SESSION_ID"
 SESSION_HASH_LEN = 12
+# A machine-local PRIVATE salt makes the correlation token non-reversible and
+# not stable across machines (an unsalted sha256 of the raw id would be a
+# globally-stable fingerprint). The salt is generated once, persisted locally,
+# and NEVER printed, logged, or uploaded. An env override exists for tests and
+# for operators who want to pin it.
+SESSION_SALT_ENV = "UNLIMITED_SKILLS_SESSION_SALT"
+SESSION_SALT_FILE = ".session_salt"
+_SALT_CACHE: str | None = None
+_RUN_CORRELATION_CACHE: str | None = None
 WORD_RE = re.compile(r"[a-zA-Z0-9][a-zA-Z0-9_+.#/-]*")
 IGNORED_SKILL_PATH_PARTS = {
     ".chroma-skills",
@@ -375,27 +385,91 @@ def lexical_search(root: Path, query: str, limit: int, collection: str | None = 
     return hits[:limit]
 
 
-def hash_session_id(session_id: object) -> str | None:
-    """Short sha256 of a session id — a correlation token, never the raw id."""
+def _salt_path() -> Path:
+    """Machine-local home for the private salt (sibling of the library root)."""
+    return DEFAULT_ROOT.parent / SESSION_SALT_FILE
+
+
+def _local_salt() -> str:
+    """Read-or-create the machine-local private salt — never printed or uploaded.
+
+    Stable on this machine (so a session correlates across suggest -> view ->
+    use) but random per machine (so the correlation token is not a portable
+    fingerprint). Falls back to an in-memory salt if the home is read-only.
+    """
+    global _SALT_CACHE
+    if _SALT_CACHE is not None:
+        return _SALT_CACHE
+    override = os.environ.get(SESSION_SALT_ENV)
+    if override and override.strip():
+        _SALT_CACHE = override.strip()
+        return _SALT_CACHE
+    path = _salt_path()
+    try:
+        existing = path.read_text(encoding="utf-8").strip()
+        if existing:
+            _SALT_CACHE = existing
+            return _SALT_CACHE
+    except OSError:
+        pass
+    salt = secrets.token_hex(16)
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(salt, encoding="utf-8")
+        try:
+            os.chmod(path, 0o600)
+        except OSError:
+            pass
+    except OSError:
+        pass  # read-only home: the in-memory salt still scopes this process
+    _SALT_CACHE = salt
+    return _SALT_CACHE
+
+
+def hash_session_id(session_id: object, salt: str | None = None) -> str | None:
+    """Short SALTED sha256 of a session id — a correlation token, never the raw id.
+
+    The id is hashed with the machine-local private salt (:func:`_local_salt`),
+    so the token is non-reversible and not stable across machines. Returns None
+    for an empty/missing id.
+    """
     normalized = str(session_id or "").strip()
     if not normalized:
         return None
-    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:SESSION_HASH_LEN]
+    salt = _local_salt() if salt is None else salt
+    digest = hashlib.sha256(f"{salt}\x1f{normalized}".encode("utf-8")).hexdigest()
+    return digest[:SESSION_HASH_LEN]
+
+
+def _run_correlation_id() -> str:
+    """Per-process correlation id used when no harness session id is present.
+
+    Lets the suggest -> view -> use chain correlate within a single local
+    invocation without fabricating a stable cross-session/cross-machine
+    fingerprint. The underlying token is process-ephemeral and salted.
+    """
+    global _RUN_CORRELATION_CACHE
+    if _RUN_CORRELATION_CACHE is None:
+        token = f"{_local_salt()}\x1frun\x1f{secrets.token_hex(16)}"
+        _RUN_CORRELATION_CACHE = hashlib.sha256(token.encode("utf-8")).hexdigest()[:SESSION_HASH_LEN]
+    return _RUN_CORRELATION_CACHE
 
 
 def session_correlation_id() -> str | None:
-    """Hashed session id from the environment, or None outside a session.
+    """Salted correlation token for the current session, never None in practice.
 
     Sources, in order: ``UNLIMITED_SKILLS_SESSION_ID`` (set by the
     UserPromptSubmit hook for its probe subprocess) and ``CLAUDE_SESSION_ID``
-    (when the agent harness exports it to shell commands). The raw value is
-    hashed with :func:`hash_session_id` and never logged.
+    (when the agent harness exports it to shell commands), each salted-hashed
+    via :func:`hash_session_id`. When neither is present the value degrades to a
+    per-process run id (:func:`_run_correlation_id`) so a standalone invocation
+    still correlates its own events. The raw session id is never logged.
     """
     for env_name in (SESSION_ID_ENV, SESSION_ID_FALLBACK_ENV):
         value = os.environ.get(env_name)
         if value and value.strip():
             return hash_session_id(value)
-    return None
+    return _run_correlation_id()
 
 
 def score_bucket(score: float | None) -> str:
