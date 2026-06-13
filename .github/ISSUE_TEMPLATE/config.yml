@@ -2,4 +2,7 @@ blank_issues_enabled: true
 contact_links:
   - name: Feedback guide
     url: https://github.com/AI4sale/unlimited-skills/blob/main/docs/feedback.md
-    about: How feedback works here — no telemetry, nothing is uploaded; every report is manual and voluntary.
+    about: How feedback works here - no telemetry, nothing is uploaded; every report is manual and voluntary.
+  - name: Marketplace/listing discovery feedback
+    url: https://github.com/AI4sale/unlimited-skills/issues/new?title=%5Bmarketplace%5D%20&labels=feedback%3Amarketplace,severity%3Ap2-improvement,needs%3Amaintainer-review
+    about: Report listing, marketplace, discovery, or submission wording feedback.

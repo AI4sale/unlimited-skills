@@ -1,7 +1,7 @@
 name: MCP savings report
 description: Share your measured `unlimited-skills mcp savings` numbers (names, counts, and sizes only).
 title: "[savings] "
-labels: ["feedback", "mcp"]
+labels: ["feedback:mcp-savings", "severity:p2-improvement", "needs:maintainer-review"]
 body:
   - type: markdown
     attributes:

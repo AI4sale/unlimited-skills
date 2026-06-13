@@ -102,3 +102,63 @@ def test_public_alpha_issue_templates_support_manual_measurement() -> None:
 
     assert "feedback prepare --format markdown" in templates["skill"]
     assert "feedback prepare --include-usage-snapshot --format markdown" in templates["savings"]
+
+
+def test_public_alpha_feedback_triage_labels_are_defined_and_routed() -> None:
+    labels_doc = read("docs/adoption/feedback-labels.md").lower()
+    workflow = read("docs/adoption/feedback-triage-workflow.md").lower()
+    routing = read("docs/adoption/feedback-to-backlog-routing.md").lower()
+    feedback = read("docs/feedback.md").lower()
+    config = read(".github/ISSUE_TEMPLATE/config.yml").lower()
+    templates = {
+        "first_value": read(".github/ISSUE_TEMPLATE/first-value-feedback.yml").lower(),
+        "install": read(".github/ISSUE_TEMPLATE/install-friction.yml").lower(),
+        "skill": read(".github/ISSUE_TEMPLATE/skill-not-invoked.yml").lower(),
+        "savings": read(".github/ISSUE_TEMPLATE/mcp-savings-report.yml").lower(),
+    }
+
+    required_labels = [
+        "feedback:first-value",
+        "feedback:install-friction",
+        "feedback:skill-invocation",
+        "feedback:mcp-savings",
+        "feedback:docs",
+        "feedback:marketplace",
+        "severity:p0-user-blocker",
+        "severity:p1-high-friction",
+        "severity:p2-improvement",
+        "needs:repro",
+        "needs:maintainer-review",
+    ]
+    for label in required_labels:
+        assert label in labels_doc
+
+    expected_template_labels = {
+        "first_value": ["feedback:first-value", "severity:p2-improvement", "needs:maintainer-review"],
+        "install": ["feedback:install-friction", "severity:p1-high-friction", "needs:repro"],
+        "skill": ["feedback:skill-invocation", "severity:p1-high-friction", "needs:maintainer-review"],
+        "savings": ["feedback:mcp-savings", "severity:p2-improvement", "needs:maintainer-review"],
+    }
+    for template_name, labels in expected_template_labels.items():
+        for label in labels:
+            assert label in templates[template_name]
+
+    assert "feedback%3amarketplace" in config
+    assert "backlog:eval-candidate" in routing
+    assert "quickstart/package smoke" in routing
+    assert "frozen eval set" in workflow
+    assert "24-48 hours" in workflow
+    assert "adoption/feedback-triage-workflow.md" in feedback
+    assert "adoption/feedback-labels.md" in feedback
+    assert "adoption/feedback-to-backlog-routing.md" in feedback
+
+    triage_docs = "\n".join([labels_doc, workflow, routing, feedback])
+    forbidden_promises = [
+        "payment link",
+        "paid cta",
+        "hosted service availability",
+        "enterprise delivery",
+    ]
+    for phrase in forbidden_promises:
+        assert phrase in triage_docs
+    assert "does not promise delivery" not in triage_docs

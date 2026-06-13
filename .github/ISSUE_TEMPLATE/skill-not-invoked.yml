@@ -1,7 +1,7 @@
 name: Skill not invoked / wrong suggestion
 description: You expected a skill suggestion for a task and got silence or the wrong skill.
 title: "[suggest] "
-labels: ["feedback", "retrieval"]
+labels: ["feedback:skill-invocation", "severity:p1-high-friction", "needs:maintainer-review"]
 body:
   - type: markdown
     attributes:

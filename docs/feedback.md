@@ -100,3 +100,18 @@ The privacy contract stays unchanged:
 - no prompt collection;
 - no tool input collection;
 - no tool output collection.
+
+## Triage and labels
+
+Maintainers use the public-alpha triage workflow in
+[adoption/feedback-triage-workflow.md](adoption/feedback-triage-workflow.md),
+the label map in [adoption/feedback-labels.md](adoption/feedback-labels.md),
+and the backlog routing table in
+[adoption/feedback-to-backlog-routing.md](adoption/feedback-to-backlog-routing.md).
+
+Every template carries a `feedback:*` type label, a severity label, and either
+`needs:repro` or `needs:maintainer-review`. The purpose is fast routing, not a
+support promise: labels do not imply sales help, payment handling, hosted
+service availability, or enterprise delivery.
+
+No issue label implies hosted service availability or enterprise delivery.
