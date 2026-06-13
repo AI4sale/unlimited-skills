@@ -247,6 +247,126 @@ def cmd_feedback(args: argparse.Namespace) -> int:
     return 0
 
 
+def _bump(counter: dict[str, int], key: object) -> None:
+    label = "none" if key is None else str(key)
+    counter[label] = counter.get(label, 0) + 1
+
+
+# A3.1.1: events that advance the suggest -> view -> use funnel. The daemon
+# variants are the long-running-server equivalents of the one-shot CLI events.
+_VIEW_EVENT_TYPES = {"view", "daemon_view"}
+_USE_EVENT_TYPES = {"skill_used", "daemon_skill_used"}
+
+
+def compute_event_metrics(root: Path) -> dict:
+    """Aggregate local effectiveness metrics from ``events.jsonl`` (A3.1.1).
+
+    Local-only and privacy-safe: emits counts, rates, and tier/bucket
+    distributions only — never query text, skill bodies, or filesystem paths.
+    The suggest -> view -> use funnel is correlated by the hashed
+    ``session_correlation_id`` stamped on each event; sessions without one are
+    still counted at the suggest level but cannot be attributed to a funnel.
+    """
+    metrics: dict = {
+        "total_events": 0,
+        "suggest_count": 0,
+        "carded_suggest_count": 0,
+        "injected_count": 0,
+        "injection_rate": None,
+        "tier_counts": {},
+        "score_bucket_counts": {},
+        "margin_bucket_counts": {},
+        "attributed_sessions": 0,
+        "suggest_sessions": 0,
+        "post_suggest_view_rate": None,
+        "post_suggest_use_rate": None,
+        "card_to_action_proxy_rate": None,
+        "missed_after_hint_rate": None,
+        "card_used_without_view": 0,
+    }
+    path = root / ".learning" / cli.EVENT_LOG
+    if not path.is_file():
+        return metrics
+
+    sessions: dict[str, list[tuple[float, str, dict]]] = {}
+    for line in path.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        metrics["total_events"] += 1
+        etype = str(row.get("type") or "")
+        payload = row.get("payload")
+        if not isinstance(payload, dict):
+            payload = {}
+        try:
+            ts = float(row.get("ts") or 0.0)
+        except (TypeError, ValueError):
+            ts = 0.0
+        if etype == "suggest":
+            metrics["suggest_count"] += 1
+            _bump(metrics["score_bucket_counts"], payload.get("score_bucket"))
+            _bump(metrics["margin_bucket_counts"], payload.get("margin_bucket"))
+            tier = payload.get("delivery_tier")
+            if tier is not None:
+                metrics["carded_suggest_count"] += 1
+                _bump(metrics["tier_counts"], tier)
+            if payload.get("injected"):
+                metrics["injected_count"] += 1
+        sid = payload.get("session_correlation_id")
+        if sid:
+            sessions.setdefault(str(sid), []).append((ts, etype, payload))
+
+    if metrics["carded_suggest_count"]:
+        metrics["injection_rate"] = round(
+            metrics["injected_count"] / metrics["carded_suggest_count"], 3
+        )
+
+    suggest_sessions = view_after = use_after = 0
+    card_sessions = card_then_use = card_used_without_view = 0
+    hint_sessions = hint_missed = 0
+    for events in sessions.values():
+        events.sort(key=lambda e: e[0])
+        suggests = [e for e in events if e[1] == "suggest"]
+        if not suggests:
+            continue
+        suggest_sessions += 1
+        first_suggest_ts = suggests[0][0]
+        has_view = any(t >= first_suggest_ts and et in _VIEW_EVENT_TYPES for (t, et, _p) in events)
+        has_use = any(t >= first_suggest_ts and et in _USE_EVENT_TYPES for (t, et, _p) in events)
+        if has_view:
+            view_after += 1
+        if has_use:
+            use_after += 1
+        injected_in_session = any(p.get("injected") for (_t, _et, p) in suggests)
+        hint_in_session = any(p.get("delivery_tier") == 2 for (_t, _et, p) in suggests)
+        if injected_in_session:
+            card_sessions += 1
+            if has_use:
+                card_then_use += 1
+            if has_use and not has_view:
+                card_used_without_view += 1
+        elif hint_in_session:
+            hint_sessions += 1
+            if not has_view and not has_use:
+                hint_missed += 1
+
+    metrics["attributed_sessions"] = len(sessions)
+    metrics["suggest_sessions"] = suggest_sessions
+    metrics["card_used_without_view"] = card_used_without_view
+    if suggest_sessions:
+        metrics["post_suggest_view_rate"] = round(view_after / suggest_sessions, 3)
+        metrics["post_suggest_use_rate"] = round(use_after / suggest_sessions, 3)
+    if card_sessions:
+        metrics["card_to_action_proxy_rate"] = round(card_then_use / card_sessions, 3)
+    if hint_sessions:
+        metrics["missed_after_hint_rate"] = round(hint_missed / hint_sessions, 3)
+    return metrics
+
+
 def cmd_learning_summary(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     feedback_path = root / ".learning" / cli.FEEDBACK_LOG
@@ -262,7 +382,11 @@ def cmd_learning_summary(args: argparse.Namespace) -> int:
             counts.setdefault(name, {"accepted": 0, "rejected": 0, "neutral": 0})
             if verdict in counts[name]:
                 counts[name][verdict] += 1
-    print(json.dumps(counts, ensure_ascii=False, indent=2, sort_keys=True))
+    if getattr(args, "events", False):
+        payload = {"feedback": counts, "effectiveness": compute_event_metrics(root)}
+        print(json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True))
+    else:
+        print(json.dumps(counts, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
 
 

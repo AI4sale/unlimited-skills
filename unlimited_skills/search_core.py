@@ -11,6 +11,7 @@ and tests that reach through ``cli.<name>`` keep working unchanged.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -24,6 +25,14 @@ from .frontmatter import split_frontmatter as _shared_split_frontmatter
 DEFAULT_ROOT = Path(os.environ.get("UNLIMITED_SKILLS_ROOT", Path.home() / ".unlimited-skills" / "library"))
 INDEX_NAME = ".unlimited-skills-index.json"
 EVENT_LOG = "events.jsonl"
+# Session correlation (A3.1.1 effectiveness v2 instrumentation): the
+# UserPromptSubmit hook forwards the Claude Code session id through
+# SESSION_ID_ENV; agent-run CLI commands fall back to CLAUDE_SESSION_ID when
+# the harness exports it. Only the SHORT HASH ever reaches the event log —
+# the raw id is never written anywhere.
+SESSION_ID_ENV = "UNLIMITED_SKILLS_SESSION_ID"
+SESSION_ID_FALLBACK_ENV = "CLAUDE_SESSION_ID"
+SESSION_HASH_LEN = 12
 WORD_RE = re.compile(r"[a-zA-Z0-9][a-zA-Z0-9_+.#/-]*")
 IGNORED_SKILL_PATH_PARTS = {
     ".chroma-skills",
@@ -366,8 +375,82 @@ def lexical_search(root: Path, query: str, limit: int, collection: str | None = 
     return hits[:limit]
 
 
+def hash_session_id(session_id: object) -> str | None:
+    """Short sha256 of a session id — a correlation token, never the raw id."""
+    normalized = str(session_id or "").strip()
+    if not normalized:
+        return None
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:SESSION_HASH_LEN]
+
+
+def session_correlation_id() -> str | None:
+    """Hashed session id from the environment, or None outside a session.
+
+    Sources, in order: ``UNLIMITED_SKILLS_SESSION_ID`` (set by the
+    UserPromptSubmit hook for its probe subprocess) and ``CLAUDE_SESSION_ID``
+    (when the agent harness exports it to shell commands). The raw value is
+    hashed with :func:`hash_session_id` and never logged.
+    """
+    for env_name in (SESSION_ID_ENV, SESSION_ID_FALLBACK_ENV):
+        value = os.environ.get(env_name)
+        if value and value.strip():
+            return hash_session_id(value)
+    return None
+
+
+def score_bucket(score: float | None) -> str:
+    """Coarse band for a top hit's score — never the raw value, never the query.
+
+    Bands track the frozen-eval calibration: the floor sits at 12, true
+    positives run 12-51, and the tier-3 card threshold is high. Buckets let the
+    effectiveness summary describe match strength without logging exact scores
+    that could, in aggregate, fingerprint a private query set.
+    """
+    if score is None:
+        return "none"
+    s = float(score)
+    if s < 12.0:
+        return "below_floor"
+    if s < 18.0:
+        return "low"
+    if s < 25.0:
+        return "medium"
+    if s < 40.0:
+        return "high"
+    return "very_high"
+
+
+def margin_bucket(top: float | None, runner_up: float | None) -> str:
+    """Coarse band for the top/runner-up score ratio (tier-3 margin gate input).
+
+    ``no_runner_up`` when there is no second hit above the floor; otherwise the
+    ratio is bucketed around the 1.5x high-confidence margin so the summary can
+    show how often rankings were contested vs dominant.
+    """
+    if top is None or runner_up is None or float(runner_up) <= 0.0:
+        return "no_runner_up"
+    ratio = float(top) / float(runner_up)
+    if ratio < 1.1:
+        return "contested"
+    if ratio < 1.5:
+        return "slim"
+    if ratio < 2.0:
+        return "clear"
+    if ratio < 3.0:
+        return "strong"
+    return "dominant"
+
+
 def log_event(root: Path, event_type: str, payload: dict) -> None:
+    # A3.1.1: stamp every event with the hashed session id (when the harness
+    # exports one) so suggest -> view -> use can be correlated within a session
+    # WITHOUT ever storing the raw id. Env-gated: outside a session no key is
+    # added, so callers and tests that don't set it see the original payload.
+    enriched = payload
+    correlation = session_correlation_id()
+    if correlation and "session_correlation_id" not in payload:
+        enriched = {**payload, "session_correlation_id": correlation}
     write_jsonl(
         root / ".learning" / EVENT_LOG,
-        {"ts": time.time(), "type": event_type, "payload": payload},
+        {"ts": time.time(), "type": event_type, "payload": enriched},
     )

@@ -44,6 +44,7 @@ from .search_core import (  # noqa: F401 - re-exported for backwards compatibili
     expanded_query,
     find_by_name,
     first_body_line,
+    hash_session_id,
     index_path,
     iter_skills,
     lexical_search,
@@ -52,6 +53,7 @@ from .search_core import (  # noqa: F401 - re-exported for backwards compatibili
     read_text,
     save_index,
     score_skill,
+    session_correlation_id,
     skill_identity,
     skill_priority,
     split_frontmatter,
@@ -547,6 +549,11 @@ def build_parser() -> argparse.ArgumentParser:
     feedback.set_defaults(func=feedback_cmds.cmd_feedback)
 
     summary = sub.add_parser("learning-summary", help="Summarize learning-loop feedback.")
+    summary.add_argument(
+        "--events",
+        action="store_true",
+        help="Also report local effectiveness metrics from events.jsonl (tier distribution, injection rate, suggest->view->use funnel). Local-only aggregates; no query text or paths.",
+    )
     summary.set_defaults(func=library_cmds.cmd_learning_summary)
 
     draft = sub.add_parser("draft-skill", help="Draft a new SKILL.md from task evidence.")

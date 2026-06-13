@@ -8,6 +8,16 @@
 
 ### Added
 
+- A3.1.1 effectiveness v2 instrumentation for the next adoption maintenance
+  release / `v0.5.2-alpha`: local `suggest -> view -> use` funnel metrics now
+  use hashed/truncated session correlation only when a harness exports a
+  session id, add score/margin/injection buckets to local `events.jsonl`, and
+  expose aggregate effectiveness metrics through `learning-summary --events`
+  without changing default learning-summary output or the public `suggest`
+  stdout JSON contract. The raw session id is never persisted, eval-gate
+  thresholds are unchanged, and aggregate metrics do not include query text,
+  prompts, skill bodies, filesystem paths, environment values, tokens, or tool
+  outputs.
 - A4.7 public-alpha signal rollup generator: added
   `scripts/generate-public-alpha-signal-rollup.py`, an offline fixture-mode and
   public-aggregate live-mode generator for repeatable adoption signal rollups;
