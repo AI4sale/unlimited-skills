@@ -14,6 +14,9 @@ import re
 ROOT = Path(__file__).resolve().parents[1]
 LISTING_COPY = ROOT / "docs" / "adoption" / "marketplace-listing-copy.md"
 LAUNCH_PACK = ROOT / "docs" / "adoption" / "marketplace-listing-launch-pack.md"
+APPROVAL_PACKET = ROOT / "docs" / "adoption" / "submission-owner-approval-packet.md"
+SUBMISSION_TRACKER = ROOT / "docs" / "adoption" / "marketplace-submission-tracker.md"
+SUBMISSION_RUNBOOK = ROOT / "docs" / "adoption" / "marketplace-submission-runbook.md"
 
 
 def read(path: Path) -> str:
@@ -29,7 +32,10 @@ def verify() -> list[str]:
     errors: list[str] = []
     listing = read(LISTING_COPY)
     launch_pack = read(LAUNCH_PACK)
-    combined = f"{listing}\n{launch_pack}"
+    approval_packet = read(APPROVAL_PACKET)
+    submission_tracker = read(SUBMISSION_TRACKER)
+    submission_runbook = read(SUBMISSION_RUNBOOK)
+    combined = f"{listing}\n{launch_pack}\n{approval_packet}\n{submission_tracker}\n{submission_runbook}"
     listing_words = re.sub(r"\s+", " ", listing.lower().replace(">", " "))
 
     for command in (
@@ -91,6 +97,24 @@ def verify() -> list[str]:
         "launch pack must preserve local gateway wording for MCP discovery",
         errors,
     )
+
+    combined_lower = combined.lower()
+    for required in (
+        "submission-owner-approval-packet.md",
+        "blocked_pending_owner_approval",
+        "current_rule_check_date",
+        "exact_listing_copy_reference",
+        "submitter: owner | codex | human_delegate",
+        "permission_to_submit: no",
+        "permission_to_submit: yes",
+        "evidence_required_after_submission",
+        "blocked_claims_acknowledged",
+        "fallback_if_rejected",
+        "does not submit anywhere",
+        "no hosted/team/enterprise readiness claim",
+        "no guaranteed marketplace acceptance claim",
+    ):
+        require(required in combined_lower, f"approval packet missing guardrail: {required}", errors)
     return errors
 
 

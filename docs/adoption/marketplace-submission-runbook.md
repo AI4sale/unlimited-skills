@@ -4,22 +4,28 @@ Purpose: give the release owner a repeatable procedure for submitting
 Unlimited Skills to public-alpha discovery surfaces without overstating the
 product state.
 
-This runbook does not authorize submission by itself. It requires owner action
-and a fresh rule check immediately before sending anything.
+This runbook does not authorize submission by itself. It requires a completed
+[submission-owner-approval-packet.md](submission-owner-approval-packet.md),
+owner action, `permission_to_submit: yes`, and a fresh rule check immediately
+before sending anything.
 
 ## Standard Procedure
 
 1. Pick one row from
    [marketplace-submission-tracker.md](marketplace-submission-tracker.md).
-2. Open the current submission URL or current official docs for that surface.
-3. Re-check rules for package type, plugin format, metadata, support channel,
+2. Fill or review the matching owner approval packet for the exact
+   destination.
+3. Stop if `permission_to_submit` is not `yes`.
+4. Open the current submission URL or current official docs for that surface.
+5. Re-check rules for package type, plugin format, metadata, support channel,
    license, privacy wording, and prohibited claims.
-4. Run the local checks required by the launch pack.
-5. Compare the paste-ready copy against the claim guard.
-6. Submit only if the surface still accepts this type of listing.
-7. Update the tracker with status, date, owner, blocker, next action, and
+6. Confirm `exact_listing_copy_reference` points to the exact copy being sent.
+7. Run the local checks required by the launch pack.
+8. Compare the paste-ready copy against the claim guard.
+9. Submit only if the surface still accepts this type of listing.
+10. Update the tracker with status, date, owner, blocker, next action, and
    evidence link.
-8. If blocked or rejected, keep the row and record the reason.
+11. If blocked or rejected, keep the row and record the reason.
 
 ## Surface Checks
 
@@ -92,3 +98,6 @@ A submission task is complete only when the tracker row has:
 - a next action;
 - an evidence link or explicit `none`;
 - a blocker value, even when it is `none`.
+- a completed owner approval packet with explicit `submitter`,
+  `permission_to_submit`, `exact_listing_copy_reference`, evidence
+  requirements, blocked-claims acknowledgment, and fallback.

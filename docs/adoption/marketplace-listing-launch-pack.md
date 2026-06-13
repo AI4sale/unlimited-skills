@@ -9,9 +9,12 @@ because marketplace rules can change.
 
 Track submission status in
 [marketplace-submission-tracker.md](marketplace-submission-tracker.md). Use
-[marketplace-submission-runbook.md](marketplace-submission-runbook.md) before
-any owner sends listing copy to a marketplace, registry, directory, or
-discovery surface.
+[marketplace-submission-runbook.md](marketplace-submission-runbook.md) and
+[submission-owner-approval-packet.md](submission-owner-approval-packet.md)
+before any owner sends listing copy to a marketplace, registry, directory, or
+discovery surface. The approval packet must name the exact destination, exact
+listing copy reference, submitter, evidence requirements, blocked-claims
+acknowledgment, fallback, and `permission_to_submit: yes`.
 
 ## Current source check
 
@@ -143,6 +146,11 @@ Before submission:
 
 - [ ] The target row exists in
       `docs/adoption/marketplace-submission-tracker.md`.
+- [ ] The exact destination has a completed owner approval packet in
+      `docs/adoption/submission-owner-approval-packet.md`.
+- [ ] The packet has explicit `submitter`, `permission_to_submit: yes`,
+      `exact_listing_copy_reference`, evidence requirements,
+      blocked-claims acknowledgment, and fallback.
 - [ ] Current rules for that surface were re-checked on the submission day.
 - [ ] The tracker has owner, status, blocker, next action, and evidence fields.
 - [ ] `pip install unlimited-skills` works from a clean environment.

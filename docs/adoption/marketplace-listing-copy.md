@@ -11,7 +11,10 @@ Submission status is tracked separately in
 [marketplace-submission-tracker.md](marketplace-submission-tracker.md). Do not
 paste this copy into a marketplace, registry, directory, or discovery surface
 until the release owner has re-checked current rules using
-[marketplace-submission-runbook.md](marketplace-submission-runbook.md).
+[marketplace-submission-runbook.md](marketplace-submission-runbook.md) and
+completed the matching
+[submission-owner-approval-packet.md](submission-owner-approval-packet.md) with
+`permission_to_submit: yes`.
 
 ---
 

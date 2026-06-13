@@ -283,6 +283,7 @@ def test_marketplace_submission_tracker_requires_evidence_and_fresh_rule_checks(
     runbook = read("docs/adoption/marketplace-submission-runbook.md").lower()
     launch_pack = read("docs/adoption/marketplace-listing-launch-pack.md").lower()
     listing_copy = read("docs/adoption/marketplace-listing-copy.md").lower()
+    approval_packet = read("docs/adoption/submission-owner-approval-packet.md").lower()
 
     for field in [
         "surface",
@@ -308,25 +309,42 @@ def test_marketplace_submission_tracker_requires_evidence_and_fresh_rule_checks(
     ]:
         assert surface in tracker
 
-    combined = "\n".join([tracker, runbook, launch_pack, listing_copy])
+    combined = "\n".join([tracker, runbook, launch_pack, listing_copy, approval_packet])
     for required in [
         "re-check",
         "current rules",
         "evidence link",
         "owner action",
+        "blocked_pending_owner_approval",
+        "submission-owner-approval-packet.md",
+        "current_rule_check_date",
+        "submission_owner",
+        "exact_listing_copy_reference",
+        "submitter: owner | codex | human_delegate",
+        "permission_to_submit: no",
+        "permission_to_submit: yes",
+        "evidence_required_after_submission",
+        "blocked_claims_acknowledged",
+        "fallback_if_rejected",
         "no paid cta",
         "no payment link",
+        "no checkout path",
         "no hosted/team/enterprise readiness claim",
         "no delivery promise",
         "guaranteed marketplace acceptance",
+        "does not submit anywhere",
         "do not mark",
     ]:
         assert required in combined
 
     assert "marketplace-submission-tracker.md" in launch_pack
     assert "marketplace-submission-runbook.md" in launch_pack
+    assert "submission-owner-approval-packet.md" in launch_pack
     assert "marketplace-submission-tracker.md" in listing_copy
     assert "marketplace-submission-runbook.md" in listing_copy
+    assert "submission-owner-approval-packet.md" in listing_copy
+    assert "submission-owner-approval-packet.md" in tracker
+    assert "submission-owner-approval-packet.md" in runbook
 
 
 def test_roadmap_reset_prioritizes_adoption_and_keeps_trust_layer_behind_demand() -> None:
