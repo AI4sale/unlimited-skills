@@ -3,6 +3,22 @@
 Use these labels for v0.5 public-alpha feedback. The goal is to make every
 manual report actionable within 24-48 hours without adding telemetry.
 
+Machine-readable source: [`.github/labels.yml`](../../.github/labels.yml).
+Verify it with:
+
+```bash
+python scripts/verify-feedback-labels.py
+```
+
+If maintainers decide to sync labels to GitHub, use the dry-run-first helper:
+
+```bash
+python scripts/sync-github-labels.py --dry-run
+```
+
+The sync helper must not mutate GitHub labels unless `--apply` is passed
+explicitly.
+
 ## Feedback type labels
 
 | Label | Applies to | Default owner action |
