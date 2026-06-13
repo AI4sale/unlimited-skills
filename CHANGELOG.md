@@ -8,6 +8,13 @@
 
 ### Added
 
+- A5.1 roadmap reset and trust-layer moratorium: reset public roadmap and
+  product strategy around adoption and first-value feedback after
+  `v0.5.1-alpha`; added adoption roadmap, trust-stack status, and a
+  trust-layer proposal template. New E28+ hosted/team/trust implementation is
+  blocked unless real feedback, team/customer demand, trust-blocking adoption
+  data, or explicit owner approval reopens it. #119 remains background and
+  A3.4 remains `blocked_pending_owner_approval`.
 - A3.3 marketplace/listing submission tracker: added a public-alpha submission
   tracker and runbook for Claude Code plugin marketplace, MCP discovery, and
   GitHub discovery surfaces, with required owner/status/blocker/evidence

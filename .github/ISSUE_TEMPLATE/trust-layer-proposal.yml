@@ -1,0 +1,51 @@
+name: Trust-layer proposal
+description: Propose reopening hosted, team, Enterprise, or trust-layer work with demand evidence.
+title: "[trust-layer] "
+labels: ["needs:maintainer-review", "severity:p2-improvement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this only when real demand may justify new hosted, team, Enterprise, or trust-layer implementation.
+
+        Do not use this template for ordinary install friction, first-value feedback, skill invocation misses, or MCP savings reports.
+  - type: dropdown
+    id: demand_source
+    attributes:
+      label: Demand source
+      description: Which rule reopens the trust layer?
+      options:
+        - real user feedback demands it
+        - team/customer asks for it
+        - adoption data shows trust is blocking use
+        - owner explicitly reopens enterprise track
+    validations:
+      required: true
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Link or summarize the feedback, customer request, adoption data, or owner decision.
+      placeholder: "Issue links, customer request summary with sensitive details removed, or owner decision."
+    validations:
+      required: true
+  - type: textarea
+    id: requested_work
+    attributes:
+      label: Requested work
+      description: Describe the smallest hosted/team/trust change that would address the evidence.
+    validations:
+      required: true
+  - type: checkboxes
+    id: boundaries
+    attributes:
+      label: Boundaries
+      options:
+        - label: This proposal does not claim hosted/team/Enterprise readiness.
+          required: true
+        - label: This proposal does not add a paid product claim or payment link.
+          required: true
+        - label: This proposal does not reopen #119 unless explicitly stated by the owner.
+          required: true
+        - label: This proposal does not upload local skill bodies, prompts, source code, local paths, env values, tokens, or private keys.
+          required: true
