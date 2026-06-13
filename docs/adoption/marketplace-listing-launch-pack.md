@@ -153,9 +153,9 @@ Before submission:
 
 ## Evidence to attach or keep ready
 
-- PyPI package URL: <https://pypi.org/project/unlimited-skills/0.5.0/>
+- PyPI package URL: <https://pypi.org/project/unlimited-skills/0.5.1/>
 - GitHub release URL:
-  <https://github.com/AI4sale/unlimited-skills/releases/tag/v0.5.0-alpha>
+  <https://github.com/AI4sale/unlimited-skills/releases/tag/v0.5.1-alpha>
 - Source repository: <https://github.com/AI4sale/unlimited-skills>
 - A3.1 Claude Code MCP installer merge: PR #133.
 - Public alpha release workflow evidence: GitHub Actions run for v0.5.0-alpha.

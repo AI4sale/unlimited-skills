@@ -8,6 +8,12 @@
 
 ### Added
 
+- v0.5.1-alpha adoption tools release gate: package/plugin versions move to
+  `0.5.1`; release docs, checklist, manifest, PyPI Trusted Publishing notes,
+  package smoke, and publication verifier now prove that PyPI users receive
+  the Claude Code MCP installer, `feedback prepare`, marketplace/listing
+  launch docs, and first-week adoption measurement docs/templates before the
+  `v0.5.1-alpha` tag can be created.
 - A4.2 first-week public-alpha adoption measurement: documented a manual,
   no-telemetry measurement plan for PyPI installs, GitHub counters, manual
   feedback reports, install friction, retrieval misses, MCP savings, listing
