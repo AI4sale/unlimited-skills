@@ -167,6 +167,9 @@ Do not claim:
 
 ## Related Docs
 
+- [Local event privacy](../local-event-privacy.md)
+- [v0.6 contract freeze spec](../releases/v0.6-contract-freeze-spec.md)
+- [CLI contracts](../cli-contracts.md)
 - [Local event privacy policy](local-event-privacy-policy.md)
 - [Local event privacy audit](local-event-privacy-audit.md)
 - [Public-alpha support response pack](support-response-pack.md)

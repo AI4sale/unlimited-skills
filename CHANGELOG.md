@@ -15,6 +15,13 @@
 
 ### Added
 
+- v0.6 contract-freeze spec: added `docs/releases/v0.6-contract-freeze-spec.md`,
+  `docs/compatibility.md`, `docs/cli-contracts.md`, and
+  `docs/local-event-privacy.md` to freeze the public CLI, stdout JSON,
+  feedback report, local event privacy, public-alpha rollup, and PyPI Trusted
+  Publishing contracts through v0.7 while keeping #119/E19, hosted, team,
+  enterprise, marketplace submission, payment, telemetry, analytics, and
+  support-promise claims out of scope.
 - A4.11 local event privacy support runbook: added maintainer guidance for
   answering local event log, feedback report, and `v0.5.3-alpha` privacy
   questions without requesting raw logs or unsafe evidence; updated the support

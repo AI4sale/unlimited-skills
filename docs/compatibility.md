@@ -1,0 +1,55 @@
+# Compatibility
+
+Unlimited Skills is still pre-1.0, but the v0.6 adoption cycle freezes the
+public contracts that people are already scripting against.
+
+## Stability Levels
+
+| Level | Meaning |
+| --- | --- |
+| Stable public-alpha | Documented shape and privacy boundary are preserved through v0.7. Optional fields may be added; documented fields must not be removed or repurposed. |
+| Preview | Useful but still settling. The privacy boundary and local-first failure mode are preserved; output details may tighten. |
+| Alpha/internal | May change before 1.0. Do not build automation against it unless a release gate explicitly freezes it. |
+| Parked | Present in a PR or design thread but not accepted into public mainline behavior. |
+
+## v0.6 Freeze Promise Through v0.7
+
+The following surfaces are stable public-alpha contracts through v0.7:
+
+- `unlimited-skills quickstart`;
+- `unlimited-skills suggest`;
+- `unlimited-skills mcp savings`;
+- `unlimited-skills mcp install --claude-code`;
+- `unlimited-skills feedback prepare`;
+- `unlimited-skills learning-summary --events`;
+- `scripts/generate-public-alpha-signal-rollup.py`;
+- local event privacy behavior after `v0.5.3-alpha`;
+- feedback report schema;
+- PyPI Trusted Publishing and post-publish verification expectations.
+
+The detailed command shapes live in [cli-contracts.md](cli-contracts.md). The
+release-level freeze lives in
+[releases/v0.6-contract-freeze-spec.md](releases/v0.6-contract-freeze-spec.md).
+
+## What Can Still Break Before 1.0
+
+Before 1.0, the project may still change:
+
+- ranking and score internals;
+- human-readable text wording;
+- optional JSON fields;
+- file names for private or internal diagnostics;
+- docs tooling fixture values;
+- private registry, hosted catalog, team, enterprise, marketplace, and policy
+  implementation details that are not part of the v0.6 freeze;
+- #119/E19 behavior, because #119 remains parked until explicitly reopened.
+
+Breaking a stable public-alpha field before v0.7 requires an explicit
+compatibility note, migration note, and test update in the same PR.
+
+## Non-Claims
+
+Compatibility does not mean hosted service readiness, team readiness,
+enterprise readiness, marketplace acceptance, paid support, payment handling,
+or a delivery commitment. It only documents what the local public core and
+release gates are expected to keep stable.
