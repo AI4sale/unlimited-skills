@@ -57,6 +57,11 @@ Runtime writers now sanitize local `.learning/events.jsonl` and
 This enforcement does not add telemetry, uploads, hosted calls, or any support
 bundle that treats raw local logs as paste-safe.
 
+This enforcement hardens new rows. It does not rewrite legacy pre-v0.5.3 local
+logs that may already exist on a user's machine. Support workflows must treat
+legacy raw logs as not paste-safe and should route users to
+[local-event-privacy-support-runbook.md](local-event-privacy-support-runbook.md).
+
 ## Paste-Safe Surfaces
 
 These surfaces are intended to be paste-safe:
@@ -74,6 +79,16 @@ These surfaces are not automatically paste-safe:
 - raw hub audit logs;
 - raw MCP audit replay inputs;
 - local config files such as `.mcp.json` or `.claude.json`.
+
+## Support Guidance
+
+For user-facing privacy reports, use
+[local-event-privacy-support-runbook.md](local-event-privacy-support-runbook.md).
+Maintainers should ask for `feedback prepare` output and aggregate
+`learning-summary --events` output, not raw local JSONL logs. Maintainers must
+not request raw events, feedback rows, team events, MCP audit JSONL logs, raw
+configs, env dumps, tokens, keys, local paths, prompts, tool inputs, tool
+outputs, skill bodies, or MCP schemas.
 
 ## Required Guards
 

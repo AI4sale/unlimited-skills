@@ -36,6 +36,16 @@ bodies, MCP schemas, launch commands, environment names or values, tokens,
 proofs, private keys, local absolute paths, raw `.mcp.json`, and raw
 `.claude.json`.
 
+Raw local learning files such as `.learning/events.jsonl`,
+`.learning/feedback.jsonl`, `.learning/team-events.jsonl`, and raw MCP audit
+JSONL logs are not paste-safe support artifacts. `v0.5.3-alpha` hardens new
+local event rows, but it does not rewrite old local logs that may have been
+created before that hardening. If you need to inspect, delete, or rotate local
+logs, use
+[adoption/local-event-privacy-support-runbook.md](adoption/local-event-privacy-support-runbook.md)
+and share only `feedback prepare` output or aggregate `learning-summary
+--events` output in public issues.
+
 That makes your reports disproportionately valuable in this public alpha.
 One honest "the quickstart stalled at step 2" is worth more than any
 dashboard we refuse to build.
@@ -112,6 +122,12 @@ Public replies use
 [adoption/support-response-pack.md](adoption/support-response-pack.md) so
 maintainers ask for redacted evidence only and do not invent support, SLA,
 hosted, team, enterprise, payment, or delivery promises.
+
+For local event privacy questions, maintainers use
+[adoption/local-event-privacy-support-runbook.md](adoption/local-event-privacy-support-runbook.md).
+They should never ask for raw local event logs, raw config files, env dumps,
+tokens, keys, local paths, prompts, tool inputs, tool outputs, skill bodies, or
+MCP schemas.
 
 Every template carries a `feedback:*` type label, a severity label, and either
 `needs:repro` or `needs:maintainer-review`. The purpose is fast routing, not a

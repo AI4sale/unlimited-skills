@@ -16,9 +16,16 @@ enterprise readiness.
 - Ask for trimmed error output only after usernames, machine names, local paths,
   tokens, keys, secrets, environment values, and private identifiers are
   replaced with placeholders.
+- For local event privacy questions, point to
+  [local-event-privacy-support-runbook.md](local-event-privacy-support-runbook.md)
+  and ask for `feedback prepare` output instead of raw local logs.
 - Do not ask for prompts, tool inputs, tool outputs, skill bodies, MCP schemas,
-  raw `.mcp.json`, raw `.claude.json`, shell history, env dumps, proofs,
-  tokens, keys, or unredacted local paths.
+  raw `.learning/events.jsonl`, raw `.learning/feedback.jsonl`, raw
+  `.learning/team-events.jsonl`, raw MCP audit logs, raw `.mcp.json`, raw
+  `.claude.json`, shell history, env dumps, proofs, tokens, keys, or
+  unredacted local paths.
+- Never request raw `.learning/events.jsonl`, raw `.learning/feedback.jsonl`,
+  raw `.learning/team-events.jsonl`, or raw MCP audit logs.
 - Treat every response as triage language, not a formal response-time
   commitment, support guarantee, sales offer, payment path, hosted-service
   promise, team-readiness claim, or enterprise-readiness claim.
@@ -36,6 +43,7 @@ enterprise readiness.
 | MCP savings confusing or low savings | `feedback:mcp-savings`, `severity:p2-improvement`, `needs:maintainer-review` | Benchmark/docs backlog | `feedback prepare --include-usage-snapshot --format markdown`, `mcp savings` names/counts/sizes/status output |
 | Feedback report attached | existing issue labels | Existing issue route | attached prepared report, report section that looks relevant |
 | Privacy concern | type label matching concern, escalate severity if reproduced | Privacy/docs/code backlog | claim category, affected command, redacted local report showing no sensitive values |
+| Local event privacy question | type label matching concern, escalate severity if reproduced | Privacy/docs/code backlog | `feedback prepare --format markdown`, aggregate `learning-summary --events`, affected command/category, v0.5.3-or-later status |
 | Marketplace/listing discovery question | `feedback:marketplace`, `severity:p2-improvement`, `needs:maintainer-review` | Listing backlog | destination/surface name, current public link, wording concern |
 
 ## Templates
@@ -201,6 +209,34 @@ Do not paste secrets, environment values, raw config files, proofs, local
 paths, prompts, tool inputs, or tool outputs. If the concern suggests a real
 automatic upload or sensitive-data exposure, we will escalate severity and
 reproduce it before changing code or docs.
+
+### Local event privacy question
+
+Thanks for checking the local event privacy boundary. Local event and feedback
+logs are for local diagnostics. They are not telemetry and are not uploaded by
+the public core.
+
+For support, please use the paste-safe path:
+
+```bash
+unlimited-skills feedback prepare --format markdown
+unlimited-skills learning-summary --events
+```
+
+Please share only the prepared report, aggregate summary, affected command or
+feature category, and whether the row was created before or after
+`v0.5.3-alpha`.
+
+Do not paste raw `.learning/events.jsonl`, raw `.learning/feedback.jsonl`, raw
+`.learning/team-events.jsonl`, raw MCP audit logs, raw `.mcp.json`, raw
+`.claude.json`, env values, tokens, keys, local paths, prompts, tool inputs,
+tool outputs, skill bodies, or MCP schemas.
+
+`v0.5.3-alpha` hardens new event rows, but it does not rewrite old local logs
+created before the A4.10 privacy hardening. If you want to inspect or clear
+old local logs, use
+[local-event-privacy-support-runbook.md](local-event-privacy-support-runbook.md)
+for local-only inspection and delete/rotate guidance.
 
 ### Marketplace/listing discovery question
 

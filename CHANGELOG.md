@@ -15,6 +15,15 @@
 
 ### Added
 
+- A4.11 local event privacy support runbook: added maintainer guidance for
+  answering local event log, feedback report, and `v0.5.3-alpha` privacy
+  questions without requesting raw logs or unsafe evidence; updated the support
+  response pack, local event privacy policy, feedback guide, and public-alpha
+  docs tests to require `feedback prepare`, aggregate `learning-summary
+  --events`, legacy pre-v0.5.3 handling, safe delete/rotate guidance, and no
+  raw events/config/env/prompts/tool IO/skill body requests, while preserving
+  no-telemetry, no-upload, no paid support, no formal response-time
+  commitment, and no hosted/team/enterprise claims.
 - A4.8 public-alpha signal rollup #002: generated
   `docs/adoption/public-alpha-signal-rollup-002.md` through the public-alpha
   rollup generator after `v0.5.3-alpha`, updated adoption signal and first-week
