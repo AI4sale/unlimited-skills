@@ -162,3 +162,54 @@ def test_public_alpha_feedback_triage_labels_are_defined_and_routed() -> None:
     for phrase in forbidden_promises:
         assert phrase in triage_docs
     assert "does not promise delivery" not in triage_docs
+
+
+def test_marketplace_submission_tracker_requires_evidence_and_fresh_rule_checks() -> None:
+    tracker = read("docs/adoption/marketplace-submission-tracker.md").lower()
+    runbook = read("docs/adoption/marketplace-submission-runbook.md").lower()
+    launch_pack = read("docs/adoption/marketplace-listing-launch-pack.md").lower()
+    listing_copy = read("docs/adoption/marketplace-listing-copy.md").lower()
+
+    for field in [
+        "surface",
+        "submission_url",
+        "submission_owner",
+        "date_checked",
+        "date_submitted",
+        "status",
+        "blocker",
+        "next_action",
+        "evidence_link",
+        "notes",
+    ]:
+        assert field in tracker
+
+    for status in ["not_submitted", "submitted", "accepted", "rejected", "blocked"]:
+        assert status in tracker
+
+    for surface in [
+        "claude code plugin marketplace",
+        "mcp registry",
+        "github repository discovery",
+    ]:
+        assert surface in tracker
+
+    combined = "\n".join([tracker, runbook, launch_pack, listing_copy])
+    for required in [
+        "re-check",
+        "current rules",
+        "evidence link",
+        "owner action",
+        "no paid cta",
+        "no payment link",
+        "no hosted/team/enterprise readiness claim",
+        "no delivery promise",
+        "guaranteed marketplace acceptance",
+        "do not mark",
+    ]:
+        assert required in combined
+
+    assert "marketplace-submission-tracker.md" in launch_pack
+    assert "marketplace-submission-runbook.md" in launch_pack
+    assert "marketplace-submission-tracker.md" in listing_copy
+    assert "marketplace-submission-runbook.md" in listing_copy

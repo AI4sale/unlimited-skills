@@ -8,6 +8,12 @@
 
 ### Added
 
+- A3.3 marketplace/listing submission tracker: added a public-alpha submission
+  tracker and runbook for Claude Code plugin marketplace, MCP discovery, and
+  GitHub discovery surfaces, with required owner/status/blocker/evidence
+  fields, fresh rule re-checks before submission, and claim guards against
+  paid, hosted, team, enterprise, payment, delivery, or guaranteed acceptance
+  promises.
 - v0.5.1-alpha adoption tools release gate: package/plugin versions move to
   `0.5.1`; release docs, checklist, manifest, PyPI Trusted Publishing notes,
   package smoke, and publication verifier now prove that PyPI users receive

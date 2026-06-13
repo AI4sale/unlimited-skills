@@ -7,6 +7,12 @@ This is a preparation artifact, not proof that any marketplace accepted the
 project. Re-check every linked submission surface immediately before sending,
 because marketplace rules can change.
 
+Track submission status in
+[marketplace-submission-tracker.md](marketplace-submission-tracker.md). Use
+[marketplace-submission-runbook.md](marketplace-submission-runbook.md) before
+any owner sends listing copy to a marketplace, registry, directory, or
+discovery surface.
+
 ## Current source check
 
 Checked on 2026-06-12:
@@ -135,6 +141,10 @@ Blocked claims:
 
 Before submission:
 
+- [ ] The target row exists in
+      `docs/adoption/marketplace-submission-tracker.md`.
+- [ ] Current rules for that surface were re-checked on the submission day.
+- [ ] The tracker has owner, status, blocker, next action, and evidence fields.
 - [ ] `pip install unlimited-skills` works from a clean environment.
 - [ ] `unlimited-skills quickstart` works and imports bundled packs when the
       library is empty.
@@ -150,6 +160,7 @@ Before submission:
 - [ ] Listing copy includes GitHub issues as the support channel.
 - [ ] Listing copy points limitations to
       `docs/releases/v0.5.0-alpha-known-issues.md`.
+- [ ] No tracker row claims accepted/submitted status without evidence.
 
 ## Evidence to attach or keep ready
 
