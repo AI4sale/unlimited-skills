@@ -431,6 +431,105 @@ def test_v06_contract_freeze_documents_public_alpha_contracts() -> None:
         assert forbidden_claim not in combined
 
 
+def test_v06_local_roi_receipt_spec_is_privacy_safe_and_measured_not_promised() -> None:
+    spec = read("docs/releases/v0.6-local-roi-receipt-spec.md").lower()
+    receipt = read("docs/roi-receipt.md").lower()
+    cli_contracts = read("docs/cli-contracts.md").lower()
+    local_privacy = read("docs/local-event-privacy.md").lower()
+    feedback = read("docs/feedback.md").lower()
+    changelog = read("CHANGELOG.md").lower()
+    combined = "\n".join([spec, receipt, cli_contracts, local_privacy, feedback, changelog])
+
+    for path in [
+        "docs/releases/v0.6-local-roi-receipt-spec.md",
+        "docs/roi-receipt.md",
+        "docs/cli-contracts.md",
+        "docs/local-event-privacy.md",
+    ]:
+        assert path in combined
+
+    for command in [
+        "unlimited-skills roi receipt",
+        "unlimited-skills roi receipt --format markdown",
+        "unlimited-skills roi receipt --format json",
+        "unlimited-skills roi receipt --since 7d",
+        "unlimited-skills roi receipt --out roi-receipt.md",
+    ]:
+        assert command in combined
+
+    for allowed in [
+        "installed unlimited skills version",
+        "local library skill count",
+        "quickstart status",
+        "mcp savings summary",
+        "suggest count",
+        "skill view/use count",
+        "suggest-to-view/use aggregate conversion",
+        "learning-summary --events",
+        "feedback prepare",
+        "generated timestamp",
+        "local-only/no-upload notice",
+        "safe aggregate",
+        "derived",
+    ]:
+        assert allowed in combined
+
+    for forbidden in [
+        "prompts",
+        "raw queries",
+        "raw tasks",
+        "tool inputs",
+        "tool outputs",
+        "skill bodies",
+        "mcp schemas",
+        "raw `events.jsonl`",
+        "raw `feedback.jsonl`",
+        "raw `.mcp.json` or `.claude.json`",
+        "environment names or values",
+        "tokens, keys, or proofs",
+        "local absolute paths",
+        "user identifiers",
+        "tracking identifiers",
+    ]:
+        assert forbidden in combined
+
+    for required in [
+        "this receipt is a local estimate from your own machine. it is not telemetry, not a benchmark guarantee, and not a paid roi promise.",
+        "specification only",
+        "not implemented yet",
+        "screenshot-friendly",
+        "legacy pre-v0.5.3",
+        "unavailable_legacy_logs",
+        "#119/e19",
+        "#119 remains parked",
+        "no runtime implementation",
+        "no package release",
+        "no marketplace submission",
+        "no external analytics",
+        "no telemetry",
+        "no upload path",
+        "no hosted/team/enterprise readiness claim",
+        "no universal savings promise",
+        "no guarantee of return",
+    ]:
+        assert required in combined
+
+    for forbidden_claim in [
+        "roi is guaranteed",
+        "guaranteed roi",
+        "guaranteed savings",
+        "universal savings guarantee",
+        "paid plan is ready",
+        "hosted service is ready",
+        "team mode is ready",
+        "enterprise is ready",
+        "marketplace acceptance is guaranteed",
+        "we will deliver",
+        "guaranteed support",
+    ]:
+        assert forbidden_claim not in combined
+
+
 def test_marketplace_submission_tracker_requires_evidence_and_fresh_rule_checks() -> None:
     tracker = read("docs/adoption/marketplace-submission-tracker.md").lower()
     runbook = read("docs/adoption/marketplace-submission-runbook.md").lower()

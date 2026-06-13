@@ -28,6 +28,11 @@ v0.6 adoption-cycle spec. The source of truth for the freeze is
 | `unlimited-skills feedback prepare --format json` | Stable public-alpha | Schema-versioned local report with redacted environment, install, quickstart, suggest, MCP savings, issue-template, and local-error summaries. |
 | `unlimited-skills feedback prepare --format markdown` | Stable public-alpha | Paste-safe Markdown rendering of the same support-report boundary. |
 | `unlimited-skills learning-summary --events` | Stable public-alpha | JSON object with `feedback` counts and aggregate `effectiveness` metrics. No raw query/task text, raw notes, prompts, skill bodies, local absolute paths, tokens, or env values. |
+| `unlimited-skills roi receipt` | Spec only | Future local receipt command. Not implemented yet. Default output should be screenshot-friendly text with aggregate local-safe values only. |
+| `unlimited-skills roi receipt --format markdown` | Spec only | Future Markdown receipt. Must include the required measured-not-promised notice and no forbidden fields. |
+| `unlimited-skills roi receipt --format json` | Spec only | Future JSON receipt with `schema_version`, `report_type`, `generated_at`, `window`, version, library count, quickstart status, MCP savings summary, skill routing aggregates, learning-summary availability, feedback-prepare status, and privacy notice. |
+| `unlimited-skills roi receipt --since 7d` | Spec only | Future local aggregation window. Unsafe legacy rows must be skipped or reported as unavailable rather than copied into receipt output. |
+| `unlimited-skills roi receipt --out roi-receipt.md` | Spec only | Future local file output path for the selected format. It must not upload or transmit the receipt. |
 | `python scripts/generate-public-alpha-signal-rollup.py --fixture-mode --out <path>` | Stable docs tooling | Writes Markdown to `<path>` and prints `wrote <path>`. Fixture mode is offline and deterministic. |
 | `python scripts/generate-public-alpha-signal-rollup.py --out <path>` | Stable docs tooling | Live mode may read public PyPI/GitHub aggregate counters and local tracker docs. It does not collect private user data. |
 
