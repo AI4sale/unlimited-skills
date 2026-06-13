@@ -11,6 +11,8 @@ without collecting telemetry. It applies to reports created from:
 
 ## Daily triage loop
 
+0. Run `python scripts/verify-feedback-labels.py` before a triage pass if label
+   docs, issue templates, or `.github/labels.yml` changed.
 1. Open new GitHub issues with any `feedback:*` label.
 2. Confirm the report type label matches the template or contact link.
 3. Confirm severity: `severity:p0-user-blocker`, `severity:p1-high-friction`,
@@ -91,3 +93,7 @@ claim, no payment link, and no delivery promise.
 Never ask users to paste prompts, tool inputs, tool outputs, raw MCP
 configuration, commands with secrets, environment values, tokens, private keys,
 or unredacted local paths. Prefer `unlimited-skills feedback prepare` output.
+
+Label sync is a maintainer operation, not telemetry. The verifier reads local
+docs/templates only, and the optional sync helper defaults to dry-run so CI and
+tests never mutate GitHub labels.

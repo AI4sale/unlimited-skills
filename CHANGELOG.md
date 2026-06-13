@@ -8,6 +8,12 @@
 
 ### Added
 
+- A4.5 feedback label sync and triage readiness: added `.github/labels.yml` as
+  the machine-readable public-alpha label manifest, a local
+  `scripts/verify-feedback-labels.py` guard that checks docs, issue templates,
+  contact-link labels, categories, colors, and descriptions, plus an optional
+  `scripts/sync-github-labels.py` helper that defaults to dry-run and never
+  mutates GitHub labels unless `--apply` is passed explicitly.
 - A4.4 first public-alpha signal rollup: added the first dated adoption
   snapshot after `v0.5.1-alpha`, covering PyPI availability, GitHub release
   and repository counters, empty public issue/feedback surfaces, marketplace

@@ -106,6 +106,7 @@ def test_public_alpha_issue_templates_support_manual_measurement() -> None:
 
 def test_public_alpha_feedback_triage_labels_are_defined_and_routed() -> None:
     labels_doc = read("docs/adoption/feedback-labels.md").lower()
+    labels_manifest = read(".github/labels.yml").lower()
     workflow = read("docs/adoption/feedback-triage-workflow.md").lower()
     routing = read("docs/adoption/feedback-to-backlog-routing.md").lower()
     feedback = read("docs/feedback.md").lower()
@@ -132,6 +133,20 @@ def test_public_alpha_feedback_triage_labels_are_defined_and_routed() -> None:
     ]
     for label in required_labels:
         assert label in labels_doc
+        assert f"name: {label}" in labels_manifest
+
+    for required in [
+        "category: feedback",
+        "category: severity",
+        "category: needs",
+        "category: backlog",
+        "category: outcome",
+        "scripts/verify-feedback-labels.py",
+        "scripts/sync-github-labels.py --dry-run",
+        "--apply",
+        "never mutate github labels",
+    ]:
+        assert required in "\n".join([labels_doc, workflow, routing, labels_manifest])
 
     expected_template_labels = {
         "first_value": ["feedback:first-value", "severity:p2-improvement", "needs:maintainer-review"],
@@ -151,6 +166,14 @@ def test_public_alpha_feedback_triage_labels_are_defined_and_routed() -> None:
     assert "adoption/feedback-triage-workflow.md" in feedback
     assert "adoption/feedback-labels.md" in feedback
     assert "adoption/feedback-to-backlog-routing.md" in feedback
+
+    assert "backlog:code-fix" in labels_manifest
+    assert "backlog:docs-fix" in labels_manifest
+    assert "backlog:eval-candidate" in labels_manifest
+    assert "backlog:listing-copy" in labels_manifest
+    assert "backlog:benchmark-docs" in labels_manifest
+    assert "answered:no-change" in labels_manifest
+    assert "blocked:needs-repro" in labels_manifest
 
     triage_docs = "\n".join([labels_doc, workflow, routing, feedback])
     forbidden_promises = [

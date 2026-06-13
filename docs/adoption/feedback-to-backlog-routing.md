@@ -44,3 +44,6 @@ Close or route every report with one of these outcomes:
 
 The issue comment should name the outcome and the next owner action. It should
 not promise delivery dates, hosted services, paid plans, or enterprise support.
+
+The closure outcome labels above are included in `.github/labels.yml` so the
+label verifier can keep docs, issue templates, and triage operations aligned.

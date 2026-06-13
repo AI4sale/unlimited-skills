@@ -1,0 +1,80 @@
+# Public-alpha feedback triage labels.
+# This file is the machine-readable source used by
+# scripts/verify-feedback-labels.py and scripts/sync-github-labels.py.
+
+- name: feedback:first-value
+  color: "0E8A16"
+  description: First five minutes worked, stalled, or failed.
+  category: feedback
+- name: feedback:install-friction
+  color: "D93F0B"
+  description: Install, setup, package, shell, plugin, or agent installer friction.
+  category: feedback
+- name: feedback:skill-invocation
+  color: "5319E7"
+  description: Suggest, retrieval, skill card, wrong-skill, or no-skill behavior.
+  category: feedback
+- name: feedback:mcp-savings
+  color: "1D76DB"
+  description: MCP savings reports or measurement confusion.
+  category: feedback
+- name: feedback:docs
+  color: "0075CA"
+  description: Documentation confusion that can be fixed without code changes.
+  category: feedback
+- name: feedback:marketplace
+  color: "FBCA04"
+  description: Marketplace, listing, discovery, review, or submission wording feedback.
+  category: feedback
+
+- name: severity:p0-user-blocker
+  color: "B60205"
+  description: Clean user is blocked or a privacy/security breach is possible.
+  category: severity
+- name: severity:p1-high-friction
+  color: "D93F0B"
+  description: User can continue only with maintainer help or a workaround.
+  category: severity
+- name: severity:p2-improvement
+  color: "FBCA04"
+  description: Useful report, wording fix, benchmark clarification, or enhancement.
+  category: severity
+
+- name: needs:repro
+  color: "C5DEF5"
+  description: Maintainer needs a clean reproduction before changing code.
+  category: needs
+- name: needs:maintainer-review
+  color: "BFDADC"
+  description: Report is ready for maintainer classification and routing.
+  category: needs
+
+- name: backlog:code-fix
+  color: "D4C5F9"
+  description: Routed to implementation work after reproduction or classification.
+  category: backlog
+- name: backlog:docs-fix
+  color: "D4C5F9"
+  description: Routed to documentation correction or clarification.
+  category: backlog
+- name: backlog:eval-candidate
+  color: "D4C5F9"
+  description: Routed to retrieval eval coverage before ranking changes.
+  category: backlog
+- name: backlog:listing-copy
+  color: "D4C5F9"
+  description: Routed to marketplace, listing, or launch-copy changes.
+  category: backlog
+- name: backlog:benchmark-docs
+  color: "D4C5F9"
+  description: Routed to MCP savings or benchmark documentation updates.
+  category: backlog
+
+- name: answered:no-change
+  color: "EDEDED"
+  description: Answered without product, docs, or support workflow changes.
+  category: outcome
+- name: blocked:needs-repro
+  color: "F9D0C4"
+  description: Blocked until a clean reproduction or clearer report is available.
+  category: outcome
