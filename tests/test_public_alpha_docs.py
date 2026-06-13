@@ -530,6 +530,65 @@ def test_v06_local_roi_receipt_spec_is_privacy_safe_and_measured_not_promised() 
         assert forbidden_claim not in combined
 
 
+def test_v06_local_roi_receipt_runtime_docs_keep_privacy_boundary() -> None:
+    receipt = read("docs/roi-receipt.md").lower()
+    cli_contracts = read("docs/cli-contracts.md").lower()
+    local_privacy = read("docs/local-event-privacy.md").lower()
+    feedback = read("docs/feedback.md").lower()
+    changelog = read("CHANGELOG.md").lower()
+    schema = read("schemas/roi-receipt.schema.json").lower()
+    verifier = read("scripts/verify-roi-receipt-boundaries.py").lower()
+    combined = "\n".join([receipt, cli_contracts, local_privacy, feedback, changelog, schema, verifier])
+
+    for required in [
+        "unlimited-skills roi receipt",
+        "stable public-alpha",
+        "schemas/roi-receipt.schema.json",
+        "examples/roi-receipt.example.json",
+        "scripts/verify-roi-receipt-boundaries.py",
+        "screenshot-friendly markdown",
+        "unavailable_legacy_logs",
+        "does not upload",
+        "does not add upload",
+        "telemetry: no",
+        "not telemetry, not a benchmark guarantee, and not a paid roi promise",
+    ]:
+        assert required in combined
+
+    for forbidden in [
+        "prompts",
+        "raw queries",
+        "raw tasks",
+        "tool inputs",
+        "tool outputs",
+        "skill bodies",
+        "mcp schemas",
+        "raw `events.jsonl`",
+        "raw `feedback.jsonl`",
+        "raw `.mcp.json` or `.claude.json`",
+        "environment names or values",
+        "tokens, keys, or proofs",
+        "local absolute paths",
+        "user identifiers",
+        "tracking identifiers",
+    ]:
+        assert forbidden in combined
+
+    for forbidden_claim in [
+        "guaranteed roi",
+        "guaranteed savings",
+        "universal savings guarantee",
+        "payment link",
+        "checkout path",
+        "paid plan is ready",
+        "hosted service is ready",
+        "team mode is ready",
+        "enterprise is ready",
+        "marketplace acceptance is guaranteed",
+    ]:
+        assert forbidden_claim not in combined
+
+
 def test_marketplace_submission_tracker_requires_evidence_and_fresh_rule_checks() -> None:
     tracker = read("docs/adoption/marketplace-submission-tracker.md").lower()
     runbook = read("docs/adoption/marketplace-submission-runbook.md").lower()

@@ -15,6 +15,12 @@
 
 ### Added
 
+- v0.6 local ROI receipt implementation: added the privacy-safe
+  `unlimited-skills roi receipt` command family, JSON schema, example output,
+  boundary verifier, and tests. The command prints Markdown by default, supports
+  JSON output, local `--since` windows, and `--out` writes without printing local
+  paths. It emits only aggregate/local-safe/derived values and skips unsafe
+  legacy event rows as `unavailable_legacy_logs`.
 - v0.6 local ROI receipt spec: added
   `docs/releases/v0.6-local-roi-receipt-spec.md` and `docs/roi-receipt.md`,
   and updated CLI, local-event-privacy, feedback, and public-alpha doc tests

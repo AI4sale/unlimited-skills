@@ -119,11 +119,10 @@ The v0.6 adoption-cycle contract freeze keeps `feedback prepare` and aggregate
 contract. The freeze does not create hosted support, team readiness,
 enterprise readiness, payment handling, or a delivery commitment.
 
-The planned local ROI receipt is documented in [roi-receipt.md](roi-receipt.md).
-It is a future local-only receipt, not a telemetry feature. Public issues may
-eventually include a receipt screenshot or Markdown output only if it follows
-the forbidden-field rules in the receipt spec and carries the measured-not-
-promised notice.
+The local ROI receipt is documented in [roi-receipt.md](roi-receipt.md). It is
+a local-only receipt, not a telemetry feature. Public issues may include a
+receipt screenshot or Markdown output only if it follows the forbidden-field
+rules in the receipt spec and carries the measured-not-promised notice.
 
 ## Triage and labels
 
