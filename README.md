@@ -1,8 +1,8 @@
 <div align="center">
 
-# Stop flooding your agent's context with tool schemas
+# Stop flooding your agent's context with skills and tool schemas
 
-**Search skills and tools first. Load one only when it's needed.**
+**Search first. Load one skill, tool, or procedure only when needed.**
 
 <pre>
 +--------------------------------------------------------------+
@@ -10,7 +10,7 @@
 +--------------------------------------------------------------+
 </pre>
 
-**Unlimited Skills** is a local skill memory and retrieval layer for coding agents, plus an MCP gateway that applies the same rule to tool schemas.
+**Unlimited Skills** is a local-first capability router for coding agents. It keeps skills, procedures, and tool schemas out of standing context, searches by task intent, and loads only the one capability needed for the current job.
 
 **v0.5.0-alpha / public alpha of a local-first tool.** The MIT core runs offline today. There is nothing for sale on this page; gated alpha surfaces are described under [Enterprise & trust layer](#enterprise--trust-layer).
 
@@ -20,31 +20,33 @@
 
 ## The problem
 
-Every MCP server your agent host connects to dumps its full tool list — names, descriptions, and complete JSON input schemas — into the context window at session start. Every visible `SKILL.md` competes for attention on every turn. The agent pays that tax before it has read a single line of your task, whether or not those tools and skills are ever called. Adding more capability this way makes the agent slower instead of smarter: the context gets noisy, unrelated instructions compete with the task, and tokens are spent carrying procedures that will not run.
+Every visible `SKILL.md` competes for attention on every turn. Every MCP server your agent host connects to can also dump its full tool list — names, descriptions, and complete JSON input schemas — into the context window at session start. The agent pays that tax before it has read a single line of your task, whether or not those skills or tools are ever called. Adding more capability this way makes the agent slower instead of smarter: the context gets noisy, unrelated instructions compete with the task, and tokens are spent carrying procedures that will not run.
 
 ## The fix: search first, load one
 
-Unlimited Skills keeps capability out of the standing context and retrieves it on demand:
+Unlimited Skills keeps capabilities out of standing context and retrieves them on demand:
 
-1. keep only a tiny router skill (and, for MCP, 3 small meta-tools) in the agent context;
-2. store all real skills on disk and keep full tool schemas behind the gateway;
-3. search by task intent;
-4. load only the selected `SKILL.md` — or the `inputSchema` of exactly one tool;
-5. record which skills were searched, viewed, used, accepted, or rejected;
-6. use that feedback to improve retrieval and draft new skills.
+1. keep only a tiny router skill in the agent context;
+2. store real skills on disk;
+3. for MCP, keep full tool schemas behind the 3-meta-tool gateway;
+4. search by task intent;
+5. load only the selected `SKILL.md`, procedure, or `inputSchema` of exactly one tool;
+6. record which skills were searched, viewed, used, accepted, or rejected;
+7. use that feedback to improve retrieval and draft new skills.
 
 ## Measured, not promised
 
-These numbers are measured and reproducible — and they are deliberately not a promise about your machine. MCP savings depend entirely on how many servers and schemas your host loads, so measure your own setup; it is one command.
+These numbers are measured and reproducible — and they are deliberately not a promise about your machine. Skill pre-load savings depend on how your agent discovers visible `SKILL.md` files; MCP savings depend on how many servers and schemas your host loads. Measure your own setup before and after install.
 
 | What | Measured on our setup | Reproduce |
 | --- | --- | --- |
+| Skill pre-load context cost (agent-visible `SKILL.md` files) | Hermes context-reduction install report: 184 visible `SKILL.md` files before install -> 1 visible router skill after install | Measure before and after install: `./scripts/install-hermes.sh --mode evacuate-visible-skills`, then `./scripts/install-hermes.sh --mode evacuate-visible-skills --apply` |
 | MCP standing context cost (lab benchmark: 40 realistic upstream tools with ~2 KB schemas) | 90,420 bytes full schema dump → 1,268 bytes for the gateway's 3 meta-tools (1.4%) | `pytest -s tests/test_mcp_context_budget.py` |
 | MCP savings on your machine | your numbers — measured locally from your real Claude Code MCP config; nothing is uploaded | `unlimited-skills mcp savings` |
 | Invocation probe latency | under 1 second cold on the bundled 267-skill library (p90 ~450 ms direct spawn, ~790 ms through the PowerShell launcher) | `unlimited-skills suggest "<task>"` |
 | Retrieval quality | top-3 hit rate 0.967 (29/30) and top-1 0.933 on the frozen 30-scenario eval set, with 0 false positives across 12 negative scenarios | `python scripts/check-skill-effectiveness.py` |
 
-Methodology and caveats: [docs/unlimited-tools.md](docs/unlimited-tools.md), [docs/mcp-performance.md](docs/mcp-performance.md), [docs/adoption/skill-effectiveness-standard.md](docs/adoption/skill-effectiveness-standard.md).
+Methodology and caveats: [docs/context-reduction-model.md](docs/context-reduction-model.md), [docs/unlimited-tools.md](docs/unlimited-tools.md), [docs/mcp-performance.md](docs/mcp-performance.md), [docs/adoption/skill-effectiveness-standard.md](docs/adoption/skill-effectiveness-standard.md).
 
 ## Start here
 
@@ -64,9 +66,10 @@ What each step gives you:
 
 Read next, in this order:
 
-1. [docs/quickstart.md](docs/quickstart.md) — what quickstart does and how the `mcp savings` measurement works;
-2. [docs/unlimited-tools.md](docs/unlimited-tools.md) — the 3-meta-tool MCP gateway model and the measured context budget;
-3. [docs/adoption/skill-effectiveness-standard.md](docs/adoption/skill-effectiveness-standard.md) — how retrieval quality is measured and gated.
+1. [docs/quickstart.md](docs/quickstart.md) — what quickstart does and how the first search proves retrieval works;
+2. [docs/context-reduction-model.md](docs/context-reduction-model.md) — how to measure visible-skill context reduction before and after install;
+3. [docs/unlimited-tools.md](docs/unlimited-tools.md) — the 3-meta-tool MCP gateway model and the measured context budget;
+4. [docs/adoption/skill-effectiveness-standard.md](docs/adoption/skill-effectiveness-standard.md) — how retrieval quality is measured and gated.
 
 ## What it is
 

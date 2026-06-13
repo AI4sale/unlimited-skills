@@ -16,6 +16,20 @@ def test_current_public_docs_do_not_use_v0_1_0_as_supported_version() -> None:
     assert offenders == []
 
 
+def test_readme_positions_skills_before_tool_schema_savings() -> None:
+    readme = read("README.md")
+    lower = readme.lower()
+
+    assert "# Stop flooding your agent's context with skills and tool schemas" in readme
+    assert "Search first. Load one skill, tool, or procedure only when needed." in readme
+    assert "local-first capability router for coding agents" in readme
+    assert "Skill pre-load context cost" in readme
+    assert "Measure before and after install" in readme
+    assert "install-hermes.sh --mode evacuate-visible-skills --apply" in readme
+    assert lower.index("skill pre-load context cost") < lower.index("mcp standing context cost")
+    assert "docs/context-reduction-model.md" in readme
+
+
 def test_security_docs_do_not_claim_signature_verification_is_implemented() -> None:
     checked = ["README.md", "SECURITY.md", *[str(path.relative_to(ROOT)) for path in (ROOT / "docs").rglob("*.md")]]
     combined = "\n".join(read(path) for path in checked).lower()
