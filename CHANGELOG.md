@@ -8,6 +8,16 @@
 
 ### Added
 
+- A4.6 public-alpha support response pack: added
+  `docs/adoption/support-response-pack.md` with maintainer-ready templates for
+  first-value success, install failure, quickstart failure, Claude Code MCP
+  install failure, missed skill invocation, wrong skill suggestion, confusing
+  MCP savings, attached prepared reports, privacy concerns, and
+  marketplace/listing discovery questions. The pack maps every response type
+  to labels and backlog routes, asks only for redacted evidence, points relevant
+  paths to `unlimited-skills feedback prepare`, and avoids prompts, tool I/O,
+  raw MCP/Claude config, secrets, local paths, support/SLA guarantees, paid
+  offers, hosted/team/enterprise claims, and delivery promises.
 - A4.5 feedback label sync and triage readiness: added `.github/labels.yml` as
   the machine-readable public-alpha label manifest, a local
   `scripts/verify-feedback-labels.py` guard that checks docs, issue templates,
