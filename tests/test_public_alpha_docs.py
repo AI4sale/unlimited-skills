@@ -208,6 +208,8 @@ def test_public_alpha_support_response_pack_is_safe_and_routed() -> None:
     triage = read("docs/adoption/feedback-triage-workflow.md").lower()
     routing = read("docs/adoption/feedback-to-backlog-routing.md").lower()
     feedback = read("docs/feedback.md").lower()
+    privacy_policy = read("docs/adoption/local-event-privacy-policy.md").lower()
+    event_runbook = read("docs/adoption/local-event-privacy-support-runbook.md").lower()
     changelog = read("CHANGELOG.md").lower()
 
     for template in [
@@ -220,6 +222,7 @@ def test_public_alpha_support_response_pack_is_safe_and_routed() -> None:
         "mcp savings confusing or low savings",
         "feedback report attached",
         "privacy concern",
+        "local event privacy question",
         "marketplace/listing discovery question",
     ]:
         assert template in pack_lower
@@ -244,18 +247,37 @@ def test_public_alpha_support_response_pack_is_safe_and_routed() -> None:
         "frozen eval candidate",
         "frozen effectiveness set",
         "please share only names, counts",
+        "local-event-privacy-support-runbook.md",
+        "unlimited-skills learning-summary --events",
+        "raw `.learning/events.jsonl`",
+        "raw `.learning/feedback.jsonl`",
+        "raw `.learning/team-events.jsonl`",
+        "raw mcp audit logs",
+        "v0.5.3-alpha",
+        "does not rewrite old local logs",
     ]:
         assert required in pack_lower
 
-    combined_docs = "\n".join([triage, routing, feedback, changelog])
+    combined_docs = "\n".join([triage, routing, feedback, privacy_policy, event_runbook, changelog])
     assert "support-response-pack.md" in combined_docs
+    assert "local-event-privacy-support-runbook.md" in combined_docs
+    assert "local-event-privacy-policy.md" in combined_docs
     assert "redacted evidence" in combined_docs
     assert "support" in combined_docs
+    assert "legacy pre-v0.5.3" in combined_docs
+    assert "delete or rename only the selected diagnostic files" in combined_docs
 
     unsafe_request_patterns = [
         r"please (share|paste|attach|send).{0,80}prompt",
         r"please (share|paste|attach|send).{0,80}tool input",
         r"please (share|paste|attach|send).{0,80}tool output",
+        r"please (share|paste|attach|send).{0,80}raw events\\.jsonl",
+        r"please (share|paste|attach|send).{0,80}raw feedback\\.jsonl",
+        r"please (share|paste|attach|send).{0,80}raw team-events\\.jsonl",
+        r"please (share|paste|attach|send).{0,80}raw \\.learning/events\\.jsonl",
+        r"please (share|paste|attach|send).{0,80}raw \\.learning/feedback\\.jsonl",
+        r"please (share|paste|attach|send).{0,80}raw \\.learning/team-events\\.jsonl",
+        r"please (share|paste|attach|send).{0,80}raw mcp audit",
         r"please (share|paste|attach|send).{0,80}raw \\.mcp\\.json",
         r"please (share|paste|attach|send).{0,80}raw \\.claude\\.json",
         r"please (share|paste|attach|send).{0,80}env dump",
@@ -276,6 +298,65 @@ def test_public_alpha_support_response_pack_is_safe_and_routed() -> None:
     ]
     for phrase in forbidden_promises:
         assert phrase not in pack_lower
+        assert phrase not in event_runbook
+
+
+def test_local_event_privacy_support_runbook_blocks_raw_log_requests() -> None:
+    runbook = read("docs/adoption/local-event-privacy-support-runbook.md").lower()
+    support = read("docs/adoption/support-response-pack.md").lower()
+    feedback = read("docs/feedback.md").lower()
+    policy = read("docs/adoption/local-event-privacy-policy.md").lower()
+    combined = "\n".join([runbook, support, feedback, policy])
+
+    for required in [
+        "feedback prepare --format markdown",
+        "learning-summary --events",
+        "v0.5.3-alpha",
+        "does not magically rewrite old local logs",
+        "legacy pre-v0.5.3",
+        "delete or rename only the selected diagnostic files",
+        "do not ask users to paste, attach, send, or upload raw local event logs",
+        "raw `.learning/events.jsonl`",
+        "raw `.learning/feedback.jsonl`",
+        "raw `.learning/team-events.jsonl`",
+        "raw mcp audit jsonl logs",
+        "not telemetry",
+        "does not upload",
+    ]:
+        assert required in combined
+
+    for unsafe_surface in [
+        "raw `events.jsonl`",
+        "raw `feedback.jsonl`",
+        "raw `team-events.jsonl`",
+        "raw `.mcp.json`",
+        "raw `.claude.json`",
+        "env dumps",
+        "tokens, keys",
+        "local absolute paths",
+        "prompts, tool inputs, tool outputs, skill bodies, or mcp schemas",
+    ]:
+        assert unsafe_surface in combined
+
+    blocked_claims = [
+        "telemetry exists",
+        "uploads exist",
+        "hosted support is available",
+        "team or enterprise privacy controls are ready",
+        "paid support",
+        "payment paths exist",
+        "all legacy local logs were rewritten",
+    ]
+    assert "do not claim:" in runbook
+    for phrase in blocked_claims:
+        assert phrase in runbook
+
+    for phrase in [
+        "hosted service is ready",
+        "team mode is ready",
+        "enterprise is ready",
+    ]:
+        assert phrase not in support
 
 
 def test_marketplace_submission_tracker_requires_evidence_and_fresh_rule_checks() -> None:
