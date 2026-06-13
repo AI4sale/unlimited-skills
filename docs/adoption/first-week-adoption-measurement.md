@@ -98,6 +98,17 @@ PyPI download counts are intentionally not inferred from PyPI JSON because that
 endpoint does not expose download counts. Use only owner-approved aggregate
 download sources for that field.
 
+Future rollups should be generated with
+`scripts/generate-public-alpha-signal-rollup.py` and reviewed before publishing.
+The reproducible CI path is
+`python scripts/generate-public-alpha-signal-rollup.py --fixture-mode --out /tmp/rollup.md`.
+The live path is
+`python scripts/generate-public-alpha-signal-rollup.py --out docs/adoption/public-alpha-signal-rollup-002.md`;
+it uses public aggregate sources only and can include optional owner-provided
+local aggregate social input with `--social-json`. Do not use the generator to
+claim private usage, marketplace acceptance, hosted readiness, paid readiness,
+or social engagement that the owner did not provide.
+
 ## Owner actions and fallback
 
 | Condition | Owner | Action | Fallback if signal is low |
