@@ -45,6 +45,14 @@ body:
       description: Surprises, skipped servers that should have been measured, numbers that look wrong, whether you put the gateway in front afterwards.
     validations:
       required: false
+  - type: textarea
+    id: feedback-report
+    attributes:
+      label: Optional feedback report
+      description: Paste redacted output from `unlimited-skills feedback prepare --include-usage-snapshot --format markdown` if it helps. Keep raw MCP configuration, commands, args, and environment values out.
+      render: markdown
+    validations:
+      required: false
   - type: checkboxes
     id: privacy-check
     attributes:

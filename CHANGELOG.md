@@ -8,6 +8,13 @@
 
 ### Added
 
+- A4.2 first-week public-alpha adoption measurement: documented a manual,
+  no-telemetry measurement plan for PyPI installs, GitHub counters, manual
+  feedback reports, install friction, retrieval misses, MCP savings, listing
+  mentions, and LinkedIn replies/comments; added success/failure thresholds,
+  triage cadence, owner/action/fallback rules, adoption signal vocabulary, and
+  privacy-preserving issue-template updates for first-value, install-friction,
+  skill-not-invoked, and MCP-savings reports.
 - A4.1 feedback prepare command: `unlimited-skills feedback prepare`,
   `feedback prepare --include-usage-snapshot`, and `feedback doctor` generate
   local-only, redacted reports for public GitHub issue templates. Reports map

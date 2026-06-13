@@ -46,3 +46,59 @@ def test_public_core_boundary_documents_registration_free_commands() -> None:
         "self-update apply",
     ]:
         assert f"`{command}`" in text
+
+
+def test_first_week_adoption_measurement_is_manual_and_private() -> None:
+    measurement = read("docs/adoption/first-week-adoption-measurement.md").lower()
+    signals = read("docs/adoption/adoption-signals.md").lower()
+    feedback = read("docs/feedback.md").lower()
+
+    for text in (measurement, signals, feedback):
+        assert "no telemetry" in text
+        assert "no auto-upload" in text
+        assert "no tracking pixel" in text or "no tracking pixels" in text
+        assert "no analytics sdk" in text
+        assert "no prompt collection" in text
+        assert "no tool input collection" in text
+        assert "no tool output collection" in text
+
+    for required in [
+        "pypi installs",
+        "github stars",
+        "github issues opened",
+        "first-value feedback reports",
+        "install-friction reports",
+        "skill-not-invoked reports",
+        "mcp savings reports",
+        "marketplace/listing mentions",
+        "linkedin replies/comments",
+        "success thresholds",
+        "failure thresholds",
+        "triage cadence",
+        "owner actions and fallback",
+    ]:
+        assert required in measurement
+
+    assert "not to add telemetry" in measurement
+    assert "weekly rollup format" in signals
+
+
+def test_public_alpha_issue_templates_support_manual_measurement() -> None:
+    templates = {
+        "first_value": read(".github/ISSUE_TEMPLATE/first-value-feedback.yml").lower(),
+        "install": read(".github/ISSUE_TEMPLATE/install-friction.yml").lower(),
+        "skill": read(".github/ISSUE_TEMPLATE/skill-not-invoked.yml").lower(),
+        "savings": read(".github/ISSUE_TEMPLATE/mcp-savings-report.yml").lower(),
+    }
+
+    assert "pip install unlimited-skills" in templates["first_value"]
+    assert "pip install unlimited-skills" in templates["install"]
+    assert "git+ url" not in templates["first_value"]
+    assert "git+ url" not in templates["install"]
+
+    for text in templates.values():
+        assert "privacy check" in text
+        assert "required: true" in text
+
+    assert "feedback prepare --format markdown" in templates["skill"]
+    assert "feedback prepare --include-usage-snapshot --format markdown" in templates["savings"]

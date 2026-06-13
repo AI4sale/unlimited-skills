@@ -29,7 +29,8 @@ body:
     attributes:
       label: How did you install?
       options:
-        - pip install from GitHub (git+ URL)
+        - pip install unlimited-skills
+        - pip install unlimited-skills==0.5.0
         - Repo clone + pip install -e
         - Claude Code plugin (+ CLI)
         - Other (describe below)
@@ -64,3 +65,10 @@ body:
       render: text
     validations:
       required: false
+  - type: checkboxes
+    id: privacy-check
+    attributes:
+      label: Privacy check
+      options:
+        - label: I am submitting this manually and did not paste prompts, tool inputs, tool outputs, tokens, local paths, or raw MCP configuration.
+          required: true

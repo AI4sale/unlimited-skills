@@ -77,3 +77,26 @@ for how suggestion quality is gated); install friction feeds the test
 matrix; savings reports keep the lab benchmark honest. This is a free
 public alpha — there is no paid support channel, and nothing here is a
 delivery promise.
+
+## How reports are measured in the first week
+
+The first public-alpha week uses manual adoption measurement only. See
+[adoption/first-week-adoption-measurement.md](adoption/first-week-adoption-measurement.md)
+and [adoption/adoption-signals.md](adoption/adoption-signals.md) for the exact
+signal definitions, success thresholds, failure thresholds, owner actions, and
+fallback plan.
+
+The short version: PyPI installs and public GitHub counters are directional;
+GitHub issue templates and public launch replies are the first-value signals;
+and the fallback for low signal is clearer docs plus manual outreach, not
+telemetry.
+
+The privacy contract stays unchanged:
+
+- no telemetry;
+- no auto-upload;
+- no tracking pixels;
+- no analytics SDK;
+- no prompt collection;
+- no tool input collection;
+- no tool output collection.

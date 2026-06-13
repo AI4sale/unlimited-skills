@@ -50,6 +50,14 @@ body:
       render: text
     validations:
       required: true
+  - type: textarea
+    id: feedback-report
+    attributes:
+      label: Optional feedback report
+      description: Paste redacted output from `unlimited-skills feedback prepare --format markdown` if it helps. Do not paste prompts, tool inputs, tool outputs, skill bodies, local paths, or MCP configuration.
+      render: markdown
+    validations:
+      required: false
   - type: input
     id: library-size
     attributes:
@@ -68,3 +76,10 @@ body:
         - Not sure
     validations:
       required: false
+  - type: checkboxes
+    id: privacy-check
+    attributes:
+      label: Privacy check
+      options:
+        - label: I pasted only skill names, sources, scores, coarse metadata, or a paraphrased task; no prompts, tool inputs, tool outputs, local paths, skill bodies, or MCP configuration.
+          required: true
