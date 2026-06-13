@@ -15,7 +15,8 @@
       {"number": 144, "title": "A2 README positioning around skills/tool-schema context flooding"},
       {"number": 145, "title": "A4.6 public-alpha support response pack"},
       {"number": 146, "title": "A4.7 public-alpha signal rollup generator"},
-      {"number": 147, "title": "A3.1.1 effectiveness v2 instrumentation"}
+      {"number": 147, "title": "A3.1.1 effectiveness v2 instrumentation"},
+      {"number": 148, "title": "A3.1.1 privacy-gate follow-up"}
     ]
   },
   "excluded_prs": [119],
@@ -26,6 +27,7 @@
     "first_week_measurement": true,
     "signal_rollup_generator": true,
     "effectiveness_v2_instrumentation": true,
+    "privacy_gate_followup": true,
     "package_smoke": true
   },
   "package_evidence": {

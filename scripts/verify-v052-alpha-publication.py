@@ -163,6 +163,7 @@ def assert_manifest() -> dict[str, Any]:
         "first_week_measurement",
         "signal_rollup_generator",
         "effectiveness_v2_instrumentation",
+        "privacy_gate_followup",
         "package_smoke",
     ):
         require(requirements.get(key) is True, f"manifest adoption requirement must be true: {key}")
