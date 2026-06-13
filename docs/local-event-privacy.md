@@ -44,6 +44,8 @@ Paste-safe by design:
 - `unlimited-skills feedback prepare --format markdown`;
 - `unlimited-skills feedback prepare --include-usage-snapshot --format markdown`;
 - `unlimited-skills learning-summary --events` aggregate output;
+- future `unlimited-skills roi receipt` output when implemented according to
+  [roi-receipt.md](roi-receipt.md);
 - redacted command names, step names, OS family, Python family, install method,
   and trimmed errors with usernames, local paths, tokens, keys, and secrets
   removed.
@@ -79,6 +81,19 @@ Maintainers may ask for:
 Maintainers must never ask users to paste, attach, send, or upload raw local
 event logs, raw MCP audit logs, raw config files, env dumps, tokens, keys,
 local paths, prompts, tool inputs, tool outputs, skill bodies, or MCP schemas.
+
+## ROI Receipt Boundary
+
+The future local ROI receipt must use the post-v0.5.3 local event privacy
+contract. Legacy pre-v0.5.3 rows are not automatically rewritten; receipt
+generation must skip unsafe raw legacy fields or mark affected metrics as
+unavailable instead of copying raw values into output.
+
+The receipt may use aggregate counts and derived rates from
+`learning-summary --events`, but it must never include raw queries, raw tasks,
+raw notes, raw event rows, raw feedback rows, local absolute paths, prompts,
+tool inputs, tool outputs, skill bodies, MCP schemas, env values, tokens, keys,
+proofs, user identifiers, or tracking identifiers.
 
 ## Non-Claims
 

@@ -15,6 +15,16 @@
 
 ### Added
 
+- v0.6 local ROI receipt spec: added
+  `docs/releases/v0.6-local-roi-receipt-spec.md` and `docs/roi-receipt.md`,
+  and updated CLI, local-event-privacy, feedback, and public-alpha doc tests
+  for a future local-only `unlimited-skills roi receipt` command. The spec
+  permits only aggregate/local-safe receipt fields and keeps prompts, raw
+  queries/tasks, tool I/O, skill bodies, MCP schemas, raw logs/configs, env
+  values, tokens, local paths, user identifiers, tracking identifiers, runtime
+  implementation, package release, sales/payment flows, hosted/team/enterprise
+  claims, universal savings promises, guarantees of return, and #119/E19 out
+  of scope.
 - v0.6 contract-freeze spec: added `docs/releases/v0.6-contract-freeze-spec.md`,
   `docs/compatibility.md`, `docs/cli-contracts.md`, and
   `docs/local-event-privacy.md` to freeze the public CLI, stdout JSON,
