@@ -33,6 +33,9 @@ The v0.6 compliance audit for the PyPI-installed `0.6.1` package lives at
 It records that `unlimited-skills roi receipt`, `unlimited-skills roi receipt
 --format json`, and `unlimited-skills roi receipt --since 7d` pass the frozen
 local-only/privacy-safe contract.
+The frozen-contract harness also covers ROI receipt Markdown, ROI receipt JSON
+schema validation, ROI forbidden-field scanning, and `--since 7d` output:
+[scripts/verify-v06-frozen-contracts.py](../scripts/verify-v06-frozen-contracts.py).
 
 ## What The Receipt May Show
 

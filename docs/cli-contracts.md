@@ -40,6 +40,25 @@ v0.6 adoption-cycle spec. The source of truth for the freeze is
 | `python scripts/generate-public-alpha-signal-rollup.py --fixture-mode --out <path>` | Stable docs tooling | Writes Markdown to `<path>` and prints `wrote <path>`. Fixture mode is offline and deterministic. |
 | `python scripts/generate-public-alpha-signal-rollup.py --out <path>` | Stable docs tooling | Live mode may read public PyPI/GitHub aggregate counters and local tracker docs. It does not collect private user data. |
 
+## Frozen Contract Harness
+
+Run the v0.6 frozen-contract harness before release promotion:
+
+```bash
+python scripts/verify-v06-frozen-contracts.py --json
+```
+
+The harness checks the current working tree by default. It emits
+`report_type=v06_frozen_contracts` JSON with one row per frozen surface and
+`pass`, `drift`, or `blocked` status. Drift rows include owner, action, and
+fallback fields and exit non-zero. Optional wheel mode verifies a clean built
+wheel without uploading or publishing:
+
+```bash
+python -m build
+python scripts/verify-v06-frozen-contracts.py --wheel dist/unlimited_skills-*.whl --json
+```
+
 ## Stdout JSON Stability
 
 Stable through v0.7:
