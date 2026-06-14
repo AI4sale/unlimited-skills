@@ -30,6 +30,21 @@
     "python scripts/verify-feedback-report-boundaries.py",
     "git diff --check"
   ],
+  "release_decision": {
+    "package": "docs/reports/v0.6.3-release-decision-package.md",
+    "recommendation": "GO_WITH_LIMITS",
+    "allowed_claim": "local feedback diagnostics, privacy-safe candidate review, and non-mutating dry-run preview",
+    "blocked_claims": [
+      "actually improves skills",
+      "automatically improves skills",
+      "auto-applies changes",
+      "mutates skill files",
+      "hosted sync",
+      "telemetry",
+      "paid-tier rollout"
+    ],
+    "release_execution_authorized": false
+  },
   "safety_boundary": {
     "alpha_only": true,
     "local_first": true,
