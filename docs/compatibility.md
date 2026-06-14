@@ -42,7 +42,9 @@ reports drift or a blocked surface.
 The v0.6 compliance audit for the actual PyPI package lives in
 [releases/v0.6-contract-compliance-audit.md](releases/v0.6-contract-compliance-audit.md).
 The release note for the accepted v0.6 alpha lives in
-[releases/v0.6.1-alpha.md](releases/v0.6.1-alpha.md). The owner decision packet
+[releases/v0.6.2-alpha.md](releases/v0.6.2-alpha.md). The `v0.6.1-alpha`
+release remains the valid replacement for the uploaded-but-not-released
+`0.6.0` artifact. The owner decision packet
 for the uploaded-but-not-released `0.6.0` artifact lives in
 [releases/v0.6.0-uploaded-not-released-incident.md](releases/v0.6.0-uploaded-not-released-incident.md).
 Future v0.6.x patch-release operators should use
@@ -50,8 +52,8 @@ Future v0.6.x patch-release operators should use
 for the prepublish checks, Trusted Publishing inputs, real PyPI smoke,
 published-mode verifier, tag sequence, and uploaded-but-failed fallback.
 
-`v0.6.1-alpha` is the valid v0.6 alpha release. Install or upgrade to
-`unlimited-skills==0.6.1` or newer. The `0.6.0` package was uploaded to PyPI
+`v0.6.2-alpha` is the accepted v0.6 alpha release. Install or upgrade to
+`unlimited-skills==0.6.2` or newer. The `0.6.0` package was uploaded to PyPI
 but was not tagged or released because the published verifier failed after
 upload.
 
