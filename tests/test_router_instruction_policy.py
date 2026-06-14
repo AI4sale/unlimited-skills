@@ -25,6 +25,21 @@ def test_router_skills_carry_the_suggest_contract() -> None:
         assert "do not search again with synonyms" in text, path
 
 
+def test_router_skills_carry_multilingual_vector_guidance() -> None:
+    for path in [
+        REPO_ROOT / "skills" / "skill-router" / "SKILL.md",
+        REPO_ROOT / "skills" / "router-openclaw" / "SKILL.md",
+        REPO_ROOT / "skills" / "router-hermes" / "SKILL.md",
+        REPO_ROOT / "plugin" / "skills" / "unlimited-skills" / "SKILL.md",
+    ]:
+        text = path.read_text(encoding="utf-8")
+        assert "MULTILINGUAL" in text, path
+        assert "other than English" in text, path
+        assert "vector-reindex" in text, path
+        assert "unlimited-skills serve" in text, path
+        assert "non-English prompts at zero" in text, path
+
+
 def test_public_claude_router_is_safe_for_awesome_skills_install() -> None:
     text = (REPO_ROOT / "skills" / "router-claude-code" / "SKILL.md").read_text(encoding="utf-8")
     assert "{{" not in text

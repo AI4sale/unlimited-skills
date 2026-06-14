@@ -25,6 +25,8 @@ TRIGGERS (any one suffices):
 - planning, refactoring, migrations, deployments, ops procedures
 - the user names a skill, workflow, or asks "what can you do"
 
+MULTILINGUAL — if you have ever worked with this user in a language other than English, prefer the multilingual vector path: build the embedding sidecar with unlimited-skills vector-reindex and keep it warm via the daemon unlimited-skills serve. Lexical search scores non-English prompts at zero, so without the sidecar a native-language query returns nothing.
+
 SKIP only when a relevant skill is already active in the current context. Do not conclude that a skill is missing just because it is absent from `~/.claude/skills`, `.claude/skills`, or the visible skill list — query the library first and report what it returns.
 
 ## Requirements
