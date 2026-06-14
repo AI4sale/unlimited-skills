@@ -201,12 +201,19 @@ def build_doctor_report(root: Path, *, agent: str = "all", project_root: Path | 
         recommendations.append("Lexical index is missing. Run `unlimited-skills reindex`.")
     for info in agents.values():
         recommendations.extend(info.get("recommendations") or [])
+    from .search_core import read_router_metrics
+
+    router_metrics = read_router_metrics(root)
     return {
         "version": __version__,
         "root": str(root),
         "registration": _registration_summary(),
         "library": library,
         "private_packs": private_pack_local_summary(root),
+        "router": {
+            "total_invocations": router_metrics.get("total_invocations", 0),
+            "last_call": router_metrics.get("last_call", {}),
+        },
         "agents": agents,
         "recommendations": recommendations,
     }
@@ -229,6 +236,14 @@ def format_doctor_text(report: dict[str, Any]) -> str:
         "Lexical index: " + ("present" if library["index_present"] else "missing"),
         "Vector index: " + ("present" if library["vector_index_present"] else "missing"),
     ]
+    router = report.get("router", {})
+    last_call = router.get("last_call", {})
+    lines.append(f"Router invocations: {router.get('total_invocations', 0)}")
+    if last_call:
+        lines.append(
+            f"  last call: {last_call.get('iso', '?')} "
+            f"[{last_call.get('path', '?')}, {last_call.get('elapsed_ms', '?')}ms, {last_call.get('reason_code', '?')}]"
+        )
     for agent, info in report["agents"].items():
         lines.append(f"{agent}: {info.get('status', 'unknown')}")
         lines.append(f"  visible skills: {info.get('visible_skill_count', 0)}")

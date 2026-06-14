@@ -52,6 +52,7 @@ from .search_core import (
     log_event,
     margin_bucket,
     read_text,
+    record_router_call,
     score_bucket,
     split_frontmatter,
 )
@@ -136,6 +137,66 @@ def probe(
 def kill_switch_active() -> bool:
     """True when UNLIMITED_SKILLS_NO_INJECT disables tier-3 card injection."""
     return os.environ.get(KILL_SWITCH_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+# Non-English rescue. The lexical engine + ASCII tokenizer score a non-English
+# prompt at zero (no tokens), so a Russian/Chinese/etc. prompt would retrieve
+# nothing. When lexical comes back empty AND the prompt is not English we route
+# to the local MULTILINGUAL embedding sidecar; if no sidecar is installed (or it
+# is too slow and the caller times us out) we flag ``needs_english_query`` so
+# the caller can re-query with English keywords instead of getting silence.
+VECTOR_FLOOR = 0.35  # cosine; good cross-lingual matches measured at 0.55-0.65
+NO_VECTOR_FALLBACK_ENV = "UNLIMITED_SKILLS_NO_VECTOR_FALLBACK"
+
+
+def looks_english(query: str) -> bool:
+    """Heuristic: is the query dominated by Latin letters (lexical-friendly)?
+
+    No letters at all (digits/symbols only) counts as English — there is
+    nothing to translate and lexical is the right, cheap path.
+    """
+    letters = [c for c in (query or "") if c.isalpha()]
+    if not letters:
+        return True
+    ascii_letters = sum(1 for c in letters if c.isascii())
+    return (ascii_letters / len(letters)) >= 0.6
+
+
+def _vector_fallback_disabled() -> bool:
+    return os.environ.get(NO_VECTOR_FALLBACK_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def sidecar_installed(root: Path) -> bool:
+    """True when a local multilingual embedding sidecar is present.
+
+    Imports the heavy CLI module lazily — only the non-English branch ever
+    calls this, so the English lexical fast path stays import-cheap.
+    """
+    try:
+        from unlimited_skills import cli
+
+        return cli.vector_sidecar_path(root).exists()
+    except Exception:
+        return False
+
+
+def vector_probe(root: Path, query: str, limit: int, collection: str | None = None) -> list[SkillHit]:
+    """Best-effort multilingual vector retrieval at/above ``VECTOR_FLOOR``.
+
+    Heavy deps (embedding model, sidecar) are lazy-imported. Any failure
+    returns ``[]`` so the probe degrades to the English-keywords signal rather
+    than blocking or raising.
+    """
+    query = (query or "").strip()[:MAX_QUERY_CHARS]
+    if not query:
+        return []
+    try:
+        from unlimited_skills import cli
+
+        hits = cli.vector_search(root, query, max(limit, 1), cli.DEFAULT_EMBED_MODEL, collection)
+    except Exception:
+        return []
+    return [hit for hit in hits if getattr(hit, "score", 0.0) >= VECTOR_FLOOR]
 
 
 def select_tier(
@@ -273,15 +334,41 @@ def main(argv: list[str] | None = None) -> int:
         hits, reason_code = probe(root, args.query, limit=fetch_limit, floor=args.floor, collection=args.collection)
     except Exception:
         # The probe must never block the task it is trying to help.
+        elapsed_ms = (time.perf_counter() - started) * 1000.0
         if args.json:
-            elapsed_ms = (time.perf_counter() - started) * 1000.0
             _print_json(args.query, [], REASON_ERROR, elapsed_ms)
+        # An errored probe is still a router invocation: count it so the meter
+        # reflects every call, not just the successful ones.
+        try:
+            record_router_call(root, elapsed_ms=elapsed_ms, reason_code=REASON_ERROR, path="none")
+        except Exception:
+            pass
         return 0
 
-    extra: dict | None = None
+    # Non-English / lexical-empty rescue: try the local multilingual embedding
+    # sidecar; if none is installed (or disabled), flag needs_english_query so
+    # the caller re-queries with English keywords instead of getting silence.
+    retrieval_path = "lexical" if hits else "none"
+    needs_english = False
+    if not hits and not looks_english(args.query):
+        if not _vector_fallback_disabled() and sidecar_installed(root):
+            vector_hits = vector_probe(root, args.query, fetch_limit, args.collection)
+            if vector_hits:
+                hits = vector_hits
+                reason_code = REASON_MATCH_FOUND
+                retrieval_path = "vector"
+        if not hits:
+            needs_english = True
+
+    # The new routing fields ride only on the --card channel (the hook's mode);
+    # the plain --json contract stays byte-identical for existing consumers.
+    extra: dict = {}
     tier = None
     injected = False
     if args.card:
+        extra["retrieval_path"] = retrieval_path
+        if needs_english:
+            extra["needs_english_query"] = True
         tier = select_tier(hits, floor=args.floor, high_threshold=args.high_threshold, margin=args.high_margin)
         card_obj = None
         if tier == TIER_CARD and not kill_switch_active():
@@ -291,7 +378,7 @@ def main(argv: list[str] | None = None) -> int:
         if tier == TIER_CARD and card_obj is None:
             tier = TIER_HINT  # kill switch or unreadable SKILL.md: degrade, never block
         injected = card_obj is not None
-        extra = {"delivery_tier": tier}
+        extra["delivery_tier"] = tier  # update, never reassign: keep retrieval_path/needs_english_query
         if card_obj is not None:
             extra["skill_card"] = card_obj
     display_hits = hits[: args.limit]
@@ -326,6 +413,20 @@ def main(argv: list[str] | None = None) -> int:
         log_event(root, "suggest", event)
     except OSError:
         pass
+
+    # Internal router-invocation meter: bump the running count and stamp this
+    # call's timing/outcome. Separate from the event log above so "how many
+    # times was the router called, and when last?" is one cheap file read.
+    record_router_call(
+        root,
+        elapsed_ms=elapsed_ms,
+        reason_code=reason_code,
+        path=retrieval_path,
+        injected=injected,
+        delivery_tier=tier,
+        top_skill=hits[0].name if hits else "",
+        top_score=hits[0].score if hits else None,
+    )
     return 0
 
 

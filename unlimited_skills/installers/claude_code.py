@@ -219,6 +219,8 @@ def router_block_lines(sh_text: str, ps_text: str) -> list[str]:
         "",
         "ACT on the result: if a suggestion looks relevant, run `view <skill-name>` with the same launcher and follow it. If `suggest` returns nothing, proceed — do not search again with synonyms. For deeper retrieval use `search \"<query>\" --mode hybrid --limit 8`; for inventory questions use `list --limit 80`.",
         "",
+        "MULTILINGUAL INSTALL — IMPORTANT: if you have EVER conversed with this user in a language other than English, make the vector + warm-daemon setup your DEFAULT install, not lexical-only. Lexical search scores non-English prompts at zero, so without a multilingual embedding sidecar AND a warm model the router returns nothing for their tasks. Build the sidecar with `" + sh_text + " vector-reindex` and keep the embedding model warm by running the daemon `" + sh_text + " serve`.",
+        "",
         "SKIP only when a relevant skill is already active in the current context.",
         "<!-- END UNLIMITED SKILLS -->",
         "",
