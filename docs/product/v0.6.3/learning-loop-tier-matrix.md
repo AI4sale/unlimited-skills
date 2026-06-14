@@ -124,9 +124,9 @@ bonus without overclaiming inactive hosted/paid functionality.
 1. **Registered vs Free overlap** — both produce candidate output; resolved by
    scoping Registered strictly to the *forward-compatible report format*, not a
    new capability.
-2. **"Signed archive" drift** — Registered baseline says "SHA256-verified", but
-   Enterprise prose risked "signed packs"; aligned both to SHA256 with explicit
-   `signature: not-claimed`.
+2. **Signature-claim drift** — Registered baseline says "SHA256-verified", but
+   Enterprise prose risked overclaiming cryptographic signing; aligned both to
+   SHA256 with explicit `signature: not-claimed`.
 3. **Team private-pack dependency** — initial Team draft leaned on private packs;
    removed, since that question is undecided.
 4. **Business "dashboard" tense** — normalized all Business wording to "future
