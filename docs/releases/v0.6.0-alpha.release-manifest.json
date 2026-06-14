@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "release": "v0.6.0-alpha",
+  "package_version": "0.6.0",
+  "distribution": "contract-freeze-and-local-roi-receipt-public-alpha",
+  "git": {
+    "base_branch": "main",
+    "publication_branch": "release/v0.6.0-alpha-contract-freeze-roi",
+    "tag": "v0.6.0-alpha",
+    "tag_status": "blocked_until_pypi_upload_and_post_publish_smoke",
+    "tag_target_sha_policy": "Codex may create and push v0.6.0-alpha only after real PyPI upload, clean PyPI install smoke, and verify-v060-alpha-publication.py with package-availability=published pass on the selected release commit."
+  },
+  "required_prs": {
+    "public": [
+      {"number": 156, "title": "v0.6 contract freeze spec"},
+      {"number": 157, "title": "v0.6 local ROI receipt spec"},
+      {"number": 158, "title": "v0.6 local ROI receipt runtime"}
+    ]
+  },
+  "excluded_prs": [119],
+  "adoption_toolchain_requirements": {
+    "claude_code_mcp_installer": true,
+    "feedback_prepare": true,
+    "support_response_pack": true,
+    "first_week_measurement": true,
+    "signal_rollup_generator": true,
+    "effectiveness_v2_instrumentation": true,
+    "privacy_gate_followup": true,
+    "local_event_privacy_hardening": true,
+    "contract_freeze": true,
+    "local_roi_receipt": true,
+    "package_smoke": true
+  },
+  "package_evidence": {
+    "package_smoke_runner": "scripts/run-v060-alpha-package-smoke.py",
+    "publication_verifier": "scripts/verify-v060-alpha-publication.py",
+    "pypi_trusted_publishing": "docs/releases/v0.6.0-alpha-pypi-publishing.md",
+    "publication_verifier_modes": {
+      "prepublish": "Build-only release gate. Must not emit tag guidance.",
+      "published": "Requires real clean install from PyPI before passing."
+    },
+    "checklist": "docs/releases/v0.6.0-alpha-checklist.md"
+  },
+  "safety_boundary": {
+    "alpha_only": true,
+    "local_first": true,
+    "local_roi_receipt": true,
+    "roi_receipt_local_only": true,
+    "roi_receipt_aggregate_only": true,
+    "automatic_telemetry": false,
+    "analytics_sdk": false,
+    "tracking_pixel": false,
+    "automatic_upload": false,
+    "hosted_query_forwarding": false,
+    "private_social_scraping": false,
+    "paid_launch": false,
+    "payment_link": false,
+    "roi_guarantee": false,
+    "universal_savings_promise": false,
+    "hosted_readiness_claim": false,
+    "team_readiness_claim": false,
+    "enterprise_readiness_claim": false,
+    "marketplace_submission_in_release_pr": false,
+    "pypi_availability": "blocked_until_trusted_publishing_and_clean_install_smoke"
+  }
+}

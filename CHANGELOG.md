@@ -15,6 +15,12 @@
 
 ### Added
 
+- v0.6.0-alpha contract-freeze and local ROI receipt release gate: package,
+  Claude plugin, and marketplace metadata versions move to `0.6.0`; release
+  docs, checklist, manifest, PyPI Trusted Publishing notes, package smoke, and
+  publication verifier now cover the v0.6 contract freeze from PR #156, ROI
+  receipt spec from PR #157, and ROI receipt runtime from PR #158 before the
+  `v0.6.0-alpha` tag can be created.
 - v0.6 local ROI receipt implementation: added the privacy-safe
   `unlimited-skills roi receipt` command family, JSON schema, example output,
   boundary verifier, and tests. The command prints Markdown by default, supports
