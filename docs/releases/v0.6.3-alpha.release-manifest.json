@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "release": "v0.6.3-alpha",
+  "package_version": "0.6.3",
+  "distribution": "local-learning-loop-candidate-preview",
+  "status": "draft_release_gate",
+  "roadmap_ref": "docs/roadmaps/unlimited-skills/UNLIMITED-SKILLS-PRIVATE-ROADMAP-v0.6.3-to-v0.6.13.md#v0.6.3",
+  "git": {
+    "base_branch": "main",
+    "tag": "v0.6.3-alpha",
+    "tag_status": "blocked_until_owner_approval_pypi_publish_and_post_publish_verification"
+  },
+  "required_surfaces": {
+    "learning_doctor": true,
+    "improvement_candidates": true,
+    "apply_candidate_dry_run": true,
+    "wrong_feedback_candidates": true,
+    "missed_feedback_candidates": true,
+    "rejected_feedback_candidates": true,
+    "dry_run_non_mutation": true,
+    "privacy_safe_candidate_serialization": true
+  },
+  "required_verification": [
+    "python -m pytest tests/test_learning_loop_cli.py tests/test_feedback_report.py tests/test_effectiveness_instrumentation.py tests/test_router_metrics.py -q",
+    "python scripts/verify-v06-frozen-contracts.py --json",
+    "python scripts/verify-feedback-report-boundaries.py",
+    "git diff --check"
+  ],
+  "safety_boundary": {
+    "alpha_only": true,
+    "local_first": true,
+    "dry_run_only_apply_candidate": true,
+    "automatic_telemetry": false,
+    "analytics_sdk": false,
+    "automatic_upload": false,
+    "hosted_query_forwarding": false,
+    "model_training": false,
+    "marketplace_submission": false,
+    "automatic_skill_editing": false,
+    "hosted_readiness_claim": false,
+    "team_readiness_claim": false,
+    "enterprise_readiness_claim": false,
+    "pypi_availability": "blocked_until_trusted_publishing_and_clean_install_smoke"
+  }
+}

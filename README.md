@@ -514,6 +514,15 @@ Summarize learning feedback:
 unlimited-skills learning-summary
 ```
 
+Inspect the local Learning Loop and preview candidate improvements without
+modifying skill files:
+
+```powershell
+unlimited-skills learning doctor
+unlimited-skills improvement-candidates
+unlimited-skills apply-candidate --dry-run <candidate-id>
+```
+
 Draft a new skill:
 
 ```powershell
