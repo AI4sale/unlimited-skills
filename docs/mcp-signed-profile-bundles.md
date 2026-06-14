@@ -697,3 +697,18 @@ the exact refusal code, executes the documented recovery, and proves
 verification works again -- with the E11 audit inspector run over the
 drill's own log as evidence. Verification semantics here are exercised,
 never changed or bypassed.
+
+## Local publishing ceremony (E19)
+
+Producing a bundle in this format locally -- raw profile -> validate ->
+sign -> package -> verify -> handoff -- is automated by
+`unlimited-skills mcp bundle keygen|publish|verify`
+(`unlimited_skills/mcp/bundle_publisher.py`): DEV/FIXTURE Ed25519 keys
+only (production signing keys stay out of scope), the canonical-JSON
+signing input and the verification algorithm of THIS document reused
+verbatim (`canonical_bundle_bytes` / `resolve_bundle_state`, never a
+reimplementation), an automatic post-package self-check that fails the
+ceremony rather than emit a bundle that would not verify, and strict
+private-key hygiene (the private key exists only in the keygen out
+directory and never appears in any output). See
+[mcp-bundle-publishing.md](mcp-bundle-publishing.md).

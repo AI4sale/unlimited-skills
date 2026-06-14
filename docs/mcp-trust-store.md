@@ -163,3 +163,18 @@ symptoms, and prevention notes live in
 [mcp-incident-runbook.md](mcp-incident-runbook.md). The drill never touches
 a real managed store -- it builds its own under a private temp directory
 with these exact functions.
+
+## Local publishing ceremony (E19)
+
+`unlimited-skills mcp bundle keygen|publish|verify`
+([mcp-bundle-publishing.md](mcp-bundle-publishing.md)) adds a local,
+DEV/FIXTURE-ONLY signing ceremony alongside this store. The non-goal above
+is narrowed, not dropped: PRODUCTION signing keys are still never
+generated or handled in the consumer core -- `keygen` emits keypairs
+loudly marked `DEV KEY -- do not use in production` for fixtures and
+local pilots. The ceremony hands this store the PUBLIC key only (the
+keygen public file is the exact `trust import --key-file` format), the
+store keeps refusing private material (including the keygen private
+file), and the rollback metadata of every published bundle names the
+exact `mcp trust revoke --bundle-sha256 ...` command that this store's
+append-only CRL enforces.
