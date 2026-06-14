@@ -12,7 +12,7 @@
 
 **Unlimited Skills** is a local-first capability router for coding agents. It keeps skills, procedures, and tool schemas out of standing context, searches by task intent, and loads only the one capability needed for the current job.
 
-**v0.6.0-alpha / public alpha of a local-first tool.** The MIT core runs offline today. There is nothing for sale on this page; gated alpha surfaces are described under [Enterprise & trust layer](#enterprise--trust-layer).
+**v0.6.1-alpha / public alpha of a local-first tool.** The MIT core runs offline today. There is nothing for sale on this page; gated alpha surfaces are described under [Enterprise & trust layer](#enterprise--trust-layer).
 
 [Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
 

@@ -565,6 +565,7 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Also report local effectiveness metrics from events.jsonl (tier distribution, injection rate, suggest->view->use funnel). Local-only aggregates; no query text or paths.",
     )
+    summary.add_argument("--json", action="store_true", help="Accepted for explicit machine-readable output; learning-summary output is JSON.")
     summary.set_defaults(func=library_cmds.cmd_learning_summary)
 
     draft = sub.add_parser("draft-skill", help="Draft a new SKILL.md from task evidence.")

@@ -1,4 +1,4 @@
-"""Verify the v0.6.0-alpha contract freeze and ROI receipt publication gate."""
+"""Verify the v0.6.1-alpha contract freeze and ROI receipt publication gate."""
 
 from __future__ import annotations
 
@@ -14,8 +14,8 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-RELEASE = "v0.6.0-alpha"
-VERSION = "0.6.0"
+RELEASE = "v0.6.1-alpha"
+VERSION = "0.6.1"
 MANIFEST = ROOT / "docs" / "releases" / "v0.6.0-alpha.release-manifest.json"
 REQUIRED_DOCS = [
     ROOT / "docs" / "releases" / "v0.6.0-alpha.md",
@@ -135,7 +135,7 @@ def assert_manifest() -> dict[str, Any]:
     require(payload.get("release") == RELEASE, "manifest release mismatch")
     require(payload.get("package_version") == VERSION, "manifest package version mismatch")
     git = payload.get("git") if isinstance(payload.get("git"), dict) else {}
-    require(git.get("publication_branch") == "release/v0.6.0-alpha-contract-freeze-roi", "publication branch mismatch")
+    require(git.get("publication_branch") == "codex/v061-learning-summary-json", "publication branch mismatch")
     require(git.get("tag") == RELEASE, "manifest tag mismatch")
     require(git.get("tag_status") == "blocked_until_pypi_upload_and_post_publish_smoke", "manifest must keep the release tag blocked until PyPI smoke passes")
     requirements = payload.get("adoption_toolchain_requirements") if isinstance(payload.get("adoption_toolchain_requirements"), dict) else {}
@@ -154,7 +154,7 @@ def assert_manifest() -> dict[str, Any]:
     ):
         require(requirements.get(key) is True, f"manifest adoption requirement must be true: {key}")
     excluded = payload.get("excluded_prs") if isinstance(payload.get("excluded_prs"), list) else []
-    require(119 in excluded, "#119 must be explicitly excluded from v0.6.0")
+    require(119 in excluded, "#119 must be explicitly excluded from v0.6.1")
     return payload
 
 
@@ -163,8 +163,8 @@ def assert_docs() -> None:
         require(path.is_file(), f"missing required doc: {path.relative_to(ROOT)}")
     public_text = "\n".join(read(path) for path in REQUIRED_DOCS + [ROOT / "README.md", ROOT / "CHANGELOG.md"] if path.exists()).lower()
     for required in (
-        "v0.6.0-alpha",
-        "unlimited-skills==0.6.0",
+        "v0.6.1-alpha",
+        "unlimited-skills==0.6.1",
         "contract freeze",
         "privacy-safe local roi receipt",
         "unlimited-skills roi receipt",
@@ -186,8 +186,8 @@ def release_blocker(reason: str, details: dict[str, Any] | None = None) -> dict[
     return {
         "code": reason,
         "owner": "PyPI account / GitHub Trusted Publisher setup",
-        "action": "Publish unlimited-skills 0.6.0 through the manual Trusted Publishing workflow, then rerun the post-publish smoke.",
-        "fallback": "Keep v0.6.0-alpha tag and GitHub prerelease blocked; do not mark the package release as published.",
+        "action": "Publish unlimited-skills 0.6.1 through the manual Trusted Publishing workflow, then rerun the post-publish smoke.",
+        "fallback": "Keep v0.6.1-alpha tag and GitHub prerelease blocked; do not mark the package release as published.",
         "details": details or {},
     }
 
