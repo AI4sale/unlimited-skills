@@ -132,6 +132,17 @@ python -m pip install -e .
 
 The v0.6 wheel includes the bundled ECC + Superpowers packs needed for `quickstart`. Repo-only installer scripts and full docs still live in the GitHub checkout.
 
+### Non-English prompts (multilingual)
+
+The fast `suggest` probe is lexical-only, so a prompt that is not written in English scores zero against the (English) skill descriptions and returns nothing. If you ever work with the assistant in a language other than English, install the **vector + warm-daemon** path so retrieval is multilingual:
+
+```powershell
+unlimited-skills vector-reindex   # build the multilingual embedding sidecar
+unlimited-skills serve            # keep the embedding model warm (daemon)
+```
+
+With the sidecar present, a non-English prompt is routed to multilingual vector search automatically. Without it (or before the model warms up), the router never fails silently — it asks the model to restate the task as a few English keywords and re-query. See [docs/context-reduction-model.md](docs/context-reduction-model.md).
+
 Run the first-run wizard:
 
 ```powershell

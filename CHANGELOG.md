@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+### Fixed
+
+- **Critical: non-English users got zero skill retrieval.** The `suggest`
+  probe is lexical-only and its tokenizer is ASCII-only, so a prompt in any
+  non-Latin language (Russian, Chinese, Arabic, ...) tokenized to nothing,
+  scored zero, and returned no skills — the router silently failed for every
+  non-English user. The `UserPromptSubmit` hook now degrades gracefully in
+  three tiers: (1) cheap lexical for English; (2) on a non-English /
+  lexical-empty prompt, route to the local **multilingual embedding sidecar**
+  when installed; (3) if no sidecar is installed (or it is too cold to answer
+  within the probe timeout), inject an instruction telling the model to restate
+  the task as 3-8 English keywords and re-query — never silence. The new
+  `retrieval_path` and `needs_english_query` fields ride only the `--card`
+  channel, so the plain `suggest --json` contract is unchanged.
+
+### Added
+
+- Router-call counter: `suggest` now writes
+  `<root>/.learning/router-metrics.json` (total invocations, last-call
+  timing/path/outcome, per-day histogram) so it is finally visible whether the
+  router is being called and when last. Privacy-preserving (skill names,
+  numeric scores, and outcome codes only — never query text or filesystem
+  paths). Surfaced in `unlimited-skills doctor`.
+- Multilingual install guidance: the managed CLAUDE.md router block now
+  instructs the assistant to make the **vector + daemon** setup
+  (`vector-reindex` + `serve`) its default install whenever it has ever
+  conversed with the user in a language other than English, because lexical
+  retrieval scores non-English prompts at zero.
+
 ### Changed
 
 - A2 README repositioning: the README top is rewritten around the context-flooding pain and the search-first/load-one model, leads with measured numbers only (lab gateway benchmark 90,420 -> 1,268 bytes standing cost, `unlimited-skills mcp savings` for on-your-machine measurement, sub-second `suggest` probe, 0.967 top-3 hit rate on the frozen eval set) framed as "measured, not promised", adds an explicit install -> quickstart -> docs reading order, and moves the registered/governed surfaces (editions, registration, hosted catalogs, teams, hub, policy, release gates) under a single bottom "Enterprise & trust layer" section with a docs/ link map. No content was removed and no paid/hosted offers were added; the single A3-PYPI-FLIP install marker moved next to the canonical top install block.
