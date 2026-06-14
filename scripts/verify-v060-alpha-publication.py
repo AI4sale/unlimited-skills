@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[1]
 RELEASE = "v0.6.1-alpha"
 VERSION = "0.6.1"
 MANIFEST = ROOT / "docs" / "releases" / "v0.6.0-alpha.release-manifest.json"
+FROZEN_CONTRACTS = ROOT / "scripts" / "verify-v06-frozen-contracts.py"
 REQUIRED_DOCS = [
     ROOT / "docs" / "releases" / "v0.6.0-alpha.md",
     ROOT / "docs" / "releases" / "v0.6.0-alpha-checklist.md",
@@ -192,6 +193,54 @@ def release_blocker(reason: str, details: dict[str, Any] | None = None) -> dict[
     }
 
 
+def frozen_contract_blocker(reason: str, details: dict[str, Any] | None = None) -> dict[str, Any]:
+    return {
+        "code": reason,
+        "owner": "release owner",
+        "action": "Fix the frozen v0.6 public contract drift, then rerun verify-v06-frozen-contracts.py and the publication verifier.",
+        "fallback": "Keep release tag and GitHub prerelease guidance blocked; do not publish or tag until the frozen-contract harness passes.",
+        "details": details or {},
+    }
+
+
+def run_frozen_contracts() -> dict[str, Any]:
+    result = run_cmd([sys.executable, str(FROZEN_CONTRACTS), "--json"], cwd=ROOT)
+    details: dict[str, Any] = {
+        "command": f"{sys.executable} {FROZEN_CONTRACTS.relative_to(ROOT)} --json",
+        "returncode": result.returncode,
+    }
+    if result.stdout.strip():
+        try:
+            payload = json.loads(result.stdout)
+            rows = payload.get("rows") if isinstance(payload.get("rows"), list) else []
+            failing_rows = [row for row in rows if isinstance(row, dict) and row.get("status") != "pass"]
+            return {
+                "ok": result.returncode == 0 and payload.get("ok") is True,
+                "status_counts": payload.get("status_counts", {}),
+                "surfaces": [row.get("surface") for row in rows if isinstance(row, dict)],
+                "failing_rows": failing_rows,
+                "blocker": None
+                if result.returncode == 0 and payload.get("ok") is True
+                else frozen_contract_blocker(
+                    "release_blocked_frozen_contract_drift",
+                    {
+                        "status_counts": payload.get("status_counts", {}),
+                        "failing_rows": failing_rows,
+                    },
+                ),
+            }
+        except json.JSONDecodeError:
+            details["stdout_tail"] = result.stdout[-1200:]
+    details["stderr_tail"] = result.stderr[-1200:]
+    return {
+        "ok": False,
+        "status_counts": {},
+        "surfaces": [],
+        "failing_rows": [],
+        "blocker": frozen_contract_blocker("release_blocked_frozen_contract_harness_failed", details),
+    }
+
+
 def published_install_smoke() -> dict[str, Any]:
     import tempfile
 
@@ -248,13 +297,14 @@ def main(argv: list[str] | None = None) -> int:
         require(not tag_exists(RELEASE), f"tag {RELEASE} already exists locally")
     package_smoke = run_package_smoke()
     require(package_smoke.get("ok") is True, "package smoke failed: " + ", ".join(package_smoke.get("errors") or []))
+    frozen_contracts = run_frozen_contracts()
 
     package_availability = "prepublish" if args.package_availability in {"local", "not-published"} else args.package_availability
-    blocker: dict[str, Any] | None = None
+    blocker: dict[str, Any] | None = None if frozen_contracts.get("ok") else dict(frozen_contracts.get("blocker") or frozen_contract_blocker("release_blocked_frozen_contract_drift"))
     published_smoke: dict[str, Any] | None = None
     if package_availability == "published":
         published_smoke = published_install_smoke()
-        if not published_smoke.get("ok"):
+        if not published_smoke.get("ok") and blocker is None:
             blocker = dict(published_smoke.get("blocker") or release_blocker("release_blocked_pypi_unavailable"))
 
     privacy = package_smoke["clean_install_local_event_privacy"]
@@ -288,11 +338,19 @@ def main(argv: list[str] | None = None) -> int:
             "roi_receipt_since_7d": roi["since_7d"],
             "roi_receipt_legacy_unavailable": roi["legacy_unavailable"],
         },
+        "frozen_contracts": {
+            "ok": frozen_contracts.get("ok") is True,
+            "status_counts": frozen_contracts.get("status_counts", {}),
+            "surfaces": frozen_contracts.get("surfaces", []),
+            "failing_rows": frozen_contracts.get("failing_rows", []),
+        },
     }
-    if published_smoke and published_smoke.get("ok"):
+    if published_smoke and published_smoke.get("ok") and blocker is None:
         report["published_install_smoke"] = published_smoke
         report["tag_command"] = f"git tag -a {RELEASE} {git_head()} -m \"{RELEASE}\""
     else:
+        if published_smoke and published_smoke.get("ok"):
+            report["published_install_smoke"] = published_smoke
         report["tag_status"] = "blocked_until_pypi_upload_and_post_publish_smoke"
     if blocker:
         report["blocker"] = blocker

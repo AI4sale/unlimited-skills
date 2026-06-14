@@ -15,6 +15,16 @@
 
 ### Added
 
+- A6.4 release-gate integration for the v0.6 frozen-contract harness:
+  `scripts/verify-v060-alpha-publication.py` now invokes
+  `scripts/verify-v06-frozen-contracts.py --json` in prepublish and published
+  verifier modes, records frozen-contract pass evidence in the release report,
+  and blocks publish/tag guidance on drift or harness failure with
+  owner/action/fallback details. The release checklist, PyPI publishing notes,
+  v0.6.1 release note, compliance audit, and verifier tests now require this
+  gate before future v0.6.x promotion. This adds no runtime feature behavior,
+  package release, PyPI upload/yank, marketplace submission, hosted/team/
+  enterprise readiness claim, paid CTA, telemetry, or #119/E19 work.
 - A6.3 v0.6 frozen-contract regression harness: added
   `scripts/verify-v06-frozen-contracts.py` and
   `tests/test_v06_frozen_contracts.py` so one local/CI-safe command checks the
