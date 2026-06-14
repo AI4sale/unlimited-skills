@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## 0.6.2-alpha
+
 ### Fixed
 
 - **Critical: non-English users got zero skill retrieval.** The `suggest`
