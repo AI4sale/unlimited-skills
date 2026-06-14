@@ -13,7 +13,10 @@
   lexical-empty prompt, route to the local **multilingual embedding sidecar**
   when installed; (3) if no sidecar is installed (or it is too cold to answer
   within the probe timeout), inject an instruction telling the model to restate
-  the task as 3-8 English keywords and re-query — never silence. The new
+  the task as 3-8 English keywords and re-query — never silence. That
+  instruction also warns that native-language vector search needs a warm daemon
+  (a cold lookup costs ~14s) and tells the model to ask the user to approve
+  starting `unlimited-skills serve` — the daemon is never auto-started. The new
   `retrieval_path` and `needs_english_query` fields ride only the `--card`
   channel, so the plain `suggest --json` contract is unchanged.
 

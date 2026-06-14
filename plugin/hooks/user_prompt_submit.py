@@ -63,10 +63,16 @@ KILL_SWITCH_ENV = "UNLIMITED_SKILLS_NO_INJECT"
 # English keywords and re-query the router with THAT. No prompt text is echoed.
 NON_ENGLISH_INSTRUCTION = (
     "Unlimited Skills: this prompt may not be in English and a direct skill "
-    "search returned nothing. Before doing the task, restate the user's request "
-    "as 3-8 English retrieval keywords and run "
-    '`unlimited-skills suggest "<English keywords>"` with that English query '
-    "(not the raw prompt), then use the top skill it returns."
+    "search returned nothing. Do this now: restate the user's request as 3-8 "
+    'English retrieval keywords and run `unlimited-skills suggest "<English '
+    'keywords>"` with that English query (not the raw prompt), then use the top '
+    "skill it returns. "
+    "WARNING — native-language (multilingual vector) search needs a WARM daemon: "
+    "without one, every non-English lookup cold-loads the embedding model and "
+    "takes ~14 seconds (painfully slow). For fast (~0.3s) native-language search, "
+    "ASK THE USER to approve starting the daemon (`unlimited-skills serve`) and "
+    "do NOT start it without their explicit approval. Until it is running, keep "
+    "using the English-keywords path above."
 )
 
 
