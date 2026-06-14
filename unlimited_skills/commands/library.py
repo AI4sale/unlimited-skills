@@ -372,6 +372,11 @@ def cmd_learning_summary(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     feedback_path = root / ".learning" / cli.FEEDBACK_LOG
     counts: dict[str, dict[str, int]] = {}
+    verdict_keys = (
+        {"accepted": 0, "rejected": 0, "neutral": 0, "missed": 0, "wrong": 0}
+        if getattr(args, "events", False)
+        else {"accepted": 0, "rejected": 0, "neutral": 0}
+    )
     if feedback_path.is_file():
         for line in feedback_path.read_text(encoding="utf-8", errors="replace").splitlines():
             try:
@@ -380,7 +385,7 @@ def cmd_learning_summary(args: argparse.Namespace) -> int:
                 continue
             name = str(row.get("name") or "")
             verdict = str(row.get("verdict") or "")
-            counts.setdefault(name, {"accepted": 0, "rejected": 0, "neutral": 0})
+            counts.setdefault(name, dict(verdict_keys))
             if verdict in counts[name]:
                 counts[name][verdict] += 1
     if getattr(args, "events", False):

@@ -1,0 +1,96 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/AI4sale/unlimited-skills/schemas/learning-feedback-signal.schema.json",
+  "title": "Unlimited Skills local Learning Loop feedback signal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "source",
+    "outcome",
+    "skill_label",
+    "local_only",
+    "privacy"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": 1
+    },
+    "source": {
+      "enum": [
+        "event",
+        "feedback"
+      ]
+    },
+    "outcome": {
+      "enum": [
+        "suggested",
+        "viewed",
+        "used",
+        "accepted",
+        "rejected",
+        "missed",
+        "wrong"
+      ]
+    },
+    "skill_label": {
+      "type": "string",
+      "pattern": "^skill-[a-f0-9]{12}$"
+    },
+    "task_summary_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{12}$"
+    },
+    "query_summary_hash": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{12}$"
+    },
+    "session_correlation_id": {
+      "type": "string",
+      "pattern": "^[a-f0-9]{12}$"
+    },
+    "signal_count": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "local_only": {
+      "const": true
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "prompts_included",
+        "raw_queries_included",
+        "raw_notes_included",
+        "local_paths_included",
+        "tokens_included",
+        "keys_included",
+        "skill_bodies_included"
+      ],
+      "properties": {
+        "prompts_included": {
+          "const": false
+        },
+        "raw_queries_included": {
+          "const": false
+        },
+        "raw_notes_included": {
+          "const": false
+        },
+        "local_paths_included": {
+          "const": false
+        },
+        "tokens_included": {
+          "const": false
+        },
+        "keys_included": {
+          "const": false
+        },
+        "skill_bodies_included": {
+          "const": false
+        }
+      }
+    }
+  }
+}
