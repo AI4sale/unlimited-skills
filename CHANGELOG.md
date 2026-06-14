@@ -15,6 +15,15 @@
 
 ### Added
 
+- A6.2 PyPI 0.6.0 uploaded-not-released incident cleanup packet: added
+  `docs/releases/v0.6.0-uploaded-not-released-incident.md`, a clean
+  `docs/releases/v0.6.1-alpha.md` release note, and updated compatibility and
+  PyPI README guidance so users install or upgrade to `unlimited-skills==0.6.1`
+  or newer. The packet records `unlimited-skills==0.6.0` as uploaded to PyPI
+  but not tagged or released, names the verifier failure, keeps the yank choice
+  as an owner/PyPI project owner decision, and adds no runtime behavior,
+  package release, marketplace submission, paid CTA, payment handling,
+  telemetry, hosted/team/enterprise readiness claim, or #119/E19 work.
 - A6.1 v0.6 contract compliance audit: added
   `docs/releases/v0.6-contract-compliance-audit.md` and refreshed the
   compatibility, CLI contract, local event privacy, feedback, ROI receipt, and

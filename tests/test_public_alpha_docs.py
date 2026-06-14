@@ -675,6 +675,66 @@ def test_v06_contract_compliance_audit_records_actual_v061_behavior() -> None:
         assert forbidden_claim not in combined
 
 
+def test_v060_uploaded_not_released_incident_packet_guides_users_to_v061() -> None:
+    incident = read("docs/releases/v0.6.0-uploaded-not-released-incident.md").lower()
+    release_note = read("docs/releases/v0.6.1-alpha.md").lower()
+    audit = read("docs/releases/v0.6-contract-compliance-audit.md").lower()
+    compatibility = read("docs/compatibility.md").lower()
+    pypi_readme = read("README-pypi.md").lower()
+    changelog = read("CHANGELOG.md").lower()
+
+    combined = "\n".join(
+        [incident, release_note, audit, compatibility, pypi_readme, changelog]
+    )
+
+    for required in [
+        "artifact: unlimited-skills==0.6.0",
+        "status: uploaded_to_pypi_not_tagged_not_released",
+        "failure: learning-summary --events --json rejected by published cli",
+        "valid_replacement: unlimited-skills==0.6.1",
+        "recommended_user_action: upgrade to 0.6.1+",
+        "owner_decision_needed: yank 0.6.0 yes/no",
+        "yank_owner: release owner / pypi project owner",
+        "evidence_required_if_yanked",
+        "fallback_if_not_yanked",
+        "install or upgrade to `unlimited-skills==0.6.1` or newer",
+        "python -m pip install --upgrade \"unlimited-skills>=0.6.1\"",
+        "v0.6.1-alpha is the accepted v0.6 alpha release",
+        "v0.6.1-alpha is the valid v0.6 alpha release",
+        "0.6.0 package was uploaded to pypi but was not tagged or released",
+        "not tagged, not announced, and not accepted as the valid v0.6 alpha",
+        "verify-v060-alpha-publication.py --package-availability published",
+        "https://github.com/ai4sale/unlimited-skills/releases/tag/v0.6.1-alpha",
+        "#119/e19 remains parked",
+    ]:
+        assert required in combined
+
+    for boundary in [
+        "no runtime behavior changes",
+        "no package release, tag, or pypi upload",
+        "no automatic yank action",
+        "no marketplace submission",
+        "no hosted, team, or enterprise readiness claim",
+        "no paid cta or payment handling",
+        "no telemetry",
+        "no #119/e19 work",
+    ]:
+        assert boundary in combined
+
+    for forbidden_claim in [
+        "0.6.0 is the valid v0.6 alpha",
+        "v0.6.0-alpha is the valid v0.6 alpha",
+        "0.6.0 is supported as the release target",
+        "paid plan is ready",
+        "hosted service is ready",
+        "team mode is ready",
+        "enterprise is ready",
+        "guaranteed roi",
+        "marketplace acceptance is guaranteed",
+    ]:
+        assert forbidden_claim not in combined
+
+
 def test_marketplace_submission_tracker_requires_evidence_and_fresh_rule_checks() -> None:
     tracker = read("docs/adoption/marketplace-submission-tracker.md").lower()
     runbook = read("docs/adoption/marketplace-submission-runbook.md").lower()

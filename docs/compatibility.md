@@ -35,10 +35,15 @@ release-level freeze lives in
 [releases/v0.6-contract-freeze-spec.md](releases/v0.6-contract-freeze-spec.md).
 The v0.6 compliance audit for the actual PyPI package lives in
 [releases/v0.6-contract-compliance-audit.md](releases/v0.6-contract-compliance-audit.md).
+The release note for the accepted v0.6 alpha lives in
+[releases/v0.6.1-alpha.md](releases/v0.6.1-alpha.md). The owner decision packet
+for the uploaded-but-not-released `0.6.0` artifact lives in
+[releases/v0.6.0-uploaded-not-released-incident.md](releases/v0.6.0-uploaded-not-released-incident.md).
 
-`v0.6.1-alpha` is the valid v0.6 alpha release. The `0.6.0` package was
-uploaded to PyPI but was not tagged or released because the published verifier
-failed after upload.
+`v0.6.1-alpha` is the valid v0.6 alpha release. Install or upgrade to
+`unlimited-skills==0.6.1` or newer. The `0.6.0` package was uploaded to PyPI
+but was not tagged or released because the published verifier failed after
+upload.
 
 ## What Can Still Break Before 1.0
 
