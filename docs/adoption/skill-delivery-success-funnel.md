@@ -21,8 +21,8 @@ The current local funnel is:
 5. `skill used`
 6. `use accepted / useful`
 7. `use rejected / wrong skill`
-8. `missed-skill report`
-9. `wrong-skill report`
+8. `missed feedback`
+9. `wrong feedback`
 10. `feedback converted to eval case`
 11. `eval/ranking/router/docs updated`
 12. `release gate proves improvement`
@@ -56,7 +56,7 @@ prompts, tool IO, MCP schemas, env values, tokens, or keys.
 | Use count | ready | `skill_used` and `daemon_skill_used` rows | Solved-task status is not captured. |
 | Suggest-to-view/use rates | ready | salted local session correlation in event payloads | Sessions without correlation fall back to aggregate counts. |
 | Accepted/rejected verdicts | partial | `feedback.jsonl` summarized by `learning-summary` | Verdicts are not joined to exact use/session yet. |
-| Missed/wrong-skill reports | partial | issue templates, support response pack, rejected local feedback | No structured local reason taxonomy. |
+| Missed/wrong feedback | ready | `feedback record --verdict missed`, `feedback record --verdict wrong`, issue templates, support response pack | Optional sub-reason taxonomy is not part of the shipped public verdict contract. |
 | Feedback-to-eval conversion | missing | documented maintainer workflow | No local command converts feedback into eval candidate. |
 | Improvement proof | partial | effectiveness checker and release gates | No ledger maps feedback -> eval -> fix -> release. |
 

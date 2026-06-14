@@ -515,13 +515,24 @@ unlimited-skills learning-summary
 ```
 
 Inspect the local Learning Loop and preview candidate improvements without
-modifying skill files:
+modifying skill files. The loop is local-only: it can inspect diagnostics,
+produce privacy-safe candidates, and render a non-mutating dry-run preview. It
+does not automatically improve or rewrite skills.
 
 ```powershell
+unlimited-skills feedback record <skill-name> --verdict wrong --query "<short task summary>"
 unlimited-skills learning doctor
 unlimited-skills improvement-candidates
 unlimited-skills apply-candidate --dry-run <candidate-id>
 ```
+
+The `--query` text is reduced to a local `query_summary_hash` and presence/
+bucket metadata; raw query text is not stored in feedback rows. Empty learning
+state is safe to inspect: `learning doctor` reports no feedback yet, and
+`improvement-candidates` reports no candidates yet.
+
+See `docs/learning-loop.md` for the full local flow, privacy boundary, known
+limitations, and v0.6.3 verification commands.
 
 Draft a new skill:
 
