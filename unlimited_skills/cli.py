@@ -439,6 +439,7 @@ def build_parser() -> argparse.ArgumentParser:
     from .commands import catalog as catalog_cmds
     from .commands import community as community_cmds
     from .commands import feedback as feedback_cmds
+    from .commands import learning as learning_cmds
     from .commands import library as library_cmds
     from .commands import mcp as mcp_cmds
     from .commands import policy as policy_cmds
@@ -542,7 +543,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="Action: prepare, doctor, record <skill>, or legacy <skill>.",
     )
     feedback.add_argument("--query", default="")
-    feedback.add_argument("--verdict", choices=["accepted", "rejected", "neutral"])
+    feedback.add_argument("--verdict", choices=["accepted", "rejected", "neutral", "missed", "wrong"])
     feedback.add_argument("--notes", default="")
     feedback.add_argument("--include-usage-snapshot", action="store_true", help="Include local redacted usage and MCP savings counts.")
     feedback.add_argument("--format", choices=["json", "markdown"], default="json", help="Output format for feedback prepare.")
@@ -567,6 +568,25 @@ def build_parser() -> argparse.ArgumentParser:
     )
     summary.add_argument("--json", action="store_true", help="Accepted for explicit machine-readable output; learning-summary output is JSON.")
     summary.set_defaults(func=library_cmds.cmd_learning_summary)
+
+    learning = sub.add_parser("learning", help="Inspect local Learning Loop state.")
+    learning_sub = learning.add_subparsers(dest="learning_command", required=True)
+    learning_doctor = learning_sub.add_parser("doctor", help="Diagnose local Learning Loop state without hosted calls.")
+    learning_doctor.set_defaults(func=learning_cmds.cmd_learning_doctor)
+
+    improvement_candidates = sub.add_parser(
+        "improvement-candidates",
+        help="List local privacy-safe Learning Loop improvement candidates.",
+    )
+    improvement_candidates.set_defaults(func=learning_cmds.cmd_improvement_candidates)
+
+    apply_candidate = sub.add_parser(
+        "apply-candidate",
+        help="Preview a local Learning Loop improvement candidate. Currently dry-run only.",
+    )
+    apply_candidate.add_argument("--dry-run", action="store_true", required=True, help="Required: preview only and do not modify skill files.")
+    apply_candidate.add_argument("candidate_id")
+    apply_candidate.set_defaults(func=learning_cmds.cmd_apply_candidate)
 
     draft = sub.add_parser("draft-skill", help="Draft a new SKILL.md from task evidence.")
     draft.add_argument("name")
