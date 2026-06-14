@@ -13,7 +13,7 @@
 | "preview changes with a non-mutating dry-run" | **CLAIM_ALLOWED** | `dry_run_candidate` returns `written:false, mutated_files:[]`; test `test_v063_apply_candidate_dry_run_is_non_mutating` |
 | "users can run `learning doctor` / `improvement-candidates` / `apply-candidate --dry-run`" | **CLAIM_ALLOWED** | commands present `cli.py:572-584` |
 | "v0.6.3 records missed and wrong feedback" | **CLAIM_ALLOWED_WITH_LIMITS** | verdict literal shipped is **`wrong`**; `cli.py:546` |
-| **"Learning Loop actually improves skills"** | **CLAIM_BLOCKED** | no skill-mutating apply path exists (apply-candidate is dry-run-only); candidates are diagnostics+previews; closed-loop proof is C063-03A (#175, not merged) |
+| **"Learning Loop actually improves skills"** | **CLAIM_BLOCKED** | no skill-mutating apply path exists (apply-candidate is dry-run-only); candidates are diagnostics+previews; #175 proves only the non-mutating dry-run path |
 | "wrong/missed/rejected feedback now produces improvement candidates" | **CLAIM_ALLOWED** | implemented + tested (`test_v063_wrong_missed_rejected_feedback_becomes_private_candidates`) |
 
 ## May release notes say "actually improves skills"?

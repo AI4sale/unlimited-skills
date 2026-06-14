@@ -15,9 +15,9 @@ candidates. The loop is deliberately local and dry-run first:
 ## Commands
 
 ```powershell
-unlimited-skills feedback record python-patterns --verdict wrong --query "private task text"
-unlimited-skills feedback record python-patterns --verdict missed --query "private task text"
-unlimited-skills feedback record python-patterns --verdict rejected --query "private task text"
+unlimited-skills feedback record <skill-name> --verdict wrong --query "<short task summary>"
+unlimited-skills feedback record <skill-name> --verdict missed --query "<short task summary>"
+unlimited-skills feedback record <skill-name> --verdict rejected --query "<short task summary>"
 unlimited-skills learning doctor
 unlimited-skills improvement-candidates
 unlimited-skills apply-candidate --dry-run <candidate-id>
@@ -64,12 +64,16 @@ The deterministic closed-loop proof is documented in
 It proves the redacted dry-run candidate path and explicitly does not claim
 automatic skill improvement.
 
+The final main-branch smoke after #174 and #175 is documented in
+[`reports/v0.6.3-learning-loop-main-smoke.md`](reports/v0.6.3-learning-loop-main-smoke.md).
+
 ## Verification
 
 ```powershell
 python scripts/verify-learning-feedback-contract.py
 python scripts/verify-learning-loop-closed-loop-proof.py
 python -m pytest tests/test_learning_loop_cli.py tests/test_feedback_report.py tests/test_effectiveness_instrumentation.py tests/test_router_metrics.py -q
+python -m pytest tests/test_learning_loop_contracts.py -q
 python scripts/verify-v06-frozen-contracts.py --json
 python scripts/verify-feedback-report-boundaries.py
 git diff --check
