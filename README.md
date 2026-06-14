@@ -526,6 +526,11 @@ unlimited-skills improvement-candidates
 unlimited-skills apply-candidate --dry-run <candidate-id>
 ```
 
+The `--query` text is reduced to a local `query_summary_hash` and presence/
+bucket metadata; raw query text is not stored in feedback rows. Empty learning
+state is safe to inspect: `learning doctor` reports no feedback yet, and
+`improvement-candidates` reports no candidates yet.
+
 See `docs/learning-loop.md` for the full local flow, privacy boundary, known
 limitations, and v0.6.3 verification commands.
 

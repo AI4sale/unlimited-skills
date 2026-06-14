@@ -23,8 +23,23 @@ unlimited-skills improvement-candidates
 unlimited-skills apply-candidate --dry-run <candidate-id>
 ```
 
+`--query` is optional diagnostic input for local learning. When present, the raw
+query text is not stored at rest: feedback rows keep a `query_summary_hash` and
+presence/bucket fields so candidates can aggregate signals without replaying the
+prompt or task text.
+
 `apply-candidate` currently supports `--dry-run` only. It prints
 `written=false`, `mutated_files=[]`, and a no-write message.
+
+On a new library with no feedback yet, the commands are intentionally quiet:
+
+```text
+unlimited-skills learning doctor
+No learning feedback found yet.
+
+unlimited-skills improvement-candidates
+No improvement candidates yet.
+```
 
 ## Feedback Outcomes
 
