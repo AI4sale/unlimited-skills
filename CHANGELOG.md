@@ -15,6 +15,18 @@
 
 ### Added
 
+- A6.3 v0.6 frozen-contract regression harness: added
+  `scripts/verify-v06-frozen-contracts.py` and
+  `tests/test_v06_frozen_contracts.py` so one local/CI-safe command checks the
+  frozen v0.6 public CLI/stdout/privacy surfaces before future release
+  promotion. The harness covers version, quickstart, suggest, MCP install
+  dry-run, MCP savings, feedback prepare, `learning-summary --events --json`,
+  ROI receipt Markdown/JSON/`--since 7d`, ROI schema and forbidden-field
+  checks, and signal-rollup fixture generation. It emits machine-readable
+  `pass`/`drift`/`blocked` rows with owner/action/fallback, supports optional
+  wheel-mode smoke, and adds no runtime behavior, package release, PyPI
+  upload/yank, marketplace submission, hosted/team/enterprise readiness claim,
+  paid CTA, payment handling, telemetry, or #119/E19 work.
 - A6.2 PyPI 0.6.0 uploaded-not-released incident cleanup packet: added
   `docs/releases/v0.6.0-uploaded-not-released-incident.md`, a clean
   `docs/releases/v0.6.1-alpha.md` release note, and updated compatibility and

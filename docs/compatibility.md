@@ -33,6 +33,8 @@ The following surfaces are stable public-alpha contracts through v0.7:
 The detailed command shapes live in [cli-contracts.md](cli-contracts.md). The
 release-level freeze lives in
 [releases/v0.6-contract-freeze-spec.md](releases/v0.6-contract-freeze-spec.md).
+The executable frozen-contract guard is
+[scripts/verify-v06-frozen-contracts.py](../scripts/verify-v06-frozen-contracts.py).
 The v0.6 compliance audit for the actual PyPI package lives in
 [releases/v0.6-contract-compliance-audit.md](releases/v0.6-contract-compliance-audit.md).
 The release note for the accepted v0.6 alpha lives in
