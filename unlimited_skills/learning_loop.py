@@ -28,7 +28,7 @@ class LearningCandidate:
     candidate_type: str
     title: str
     source: str
-    skill_name: str
+    skill_label: str
     signal_count: int
     confidence: str
     recommended_action: str
@@ -41,7 +41,7 @@ class LearningCandidate:
             "candidate_type": self.candidate_type,
             "title": self.title,
             "source": self.source,
-            "skill_name": self.skill_name,
+            "skill_label": self.skill_label,
             "signal_count": self.signal_count,
             "confidence": self.confidence,
             "recommended_action": self.recommended_action,
@@ -80,14 +80,14 @@ def _outcome(row: dict[str, Any]) -> str:
     return str(row.get("outcome") or row.get("verdict") or "").strip().lower()
 
 
-def _skill_name(row: dict[str, Any]) -> str:
+def _raw_skill_name(row: dict[str, Any]) -> str:
     name = str(row.get("name") or row.get("skill_name") or "").strip()
-    if not name:
-        return "unknown"
-    if any(pattern.search(name) for pattern in FORBIDDEN_TEXT_RE) or "\\" in name or "/" in name:
-        digest = hashlib.sha256(name.encode("utf-8", errors="replace")).hexdigest()[:12]
-        return f"redacted-{digest}"
-    return name
+    return name if name else "unknown"
+
+
+def _safe_skill_label(name: str) -> str:
+    digest = hashlib.sha256(str(name or "unknown").encode("utf-8", errors="replace")).hexdigest()[:12]
+    return f"skill-{digest}"
 
 
 def _safe_candidate_id(value: str) -> str:
@@ -97,9 +97,9 @@ def _safe_candidate_id(value: str) -> str:
     return "invalid"
 
 
-def _candidate_id(candidate_type: str, skill_name: str, signal_count: int) -> str:
+def _candidate_id(candidate_type: str, skill_name: str) -> str:
     raw = json.dumps(
-        {"type": candidate_type, "skill": skill_name, "count": signal_count},
+        {"type": candidate_type, "skill": skill_name},
         ensure_ascii=False,
         sort_keys=True,
     )
@@ -137,11 +137,11 @@ def _candidate_for(outcome: str, skill_name: str, signal_count: int) -> Learning
         action = "review why the suggested skill was rejected before changing routing or skill text"
         summary = "Would inspect aggregate rejected-suggestion signals and propose a non-mutating fix plan."
     return LearningCandidate(
-        candidate_id=_candidate_id(candidate_type, skill_name, signal_count),
+        candidate_id=_candidate_id(candidate_type, skill_name),
         candidate_type=candidate_type,
         title=title,
         source="local_feedback",
-        skill_name=skill_name,
+        skill_label=_safe_skill_label(skill_name),
         signal_count=signal_count,
         confidence="low" if signal_count == 1 else "medium",
         recommended_action=action,
@@ -156,10 +156,10 @@ def build_improvement_candidates(root: Path) -> list[LearningCandidate]:
         outcome = _outcome(row)
         if outcome not in ACTIONABLE_OUTCOMES:
             continue
-        key = (outcome, _skill_name(row))
+        key = (outcome, _raw_skill_name(row))
         grouped[key] = grouped.get(key, 0) + 1
     candidates = [_candidate_for(outcome, skill_name, count) for (outcome, skill_name), count in sorted(grouped.items())]
-    return sorted(candidates, key=lambda item: (item.candidate_type, item.skill_name))
+    return sorted(candidates, key=lambda item: (item.candidate_type, item.skill_label))
 
 
 def learning_doctor(root: Path) -> dict[str, Any]:

@@ -123,6 +123,41 @@ def test_v063_candidate_serialization_redacts_privacy_unsafe_skill_names(tmp_pat
 
     result = payload(capsys)
     assert result["candidate_count"] == 1
-    assert result["candidates"][0]["skill_name"].startswith("redacted-")
+    assert result["candidates"][0]["skill_label"].startswith("skill-")
+    assert "skill_name" not in result["candidates"][0]
     assert unsafe_name not in json.dumps(result, ensure_ascii=False)
     assert_private_needles_absent(result)
+
+
+def test_v063_candidate_serialization_redacts_arbitrary_sensitive_skill_labels(tmp_path: Path, capsys) -> None:
+    root = tmp_path / "library"
+    private_label = "customer-acme-private-incident"
+
+    assert _cli.main(["--root", str(root), "feedback", "record", private_label, "--verdict", "wrong"]) == 0
+    capsys.readouterr()
+    assert _cli.main(["--root", str(root), "improvement-candidates"]) == 0
+
+    result = payload(capsys)
+    assert result["candidate_count"] == 1
+    assert result["candidates"][0]["skill_label"].startswith("skill-")
+    assert private_label not in json.dumps(result, ensure_ascii=False)
+
+
+def test_v063_candidate_id_stays_stable_when_signal_count_changes(tmp_path: Path, capsys) -> None:
+    root = tmp_path / "library"
+    write_skill(root)
+
+    assert _cli.main(["--root", str(root), "feedback", "record", "python-patterns", "--verdict", "wrong"]) == 0
+    capsys.readouterr()
+    assert _cli.main(["--root", str(root), "improvement-candidates"]) == 0
+    first = payload(capsys)["candidates"][0]
+
+    assert _cli.main(["--root", str(root), "feedback", "record", "python-patterns", "--verdict", "wrong"]) == 0
+    capsys.readouterr()
+    assert _cli.main(["--root", str(root), "improvement-candidates"]) == 0
+    second = payload(capsys)["candidates"][0]
+
+    assert second["candidate_id"] == first["candidate_id"]
+    assert second["signal_count"] == 2
+    assert _cli.main(["--root", str(root), "apply-candidate", "--dry-run", first["candidate_id"]]) == 0
+    assert payload(capsys)["status"] == "dry_run"
