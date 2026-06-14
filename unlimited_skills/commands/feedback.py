@@ -16,7 +16,7 @@ def _legacy_record(args: argparse.Namespace) -> int:
         print("feedback record requires a skill name", file=__import__("sys").stderr)
         return 2
     if not args.verdict:
-        print("feedback record requires --verdict accepted|rejected|neutral", file=__import__("sys").stderr)
+        print("feedback record requires --verdict accepted|rejected|neutral|missed|wrong", file=__import__("sys").stderr)
         return 2
     return library_cmds.cmd_feedback(args)
 

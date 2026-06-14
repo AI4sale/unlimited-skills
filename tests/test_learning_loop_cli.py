@@ -161,3 +161,32 @@ def test_v063_candidate_id_stays_stable_when_signal_count_changes(tmp_path: Path
     assert second["signal_count"] == 2
     assert _cli.main(["--root", str(root), "apply-candidate", "--dry-run", first["candidate_id"]]) == 0
     assert payload(capsys)["status"] == "dry_run"
+
+
+def test_v063_feedback_record_missing_verdict_mentions_missed_wrong(tmp_path: Path, capsys) -> None:
+    root = tmp_path / "library"
+
+    assert _cli.main(["--root", str(root), "feedback", "record", "python-patterns"]) == 2
+
+    captured = capsys.readouterr()
+    assert "accepted|rejected|neutral|missed|wrong" in captured.err
+
+
+def test_v063_learning_summary_counts_missed_and_wrong(tmp_path: Path, capsys) -> None:
+    root = tmp_path / "library"
+    write_skill(root)
+
+    for verdict in ("accepted", "rejected", "neutral", "missed", "wrong"):
+        assert _cli.main(["--root", str(root), "feedback", "record", "python-patterns", "--verdict", verdict]) == 0
+        capsys.readouterr()
+
+    assert _cli.main(["--root", str(root), "learning-summary", "--events", "--json"]) == 0
+
+    result = payload(capsys)
+    assert result["feedback"]["python-patterns"] == {
+        "accepted": 1,
+        "rejected": 1,
+        "neutral": 1,
+        "missed": 1,
+        "wrong": 1,
+    }

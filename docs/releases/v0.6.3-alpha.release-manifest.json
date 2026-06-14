@@ -17,10 +17,14 @@
     "wrong_feedback_candidates": true,
     "missed_feedback_candidates": true,
     "rejected_feedback_candidates": true,
+    "seven_outcome_feedback_contract": true,
+    "closed_loop_dry_run_proof": true,
     "dry_run_non_mutation": true,
     "privacy_safe_candidate_serialization": true
   },
   "required_verification": [
+    "python scripts/verify-learning-feedback-contract.py",
+    "python scripts/verify-learning-loop-closed-loop-proof.py",
     "python -m pytest tests/test_learning_loop_cli.py tests/test_feedback_report.py tests/test_effectiveness_instrumentation.py tests/test_router_metrics.py -q",
     "python scripts/verify-v06-frozen-contracts.py --json",
     "python scripts/verify-feedback-report-boundaries.py",
