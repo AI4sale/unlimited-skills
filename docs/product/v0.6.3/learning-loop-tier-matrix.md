@@ -6,11 +6,19 @@
 bonus without overclaiming inactive hosted/paid functionality.
 
 > **Implementation note (from O063-01):** the Learning Loop's *capture/aggregate/
-> privacy* half is implemented; the *improvement* half (missed/wrong-skill verdict,
-> `improvement-candidates`, `apply-candidate --dry-run`, `learning doctor`) is
-> **proposed for Codex C063-02 and not yet in code**. Every tier bonus below
-> assumes that implementation lands; commands depending on it are `[needs code
-> verification]`.
+> privacy* half is implemented; the *improvement* half (`improvement-candidates`,
+> `apply-candidate --dry-run`, `learning doctor`, missed/wrong verdicts) landed in
+> **Codex C063-02 (PR #173, not yet merged)**. Commands depending on it stay
+> `[needs code verification]` until #173 merges and O063-05/O063-03R re-run.
+>
+> **Reconciliation with the shipped C063-02 impl (O063-06, preliminary vs #173):**
+> the shipped verdict literal is **`wrong`** (not `wrong-skill`), and candidate
+> output identifies skills by a **hashed `skill_label`** (`skill-<sha256>`), never
+> the raw name. The placeholder `wrong-skill` and plain skill names (e.g.
+> `python-reviewer`) in these tier docs predate C063-02 and will be aligned to the
+> shipped shape once #173 merges. Per-tier exports (registered report / team packet
+> / business backlog / enterprise pack) are **not** in #173 and remain docs-only,
+> future-compatible.
 
 ## Tier matrix
 
