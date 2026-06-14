@@ -8,11 +8,22 @@ This is `v0.6.1-alpha`: a public alpha of the free MIT local core. There is no
 telemetry, no hosted dependency for local use, and nothing for sale in this
 release. APIs and JSON output may change before `1.0`.
 
+Use `unlimited-skills==0.6.1` or newer for the accepted v0.6 alpha. The
+`0.6.0` package was uploaded to PyPI but was not tagged or released because the
+published verifier caught a CLI contract issue after upload.
+
 ## Install
 
 ```bash
 pip install unlimited-skills
 unlimited-skills quickstart
+```
+
+To avoid the uploaded-but-not-released `0.6.0` artifact explicitly, pin the
+accepted v0.6 alpha floor:
+
+```bash
+pip install --upgrade "unlimited-skills>=0.6.1"
 ```
 
 For hybrid/vector search:
