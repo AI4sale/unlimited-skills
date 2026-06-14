@@ -273,7 +273,7 @@ def test_learning_summary_events_output_is_aggregate_only(tmp_path: Path, capsys
         ],
     )
 
-    _cli.main(["--root", str(root), "learning-summary", "--events"])
+    _cli.main(["--root", str(root), "learning-summary", "--events", "--json"])
 
     output = capsys.readouterr().out
     payload = json.loads(output)

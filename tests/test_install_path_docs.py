@@ -6,7 +6,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 PYPI_INSTALL = "pip install unlimited-skills"
-VERSIONED_PYPI_INSTALL = "pip install unlimited-skills==0.6.0"
+VERSIONED_PYPI_INSTALL = "pip install unlimited-skills==0.6.1"
 GIT_INSTALL = 'pip install "git+https://github.com/AI4sale/unlimited-skills.git"'
 MARKER = "A3-PYPI-FLIP"
 

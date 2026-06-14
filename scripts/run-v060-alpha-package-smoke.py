@@ -1,4 +1,4 @@
-"""Build and clean-install smoke for the v0.6.0 contract freeze package.
+"""Build and clean-install smoke for the v0.6 contract freeze package.
 
 This extends the v0.5.3 local event privacy package smoke with an
 installed-wheel proof for the v0.6 privacy-safe local ROI receipt runtime. The
@@ -19,7 +19,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.6.0"
+VERSION = "0.6.1"
 NOTICE = (
     "This receipt is a local estimate from your own machine. It is not "
     "telemetry, not a benchmark guarantee, and not a paid ROI promise."
@@ -152,7 +152,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.json:
             print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
         else:
-            print("v0.6.0-alpha package smoke: " + ("PASS" if report["ok"] else "FAIL"))
+            print("v0.6.1-alpha package smoke: " + ("PASS" if report["ok"] else "FAIL"))
             for error in report["errors"]:
                 print(f"- {error}")
         return 0 if report["ok"] else 1

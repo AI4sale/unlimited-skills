@@ -1,14 +1,14 @@
 {
   "schema_version": 1,
-  "release": "v0.6.0-alpha",
-  "package_version": "0.6.0",
+  "release": "v0.6.1-alpha",
+  "package_version": "0.6.1",
   "distribution": "contract-freeze-and-local-roi-receipt-public-alpha",
   "git": {
     "base_branch": "main",
-    "publication_branch": "release/v0.6.0-alpha-contract-freeze-roi",
-    "tag": "v0.6.0-alpha",
+    "publication_branch": "codex/v061-learning-summary-json",
+    "tag": "v0.6.1-alpha",
     "tag_status": "blocked_until_pypi_upload_and_post_publish_smoke",
-    "tag_target_sha_policy": "Codex may create and push v0.6.0-alpha only after real PyPI upload, clean PyPI install smoke, and verify-v060-alpha-publication.py with package-availability=published pass on the selected release commit."
+    "tag_target_sha_policy": "Codex may create and push v0.6.1-alpha only after real PyPI upload, clean PyPI install smoke, and verify-v060-alpha-publication.py with package-availability=published pass on the selected release commit."
   },
   "required_prs": {
     "public": [

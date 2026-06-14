@@ -15,6 +15,13 @@
 
 ### Added
 
+- v0.6.1-alpha hotfix release gate: `learning-summary --events --json` is now
+  accepted explicitly and keeps the same aggregate-only JSON output. The
+  untagged `0.6.0` PyPI upload remains blocked from release tagging because
+  the published-mode verifier caught this CLI contract drift after upload.
+- Package, Claude plugin, marketplace metadata, PyPI workflow guardrails, and
+  release verifier expectations move to `0.6.1` so the fixed wheel can be
+  published as a patch release.
 - v0.6.0-alpha contract-freeze and local ROI receipt release gate: package,
   Claude plugin, and marketplace metadata versions move to `0.6.0`; release
   docs, checklist, manifest, PyPI Trusted Publishing notes, package smoke, and
