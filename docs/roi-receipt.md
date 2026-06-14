@@ -28,6 +28,12 @@ The boundary verifier is
 `--out` writes the selected format to a local file and prints only a short
 write status; it does not print the local output path.
 
+The v0.6 compliance audit for the PyPI-installed `0.6.1` package lives at
+[releases/v0.6-contract-compliance-audit.md](releases/v0.6-contract-compliance-audit.md).
+It records that `unlimited-skills roi receipt`, `unlimited-skills roi receipt
+--format json`, and `unlimited-skills roi receipt --since 7d` pass the frozen
+local-only/privacy-safe contract.
+
 ## What The Receipt May Show
 
 Only aggregate or derived local-safe values:

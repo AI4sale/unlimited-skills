@@ -14,6 +14,7 @@ a GitHub issue:
 
 ```bash
 unlimited-skills feedback prepare
+unlimited-skills feedback prepare --json
 unlimited-skills feedback prepare --include-usage-snapshot
 unlimited-skills feedback prepare --format markdown --out feedback.md
 unlimited-skills feedback doctor
@@ -118,6 +119,11 @@ The v0.6 adoption-cycle contract freeze keeps `feedback prepare` and aggregate
 [local-event-privacy.md](local-event-privacy.md) for the frozen public-alpha
 contract. The freeze does not create hosted support, team readiness,
 enterprise readiness, payment handling, or a delivery commitment.
+
+The v0.6 compliance audit in
+[releases/v0.6-contract-compliance-audit.md](releases/v0.6-contract-compliance-audit.md)
+confirms that `feedback prepare --json` in the PyPI-installed `0.6.1` package
+returns a schema-versioned, local-only, paste-safe report.
 
 The local ROI receipt is documented in [roi-receipt.md](roi-receipt.md). It is
 a local-only receipt, not a telemetry feature. Public issues may include a

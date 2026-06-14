@@ -16,20 +16,29 @@ public contracts that people are already scripting against.
 
 The following surfaces are stable public-alpha contracts through v0.7:
 
+- `unlimited-skills --version`;
 - `unlimited-skills quickstart`;
 - `unlimited-skills suggest`;
 - `unlimited-skills mcp savings`;
 - `unlimited-skills mcp install --claude-code`;
 - `unlimited-skills feedback prepare`;
 - `unlimited-skills learning-summary --events`;
+- `unlimited-skills roi receipt`;
 - `scripts/generate-public-alpha-signal-rollup.py`;
 - local event privacy behavior after `v0.5.3-alpha`;
 - feedback report schema;
+- ROI receipt schema;
 - PyPI Trusted Publishing and post-publish verification expectations.
 
 The detailed command shapes live in [cli-contracts.md](cli-contracts.md). The
 release-level freeze lives in
 [releases/v0.6-contract-freeze-spec.md](releases/v0.6-contract-freeze-spec.md).
+The v0.6 compliance audit for the actual PyPI package lives in
+[releases/v0.6-contract-compliance-audit.md](releases/v0.6-contract-compliance-audit.md).
+
+`v0.6.1-alpha` is the valid v0.6 alpha release. The `0.6.0` package was
+uploaded to PyPI but was not tagged or released because the published verifier
+failed after upload.
 
 ## What Can Still Break Before 1.0
 

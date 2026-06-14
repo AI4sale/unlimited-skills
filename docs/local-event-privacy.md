@@ -41,6 +41,7 @@ other local details.
 Paste-safe by design:
 
 - `unlimited-skills feedback prepare`;
+- `unlimited-skills feedback prepare --json`;
 - `unlimited-skills feedback prepare --format markdown`;
 - `unlimited-skills feedback prepare --include-usage-snapshot --format markdown`;
 - `unlimited-skills learning-summary --events` aggregate output;
@@ -94,6 +95,12 @@ The receipt may use aggregate counts and derived rates from
 raw notes, raw event rows, raw feedback rows, local absolute paths, prompts,
 tool inputs, tool outputs, skill bodies, MCP schemas, env values, tokens, keys,
 proofs, user identifiers, or tracking identifiers.
+
+The v0.6 compliance audit in
+[releases/v0.6-contract-compliance-audit.md](releases/v0.6-contract-compliance-audit.md)
+checks the PyPI-installed `0.6.1` package using paste-safe surfaces only:
+`feedback prepare --json`, aggregate `learning-summary --events --json`, and
+ROI receipt output. It does not ask for raw local logs.
 
 ## Non-Claims
 
