@@ -25,6 +25,15 @@ def test_router_skills_carry_the_suggest_contract() -> None:
         assert "do not search again with synonyms" in text, path
 
 
+def test_public_claude_router_is_safe_for_awesome_skills_install() -> None:
+    text = (REPO_ROOT / "skills" / "router-claude-code" / "SKILL.md").read_text(encoding="utf-8")
+    assert "{{" not in text
+    assert "}}" not in text
+    assert 'pip install --upgrade "unlimited-skills>=0.6.1"' in text
+    assert "unlimited-skills quickstart" in text
+    assert "npx skills add AI4sale/unlimited-skills" in text
+
+
 def test_installed_router_blocks_carry_the_suggest_contract() -> None:
     for path in [
         REPO_ROOT / "scripts" / "install-codex.ps1",
