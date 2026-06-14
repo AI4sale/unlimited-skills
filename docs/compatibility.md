@@ -45,6 +45,10 @@ The release note for the accepted v0.6 alpha lives in
 [releases/v0.6.1-alpha.md](releases/v0.6.1-alpha.md). The owner decision packet
 for the uploaded-but-not-released `0.6.0` artifact lives in
 [releases/v0.6.0-uploaded-not-released-incident.md](releases/v0.6.0-uploaded-not-released-incident.md).
+Future v0.6.x patch-release operators should use
+[releases/v0.6.x-release-operator-runbook.md](releases/v0.6.x-release-operator-runbook.md)
+for the prepublish checks, Trusted Publishing inputs, real PyPI smoke,
+published-mode verifier, tag sequence, and uploaded-but-failed fallback.
 
 `v0.6.1-alpha` is the valid v0.6 alpha release. Install or upgrade to
 `unlimited-skills==0.6.1` or newer. The `0.6.0` package was uploaded to PyPI

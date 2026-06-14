@@ -15,6 +15,17 @@
 
 ### Added
 
+- A6.5 v0.6.x release-operator runbook: added
+  `docs/releases/v0.6.x-release-operator-runbook.md` and linked it from the
+  compatibility, compliance-audit, and uploaded-not-released incident docs.
+  The runbook names the exact release sequence from prepublish checks through
+  Trusted Publishing, real PyPI smoke, published-mode verifier, tag, GitHub
+  prerelease, and uploaded-but-failed incident fallback. Docs tests now guard
+  frozen-contract gating, post-publish verifier hard stops, no-tag-on-failure,
+  owner/action/fallback requirements, #119/E19 exclusion, and the no paid/
+  hosted/team/enterprise claim boundary. This adds no runtime behavior,
+  package release, PyPI upload/yank, marketplace submission, telemetry, or
+  #119/E19 work.
 - A6.4 release-gate integration for the v0.6 frozen-contract harness:
   `scripts/verify-v060-alpha-publication.py` now invokes
   `scripts/verify-v06-frozen-contracts.py --json` in prepublish and published
