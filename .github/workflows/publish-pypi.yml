@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Package version to publish. For v0.6.1 contract freeze and ROI receipt hotfix alpha this must be 0.6.1."
+        description: "Package version to publish. For v0.6.2 non-English routing hotfix alpha this must be 0.6.2."
         required: true
         type: string
       expected_sha:
@@ -12,7 +12,7 @@ on:
         required: true
         type: string
       confirm_pypi_publish:
-        description: "Type: publish unlimited-skills 0.6.1 to PyPI"
+        description: "Type: publish unlimited-skills 0.6.2 to PyPI"
         required: true
         type: string
 
@@ -30,7 +30,7 @@ env:
 
 jobs:
   publish:
-    name: Publish unlimited-skills 0.6.1 to PyPI
+    name: Publish unlimited-skills 0.6.2 to PyPI
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -43,8 +43,8 @@ jobs:
 
       - name: Validate manual release inputs
         run: |
-          test "${{ github.event.inputs.version }}" = "0.6.1"
-          test "${{ github.event.inputs.confirm_pypi_publish }}" = "publish unlimited-skills 0.6.1 to PyPI"
+          test "${{ github.event.inputs.version }}" = "0.6.2"
+          test "${{ github.event.inputs.confirm_pypi_publish }}" = "publish unlimited-skills 0.6.2 to PyPI"
           test "$(git rev-parse HEAD)" = "${{ github.event.inputs.expected_sha }}"
 
       - name: Set up Python
@@ -58,12 +58,12 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install build twine
 
-      - name: Run v0.6.1 package smoke
-        run: python scripts/run-v060-alpha-package-smoke.py --json
+      - name: Run v0.6.2 package smoke
+        run: python scripts/run-v062-alpha-package-smoke.py --json
 
       - name: Run prepublish verifier
         run: |
-          python scripts/verify-v060-alpha-publication.py \
+          python scripts/verify-v062-alpha-publication.py \
             --expected-sha "${{ github.event.inputs.expected_sha }}" \
             --package-availability prepublish \
             --json
