@@ -51,10 +51,11 @@ def _assert_private_needles_absent(value: object) -> None:
 def main() -> int:
     with tempfile.TemporaryDirectory(prefix="us-learning-loop-proof-") as tmp:
         root = Path(tmp) / "library"
-        skill = root / "local" / "skills" / "python-patterns" / "SKILL.md"
+        skill_id = "skill-1a2b3c4d5e6f"
+        skill = root / "local" / "skills" / skill_id / "SKILL.md"
         skill.parent.mkdir(parents=True, exist_ok=True)
         skill.write_text(
-            "---\nname: python-patterns\ndescription: Python implementation patterns.\n---\n\n# python-patterns\n",
+            f"---\nname: {skill_id}\ndescription: Synthetic implementation patterns.\n---\n\n# {skill_id}\n",
             encoding="utf-8",
         )
         rc, stdout, stderr = _run(["--root", str(root), "reindex"])
@@ -69,7 +70,7 @@ def main() -> int:
                 str(root),
                 "feedback",
                 "record",
-                "python-patterns",
+                skill_id,
                 "--verdict",
                 "wrong",
                 "--query",
@@ -104,7 +105,7 @@ def main() -> int:
             "schema_version": 1,
             "report_type": "learning_loop_closed_loop_proof",
             "feedback_input": {
-                "skill_name": "python-patterns",
+                "skill_label": "opaque synthetic local skill id",
                 "verdict": "wrong",
                 "raw_query_stored": False,
                 "raw_notes_stored": False,
