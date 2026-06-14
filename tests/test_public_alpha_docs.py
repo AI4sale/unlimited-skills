@@ -735,6 +735,98 @@ def test_v060_uploaded_not_released_incident_packet_guides_users_to_v061() -> No
         assert forbidden_claim not in combined
 
 
+def test_v06x_release_operator_runbook_guards_patch_release_hard_stops() -> None:
+    runbook = read("docs/releases/v0.6.x-release-operator-runbook.md").lower()
+    incident = read("docs/releases/v0.6.0-uploaded-not-released-incident.md").lower()
+    audit = read("docs/releases/v0.6-contract-compliance-audit.md").lower()
+    compatibility = read("docs/compatibility.md").lower()
+    changelog = read("CHANGELOG.md").lower()
+    combined = "\n".join([runbook, incident, audit, compatibility, changelog])
+
+    for path in [
+        "docs/releases/v0.6.x-release-operator-runbook.md",
+        "docs/releases/v0.6.0-uploaded-not-released-incident.md",
+        "docs/releases/v0.6-contract-compliance-audit.md",
+        "docs/compatibility.md",
+    ]:
+        assert path in combined
+
+    for section in [
+        "## 1. release purpose and allowed scope",
+        "## 2. preconditions",
+        "## 3. prepublish verification",
+        "## 4. frozen-contract harness requirement",
+        "## 5. trusted publishing dispatch inputs",
+        "## 6. real pypi install smoke",
+        "## 7. published-mode verifier",
+        "## 8. tag and github prerelease sequence",
+        "## 9. hard stops",
+        "## 10. incident fallback: uploaded but verifier failed",
+        "## 11. owner/action/fallback table",
+        "## 12. #119/e19 exclusion rule",
+        "## 13. no paid/hosted/team claim boundary",
+    ]:
+        assert section in runbook
+
+    for command in [
+        "python scripts/verify-v06-frozen-contracts.py --json",
+        "python scripts/verify-v060-alpha-publication.py",
+        "--package-availability prepublish",
+        "--package-availability published",
+        "python -m pip install --no-cache-dir unlimited-skills==<version>",
+        "unlimited-skills --version",
+        "unlimited-skills quickstart --json",
+        'unlimited-skills suggest "design a rest api for a service" --json',
+        "unlimited-skills mcp install --claude-code --dry-run",
+        "unlimited-skills mcp savings --json",
+        "unlimited-skills feedback prepare --json",
+        "unlimited-skills learning-summary --events --json",
+        "unlimited-skills roi receipt",
+        "unlimited-skills roi receipt --format json",
+        "unlimited-skills roi receipt --since 7d",
+    ]:
+        assert command in runbook
+
+    for required in [
+        "mandatory before publish and after publish",
+        "the published-mode verifier must pass",
+        "before any release tag or github prerelease is created",
+        "stop immediately and do not tag or create a github prerelease",
+        "no retroactive tag",
+        "uploaded but not released",
+        "uploaded but not tagged",
+        "pypi cannot replace an uploaded artifact",
+        "open a hotfix version",
+        "0.6.0 incident is the reference failure class",
+        "owner/action/fallback",
+        "every blocker must have owner/action/fallback",
+        "#119/e19 is parked distribution-lane work",
+        "#119 parked proof",
+        "no package release",
+        "no actual v0.6.2 release",
+        "no pypi upload/yank",
+        "no marketplace submission",
+        "no telemetry",
+        "no paid cta",
+        "hosted readiness claim",
+        "team readiness claim",
+        "enterprise readiness claim",
+    ]:
+        assert required in combined
+
+    for forbidden_claim in [
+        "0.6.0 is the valid v0.6 alpha",
+        "v0.6.0-alpha is the valid v0.6 alpha",
+        "retroactively tag a failed package",
+        "paid plan is ready",
+        "hosted service is ready",
+        "team mode is ready",
+        "enterprise is ready",
+        "marketplace acceptance is guaranteed",
+    ]:
+        assert forbidden_claim not in combined
+
+
 def test_marketplace_submission_tracker_requires_evidence_and_fresh_rule_checks() -> None:
     tracker = read("docs/adoption/marketplace-submission-tracker.md").lower()
     runbook = read("docs/adoption/marketplace-submission-runbook.md").lower()
