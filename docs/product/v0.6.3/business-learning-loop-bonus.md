@@ -25,7 +25,7 @@ into a maintenance work queue — usable today without any hosted dashboard.
 
 A **"Business Learning Backlog Export"**: a local, machine- and human-readable
 export that turns improvement candidates into a prioritized maintenance backlog
-with severity, affected skill/workflow, confidence, proposed action, review
+with severity, affected skill label / workflow class, confidence, proposed action, review
 status, and privacy-safe evidence.
 
 ## 4. Backlog export schema
@@ -37,11 +37,11 @@ generated_at: "2026-01-01T00:00:00Z"
 scope: local-admin-export        # not hosted, not live audit log
 items:
   - item_id: bl-0001
-    affected_skill: python-reviewer
+    skill_label: "skill:local-label:7f2d9b1c"
     affected_workflow_class: code-review     # class, not raw task text
     severity: high
     confidence: medium
-    signal_summary: { missed: 7, wrong_skill: 2, rejected: 3 }
+    signal_summary: { missed: 7, wrong: 2, rejected: 3 }
     proposed_action_class: ranking-hint
     review_status: needs-review              # needs-review | approved | rejected | deferred
     evidence_ref: cand-0001                  # local candidate id, redacted
@@ -51,7 +51,7 @@ privacy: { telemetry: false, auto_upload: false, hosted_audit_log: false }
 ## 5. Severity and priority model
 
 - **Severity** = impact x frequency band:
-  - `critical`: client-facing workflow, repeated wrong-skill (>= high band)
+  - `critical`: client-facing workflow, repeated wrong verdicts (>= high band)
   - `high`: frequent miss/wrong on a core skill
   - `medium`: recurring but non-core
   - `low`: isolated or low-confidence
@@ -83,13 +83,13 @@ on-ramp, not a throwaway.
 
 Forbidden from export: raw prompts, task/query text, secrets, tokens, private
 keys, skill bodies, MCP schemas, absolute paths, client identities, real
-usernames/emails. Allowed: counts, buckets, severity/priority bands, skill names,
+usernames/emails. Allowed: counts, buckets, severity/priority bands, opaque skill labels,
 workflow **classes**, action classes, local candidate ids.
 
 ## 10. Release-note paragraph (draft)
 
 > Business admins get a **local Learning Backlog Export**: improvement candidates
-> rolled up into a prioritized maintenance queue with severity, affected skill and
+> rolled up into a prioritized maintenance queue with severity, affected skill label and
 > workflow class, confidence, proposed action, and review status — fully local,
 > with no hosted audit log, no live dashboard, and no client data in the export.
 > It is dashboard-ready for the future without requiring one today.

@@ -12,7 +12,7 @@
 | "review privacy-safe improvement candidates from wrong/missed/rejected feedback" | **CLAIM_ALLOWED** | `build_improvement_candidates` groups `ACTIONABLE_OUTCOMES={rejected,missed,wrong}`; hashed `skill_label`; `assert_privacy_safe` gate |
 | "preview changes with a non-mutating dry-run" | **CLAIM_ALLOWED** | `dry_run_candidate` returns `written:false, mutated_files:[]`; test `test_v063_apply_candidate_dry_run_is_non_mutating` |
 | "users can run `learning doctor` / `improvement-candidates` / `apply-candidate --dry-run`" | **CLAIM_ALLOWED** | commands present `cli.py:572-584` |
-| "v0.6.3 records missed and wrong-skill feedback" | **CLAIM_ALLOWED_WITH_LIMITS** | verdict literal shipped is **`wrong`** (not `wrong-skill`); `cli.py:546` |
+| "v0.6.3 records missed and wrong feedback" | **CLAIM_ALLOWED_WITH_LIMITS** | verdict literal shipped is **`wrong`**; `cli.py:546` |
 | **"Learning Loop actually improves skills"** | **CLAIM_BLOCKED** | no skill-mutating apply path exists (apply-candidate is dry-run-only); candidates are diagnostics+previews; closed-loop proof is C063-03A (#175, not merged) |
 | "wrong/missed/rejected feedback now produces improvement candidates" | **CLAIM_ALLOWED** | implemented + tested (`test_v063_wrong_missed_rejected_feedback_becomes_private_candidates`) |
 
@@ -39,7 +39,7 @@ closed-loop proof land and O063-03R returns PASS.
 ## Recommendation
 
 Proceed to enable the **inspect / review / preview** claims in v0.6.3 release
-notes (CLAIM_ALLOWED). Keep "actually improves skills" **blocked**. Reconcile the
-`wrong` vs `wrong-skill` literal across roadmap US-063-003 and the #174 tier docs
-(O063-06). O063-03R remains the release-blocking privacy gate, finalized once
-C063-03A (#175) merges. No code changes made here.
+notes (CLAIM_ALLOWED). Keep "actually improves skills" **blocked**. Reconcile
+historical `wrong-skill` conceptual wording across roadmap US-063-003 and the
+#174 tier docs (O063-06). O063-03R remains the release-blocking privacy gate,
+finalized once C063-03A (#175) merges. No code changes made here.

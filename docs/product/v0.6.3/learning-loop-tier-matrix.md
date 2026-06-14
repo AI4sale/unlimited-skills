@@ -5,20 +5,20 @@
 **Purpose:** one release-ready artifact proving every tier gets a concrete v0.6.3
 bonus without overclaiming inactive hosted/paid functionality.
 
-> **Implementation note (from O063-01):** the Learning Loop's *capture/aggregate/
-> privacy* half is implemented; the *improvement* half (`improvement-candidates`,
-> `apply-candidate --dry-run`, `learning doctor`, missed/wrong verdicts) landed in
-> **Codex C063-02 (PR #173, not yet merged)**. Commands depending on it stay
-> `[needs code verification]` until #173 merges and O063-05/O063-03R re-run.
+> **Implementation note:** the Learning Loop's *capture/aggregate/privacy* half
+> is implemented, and **Codex C063-02 / PR #173 is merged** for the Free-core
+> inspect / candidates / dry-run surfaces (`improvement-candidates`,
+> `apply-candidate --dry-run`, `learning doctor`, missed/wrong verdicts). #175
+> remains pending for the closed-loop regression proof, and O063-03R/O063-04 must
+> pass before release-ready claims.
 >
 > **Reconciliation with the shipped C063-02 impl (O063-06, preliminary vs #173):**
 > the shipped verdict literal is **`wrong`** (not `wrong-skill`), and candidate
-> output identifies skills by a **hashed `skill_label`** (`skill-<sha256>`), never
-> the raw name. The placeholder `wrong-skill` and plain skill names (e.g.
-> `python-reviewer`) in these tier docs predate C063-02 and will be aligned to the
-> shipped shape once #173 merges. Per-tier exports (registered report / team packet
-> / business backlog / enterprise pack) are **not** in #173 and remain docs-only,
-> future-compatible.
+> output identifies skills by an opaque `skill_label`, never the raw name. Earlier
+> roadmap/spec language used `wrong-skill` as a conceptual label; current public
+> docs follow the shipped literal `wrong`. Per-tier exports (registered report /
+> team packet / business backlog / enterprise pack) are **not** in #173 and remain
+> docs-only, future-compatible.
 
 ## Tier matrix
 
@@ -26,13 +26,13 @@ bonus without overclaiming inactive hosted/paid functionality.
 - **Baseline:** local router, library, search/view/use, `feedback record`
   (`accepted/rejected/neutral`), `learning-summary`, `feedback prepare`, daemon,
   MCP gateway.
-- **v0.6.3 bonus:** missed/wrong-skill feedback + local **improvement candidates**
+- **v0.6.3 bonus:** missed/wrong feedback + local **improvement candidates**
   + **dry-run** candidate preview + `learning doctor`.
 - **User value:** turn "that was wrong" moments into a reviewable, previewable
   local improvement list — zero registration, zero data exposure.
-- **CLI/docs surface:** `feedback record --verdict missed|wrong-skill`,
+- **CLI/docs surface:** `feedback record --verdict missed|wrong`,
   `improvement-candidates`, `apply-candidate --dry-run`, `learning doctor`.
-- **Privacy boundary:** local-only; counts/buckets/verdicts/skill-names only; no
+- **Privacy boundary:** local-only; counts/buckets/verdicts/opaque skill labels only; no
   raw prompts/paths/tokens; dry-run non-mutating.
 - **Not included:** hosted catalog, telemetry, team sync, dashboard, auto-apply,
   auto-publish, billing.
@@ -145,7 +145,8 @@ bonus without overclaiming inactive hosted/paid functionality.
 - **Allowed publicly (v0.6.3):** local Learning Loop, missed/wrong feedback,
   improvement candidates, dry-run preview, learning doctor, per-tier local
   artifacts (registered report / team packet / business backlog / enterprise
-  evidence pack), SHA256 verification, no-auto-apply guarantee.
+  evidence pack) as docs-only future-compatible patterns, SHA256 verification,
+  no-auto-apply guarantee.
 - **Internal/future-only (do NOT publish as live):** hosted submission/sync,
   live dashboards, hosted audit logs, SSO/SCIM, license server, billing,
   signatures, marketplace feedback, remote learning.

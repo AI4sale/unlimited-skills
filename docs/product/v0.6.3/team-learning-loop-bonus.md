@@ -31,7 +31,7 @@ and ride the existing manual-approval Team primitives; no new distribution.
 
 - `packet_id`, `schema_version`, `generated_at`
 - `member_alias` (team-local alias, **not** OS user, email, or machine id)
-- `candidates[]`: `{ candidate_id, affected_skill, signal_summary (counts/buckets),
+- `candidates[]`: `{ candidate_id, skill_label, signal_summary (counts/buckets),
   confidence, proposed_action_class, redaction_status }`
 - `review_status` per candidate: `proposed | approved | rejected | deferred`
 - `privacy`: all-false upload/telemetry flags
@@ -65,15 +65,15 @@ packet_id: pkt-0007
 decided_by: lead-alias-1
 decisions:
   - candidate_id: cand-0001
-    affected_skill: python-reviewer
+    skill_label: "skill:local-label:7f2d9b1c"
     decision: approved
     reason_class: ranking-hint-helps
   - candidate_id: cand-0002
-    affected_skill: go-reviewer
+    skill_label: "skill:local-label:1a6f4e20"
     decision: rejected
     reason_class: low-confidence
   - candidate_id: cand-0003
-    affected_skill: sql-optimizer
+    skill_label: "skill:local-label:54c91a77"
     decision: deferred
     reason_class: needs-more-signal
 ```
@@ -85,7 +85,7 @@ decisions:
 - [ ] No skill bodies or MCP schemas
 - [ ] No absolute local paths
 - [ ] No real OS usernames / emails / machine ids (team-local aliases only)
-- [ ] Only counts, buckets, verdicts, skill names, action classes
+- [ ] Only counts, buckets, verdicts, opaque skill labels, action classes
 
 ## 9. Conflict cases
 

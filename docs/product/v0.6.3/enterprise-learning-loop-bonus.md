@@ -41,9 +41,9 @@ governance:
   skill_lock_respected: true
 candidates:
   - candidate_id: cand-0001
-    affected_skill: python-reviewer
+    skill_label: "skill:local-label:7f2d9b1c"
     source_class: approved-registry      # approved-registry | signed-pack | approved-local
-    signal_summary: { missed: 5, wrong_skill: 1 }
+    signal_summary: { missed: 5, wrong: 1 }
     confidence: medium
     proposed_action_class: ranking-hint
     apply_status: not-applied            # always not-applied in the pack
@@ -73,7 +73,7 @@ introduce a skill from an unapproved source.
 
 ## 8. Audit fields
 
-`candidate_id`, `affected_skill`, `source_class`, `signal_summary` (counts only),
+`candidate_id`, `skill_label`, `source_class`, `signal_summary` (counts only),
 `confidence`, `proposed_action_class`, `apply_status` (always `not-applied` in the
 pack), `integrity.method`, `integrity.verified`, decision actor alias and
 timestamp when a human later acts (recorded locally).

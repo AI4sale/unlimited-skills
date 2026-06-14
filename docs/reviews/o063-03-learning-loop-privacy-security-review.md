@@ -60,7 +60,7 @@ release.)
 - [ ] Candidate + per-tier outputs pass a fail-closed safety assertion with
       planted-needle fixtures.
 - [ ] SHA256/signature wording honest (no "signed" without signing code).
-- [ ] Verdict taxonomy (missed/wrong-skill) stored via `event_safe_payload`.
+- [ ] Verdict taxonomy (missed/wrong) stored via `event_safe_payload`.
 
 ## 5. Blocking fixes vs non-blocking
 

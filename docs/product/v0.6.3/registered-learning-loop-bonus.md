@@ -38,7 +38,7 @@ workspace, never transmitted):
 
 - `schema_version`, `report_type`, `generated_at`
 - `install_id_present: true|false` (the id itself is **not** embedded)
-- `candidates[]`: `{ candidate_id, affected_skill, signal_summary (counts/buckets),
+- `candidates[]`: `{ candidate_id, skill_label, signal_summary (counts/buckets),
   confidence, proposed_action_class, redaction_status }`
 - `privacy`: explicit all-false upload/telemetry flags
 - `compatibility`: `{ catalog_schema_target, forward_compatible: true|false }`
@@ -55,7 +55,7 @@ workspace, never transmitted):
 
 Forbidden from the artifact (and from any future upload): raw prompts, task/query
 text, secrets, tokens, private keys, skill bodies, MCP schemas, absolute local
-paths, the raw install id. Allowed: counts, buckets, verdicts, skill names,
+paths, the raw install id. Allowed: counts, buckets, verdicts, opaque skill labels,
 boolean presence flags, schema/version metadata.
 
 ## 7. Example sanitized candidate report (synthetic)
@@ -69,8 +69,8 @@ boolean presence flags, schema/version metadata.
   "candidates": [
     {
       "candidate_id": "cand-0001",
-      "affected_skill": "python-reviewer",
-      "signal_summary": { "missed": 3, "wrong_skill": 1, "rejected": 2 },
+      "skill_label": "skill:local-label:7f2d9b1c",
+      "signal_summary": { "missed": 3, "wrong": 1, "rejected": 2 },
       "confidence": "medium",
       "proposed_action_class": "ranking-hint",
       "redaction_status": "clean"

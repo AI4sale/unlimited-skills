@@ -29,7 +29,7 @@ and never having skills silently rewritten.
 *missed* or *wrong* skill, and no way to turn a signal into a previewable
 improvement. The loop captures; it does not yet improve.
 
-**After v0.6.3 (target):** Sam can record missed/wrong-skill feedback, list
+**After v0.6.3 (target):** Sam can record missed/wrong feedback, list
 local improvement **candidates**, run a learning **doctor** to see loop health,
 and preview a **dry-run** patch for a candidate — all local, all non-mutating.
 
@@ -64,7 +64,7 @@ Today's verified fallback journey (works on current code):
 
 ## 6. Expected normal-state behavior
 
-- `improvement-candidates` lists candidate id, affected skill, signal summary
+- `improvement-candidates` lists candidate id, opaque `skill_label`, signal summary
   (counts/buckets, never raw text), confidence, and proposed action class
   (ranking hint / doc fix / draft skill). Read-only.
 - `apply-candidate --dry-run` prints a unified-diff-style preview and an explicit
@@ -80,7 +80,7 @@ separate, explicit, human-invoked command — never a side effect of preview.
 ## 8. Privacy boundaries
 
 - No network calls, no telemetry, no upload — ever, in Free.
-- Feedback and candidates store **counts, buckets, verdicts, and skill names**,
+- Feedback and candidates store **counts, buckets, verdicts, and opaque skill labels**,
   never raw prompts, task text, queries, secrets, tokens, or absolute paths
   (enforced today by `event_safe_payload`, `search_core.py`).
 - Candidate previews must not embed raw query/prompt text — only redacted
