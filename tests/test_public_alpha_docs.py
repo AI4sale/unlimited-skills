@@ -589,6 +589,92 @@ def test_v06_local_roi_receipt_runtime_docs_keep_privacy_boundary() -> None:
         assert forbidden_claim not in combined
 
 
+def test_v06_contract_compliance_audit_records_actual_v061_behavior() -> None:
+    audit = read("docs/releases/v0.6-contract-compliance-audit.md").lower()
+    compatibility = read("docs/compatibility.md").lower()
+    cli_contracts = read("docs/cli-contracts.md").lower()
+    local_privacy = read("docs/local-event-privacy.md").lower()
+    feedback = read("docs/feedback.md").lower()
+    receipt = read("docs/roi-receipt.md").lower()
+    changelog = read("CHANGELOG.md").lower()
+    combined = "\n".join([audit, compatibility, cli_contracts, local_privacy, feedback, receipt, changelog])
+
+    for path in [
+        "docs/releases/v0.6-contract-compliance-audit.md",
+        "docs/compatibility.md",
+        "docs/cli-contracts.md",
+        "docs/local-event-privacy.md",
+        "docs/feedback.md",
+        "docs/roi-receipt.md",
+    ]:
+        assert path in combined
+
+    for command in [
+        "unlimited-skills --version",
+        "unlimited-skills quickstart --json",
+        "unlimited-skills suggest \"design a rest api for a service\" --json",
+        "unlimited-skills mcp savings --json",
+        "unlimited-skills mcp install --claude-code --dry-run",
+        "unlimited-skills feedback prepare --json",
+        "unlimited-skills learning-summary --events --json",
+        "unlimited-skills roi receipt",
+        "unlimited-skills roi receipt --format json",
+        "unlimited-skills roi receipt --since 7d",
+        "scripts/generate-public-alpha-signal-rollup.py",
+    ]:
+        assert command in combined
+
+    for required in [
+        "v0.6.1-alpha is the valid v0.6 alpha release",
+        "unlimited-skills==0.6.1",
+        "unlimited-skills 0.6.1",
+        "3b30b41f751451331de231c352eff2bce3d4fddc",
+        "https://github.com/ai4sale/unlimited-skills/releases/tag/v0.6.1-alpha",
+        "verify-v060-alpha-publication.py --package-availability published",
+        "0.6.0 package was uploaded to pypi but was not tagged or released",
+        "learning-summary --events --json",
+        "failed published verifier",
+        "no runtime drift requiring a `v0.6.2` blocker was found",
+        "only #119, parked e19",
+        "#119/e19 remains parked",
+        "feedback report schema",
+        "roi receipt schema",
+        "stdout json stability",
+        "pypi trusted publishing",
+        "post-publish verifier",
+        "local event privacy after `v0.5.3-alpha`",
+    ]:
+        assert required in combined
+
+    for blocked_claim in [
+        "no runtime behavior changes",
+        "no package release",
+        "no marketplace submission",
+        "no hosted, team, or enterprise readiness claim",
+        "no paid cta",
+        "payment flow",
+        "no telemetry",
+        "no telemetry, upload, analytics sdk, tracking pixel",
+        "no hosted query forwarding",
+        "prompt collection",
+        "tool input collection",
+        "tool output collection",
+    ]:
+        assert blocked_claim in combined
+
+    for forbidden_claim in [
+        "paid plan is ready",
+        "hosted service is ready",
+        "team mode is ready",
+        "enterprise is ready",
+        "guaranteed roi",
+        "guaranteed savings",
+        "we will deliver",
+        "marketplace acceptance is guaranteed",
+    ]:
+        assert forbidden_claim not in combined
+
+
 def test_marketplace_submission_tracker_requires_evidence_and_fresh_rule_checks() -> None:
     tracker = read("docs/adoption/marketplace-submission-tracker.md").lower()
     runbook = read("docs/adoption/marketplace-submission-runbook.md").lower()

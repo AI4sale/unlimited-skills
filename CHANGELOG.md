@@ -15,6 +15,15 @@
 
 ### Added
 
+- A6.1 v0.6 contract compliance audit: added
+  `docs/releases/v0.6-contract-compliance-audit.md` and refreshed the
+  compatibility, CLI contract, local event privacy, feedback, ROI receipt, and
+  public-alpha doc tests against actual PyPI-installed
+  `unlimited-skills==0.6.1` behavior. The audit records `v0.6.1-alpha` as the
+  valid v0.6 alpha, documents the uploaded-but-untagged `0.6.0` verifier
+  failure, keeps #119/E19 parked, and adds no runtime behavior, package
+  release, marketplace submission, paid CTA, payment flow, telemetry,
+  hosted/team/enterprise readiness claim, or ROI guarantee.
 - v0.6.1-alpha hotfix release gate: `learning-summary --events --json` is now
   accepted explicitly and keeps the same aggregate-only JSON output. The
   untagged `0.6.0` PyPI upload remains blocked from release tagging because
