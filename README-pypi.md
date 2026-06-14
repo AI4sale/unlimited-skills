@@ -4,11 +4,11 @@ Unlimited Skills is a local-first skill memory and retrieval layer for coding
 agents. It keeps large skill libraries out of the agent context and retrieves
 the small, relevant skill context only when it is useful.
 
-This is `v0.6.1-alpha`: a public alpha of the free MIT local core. There is no
+This is `v0.6.2-alpha`: a public alpha of the free MIT local core. There is no
 telemetry, no hosted dependency for local use, and nothing for sale in this
 release. APIs and JSON output may change before `1.0`.
 
-Use `unlimited-skills==0.6.1` or newer for the accepted v0.6 alpha. The
+Use `unlimited-skills==0.6.2` or newer for the accepted v0.6 alpha. The
 `0.6.0` package was uploaded to PyPI but was not tagged or released because the
 published verifier caught a CLI contract issue after upload.
 
@@ -19,11 +19,11 @@ pip install unlimited-skills
 unlimited-skills quickstart
 ```
 
-To avoid the uploaded-but-not-released `0.6.0` artifact explicitly, pin the
+To avoid earlier uploaded-but-not-current artifacts explicitly, pin the
 accepted v0.6 alpha floor:
 
 ```bash
-pip install --upgrade "unlimited-skills>=0.6.1"
+pip install --upgrade "unlimited-skills>=0.6.2"
 ```
 
 For hybrid/vector search:
