@@ -36,19 +36,19 @@ and preview a **dry-run** patch for a candidate — all local, all non-mutating.
 ## 4. Exact CLI journey
 
 ```
-# 1. Record what happened (verdict taxonomy expanded in C063-02)
-unlimited-skills feedback record --name <skill> --verdict missed        # [needs code verification]
-unlimited-skills feedback record --name <skill> --verdict wrong-skill   # [needs code verification]
+# 1. Record what happened (verdict taxonomy shipped in C063-02; literal is `wrong`)
+unlimited-skills feedback record --name <skill> --verdict missed        # [present, main 7b7ea27]
+unlimited-skills feedback record --name <skill> --verdict wrong         # [present, main 7b7ea27]
 unlimited-skills feedback record --name <skill> --verdict rejected      # [present]
 
 # 2. Check loop health
-unlimited-skills learning doctor                                        # [needs code verification]
+unlimited-skills learning doctor                                        # [present, main 7b7ea27]
 
-# 3. See what could improve (local candidates only)
-unlimited-skills improvement-candidates                                 # [needs code verification]
+# 3. See what could improve (local candidates only; skills shown as hashed skill_label)
+unlimited-skills improvement-candidates                                 # [present, main 7b7ea27]
 
-# 4. Preview a fix WITHOUT mutating anything
-unlimited-skills apply-candidate --dry-run <candidate-id>               # [needs code verification]
+# 4. Preview a fix WITHOUT mutating anything (dry-run only; no apply path exists)
+unlimited-skills apply-candidate --dry-run <candidate-id>               # [present, main 7b7ea27]
 ```
 
 Today's verified fallback journey (works on current code):
