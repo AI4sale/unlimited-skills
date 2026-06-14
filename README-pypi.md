@@ -4,9 +4,9 @@ Unlimited Skills is a local-first skill memory and retrieval layer for coding
 agents. It keeps large skill libraries out of the agent context and retrieves
 the small, relevant skill context only when it is useful.
 
-This is `v0.5.0-alpha`: a public alpha of the free MIT local core. There is no
+This is `v0.6.0-alpha`: a public alpha of the free MIT local core. There is no
 telemetry, no hosted dependency for local use, and nothing for sale in this
-release. APIs and JSON output may change before `0.6`.
+release. APIs and JSON output may change before `1.0`.
 
 ## Install
 
@@ -35,8 +35,9 @@ unlimited-skills vector-reindex
   skill bodies.
 
 The package smoke for this release verifies the wheel in a fresh virtual
-environment: `unlimited-skills --version`, `quickstart`, `suggest`, and
-`mcp savings` all run from the installed package.
+environment: `unlimited-skills --version`, `quickstart`, `suggest`,
+`mcp savings`, `feedback prepare`, `learning-summary --events`, and
+`roi receipt` all run from the installed package.
 
 ## Measured, Not Promised
 

@@ -12,7 +12,7 @@
 
 **Unlimited Skills** is a local-first capability router for coding agents. It keeps skills, procedures, and tool schemas out of standing context, searches by task intent, and loads only the one capability needed for the current job.
 
-**v0.5.0-alpha / public alpha of a local-first tool.** The MIT core runs offline today. There is nothing for sale on this page; gated alpha surfaces are described under [Enterprise & trust layer](#enterprise--trust-layer).
+**v0.6.0-alpha / public alpha of a local-first tool.** The MIT core runs offline today. There is nothing for sale on this page; gated alpha surfaces are described under [Enterprise & trust layer](#enterprise--trust-layer).
 
 [Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
 
@@ -59,7 +59,7 @@ unlimited-skills setup --local-only
 
 What each step gives you:
 
-1. **Install** — the local core from PyPI. The v0.5 wheel includes the bundled ECC + Superpowers packs used by `quickstart`; for vector/hybrid search, install with the `[all]` extras — see [Install](#install) below.
+1. **Install** — the local core from PyPI. The v0.6 wheel includes the bundled ECC + Superpowers packs used by `quickstart`; for vector/hybrid search, install with the `[all]` extras — see [Install](#install) below.
 2. **`unlimited-skills quickstart`** — the one-command golden path: it imports the bundled skill packs when your library is empty, runs a first search to prove retrieval works, and measures your real MCP context savings — how many tokens of MCP tool schemas your Claude Code config loads into every session versus the 3 meta-tools of the Unlimited Tools gateway. Everything runs locally and the command is idempotent.
 3. **`unlimited-skills mcp install --claude-code`** — the safe Claude Code MCP gateway installer. Start with `--dry-run`: it shows a redacted diff, creates backups before writes, preserves existing MCP servers, and never prints env values.
 4. **`unlimited-skills setup --local-only`** — the guided first-run wizard for the local-only path.
@@ -130,7 +130,7 @@ For minimal lexical-only usage:
 python -m pip install -e .
 ```
 
-The v0.5 wheel includes the bundled ECC + Superpowers packs needed for `quickstart`. Repo-only installer scripts and full docs still live in the GitHub checkout.
+The v0.6 wheel includes the bundled ECC + Superpowers packs needed for `quickstart`. Repo-only installer scripts and full docs still live in the GitHub checkout.
 
 Run the first-run wizard:
 
