@@ -15,6 +15,14 @@
 
 ### Added
 
+- W1 skill delivery success counters audit: added a docs/test-only audit of the
+  local `suggest -> view -> use -> accepted/rejected -> improved` funnel,
+  including a counter readiness table, a future `skills success-report --json`
+  candidate contract, and a W2 learning-loop gap map. This adds no runtime
+  counters, telemetry, upload path, hosted calls, marketplace submission,
+  package release, tag, v0.7 gate, payment flow, or hosted/team/enterprise
+  readiness claim.
+
 - A6.5 v0.6.x release-operator runbook: added
   `docs/releases/v0.6.x-release-operator-runbook.md` and linked it from the
   compatibility, compliance-audit, and uploaded-not-released incident docs.
