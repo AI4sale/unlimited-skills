@@ -56,6 +56,25 @@ MAX_PROMPT_CHARS = 300
 DEFAULT_TIMEOUT_SECONDS = 2.0
 KILL_SWITCH_ENV = "UNLIMITED_SKILLS_NO_INJECT"
 
+# Tier-3 fallback (non-English rescue). The lexical engine scores a non-English
+# prompt at zero, and a cold multilingual embedding load can exceed the probe
+# timeout. In both cases, instead of returning silence, ask the model to do the
+# one thing it is uniquely good at across 1000 languages: restate the task as
+# English keywords and re-query the router with THAT. No prompt text is echoed.
+NON_ENGLISH_INSTRUCTION = (
+    "Unlimited Skills: this prompt may not be in English and a direct skill "
+    "search returned nothing. Do this now: restate the user's request as 3-8 "
+    'English retrieval keywords and run `unlimited-skills suggest "<English '
+    'keywords>"` with that English query (not the raw prompt), then use the top '
+    "skill it returns. "
+    "WARNING — native-language (multilingual vector) search needs a WARM daemon: "
+    "without one, every non-English lookup cold-loads the embedding model and "
+    "takes ~14 seconds (painfully slow). For fast (~0.3s) native-language search, "
+    "ASK THE USER to approve starting the daemon (`unlimited-skills serve`) and "
+    "do NOT start it without their explicit approval. Until it is running, keep "
+    "using the English-keywords path above."
+)
+
 
 def _timeout() -> float:
     try:
@@ -66,6 +85,19 @@ def _timeout() -> float:
 
 def _kill_switch_active() -> bool:
     return os.environ.get(KILL_SWITCH_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _looks_non_english(text: str) -> bool:
+    """Latin-letters heuristic, inlined (the hook is standalone, no package import).
+
+    Used only on the timeout path, where the probe was killed before it could
+    report needs_english_query — so the hook decides whether to nudge.
+    """
+    letters = [c for c in (text or "") if c.isalpha()]
+    if not letters:
+        return False
+    ascii_letters = sum(1 for c in letters if c.isascii())
+    return (ascii_letters / len(letters)) < 0.6
 
 
 def _emit(context: str) -> None:
@@ -96,13 +128,21 @@ def main() -> int:
         cmd = [*command, "suggest", prompt[:MAX_PROMPT_CHARS], "--json", "--limit", "1"]
         if inject_cards:
             cmd.append("--card")
-        proc = subprocess.run(
-            cmd,
-            capture_output=True,
-            encoding="utf-8",
-            errors="replace",
-            timeout=_timeout(),
-        )
+        try:
+            proc = subprocess.run(
+                cmd,
+                capture_output=True,
+                encoding="utf-8",
+                errors="replace",
+                timeout=_timeout(),
+            )
+        except subprocess.TimeoutExpired:
+            # Slowest path is a cold multilingual embedding load on a non-English
+            # prompt; ask for an English re-query rather than block or fall silent.
+            # English prompts that time out stay silent (fail-open, no false nag).
+            if _looks_non_english(prompt):
+                _emit(NON_ENGLISH_INSTRUCTION)
+            return 0
         if proc.returncode != 0 or not proc.stdout.strip():
             return 0
         payload_out = json.loads(proc.stdout)
@@ -119,6 +159,10 @@ def main() -> int:
         # Tier 2: one-line, NAME-only hint. Tier 1: silence.
         candidates = payload_out.get("top_3_skill_candidates")
         if not isinstance(candidates, list) or not candidates:
+            # Non-English prompt that found nothing: nudge for an English re-query
+            # (tier 3). English no-match stays silent (needs_english_query unset).
+            if payload_out.get("needs_english_query") is True:
+                _emit(NON_ENGLISH_INSTRUCTION)
             return 0
         top = candidates[0]
         if not isinstance(top, dict):

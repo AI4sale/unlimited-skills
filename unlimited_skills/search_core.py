@@ -26,6 +26,12 @@ from .frontmatter import split_frontmatter as _shared_split_frontmatter
 DEFAULT_ROOT = Path(os.environ.get("UNLIMITED_SKILLS_ROOT", Path.home() / ".unlimited-skills" / "library"))
 INDEX_NAME = ".unlimited-skills-index.json"
 EVENT_LOG = "events.jsonl"
+# Internal router-invocation counter (separate from the verbose event log): a
+# tiny, always-current JSON meter answering "how many times has the router been
+# called, and when/how fast was the last call?" without grepping events.jsonl.
+ROUTER_METRICS = "router-metrics.json"
+# Keep the per-day histogram bounded so the meter file never grows unbounded.
+ROUTER_METRICS_MAX_DAYS = 90
 # Session correlation (A3.1.1 effectiveness v2 instrumentation): the
 # UserPromptSubmit hook forwards the Claude Code session id through
 # SESSION_ID_ENV; agent-run CLI commands fall back to CLAUDE_SESSION_ID when
@@ -611,3 +617,86 @@ def log_event(root: Path, event_type: str, payload: dict) -> None:
         root / ".learning" / EVENT_LOG,
         {"ts": time.time(), "type": event_type, "payload": enriched},
     )
+
+
+def read_router_metrics(root: Path) -> dict:
+    """Read the internal router-invocation counter, or ``{}``. Never raises.
+
+    The meter lives at ``<root>/.learning/router-metrics.json`` and answers the
+    operational question "is the router actually being called, and when last?".
+    """
+    path = Path(root) / ".learning" / ROUTER_METRICS
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def record_router_call(
+    root: Path,
+    *,
+    elapsed_ms: float | None = None,
+    reason_code: str = "",
+    path: str = "",
+    injected: bool = False,
+    delivery_tier: int | None = None,
+    top_skill: str = "",
+    top_score: float | None = None,
+) -> None:
+    """Bump the router-invocation counter and stamp the last call. Best-effort.
+
+    Every ``suggest`` invocation (the router probe) — whether fired by the
+    UserPromptSubmit hook or run directly — flows through here, so
+    ``total_invocations`` is the true "how many times the router was called"
+    count and ``last_call`` is the timing of the most recent one. The write is
+    atomic (temp file + ``os.replace``) and any failure is swallowed: the meter
+    must never block or break the probe.
+
+    Privacy mirrors :func:`event_safe_payload`: the meter stores ONLY a skill
+    NAME, a numeric score, and outcome/timing codes — never the query/task
+    text, never a filesystem path.
+    """
+    try:
+        ts = time.time()
+        iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(ts))
+        day = time.strftime("%Y-%m-%d", time.gmtime(ts))
+        data = read_router_metrics(root)
+        total = int(data.get("total_invocations", 0) or 0) + 1
+        by_day = data.get("by_day")
+        if not isinstance(by_day, dict):
+            by_day = {}
+        try:
+            by_day[day] = int(by_day.get(day, 0) or 0) + 1
+        except (TypeError, ValueError):
+            by_day[day] = 1
+        if len(by_day) > ROUTER_METRICS_MAX_DAYS:
+            for stale in sorted(by_day)[:-ROUTER_METRICS_MAX_DAYS]:
+                by_day.pop(stale, None)
+        last_call = {"ts": round(ts, 3), "iso": iso, "reason_code": reason_code, "injected": bool(injected)}
+        if path:
+            last_call["path"] = path
+        if elapsed_ms is not None:
+            last_call["elapsed_ms"] = round(float(elapsed_ms), 1)
+        if delivery_tier is not None:
+            last_call["delivery_tier"] = delivery_tier
+        if top_skill:
+            last_call["top_skill"] = top_skill
+        if top_score is not None:
+            last_call["top_score"] = round(float(top_score), 1)
+        out = {
+            "total_invocations": total,
+            "first_call_iso": data.get("first_call_iso") or iso,
+            "updated_iso": iso,
+            "last_call": last_call,
+            "by_day": by_day,
+        }
+        path = Path(root) / ".learning" / ROUTER_METRICS
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp = path.with_name(ROUTER_METRICS + ".tmp")
+        with tmp.open("w", encoding="utf-8") as handle:
+            json.dump(out, handle, ensure_ascii=False, sort_keys=True)
+        os.replace(tmp, path)
+    except (OSError, ValueError, TypeError):
+        pass

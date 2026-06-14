@@ -248,6 +248,38 @@ def test_user_prompt_submit_fails_open_on_timeout(tmp_path: Path) -> None:
     assert result.stdout.strip() == ""
 
 
+def test_user_prompt_submit_instructs_english_requery_for_non_english(tmp_path: Path) -> None:
+    # Non-English prompt: lexical finds nothing; with no sidecar the probe flags
+    # needs_english_query and the hook injects the English-keywords instruction.
+    library = make_library(tmp_path)
+    env = hook_env(
+        tmp_path,
+        UNLIMITED_SKILLS_CLI=repo_cli_override(library),
+        UNLIMITED_SKILLS_NO_VECTOR_FALLBACK="1",
+    )
+    prompt = "проверь безопасность кода и найди уязвимости в аутентификации"
+    result = run_hook(USER_PROMPT_SUBMIT, json.dumps({"prompt": prompt}), env)
+    assert result.returncode == 0, result.stderr
+    context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert "English" in context and "unlimited-skills suggest" in context
+    # Warns about the cold-load cost and asks for user approval to start the daemon.
+    assert "serve" in context and "approv" in context.lower()
+    assert "14" in context
+    assert prompt not in context  # privacy: no raw prompt echo
+
+
+def test_user_prompt_submit_instructs_english_requery_on_non_english_timeout(tmp_path: Path) -> None:
+    sleeper = tmp_path / "sleeper.py"
+    sleeper.write_text("import time\ntime.sleep(10)\n", encoding="utf-8")
+    cli = f'"{Path(sys.executable).as_posix()}" "{sleeper.as_posix()}"'
+    env = hook_env(tmp_path, UNLIMITED_SKILLS_CLI=cli, UNLIMITED_SKILLS_SUGGEST_TIMEOUT="0.5")
+    prompt = "проверь безопасность кода и найди уязвимости"
+    result = run_hook(USER_PROMPT_SUBMIT, json.dumps({"prompt": prompt}), env)
+    assert result.returncode == 0
+    context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert "English" in context and "unlimited-skills suggest" in context
+
+
 @pytest.mark.parametrize("event,script", [("SessionStart", "session_start.py"), ("UserPromptSubmit", "user_prompt_submit.py")])
 def test_hook_manifest_registers_both_hooks(event: str, script: str) -> None:
     payload = json.loads((HOOKS_DIR / "hooks.json").read_text(encoding="utf-8"))

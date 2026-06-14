@@ -53,3 +53,14 @@ def test_session_start_hook_carries_the_suggest_contract() -> None:
     assert 'suggest "<task in 3-8 keywords>"' in text
     assert "TRIGGERS (any one suffices)" in text
     assert "SKIP only when a relevant skill is already active" in text
+
+
+def test_claude_code_block_instructs_multilingual_install() -> None:
+    # The installed CLAUDE.md block must tell the LLM: if it has ever spoken a
+    # non-English language with this user, default to the vector + daemon install
+    # (lexical-only scores non-English prompts at zero).
+    text = (REPO_ROOT / "unlimited_skills" / "installers" / "claude_code.py").read_text(encoding="utf-8")
+    assert "MULTILINGUAL INSTALL" in text
+    assert "other than English" in text
+    assert "vector-reindex" in text
+    assert "serve" in text
