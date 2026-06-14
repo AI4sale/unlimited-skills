@@ -27,6 +27,17 @@ can see the tool is paying for itself."
   The meter is an *aggregator + cadence trigger* over existing measurements, not a
   new measurement engine.
 
+> **Counter reconciliation (vs Codex C064-00 map, `docs/reports/v0.6.4-money-saved-meter-implementation-map.md`):**
+> use the **right denominator**. `router-metrics.json` (`record_router_call`)
+> counts **skill-router probes**, NOT gateway tool calls. Gateway tool-call
+> counts live in the audit report (`mcp audit-report` /
+> `audit_inspector.py:summary.total_calls`, `per_tool`, `per_upstream`). For a
+> "per-100-calls MCP context saved" nudge the cadence should track **gateway
+> calls** (audit `total_calls`), since that is the activity the MCP savings refer
+> to; a router-probe cadence is a different (skill-retrieval) denominator. The
+> meter joins the latest `mcp savings` numbers to the gateway call count — a join
+> the map confirms does not exist yet.
+
 ## 3. Exact allowed release claim
 
 > "v0.6.4 adds a local Money Saved Meter: a periodic, privacy-safe estimate of the
