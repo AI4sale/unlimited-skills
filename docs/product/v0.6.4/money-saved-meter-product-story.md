@@ -25,7 +25,10 @@ can see the tool is paying for itself."
   > "Last 100 calls: ~X schema bytes / ~Y estimated tokens of standing MCP context
   > avoided via the gateway (local estimate)."
   The meter is an *aggregator + cadence trigger* over existing measurements, not a
-  new measurement engine.
+  new measurement engine. The **100-call window is the nudge cadence / usage
+  window — NOT a claim that exact billable tokens were saved on every call**:
+  bytes are measured, tokens are the `bytes // 4` heuristic (estimated), and
+  dollars are off by default (§7).
 
 > **Counter reconciliation (vs Codex C064-00 map, `docs/reports/v0.6.4-money-saved-meter-implementation-map.md`):**
 > use the **right denominator**. `router-metrics.json` (`record_router_call`)
@@ -41,8 +44,14 @@ can see the tool is paying for itself."
 ## 3. Exact allowed release claim
 
 > "v0.6.4 adds a local Money Saved Meter: a periodic, privacy-safe estimate of the
-> standing MCP/skill context Unlimited Skills avoided loading over your recent
-> calls. All numbers are local estimates."
+> standing MCP schema context Unlimited Skills avoided loading over your recent
+> calls, derived only from already-tracked surfaces (`mcp savings`, ROI receipt,
+> router metrics). All numbers are local estimates."
+
+> **Claim boundary (per Hermes pre-merge scrub):** the meter claims savings ONLY
+> for surfaces with real accounting — `mcp savings`, ROI receipt, router metrics.
+> It does NOT claim "skill body context" was saved (that is not measured). Wording
+> elsewhere that says "MCP/skill context" must be read as MCP **schema** context.
 
 ## 4. Forbidden claims
 
