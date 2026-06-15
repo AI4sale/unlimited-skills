@@ -5,14 +5,14 @@ description: Primary gateway to the external Unlimited Skills library for Claude
 
 # Unlimited Skills Router (plugin)
 
-Unlimited Skills is Claude Code's external skill memory: a local library of 250+ proven skills (checklists, workflows, regression recipes) that are deliberately NOT in the visible skill listing. A 1-second lookup often replaces 20 minutes of rediscovery.
+Unlimited Skills is Claude Code's external skill memory: a generated inventory of proven skills (checklists, workflows, regression recipes) that are deliberately NOT in the visible skill listing. A 1-second lookup often replaces 20 minutes of rediscovery.
 
 ## When to Use
 
-RUN this single command BEFORE starting any task that matches a trigger below. It costs ~1 second and returns at most 3 one-liners (or nothing):
+RUN this single command BEFORE starting every substantive work phase that matches a trigger below. It costs ~1 second and returns at most one compact card, one name hint, or nothing:
 
 ```bash
-unlimited-skills suggest "<task in 3-8 keywords>"
+unlimited-skills suggest "<3-8 keyword phase summary>" --json --card --limit 1
 ```
 
 TRIGGERS (any one suffices):
@@ -35,9 +35,15 @@ This plugin drives the `unlimited-skills` CLI. If the command is not on PATH, th
 
 ## Workflow
 
-1. Run `unlimited-skills suggest "<task in 3-8 keywords>"`.
+Phase freshness: a `suggest` result is fresh only for the current substantive phase. Re-query at phase boundaries such as planning -> implementation, backend/API -> frontend/UI, implementation -> testing, testing -> debugging, implementation -> security review, code -> docs, or docs -> release/git workflow. A no-hit result is also scoped only to the current phase.
+
+Anti-spam: do not re-query inside the same phase for trivially similar wording. Bound lookups to at most one `suggest` probe per phase unless the user explicitly asks for a broader search.
+
+Tier behavior: silence means no confident match; a name hint means inspect that skill if it looks relevant; a compact card means a high-confidence match was found for this phase.
+
+1. Run `unlimited-skills suggest "<3-8 keyword phase summary>" --json --card --limit 1`.
 2. If a suggestion looks relevant, run `unlimited-skills view <skill-name>` and follow only the relevant instructions.
-3. If `suggest` returns nothing, proceed with the task — do not search again with synonyms. For unusual or high-stakes tasks you may escalate once to `unlimited-skills search "<query>" --mode hybrid --limit 8`.
+3. If `suggest` returns nothing, proceed with the current phase; do not search again with synonyms for that same phase. For unusual or high-stakes tasks you may escalate once to `unlimited-skills search "<query>" --mode hybrid --limit 8`.
 4. If the user asks what skills are available, run `unlimited-skills list --limit 80` and summarize; never paste every result.
 5. If the user names a specific skill, run `unlimited-skills where <skill-name>` or `view <skill-name>` before saying it is unavailable.
 6. Optionally enrich the learning loop with `unlimited-skills use <skill-name> --query "<query>" --task "<short task>"` and the `feedback` command — helpful, never required.
@@ -45,7 +51,7 @@ This plugin drives the `unlimited-skills` CLI. If the command is not on PATH, th
 ## Commands
 
 ```bash
-unlimited-skills suggest "<task in 3-8 keywords>"
+unlimited-skills suggest "<3-8 keyword phase summary>" --json --card --limit 1
 unlimited-skills view <skill-name>
 unlimited-skills search "<query>" --mode hybrid --limit 8
 unlimited-skills where <skill-name>

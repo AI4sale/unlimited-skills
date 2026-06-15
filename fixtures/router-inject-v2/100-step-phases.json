@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "description": "Router Inject v2 guidance-level fixture: one long run split into 10 substantive phases and 100 operator steps.",
+  "requery_threshold": 4,
+  "phases": [
+    {
+      "phase_id": "P1",
+      "summary": "scope the task and read context",
+      "domain": "planning/architecture",
+      "requires_requery": true,
+      "steps": ["read request", "read repo guidance", "inspect roadmap", "check current branch", "read prior evidence", "identify constraints", "define non-goals", "list verification gates", "plan work slices", "record start state"]
+    },
+    {
+      "phase_id": "P2",
+      "summary": "design data model",
+      "domain": "backend/API",
+      "requires_requery": true,
+      "steps": ["identify schema", "draft data fields", "map invariants", "review API callers", "choose serialization", "define error states", "align migration path", "review privacy fields", "write model notes", "prepare implementation"]
+    },
+    {
+      "phase_id": "P3",
+      "summary": "implement endpoint",
+      "domain": "backend/API",
+      "requires_requery": false,
+      "steps": ["open backend module", "add parser", "add validator", "add handler", "wire serializer", "return errors", "add logging", "run focused lint", "manual dry run", "document edge cases"]
+    },
+    {
+      "phase_id": "P4",
+      "summary": "build UI form",
+      "domain": "frontend/UI",
+      "requires_requery": true,
+      "steps": ["inspect component tree", "draft form state", "add inputs", "add validation text", "add submit button", "handle disabled state", "add empty state", "check responsive layout", "run UI smoke", "capture notes"]
+    },
+    {
+      "phase_id": "P5",
+      "summary": "wire client calls",
+      "domain": "frontend/UI",
+      "requires_requery": false,
+      "steps": ["add API client call", "connect form submit", "handle loading", "handle success", "handle errors", "update local state", "preserve focus", "test retry", "check console", "update UI notes"]
+    },
+    {
+      "phase_id": "P6",
+      "summary": "write tests",
+      "domain": "testing/QA",
+      "requires_requery": true,
+      "steps": ["list acceptance tests", "add unit fixture", "add integration fixture", "test success path", "test failure path", "test privacy path", "test empty path", "run focused suite", "fix assertions", "record evidence"]
+    },
+    {
+      "phase_id": "P7",
+      "summary": "fix a failing test",
+      "domain": "debugging",
+      "requires_requery": true,
+      "steps": ["read failure", "isolate repro", "inspect stack", "trace inputs", "patch bug", "rerun failing test", "rerun adjacent tests", "check no masking", "record root cause", "update evidence"]
+    },
+    {
+      "phase_id": "P8",
+      "summary": "security pass on input handling",
+      "domain": "security",
+      "requires_requery": true,
+      "steps": ["review trust boundary", "check secret handling", "check path handling", "check injection risk", "check auth assumptions", "check logging", "check redaction", "run security grep", "document residual risk", "sign off"]
+    },
+    {
+      "phase_id": "P9",
+      "summary": "write the docs",
+      "domain": "docs/writing",
+      "requires_requery": true,
+      "steps": ["open docs", "update overview", "add command example", "add limitations", "add privacy note", "add verification note", "link runbook", "check formatting", "run docs grep", "record docs evidence"]
+    },
+    {
+      "phase_id": "P10",
+      "summary": "open PR and release hygiene",
+      "domain": "git/release workflow",
+      "requires_requery": true,
+      "steps": ["check git status", "run diff check", "run final suite", "stage files", "commit changes", "push branch", "open PR", "add evidence", "check CI", "report merge readiness"]
+    }
+  ]
+}

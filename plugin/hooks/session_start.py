@@ -19,14 +19,15 @@ from _cli_resolve import display_command, resolve_cli_command  # noqa: E402
 
 CONTRACT_TEMPLATE = """## Unlimited Skills Library (plugin)
 
-A local library of 250+ proven skills (checklists, workflows, regression
+A generated inventory of proven skills (checklists, workflows, regression
 recipes) that are deliberately NOT in the visible skill list. A 1-second
 lookup often replaces 20 minutes of rediscovery.
 
-RUN this single command BEFORE starting any task that matches a trigger
-below. It costs ~1 second and returns at most 3 one-liners (or nothing):
+RUN this single command BEFORE starting every substantive work phase that
+matches a trigger below. It costs ~1 second and returns at most one compact
+card, one name hint, or nothing:
 
-    {cli} suggest "<task in 3-8 keywords>"
+    {cli} suggest "<3-8 keyword phase summary>" --json --card --limit 1
 
 TRIGGERS (any one suffices): writing or reviewing code in a named
 language/framework; review, audit, or security check of any artifact;
@@ -36,9 +37,16 @@ marketing, research); planning, refactoring, migrations, deployments, ops;
 the user names a skill or asks "what can you do".
 
 ACT on the result: if a suggestion looks relevant, run `{cli} view
-<skill-name>` and follow it. If `suggest` returns nothing, proceed — do not
-search again with synonyms. For inventory questions run `{cli} list
---limit 80` before answering.
+<skill-name>` and follow it. A `suggest` result is fresh only for the current
+phase. Re-query when the work changes domain or deliverable kind: planning ->
+implementation, code -> tests/debugging/security/docs, UI -> backend, or docs
+-> release/git. If `suggest` returns nothing, proceed with the current phase;
+do not search again with synonyms for that same phase. For inventory questions
+run `{cli} list --limit 80` before answering.
+
+ANTI-SPAM: at most one `suggest` probe per phase unless the user explicitly
+asks for a broader search. Tiers: silence = no confident match; name hint =
+inspect if relevant; compact card = high-confidence match for this phase.
 
 SKIP only when a relevant skill is already active in the current context.
 """

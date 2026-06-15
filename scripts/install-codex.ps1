@@ -130,12 +130,12 @@ if (-not $NoAgentsPatch) {
 <!-- BEGIN UNLIMITED SKILLS -->
 ## Unlimited Skills Library
 
-A local library of 250+ proven skills (checklists, workflows, regression recipes) that are deliberately NOT in the visible skill list. A 1-second lookup often replaces 20 minutes of rediscovery — the library has shipped-and-tested procedures for most recurring tasks.
+A generated inventory of proven skills (checklists, workflows, regression recipes) that is deliberately NOT in the visible skill list. A 1-second lookup often replaces 20 minutes of rediscovery because the library has shipped-and-tested procedures for recurring tasks.
 
-RUN this single command BEFORE starting any task that matches a trigger below. It costs ~1 second and returns at most 3 one-liners (or nothing):
+RUN this single command BEFORE starting every substantive work phase that matches a trigger below. It costs ~1 second and returns at most one compact card, one name hint, or nothing:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File "{LAUNCHER}" suggest "<task in 3-8 keywords>"
+powershell -NoProfile -ExecutionPolicy Bypass -File "{LAUNCHER}" suggest "<3-8 keyword phase summary>" --json --card --limit 1
 ```
 
 TRIGGERS (any one suffices):
@@ -148,7 +148,11 @@ TRIGGERS (any one suffices):
 - planning, refactoring, migrations, deployments, ops procedures
 - the user names a skill, workflow, or asks "what can you do"
 
-ACT on the result: if a suggestion looks relevant, run `view <skill-name>` with the same launcher and follow it. If `suggest` returns nothing, proceed — do not search again with synonyms. For deeper retrieval use `search "<query>" --mode hybrid --limit 8`; for inventory questions use `list --limit 80`.
+PHASE FRESHNESS: a `suggest` result is fresh only for the current substantive phase. Re-query at phase boundaries such as planning -> implementation, backend/API -> frontend/UI, implementation -> testing, testing -> debugging, implementation -> security review, code -> docs, or docs -> release/git workflow. A no-hit result is also scoped only to the current phase.
+
+ACT on the result: if a suggestion looks relevant, run `view <skill-name>` with the same launcher and follow it. If `suggest` returns nothing, proceed with the current phase; do not search again with synonyms for that same phase. Anti-spam: at most one `suggest` probe per phase unless the user explicitly asks for a broader search. For deeper retrieval use `search "<query>" --mode hybrid --limit 8`; for inventory questions use `list --limit 80`.
+
+TIER BEHAVIOR: silence means no confident match; a name hint means inspect that skill if it looks relevant; a compact card means a high-confidence match for this phase.
 
 SKIP only when a relevant skill is already active in the current context.
 <!-- END UNLIMITED SKILLS -->
