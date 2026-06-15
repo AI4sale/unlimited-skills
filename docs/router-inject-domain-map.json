@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "description": "Deterministic Router Inject v2 domain taxonomy. The generator maps skill name, description, and repo-relative path tokens to these domains; unmatched routable skills land in other/uncategorized.",
+  "domains": [
+    {
+      "domain": "planning/architecture",
+      "tokens": ["architecture", "architect", "adr", "blueprint", "brainstorm", "design", "guidelines", "plan", "planning", "project"]
+    },
+    {
+      "domain": "code-implementation",
+      "tokens": ["android", "bun", "csharp", "django", "dotnet", "flutter", "golang", "java", "kotlin", "laravel", "nestjs", "nodejs", "patterns", "perl", "python", "quarkus", "react", "rust", "springboot", "swift", "typescript", "vite"]
+    },
+    {
+      "domain": "code-review",
+      "tokens": ["audit", "code-review", "review", "reviewer"]
+    },
+    {
+      "domain": "testing/QA",
+      "tokens": ["e2e", "eval", "harness", "qa", "regression", "tdd", "test", "testing", "verification"]
+    },
+    {
+      "domain": "debugging",
+      "tokens": ["debug", "debugging", "diagnostic", "failure", "fix", "incident", "triage"]
+    },
+    {
+      "domain": "security",
+      "tokens": ["auth", "compliance", "credential", "hipaa", "phi", "privacy", "safety", "scan", "secret", "security", "vulnerability"]
+    },
+    {
+      "domain": "frontend/UI",
+      "tokens": ["accessibility", "a11y", "component", "css", "dashboard", "frontend", "ui", "ux", "vue", "web"]
+    },
+    {
+      "domain": "backend/API",
+      "tokens": ["api", "backend", "connector", "database", "fastapi", "mcp", "postgres", "prisma", "redis", "server", "sql"]
+    },
+    {
+      "domain": "data/ML",
+      "tokens": ["ai", "data", "embedding", "healthcare", "ml", "mle", "model", "pytorch", "recsys", "scientific"]
+    },
+    {
+      "domain": "infra/ops/deploy",
+      "tokens": ["automation", "canary", "deploy", "deployment", "docker", "homelab", "infra", "network", "ops", "production", "terminal"]
+    },
+    {
+      "domain": "git/release workflow",
+      "tokens": ["branch", "changelog", "git", "github", "pr", "pull-request", "release", "version"]
+    },
+    {
+      "domain": "docs/writing",
+      "tokens": ["article", "content", "docs", "documentation", "outreach", "post", "prose", "research", "seo", "writing"]
+    },
+    {
+      "domain": "agents/automation",
+      "tokens": ["agent", "agentic", "agents", "autonomous", "claude", "codex", "continuous", "hermes", "openclaw", "router", "skills", "workflow"]
+    },
+    {
+      "domain": "payments/business",
+      "tokens": ["billing", "business", "cost", "customer", "finance", "payment", "procurement", "roi", "sales"]
+    },
+    {
+      "domain": "other/uncategorized",
+      "tokens": []
+    }
+  ]
+}

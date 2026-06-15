@@ -98,7 +98,8 @@ def test_session_start_resolves_install_venv_before_nagging(tmp_path: Path) -> N
     assert result.returncode == 0
     assert "unlimited-skills" in result.stdout
     assert str(exe) in result.stdout.replace("\n", " ")
-    assert 'suggest "<task in 3-8 keywords>"' in result.stdout
+    assert 'suggest "<3-8 keyword phase summary>" --json --card --limit 1' in result.stdout
+    assert "current phase" in result.stdout
     assert "SKIP only when a relevant skill is already active" in result.stdout
 
 
@@ -119,7 +120,7 @@ def test_session_start_resolves_rendered_launcher(tmp_path: Path) -> None:
     result = run_hook(SESSION_START, "", env)
     assert result.returncode == 0
     assert "unlimited-skills" in result.stdout
-    assert 'suggest "<task in 3-8 keywords>"' in result.stdout
+    assert 'suggest "<3-8 keyword phase summary>" --json --card --limit 1' in result.stdout
 
 
 def test_user_prompt_submit_emits_hint_for_relevant_prompt(tmp_path: Path) -> None:

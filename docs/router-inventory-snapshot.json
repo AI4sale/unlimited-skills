@@ -1,0 +1,94 @@
+{
+  "collections": {
+    "ecc": 253,
+    "local": 1,
+    "superpowers": 14
+  },
+  "count_basis": "repo SKILL.md inventory; bundled packs plus router/plugin skills; examples excluded; deduplicated by normalized skill name",
+  "domains": [
+    {
+      "availability": "broad",
+      "domain": "planning/architecture",
+      "routable_skills": 62
+    },
+    {
+      "availability": "broad",
+      "domain": "code-implementation",
+      "routable_skills": 77
+    },
+    {
+      "availability": "present",
+      "domain": "code-review",
+      "routable_skills": 12
+    },
+    {
+      "availability": "present",
+      "domain": "testing/QA",
+      "routable_skills": 18
+    },
+    {
+      "availability": "sparse",
+      "domain": "debugging",
+      "routable_skills": 4
+    },
+    {
+      "availability": "present",
+      "domain": "security",
+      "routable_skills": 11
+    },
+    {
+      "availability": "present",
+      "domain": "frontend/UI",
+      "routable_skills": 7
+    },
+    {
+      "availability": "present",
+      "domain": "backend/API",
+      "routable_skills": 10
+    },
+    {
+      "availability": "present",
+      "domain": "data/ML",
+      "routable_skills": 14
+    },
+    {
+      "availability": "present",
+      "domain": "infra/ops/deploy",
+      "routable_skills": 10
+    },
+    {
+      "availability": "sparse",
+      "domain": "git/release workflow",
+      "routable_skills": 2
+    },
+    {
+      "availability": "present",
+      "domain": "docs/writing",
+      "routable_skills": 8
+    },
+    {
+      "availability": "broad",
+      "domain": "agents/automation",
+      "routable_skills": 33
+    },
+    {
+      "availability": "empty",
+      "domain": "payments/business",
+      "routable_skills": 0
+    },
+    {
+      "availability": "empty",
+      "domain": "other/uncategorized",
+      "routable_skills": 0
+    }
+  ],
+  "drift_tolerance": 0,
+  "generated_by": "scripts/generate-router-inventory.py",
+  "privacy": {
+    "contains_local_absolute_paths": false,
+    "contains_prompts_or_secrets": false,
+    "contains_skill_bodies": false
+  },
+  "schema_version": 1,
+  "total_routable_skills": 268
+}

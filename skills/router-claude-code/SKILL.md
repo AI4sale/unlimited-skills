@@ -35,11 +35,12 @@ router install only. The Python CLI still comes from PyPI.
 
 ## When to Use
 
-RUN this single command BEFORE starting any task that matches a trigger below.
-It costs about 1 second and returns at most 3 one-liners, or nothing:
+RUN this single command BEFORE starting every substantive work phase that
+matches a trigger below. It costs about 1 second and returns at most one
+compact card, one name hint, or nothing:
 
 ```bash
-unlimited-skills suggest "<task in 3-8 keywords>"
+unlimited-skills suggest "<3-8 keyword phase summary>" --json --card --limit 1
 ```
 
 TRIGGERS (any one suffices):
@@ -57,12 +58,29 @@ not conclude that a skill is missing just because it is absent from
 `~/.claude/skills`, `.claude/skills`, `.agents/skills`, `.codex/skills`, or the
 visible skill list. Query the library first and report what it returns.
 
+## Phase Freshness
+
+A `suggest` result is fresh only for the current substantive phase. Re-query at
+phase boundaries: planning -> implementation, backend/API -> frontend/UI,
+implementation -> testing, testing -> debugging, implementation -> security
+review, code -> docs, or docs -> release/git workflow. A no-hit result is also
+scoped only to the current phase.
+
+Anti-spam: do not re-query inside the same phase for trivially similar wording.
+Bound lookups to at most one `suggest` probe per phase unless the user
+explicitly asks for a broader search.
+
+Tier behavior: silence means no confident match; a name hint means inspect that
+skill if it looks relevant; a compact card means a high-confidence match was
+found for this phase.
+
 ## Workflow
 
-1. Run `unlimited-skills suggest "<task in 3-8 keywords>"`.
+1. Run `unlimited-skills suggest "<3-8 keyword phase summary>" --json --card --limit 1`.
 2. If a suggestion looks relevant, run `unlimited-skills view <skill-name>` and
    follow only the relevant instructions.
-3. If `suggest` returns nothing, proceed with the task; do not search again with synonyms.
+3. If `suggest` returns nothing, proceed with the current phase; do not search
+   again with synonyms for that same phase.
    For unusual or high-stakes tasks, escalate once to
    `unlimited-skills search "<query>" --mode hybrid --limit 8`.
 4. If the user asks what skills are available, run
@@ -76,7 +94,7 @@ visible skill list. Query the library first and report what it returns.
 ## Commands
 
 ```bash
-unlimited-skills suggest "<task in 3-8 keywords>"
+unlimited-skills suggest "<3-8 keyword phase summary>" --json --card --limit 1
 unlimited-skills view <skill-name>
 unlimited-skills search "<query>" --mode hybrid --limit 8
 unlimited-skills where <skill-name>

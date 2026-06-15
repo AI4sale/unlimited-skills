@@ -11,7 +11,7 @@ Unlimited Skills is an external skill memory and retrieval layer. It keeps large
 
 ## When to Use
 
-RUN the single `suggest` command BEFORE starting any task that matches a trigger below. It costs ~1 second and returns at most 3 one-liners (or nothing). A 1-second lookup often replaces 20 minutes of rediscovery.
+RUN the single `suggest` command BEFORE starting every substantive work phase that matches a trigger below. It costs ~1 second and returns at most one compact card, one name hint, or nothing. A 1-second lookup often replaces 20 minutes of rediscovery.
 
 TRIGGERS (any one suffices):
 
@@ -38,22 +38,28 @@ Library root:
 Hermes launcher for bash, Git Bash, macOS, or Linux:
 
 ```bash
-"{{HERMES_SH_LAUNCHER}}" suggest "<task in 3-8 keywords>"
+"{{HERMES_SH_LAUNCHER}}" suggest "<3-8 keyword phase summary>" --json --card --limit 1
 "{{HERMES_SH_LAUNCHER}}" view <skill-name>
 ```
 
 Hermes launcher for Windows PowerShell:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File "{{HERMES_PS_LAUNCHER}}" suggest "<task in 3-8 keywords>"
+powershell -NoProfile -ExecutionPolicy Bypass -File "{{HERMES_PS_LAUNCHER}}" suggest "<3-8 keyword phase summary>" --json --card --limit 1
 powershell -NoProfile -ExecutionPolicy Bypass -File "{{HERMES_PS_LAUNCHER}}" view <skill-name>
 ```
 
 ## Workflow
 
-1. Run `suggest "<task in 3-8 keywords>"` with the launcher above.
+Phase freshness: a `suggest` result is fresh only for the current substantive phase. Re-query at phase boundaries such as planning -> implementation, backend/API -> frontend/UI, implementation -> testing, testing -> debugging, implementation -> security review, code -> docs, or docs -> release/git workflow. A no-hit result is also scoped only to the current phase.
+
+Anti-spam: do not re-query inside the same phase for trivially similar wording. Bound lookups to at most one `suggest` probe per phase unless the user explicitly asks for a broader search.
+
+Tier behavior: silence means no confident match; a name hint means inspect that skill if it looks relevant; a compact card means a high-confidence match was found for this phase.
+
+1. Run `suggest "<3-8 keyword phase summary>" --json --card --limit 1` with the launcher above.
 2. If a suggestion looks relevant, run `view <skill-name>` and follow only the relevant instructions.
-3. If `suggest` returns nothing, proceed with the task — do not search again with synonyms. For unusual or high-stakes tasks you may escalate once to `search "<query>" --mode hybrid --limit 8`.
+3. If `suggest` returns nothing, proceed with the current phase; do not search again with synonyms for that same phase. For unusual or high-stakes tasks you may escalate once to `search "<query>" --mode hybrid --limit 8`.
 4. If the user asks what skills are available, run `list --limit 80` and summarize the relevant collections or names.
 5. If the user names a specific skill, run `where <skill-name>` or `view <skill-name>` before saying it is unavailable.
 6. Optionally enrich the learning loop with `use <skill-name> --query "<query>" --task "<short task>"` and the `feedback` command — helpful, never required.

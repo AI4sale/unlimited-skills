@@ -5,25 +5,53 @@ This is the public MIT repository for the local Unlimited Skills core.
 <!-- BEGIN UNLIMITED SKILLS -->
 ## Unlimited Skills Library
 
-Unlimited Skills is the external skill memory for this agent. Treat it as the first place to ask for task-specific skills, workflows, checklists, procedures, and regression recipes.
+Unlimited Skills is the external skill memory for this agent. Treat `suggest` as the primary entry point for task-specific skills, workflows, checklists, procedures, and regression recipes.
 
-Before doing substantive work, check whether Unlimited Skills has a relevant skill. This includes writing, editing, coding, review, debugging, research, documentation, operations, planning, and design tasks. Skip this check only when a relevant skill is already active in the current context and it is clear why that skill applies.
+Before every substantive work phase, run:
 
-Before saying a skill is unavailable, query the library:
-
-```bash
-unlimited-skills search "<task or skill name>" --mode hybrid --limit 8
-unlimited-skills where <skill-name>
-unlimited-skills view <skill-name>
+```text
+unlimited-skills suggest "<3-8 keyword phase summary>" --json --card --limit 1
 ```
 
-For inventory questions, query the library before answering:
+A substantive phase boundary is a change in domain or deliverable kind, such as planning -> implementation, backend/API -> frontend/UI, implementation -> testing, testing -> debugging, implementation -> security review, code -> docs, or docs -> release/git workflow. A `suggest` result is fresh only for the current phase. A no-hit result also applies only to the current phase.
 
-```bash
-unlimited-skills list --limit 80
-```
+Anti-spam rule: do not re-query inside the same phase for trivially similar wording. Bound lookups to at most one `suggest` probe per phase unless the user explicitly asks for a different skill search.
 
-Do not rely only on `.agents/skills`, `.codex/skills`, or the visible skill list. The library may contain skills that are intentionally not loaded into context.
+Interpret injected hints as tiers:
+
+- Tier 1: silence means no confident match for this phase.
+- Tier 2: a skill name hint means inspect that skill by name if it looks relevant.
+- Tier 3: a compact card means a high-confidence match was found; use only the cited skill instructions needed for this phase.
+
+`UNLIMITED_SKILLS_NO_INJECT=1` disables card injection and downgrades hook behavior to the quieter hint path.
+
+Search, `view`, and `where` are secondary tools. Use them when a suggested skill looks relevant, when the user names a skill, or when answering inventory questions.
+
+<!-- BEGIN ROUTER INVENTORY SNAPSHOT -->
+- Generated routable skills: `268` (basis: repo SKILL.md inventory; examples excluded; deduped by skill name).
+- Drift tolerance: `0`; regenerate with `python scripts/generate-router-inventory.py --write`.
+- Collections: `ecc` 253, `local` 1, `superpowers` 14.
+
+| Domain | Routable skills | Availability |
+| --- | ---: | --- |
+| planning/architecture | 62 | broad |
+| code-implementation | 77 | broad |
+| code-review | 12 | present |
+| testing/QA | 18 | present |
+| debugging | 4 | sparse |
+| security | 11 | present |
+| frontend/UI | 7 | present |
+| backend/API | 10 | present |
+| data/ML | 14 | present |
+| infra/ops/deploy | 10 | present |
+| git/release workflow | 2 | sparse |
+| docs/writing | 8 | present |
+| agents/automation | 33 | broad |
+| payments/business | 0 | empty |
+| other/uncategorized | 0 | empty |
+<!-- END ROUTER INVENTORY SNAPSHOT -->
+
+Privacy: prompt text stays local to the CLI probe. Do not send prompt text, full paths, repo paths, customer names, env vars, tokens, secrets, or private data to hosted calls. Reference skills by NAME, not by body or local absolute path. This is doc-led, model-self-applied guidance; it does not claim a runtime phase-boundary hook exists.
 <!-- END UNLIMITED SKILLS -->
 
 Review rules:

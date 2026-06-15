@@ -84,7 +84,9 @@ def test_claude_code_install_bundled_imports_personal_and_project_skills(tmp_pat
 
     claude_text = (project_root / "CLAUDE.md").read_text(encoding="utf-8")
     assert "<!-- BEGIN UNLIMITED SKILLS -->" in claude_text
-    assert 'suggest "<task in 3-8 keywords>"' in claude_text
+    assert 'suggest "<3-8 keyword phase summary>" --json --card --limit 1' in claude_text
+    assert "PHASE FRESHNESS" in claude_text
+    assert "for that same phase" in claude_text
     assert "TRIGGERS (any one suffices):" in claude_text
     assert "SKIP only when a relevant skill is already active" in claude_text
     assert "scripts/unlimited-skills.sh" in claude_text
