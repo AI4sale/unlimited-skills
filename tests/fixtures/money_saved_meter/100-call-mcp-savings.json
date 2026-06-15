@@ -1,0 +1,20 @@
+{
+  "gateway_bytes": 1268,
+  "gateway_est_tokens": 317,
+  "measured_servers": 1,
+  "savings_bytes": 89152,
+  "savings_pct": 98.6,
+  "servers": [
+    {
+      "est_tokens": 22605,
+      "name": "redacted-fixture-upstream",
+      "schema_bytes": 90420,
+      "status": "ok",
+      "tools_count": 40
+    }
+  ],
+  "skipped_servers": 0,
+  "token_heuristic": "est_tokens = bytes / 4 (approximate)",
+  "total_bytes": 90420,
+  "total_est_tokens": 22605
+}

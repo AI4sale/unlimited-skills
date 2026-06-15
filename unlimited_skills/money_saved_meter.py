@@ -21,6 +21,7 @@ from .search_core import EVENT_LOG, read_router_metrics
 REPORT_SCHEMA_VERSION = 1
 REPORT_TYPE = "money_saved_meter"
 DEFAULT_TARGET_CALL_COUNT = 100
+FIXTURE_100_CALL_GENERATED_AT = "2026-06-15T00:00:00Z"
 
 ALLOWED_CLAIMS = [
     "Unlimited Skills estimates local context savings from routed skill/tool usage.",
@@ -168,6 +169,19 @@ def _audit_summary(root: Path, audit_log: Path | None) -> dict[str, Any]:
     }
 
 
+def _audit_summary_from_call_count(call_count: int) -> dict[str, Any]:
+    calls = max(0, int(call_count))
+    return {
+        "status": "available" if calls else "unavailable",
+        "total_calls": calls,
+        "ok_calls": calls,
+        "refused_calls": 0,
+        "redaction_status": "fixture_aggregate_only",
+        "raw_upstream_names_included": False,
+        "local_paths_included": False,
+    }
+
+
 def _router_counts(root: Path) -> dict[str, Any]:
     metrics = read_router_metrics(root)
     total = int(metrics.get("total_invocations") or 0) if isinstance(metrics, dict) else 0
@@ -307,12 +321,13 @@ def build_money_saved_meter_report(
     audit_log: Path | None = None,
     compare_report: dict[str, Any] | None = None,
     target_call_count: int = DEFAULT_TARGET_CALL_COUNT,
+    gateway_call_count: int | None = None,
     generated_at: str | None = None,
 ) -> dict[str, Any]:
     root = root.expanduser()
     mcp_source = "provided_mcp_savings_json" if mcp_savings_report else "latest_local_event"
     mcp_summary = _safe_mcp_summary(mcp_savings_report or _latest_mcp_savings_event(root))
-    audit = _audit_summary(root, audit_log)
+    audit = _audit_summary_from_call_count(gateway_call_count) if gateway_call_count is not None else _audit_summary(root, audit_log)
     router = _router_counts(root)
 
     context_available = mcp_summary["status"] == "available"
@@ -427,6 +442,78 @@ def build_money_saved_meter_report(
     return report
 
 
+def fixture_100_call_mcp_savings_payload() -> dict[str, Any]:
+    return {
+        "servers": [
+            {
+                "name": "redacted-fixture-upstream",
+                "status": "ok",
+                "tools_count": 40,
+                "schema_bytes": 90420,
+                "est_tokens": 22605,
+            }
+        ],
+        "measured_servers": 1,
+        "skipped_servers": 0,
+        "total_bytes": 90420,
+        "total_est_tokens": 22605,
+        "gateway_bytes": 1268,
+        "gateway_est_tokens": 317,
+        "savings_bytes": 89152,
+        "savings_pct": 98.6,
+        "token_heuristic": "est_tokens = bytes / 4 (approximate)",
+    }
+
+
+def _mark_100_call_fixture(report: dict[str, Any]) -> dict[str, Any]:
+    report["measurement_surface"] = "100_call_value_report_fixture"
+    report["model_scope"]["fixture_100_call_implemented"] = True
+    report["fixture"] = {
+        "fixture_name": "money_saved_meter_100_call_value_report",
+        "target_call_count": DEFAULT_TARGET_CALL_COUNT,
+        "window_call_count": DEFAULT_TARGET_CALL_COUNT,
+        "deterministic": True,
+        "source": "local_aggregate_fixture_no_raw_payloads",
+        "cadence_not_billing_math": True,
+    }
+    report["next_actions"] = [
+        "Use this deterministic fixture to verify the 100-call reporting contract.",
+        "Run the before/after command on local artifacts for machine-specific measurements.",
+        "Keep dollar estimates disabled unless a later local price-config task explicitly enables them.",
+    ]
+    assert_money_saved_meter_safe(report)
+    return report
+
+
+def build_100_call_value_report_from_sources(
+    *,
+    mcp_savings_report: dict[str, Any],
+    audit_log: Path,
+    generated_at: str = FIXTURE_100_CALL_GENERATED_AT,
+) -> dict[str, Any]:
+    report = build_money_saved_meter_report(
+        Path("."),
+        mode="fixture_100_call",
+        mcp_savings_report=mcp_savings_report,
+        audit_log=audit_log,
+        target_call_count=DEFAULT_TARGET_CALL_COUNT,
+        generated_at=generated_at,
+    )
+    return _mark_100_call_fixture(report)
+
+
+def build_100_call_value_report_fixture(*, generated_at: str = FIXTURE_100_CALL_GENERATED_AT) -> dict[str, Any]:
+    report = build_money_saved_meter_report(
+        Path("."),
+        mode="fixture_100_call",
+        mcp_savings_report=fixture_100_call_mcp_savings_payload(),
+        target_call_count=DEFAULT_TARGET_CALL_COUNT,
+        gateway_call_count=DEFAULT_TARGET_CALL_COUNT,
+        generated_at=generated_at,
+    )
+    return _mark_100_call_fixture(report)
+
+
 def assert_money_saved_meter_safe(value: Any) -> None:
     assert_feedback_report_safe(value)
 
@@ -443,14 +530,16 @@ def format_money_saved_meter_markdown(report: dict[str, Any]) -> str:
     window = report["window"]
     context = measured["context_bytes_avoided"]
     tokens = estimates["estimated_tokens_avoided"]
+    surface = "100-call value report fixture" if report.get("measurement_surface") == "100_call_value_report_fixture" else "before/after install measurement"
     lines = [
         "# Unlimited Skills Money Saved Meter",
         "",
         f"Generated: {report['generated_at']}",
         f"Mode: {report['mode']}",
-        "Surface: before/after install measurement",
+        f"Surface: {surface}",
         "",
         f"- Gateway calls in window: {window['window_call_count']} / {window['target_call_count']}",
+        f"- 100-call window is cadence/reporting, not billing math: {bool(window['cadence_not_billing_math'])}",
         f"- MCP schema bytes avoided: {context['value'] if context['available'] else 'unavailable'}",
         f"- Estimated tokens avoided: {tokens['value'] if tokens['available'] else 'unavailable'}",
         "- Dollar estimate: unavailable by default",

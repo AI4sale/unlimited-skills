@@ -572,6 +572,7 @@ def build_parser() -> argparse.ArgumentParser:
     money_saved_meter.add_argument("--audit-log", default="", help="Read gateway call counts from this audit log instead of the default local audit log.")
     money_saved_meter.add_argument("--compare", default="", help="Compare this report with a previous Money Saved Meter JSON report.")
     money_saved_meter.add_argument("--target-calls", type=int, default=100, help="Local reporting cadence target. This is not billing math.")
+    money_saved_meter.add_argument("--fixture-100-call", action="store_true", help="Emit the deterministic 100-call value report fixture.")
     money_saved_meter.set_defaults(func=money_saved_cmds.cmd_money_saved_meter)
 
     summary = sub.add_parser("learning-summary", help="Summarize learning-loop feedback.")
