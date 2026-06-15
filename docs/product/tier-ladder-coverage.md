@@ -18,6 +18,13 @@ not in this public repo). This file therefore provides the **enforced structure 
 template**, not invented future features. Each release's themed slots are filled when
 that release is scoped, from the private roadmap — never guessed here.
 
+**Forward pre-design.** The full Free/Registered/Team/Business/Enterprise ladder for
+every release v0.6.5 → v0.6.13 is already drafted in
+[`v0.6.5-to-v0.6.13-tier-ladder-predesign.md`](v0.6.5-to-v0.6.13-tier-ladder-predesign.md)
+(grounded in the private-roadmap themes). At build time each release's section there
+expands into the full per-tier contracts + cross-tier matrix below; this table tracks
+which have been turned into shipped contracts.
+
 ## Tier vocabulary (fixed)
 
 - **Free / Community Core** — the base live feature; no account.
