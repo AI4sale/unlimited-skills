@@ -10,6 +10,7 @@ from pathlib import Path
 def cmd_money_saved_meter(args: argparse.Namespace) -> int:
     from .. import cli
     from ..money_saved_meter import (
+        build_100_call_value_report_fixture,
         build_money_saved_meter_report,
         format_money_saved_meter_markdown,
         load_optional_report,
@@ -19,17 +20,20 @@ def cmd_money_saved_meter(args: argparse.Namespace) -> int:
 
     root = Path(args.root).expanduser()
     cli.enforce_local_root(root, action="money-saved meter library root")
-    mcp_savings_report = load_optional_report(args.mcp_savings_json)
-    compare_report = load_optional_report(args.compare)
-    audit_log = Path(args.audit_log).expanduser() if args.audit_log else None
-    report = build_money_saved_meter_report(
-        root,
-        mode=args.mode,
-        mcp_savings_report=mcp_savings_report,
-        audit_log=audit_log,
-        compare_report=compare_report,
-        target_call_count=args.target_calls,
-    )
+    if args.fixture_100_call:
+        report = build_100_call_value_report_fixture()
+    else:
+        mcp_savings_report = load_optional_report(args.mcp_savings_json)
+        compare_report = load_optional_report(args.compare)
+        audit_log = Path(args.audit_log).expanduser() if args.audit_log else None
+        report = build_money_saved_meter_report(
+            root,
+            mode=args.mode,
+            mcp_savings_report=mcp_savings_report,
+            audit_log=audit_log,
+            compare_report=compare_report,
+            target_call_count=args.target_calls,
+        )
     text = money_saved_meter_json(report) if args.json else format_money_saved_meter_markdown(report)
     if args.out:
         write_report(Path(args.out), text)

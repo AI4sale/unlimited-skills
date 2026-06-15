@@ -1,0 +1,211 @@
+{
+  "claim_boundary": {
+    "allowed_claims": [
+      "Unlimited Skills estimates local context savings from routed skill/tool usage.",
+      "Bytes may be measured when local artifacts expose sizes.",
+      "Tokens and dollars are estimates."
+    ],
+    "forbidden_claims": [
+      "exact tokens saved",
+      "exact money saved",
+      "bill reduction guaranteed",
+      "hosted telemetry-backed savings",
+      "all skill-body savings measured exactly",
+      "provider billing reconciliation"
+    ]
+  },
+  "disabled_by_default": {
+    "billing_provider_integration": {
+      "configured_locally": false,
+      "enabled": false,
+      "reason": "disabled_by_default"
+    },
+    "dollar_value": {
+      "configured_locally": false,
+      "enabled": false,
+      "reason": "disabled_by_default_no_local_price_config"
+    },
+    "hosted_telemetry": {
+      "configured_locally": false,
+      "enabled": false,
+      "reason": "disabled_by_default"
+    },
+    "provider_specific_price_assumptions": {
+      "configured_locally": false,
+      "enabled": false,
+      "reason": "disabled_by_default"
+    }
+  },
+  "estimates": {
+    "estimated_context_bytes_avoided": {
+      "available": false,
+      "measurement_kind": "estimated",
+      "method": null,
+      "reason": "no_context_size_assumption_configured",
+      "value": null
+    },
+    "estimated_dollar_value": {
+      "available": false,
+      "configured_locally": false,
+      "enabled": false,
+      "measurement_kind": "estimated",
+      "method": null,
+      "reason": "disabled_by_default_no_local_price_config",
+      "value": null
+    },
+    "estimated_tokens_avoided": {
+      "available": true,
+      "measurement_kind": "estimated",
+      "method": "bytes_divided_by_4",
+      "reason": null,
+      "value": 20000
+    }
+  },
+  "exact_counts": {
+    "gateway_mcp_call_count": {
+      "measurement_kind": "exact",
+      "source": "mcp_audit_summary",
+      "value": 100
+    },
+    "injected_skill_card_count": {
+      "measurement_kind": "exact",
+      "source": "not_counted_by_current_pull_surface",
+      "value": 0
+    },
+    "router_call_count": {
+      "measurement_kind": "exact",
+      "source": "local_router_metrics",
+      "value": 0
+    },
+    "suggested_skill_count": {
+      "measurement_kind": "exact",
+      "source": "not_counted_by_current_pull_surface",
+      "value": 0
+    },
+    "window_call_count": {
+      "measurement_kind": "exact",
+      "source": "mcp_audit_summary",
+      "value": 100
+    }
+  },
+  "forbidden_fields": [
+    "raw prompts",
+    "raw task text",
+    "skill bodies",
+    "local absolute paths",
+    "tokens, keys, secrets",
+    "customer names",
+    "hosted uploads",
+    "private repo paths",
+    "raw MCP tool input/output payloads",
+    "raw MCP schemas",
+    "MCP server command lines or env values"
+  ],
+  "generated_at": "2026-06-15T00:00:00Z",
+  "measured_bytes": {
+    "context_bytes_avoided": {
+      "available": true,
+      "measurement_kind": "measured",
+      "reason": null,
+      "source": "mcp_savings_context_budget",
+      "value": 80000
+    },
+    "gateway_schema_bytes": {
+      "available": true,
+      "measurement_kind": "measured",
+      "reason": null,
+      "source": "mcp_savings_context_budget",
+      "value": 1268
+    },
+    "skill_card_bytes_injected": {
+      "available": false,
+      "measurement_kind": "measured",
+      "reason": "not_measured_by_current_artifacts",
+      "source": "router_delivery_artifact",
+      "value": null
+    },
+    "upstream_schema_bytes": {
+      "available": true,
+      "measurement_kind": "measured",
+      "reason": null,
+      "source": "mcp_savings_context_budget",
+      "value": 90420
+    }
+  },
+  "measurement_surface": "before_after_install_measurement",
+  "mode": "before",
+  "model_scope": {
+    "before_after_measurement_supported": true,
+    "cli_command_implemented": true,
+    "push_nudge_implemented": false,
+    "runtime_meter_implemented": false,
+    "state_writer_implemented": false
+  },
+  "next_actions": [
+    "Run `unlimited-skills mcp savings --json --out before-mcp-savings.json` before installing the gateway.",
+    "Run `unlimited-skills money-saved meter --json --mcp-savings-json before-mcp-savings.json --out before-meter.json`.",
+    "After install and local usage, rerun `mcp savings` and `money-saved meter --compare before-meter.json`."
+  ],
+  "notice": "This receipt is a local estimate from your own machine. It is not telemetry, not a benchmark guarantee, and not a paid ROI promise.",
+  "privacy": {
+    "analytics": false,
+    "commands_included": false,
+    "customer_names_included": false,
+    "env_included": false,
+    "hosted_telemetry": false,
+    "local_absolute_paths_included": false,
+    "local_only": true,
+    "private_repo_paths_included": false,
+    "raw_mcp_payloads_included": false,
+    "raw_prompts_included": false,
+    "raw_task_text_included": false,
+    "schema_contents_included": false,
+    "server_names_included": false,
+    "skill_bodies_included": false,
+    "telemetry": false,
+    "tokens_keys_secrets_included": false,
+    "upload": false
+  },
+  "report_type": "money_saved_meter",
+  "schema_version": 1,
+  "source_inputs": {
+    "before_after_comparison": {
+      "privacy_boundary": "aggregate_only_no_raw_payloads",
+      "source_kind": "money_saved_meter_previous_report",
+      "status": "unavailable"
+    },
+    "compatible_roi_receipt": {
+      "privacy_boundary": "aggregate_only_no_raw_payloads",
+      "source_kind": "roi_receipt",
+      "status": "compatible"
+    },
+    "gateway_audit_summary": {
+      "privacy_boundary": "aggregate_only_no_raw_payloads",
+      "source_kind": "mcp_audit_summary",
+      "status": "available"
+    },
+    "local_router_metrics": {
+      "privacy_boundary": "aggregate_only_no_raw_payloads",
+      "source_kind": "router_metrics",
+      "status": "unavailable"
+    },
+    "mcp_savings_context_budget": {
+      "privacy_boundary": "aggregate_only_no_raw_payloads",
+      "source": "provided_mcp_savings_json",
+      "source_kind": "mcp_savings",
+      "status": "available"
+    }
+  },
+  "unlimited_skills_version": "0.6.2",
+  "window": {
+    "cadence_not_billing_math": true,
+    "counted_call_kinds": [
+      "gateway_mcp_call"
+    ],
+    "is_complete_window": true,
+    "label": "per_100_gateway_call_reporting_window",
+    "partial_window_policy": "report counts so far; never extrapolate exact tokens, exact dollars, or bill reduction",
+    "target_call_count": 100,
+    "window_call_count": 100
+  }
+}
