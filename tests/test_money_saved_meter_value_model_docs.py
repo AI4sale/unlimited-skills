@@ -9,6 +9,7 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[1]
 VALUE_MODEL = REPO_ROOT / "docs" / "product" / "v0.6.4" / "money-saved-meter-value-model.md"
 JSON_CONTRACT = REPO_ROOT / "docs" / "product" / "v0.6.4" / "money-saved-meter-json-contract.v1.md"
+BEFORE_AFTER_COMMAND = REPO_ROOT / "docs" / "product" / "v0.6.4" / "money-saved-meter-before-after-command.md"
 LIMITATIONS = REPO_ROOT / "docs" / "reports" / "v0.6.4-money-saved-meter-known-limitations.md"
 FIXTURE_DIR = REPO_ROOT / "tests" / "fixtures" / "money_saved_meter"
 EMPTY_FIXTURE = FIXTURE_DIR / "value-model-empty.json"
@@ -153,12 +154,34 @@ def test_known_limitations_prevent_exact_or_hosted_overclaim() -> None:
         "provider-bill reduction",
         "hosted telemetry-backed analytics",
         "per-100-call frame is a local reporting cadence",
-        "us-064-001 does not add a runtime command",
+        "us-064-002 adds `unlimited-skills money-saved meter`",
+        "does not mutate local meter state",
+        "does not add a state writer, push nudge, or daemon behavior",
     ]:
         assert phrase in lower
 
     for claim in ALLOWED_CLAIMS + FORBIDDEN_CLAIMS:
         assert claim in text
+
+
+def test_before_after_command_doc_defines_reproducible_local_flow() -> None:
+    text = read(BEFORE_AFTER_COMMAND)
+    lower = text.lower()
+
+    for phrase in [
+        "us-064-002",
+        "unlimited-skills money-saved meter",
+        "unlimited-skills mcp savings --json > before-mcp-savings.json",
+        "--mode before",
+        "--mode after",
+        "--compare before-meter.json",
+        "report_type=money_saved_meter",
+        "does not write `<root>/.learning/savings-meter.json`",
+        "ambient nudge",
+        "strips server names, schemas, commands, env, local paths",
+        "no telemetry, upload, hosted calls",
+    ]:
+        assert phrase in lower
 
 
 def test_fixtures_follow_stable_contract_and_measurement_kinds() -> None:

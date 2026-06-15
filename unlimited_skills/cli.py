@@ -441,6 +441,7 @@ def build_parser() -> argparse.ArgumentParser:
     from .commands import feedback as feedback_cmds
     from .commands import learning as learning_cmds
     from .commands import library as library_cmds
+    from .commands import money_saved as money_saved_cmds
     from .commands import mcp as mcp_cmds
     from .commands import policy as policy_cmds
     from .commands import private_packs as private_packs_cmds
@@ -559,6 +560,19 @@ def build_parser() -> argparse.ArgumentParser:
     roi_receipt.add_argument("--out", default="", help="Write the receipt to this local file instead of stdout.")
     roi_receipt.add_argument("--json", action="store_true", help="Machine-readable write status when --out is used.")
     roi_receipt.set_defaults(func=roi_cmds.cmd_roi_receipt)
+
+    money_saved = sub.add_parser("money-saved", help="Measure local Money Saved Meter value surfaces.")
+    money_saved_sub = money_saved.add_subparsers(dest="money_saved_command", required=True)
+    money_saved_meter = money_saved_sub.add_parser("meter", help="Print a local-only before/after install measurement report.")
+    money_saved_meter.add_argument("--json", action="store_true", help="Emit the safe aggregate JSON report.")
+    money_saved_meter.add_argument("--out", default="", help="Write the report to this local file instead of stdout.")
+    money_saved_meter.add_argument("--json-status", action="store_true", help="Machine-readable write status when --out is used.")
+    money_saved_meter.add_argument("--mode", choices=["before", "after", "current"], default="current", help="Label this local measurement run.")
+    money_saved_meter.add_argument("--mcp-savings-json", default="", help="Read an existing `mcp savings --json` file instead of the latest local event snapshot.")
+    money_saved_meter.add_argument("--audit-log", default="", help="Read gateway call counts from this audit log instead of the default local audit log.")
+    money_saved_meter.add_argument("--compare", default="", help="Compare this report with a previous Money Saved Meter JSON report.")
+    money_saved_meter.add_argument("--target-calls", type=int, default=100, help="Local reporting cadence target. This is not billing math.")
+    money_saved_meter.set_defaults(func=money_saved_cmds.cmd_money_saved_meter)
 
     summary = sub.add_parser("learning-summary", help="Summarize learning-loop feedback.")
     summary.add_argument(
