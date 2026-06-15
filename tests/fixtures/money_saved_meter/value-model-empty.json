@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "report_type": "money_saved_meter_value_model",
+  "generated_at": null,
+  "mode": "empty",
+  "model_scope": {
+    "status": "model_spec_only",
+    "runtime_meter_implemented": false,
+    "cli_command_implemented": false,
+    "state_writer_implemented": false
+  },
+  "window": {
+    "label": "per_100_call_reporting_window",
+    "target_call_count": 100,
+    "counted_call_kinds": ["gateway_mcp_call", "router_call"],
+    "window_call_count": 0,
+    "is_complete_window": false,
+    "cadence_not_billing_math": true,
+    "partial_window_policy": "report counts_so_far and never extrapolate exact tokens, exact dollars, or bill changes"
+  },
+  "source_inputs": {
+    "router_inject_v2_inventory_snapshot": {
+      "status": "unavailable",
+      "source_kind": "router_inventory",
+      "privacy_boundary": "aggregate_only_no_raw_payloads"
+    },
+    "local_router_metrics": {
+      "status": "unavailable",
+      "source_kind": "router_metrics",
+      "privacy_boundary": "aggregate_only_no_raw_payloads"
+    },
+    "sanitized_local_event_logs": {
+      "status": "unavailable",
+      "source_kind": "sanitized_event_log",
+      "privacy_boundary": "aggregate_only_no_raw_payloads"
+    },
+    "mcp_savings_context_budget": {
+      "status": "unavailable",
+      "source_kind": "mcp_savings",
+      "privacy_boundary": "aggregate_only_no_raw_payloads"
+    },
+    "compatible_roi_receipt": {
+      "status": "unavailable",
+      "source_kind": "roi_receipt",
+      "privacy_boundary": "aggregate_only_no_raw_payloads"
+    }
+  },
+  "exact_counts": {
+    "router_call_count": {"value": 0, "measurement_kind": "exact", "source": "local_router_metrics"},
+    "suggested_skill_count": {"value": 0, "measurement_kind": "exact", "source": "local_router_metrics"},
+    "injected_skill_card_count": {"value": 0, "measurement_kind": "exact", "source": "local_router_metrics"},
+    "gateway_mcp_call_count": {"value": 0, "measurement_kind": "exact", "source": "mcp_audit_summary"},
+    "window_call_count": {"value": 0, "measurement_kind": "exact", "source": "window"}
+  },
+  "measured_bytes": {
+    "upstream_schema_bytes": {"value": null, "measurement_kind": "measured", "available": false, "source": "mcp_savings_context_budget", "reason": "no_local_artifact"},
+    "gateway_schema_bytes": {"value": null, "measurement_kind": "measured", "available": false, "source": "mcp_savings_context_budget", "reason": "no_local_artifact"},
+    "context_bytes_avoided": {"value": null, "measurement_kind": "measured", "available": false, "source": "mcp_savings_context_budget", "reason": "no_local_artifact"},
+    "skill_card_bytes_injected": {"value": null, "measurement_kind": "measured", "available": false, "source": "router_delivery_artifact", "reason": "no_local_artifact"}
+  },
+  "estimates": {
+    "estimated_tokens_avoided": {"value": null, "measurement_kind": "estimated", "available": false, "method": null, "reason": "requires_measured_or_modeled_context_bytes"},
+    "estimated_context_bytes_avoided": {"value": null, "measurement_kind": "estimated", "available": false, "method": null, "reason": "requires_local_size_assumptions"},
+    "estimated_dollar_value": {"value": null, "measurement_kind": "estimated", "available": false, "enabled": false, "configured_locally": false, "method": null, "reason": "disabled_by_default_no_local_price_config"}
+  },
+  "disabled_by_default": {
+    "dollar_value": {"enabled": false, "configured_locally": false, "reason": "disabled_by_default_no_local_price_config"},
+    "provider_specific_price_assumptions": {"enabled": false, "configured_locally": false, "reason": "disabled_by_default"},
+    "hosted_telemetry": {"enabled": false, "configured_locally": false, "reason": "forbidden_for_local_model"},
+    "billing_provider_integration": {"enabled": false, "configured_locally": false, "reason": "forbidden_for_local_model"}
+  },
+  "forbidden_fields": [
+    "raw_prompts",
+    "raw_task_text",
+    "skill_bodies",
+    "local_absolute_paths",
+    "tokens_keys_secrets",
+    "customer_names",
+    "hosted_uploads",
+    "private_repo_paths",
+    "raw_mcp_tool_input_output_payloads"
+  ],
+  "claim_boundary": {
+    "allowed_claims": [
+      "Unlimited Skills estimates local context savings from routed skill/tool usage.",
+      "Bytes may be measured when local artifacts expose sizes.",
+      "Tokens and dollars are estimates."
+    ],
+    "forbidden_claims": [
+      "exact tokens saved",
+      "exact money saved",
+      "bill reduction guaranteed",
+      "hosted telemetry-backed savings",
+      "all skill-body savings measured exactly",
+      "provider billing reconciliation"
+    ]
+  },
+  "privacy": {
+    "local_only": true,
+    "upload": false,
+    "hosted_telemetry": false,
+    "raw_prompts_included": false,
+    "raw_task_text_included": false,
+    "skill_bodies_included": false,
+    "local_absolute_paths_included": false,
+    "tokens_keys_secrets_included": false,
+    "customer_names_included": false,
+    "private_repo_paths_included": false,
+    "raw_mcp_payloads_included": false
+  },
+  "next_actions": [
+    "Run local router activity and MCP savings commands to create privacy-safe aggregate artifacts.",
+    "Keep dollar estimates disabled until a user supplies local price config."
+  ]
+}
