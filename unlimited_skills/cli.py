@@ -670,6 +670,16 @@ def build_parser() -> argparse.ArgumentParser:
     learning_team.add_argument("--json-status", action="store_true", help="Machine-readable write status when --out is used.")
     learning_team.set_defaults(func=learning_cmds.cmd_learning_team_rollup)
 
+    learning_admin = learning_sub.add_parser(
+        "admin-export",
+        help="Business tier: local admin CSV + JSON export over a learning Team rollup (no hosted dashboard).",
+    )
+    learning_admin.add_argument("--input", default="", help="A learning Team rollup file.")
+    learning_admin.add_argument("--labels", default="", help="Optional local JSON map: alias -> {team, workspace, agent_class}.")
+    learning_admin.add_argument("--csv", default="", help="Write the CSV export to this local file.")
+    learning_admin.add_argument("--json", default="", help="Write the JSON export to this local file.")
+    learning_admin.set_defaults(func=learning_cmds.cmd_learning_admin_export)
+
     improvement_candidates = sub.add_parser(
         "improvement-candidates",
         help="List local privacy-safe Learning Loop improvement candidates.",
