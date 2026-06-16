@@ -19,7 +19,7 @@ v0.6 adoption-cycle spec. The source of truth for the freeze is
 
 | Command | Stability | JSON contract |
 | --- | --- | --- |
-| `unlimited-skills --version` | Stable public-alpha | Prints the installed Unlimited Skills version. For `v0.6.2-alpha`, the PyPI-installed package returns `unlimited-skills 0.6.2`. |
+| `unlimited-skills --version` | Stable public-alpha | Prints the installed Unlimited Skills version. For `v0.6.3-alpha`, the PyPI-installed package returns `unlimited-skills 0.6.3`. |
 | `unlimited-skills quickstart --json` | Stable public-alpha | Object with `root`, `library`, `search`, `savings`, `savings_error`, `next_steps`. The `root` value is redacted as `<local-library>`. |
 | `unlimited-skills suggest "<task>" --json` | Stable public-alpha | Privacy-hardened object with `task_summary_hash`, `top_3_skill_candidates`, `reason_code`, `recommended_next_action`, and `latency_ms`. Candidate entries contain `name`, `source`, and `score`. The probe must not echo raw prompt text in JSON output. |
 | `unlimited-skills suggest "<task>" --json --card` | Stable public-alpha | Adds `delivery_tier` and, only when high-confidence card injection is selected, `skill_card`. Any `skill_card` is capped, references the selected skill by name, and must not include local filesystem paths, query text, or unrelated skills. |
@@ -104,8 +104,7 @@ published until:
 3. the release verifier passes in published/package-availability mode;
 4. the GitHub tag/prerelease points to the verified release commit.
 
-`v0.6.2-alpha` is the accepted v0.6 alpha release. The `0.6.1-alpha` release
-remains the valid replacement for the uploaded-but-not-released `0.6.0`
-artifact. The `0.6.0` package was uploaded to PyPI but was not tagged or
-released because the published verifier failed after upload when
-`learning-summary --events --json` was rejected.
+`v0.6.3-alpha` is the current release-execution target. The `0.6.1-alpha`
+release remains the valid replacement for the uploaded-but-not-released
+`0.6.0` artifact, and `v0.6.2-alpha` remains the accepted non-English routing
+hotfix until the v0.6.3 publish/tag verifier passes.
