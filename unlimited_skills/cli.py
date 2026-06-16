@@ -608,6 +608,22 @@ def build_parser() -> argparse.ArgumentParser:
     money_saved_admin.add_argument("--json", default="", help="Write the admin export as JSON to this local file.")
     money_saved_admin.set_defaults(func=money_saved_cmds.cmd_money_saved_admin_export)
 
+    money_saved_evidence = money_saved_sub.add_parser(
+        "evidence-pack",
+        help="Enterprise tier: write a tamper-evident local Money Saved evidence pack (no egress; no SSO/SCIM/signature claim).",
+    )
+    money_saved_evidence.add_argument("--input", default="", help="A Business admin export file (money-saved-admin-export-v1).")
+    money_saved_evidence.add_argument("--out", default="", help="Directory to write the evidence pack into.")
+    money_saved_evidence.set_defaults(func=money_saved_cmds.cmd_money_saved_evidence_pack)
+
+    money_saved_verify = money_saved_sub.add_parser(
+        "verify-evidence-pack",
+        help="Enterprise tier: independently verify a Money Saved evidence pack (exit 0 valid / 1 tampered / 2 bad input).",
+    )
+    money_saved_verify.add_argument("--input", default="", help="The evidence-pack directory to verify.")
+    money_saved_verify.add_argument("--json", action="store_true", help="Emit the verification report JSON (output is JSON regardless).")
+    money_saved_verify.set_defaults(func=money_saved_cmds.cmd_money_saved_verify_evidence_pack)
+
     router_health = sub.add_parser("router-health", help="Local router-health readiness surfaces (per tier).")
     router_health_sub = router_health.add_subparsers(dest="router_health_command", required=True)
     router_health_export = router_health_sub.add_parser(
