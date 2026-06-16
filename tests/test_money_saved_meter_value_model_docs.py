@@ -14,6 +14,10 @@ BEFORE_AFTER_COMMAND = REPO_ROOT / "docs" / "product" / "v0.6.4" / "money-saved-
 REPRODUCTION_DOC = REPO_ROOT / "docs" / "product" / "v0.6.4" / "money-saved-meter-reproduce-measurements.md"
 CALL_REPORT_DOC = REPO_ROOT / "docs" / "product" / "v0.6.4" / "money-saved-meter-100-call-value-report.md"
 LIMITATIONS = REPO_ROOT / "docs" / "reports" / "v0.6.4-money-saved-meter-known-limitations.md"
+READINESS_PACKAGE = REPO_ROOT / "docs" / "reports" / "v0.6.4-release-readiness-package.md"
+RELEASE_CLAIM_BOUNDARY = REPO_ROOT / "docs" / "reports" / "v0.6.4-money-saved-meter-release-claim-boundary.md"
+FINAL_LIMITATIONS = REPO_ROOT / "docs" / "reports" / "v0.6.4-known-limitations-final.md"
+RELEASE_MANIFEST = REPO_ROOT / "docs" / "releases" / "v0.6.4-alpha.release-manifest.json"
 CLI_CONTRACTS = REPO_ROOT / "docs" / "cli-contracts.md"
 FIXTURE_DIR = REPO_ROOT / "tests" / "fixtures" / "money_saved_meter"
 EMPTY_FIXTURE = FIXTURE_DIR / "value-model-empty.json"
@@ -253,6 +257,122 @@ def test_reproduction_docs_verifier_passes() -> None:
 
     assert result["ok"] is True
     assert result["report_type"] == "money_saved_meter_reproduction_docs_verification"
+
+
+def test_v064_release_readiness_package_has_required_decision_boundary() -> None:
+    readiness = read(READINESS_PACKAGE)
+    claim_boundary = read(RELEASE_CLAIM_BOUNDARY)
+    final_limitations = read(FINAL_LIMITATIONS)
+    combined = "\n".join([readiness, claim_boundary, final_limitations])
+    lower = combined.lower()
+
+    for path in [
+        "v0.6.4-money-saved-meter-release-claim-boundary.md",
+        "v0.6.4-known-limitations-final.md",
+    ]:
+        assert path in readiness
+
+    for item in ["US-064-000", "US-064-001", "US-064-002", "US-064-003", "US-064-004"]:
+        assert item in readiness
+
+    for phrase in [
+        "GO_WITH_LIMITS",
+        "local Money Saved Meter",
+        "local before/after measurement",
+        "deterministic 100-call fixture",
+        "Exact counts remain counts",
+        "Token and dollar values are estimates",
+        "Dollar estimates are disabled by default",
+        "The 100-call frame is a local reporting cadence, not billing math",
+        "local-only",
+        "no release execution",
+    ]:
+        assert phrase.lower() in lower
+
+    for blocked in [
+        "exact token savings",
+        "exact money savings",
+        "guaranteed bill reduction",
+        "provider billing reconciliation",
+        "hosted telemetry-backed savings",
+        "persistent meter state writer",
+        "push nudge",
+        "paid-tier exports",
+        "team, business, or enterprise rollout",
+    ]:
+        index = lower.find(blocked)
+        assert index != -1
+        context = lower[max(0, index - 240) : index + len(blocked) + 240]
+        assert any(marker in context for marker in ["blocked", "do not claim", "does not include", "not include"])
+
+
+def test_v064_release_manifest_is_machine_readable_and_bounded() -> None:
+    payload = load_fixture(RELEASE_MANIFEST)
+
+    assert payload["schema_version"] == 1
+    assert payload["release"] == "v0.6.4-alpha"
+    assert payload["package_version"] == "0.6.4"
+    assert payload["implemented_items"] == [
+        "US-064-000",
+        "US-064-001",
+        "US-064-002",
+        "US-064-003",
+        "US-064-004",
+    ]
+    assert [item["number"] for item in payload["tracked_prs"]] == [
+        183,
+        184,
+        186,
+        187,
+        188,
+        189,
+        190,
+        191,
+        192,
+        193,
+    ]
+    roles = {item["number"]: item["role"] for item in payload["tracked_prs"]}
+    assert roles[190] == "planning_support"
+    assert roles[193] == "review_support"
+    assert payload["release_decision"]["recommendation"] == "GO_WITH_LIMITS"
+    assert payload["release_decision"]["release_publish_allowed"] is False
+    assert payload["release_decision"]["release_execution_authorized"] is False
+
+    for surface in [
+        "push_nudge",
+        "persistent_meter_state_writer",
+        "paid_tier_exports",
+        "hosted_telemetry",
+        "billing_provider_reconciliation",
+        "exact_token_money_claims",
+        "team_business_enterprise_rollout",
+        "marketplace_submission",
+        "pypi_publish",
+        "tag_creation",
+    ]:
+        assert payload["blocked_surfaces"][surface] is True
+
+    for doc in payload["required_docs"]:
+        assert (REPO_ROOT / doc).is_file()
+
+
+def test_v064_release_readiness_verifier_passes() -> None:
+    sys_path_inserted = False
+    scripts_path = str(REPO_ROOT / "scripts")
+    if scripts_path not in sys.path:
+        sys.path.insert(0, scripts_path)
+        sys_path_inserted = True
+    try:
+        from verify_v064_release_readiness import verify_release_readiness
+
+        result = verify_release_readiness()
+    finally:
+        if sys_path_inserted:
+            sys.path.remove(scripts_path)
+
+    assert result["ok"] is True
+    assert result["report_type"] == "v064_release_readiness_verification"
+    assert result["decision"] == "GO_WITH_LIMITS"
 
 
 def test_fixtures_follow_stable_contract_and_measurement_kinds() -> None:

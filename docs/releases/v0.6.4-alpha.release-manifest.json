@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "release": "v0.6.4-alpha",
+  "package_name": "unlimited-skills",
+  "package_version": "0.6.4",
+  "distribution": "local-money-saved-meter",
+  "status": "release_readiness_go_with_limits",
+  "roadmap_ref": "docs/roadmaps/unlimited-skills/UNLIMITED-SKILLS-PRIVATE-ROADMAP-v0.6.3-to-v0.6.13.md#US-064-005",
+  "git": {
+    "base_branch": "main",
+    "tag": "v0.6.4-alpha",
+    "tag_status": "not_authorized_by_this_manifest"
+  },
+  "implemented_items": [
+    "US-064-000",
+    "US-064-001",
+    "US-064-002",
+    "US-064-003",
+    "US-064-004"
+  ],
+  "tracked_prs": [
+    {"number": 183, "role": "implementation", "item_id": "US-064-000", "merge": "38f7f1799af307d80e7d04a2d29a2079357b05fd"},
+    {"number": 184, "role": "implementation", "item_id": "US-064-000", "merge": "aba02929452f78e0293a8156ea3ce52317abd762"},
+    {"number": 186, "role": "implementation", "item_id": "US-064-000", "merge": "45224d05b269452e83c27a5c0ba4a218091b325a"},
+    {"number": 187, "role": "implementation", "item_id": "US-064-001", "merge": "71f5e2cae5b12b13bda33b8263e157d00c218cc0"},
+    {"number": 188, "role": "review_support", "item_id": "tier-boundary", "merge": "a83b43044362e0c81ec238e1e077a7920fd21b2a"},
+    {"number": 189, "role": "implementation", "item_id": "US-064-002", "merge": "7317dbc041af7bcf63ec9b94b5166b88629b4a0b"},
+    {"number": 190, "role": "planning_support", "item_id": "tier-ladder-governance", "merge": "20f3f08bcc74a577047709bf94eb2e4c1eaf6ec3"},
+    {"number": 191, "role": "implementation", "item_id": "US-064-003", "merge": "3c5b408d07f8f131085e859ae3af2cf9b9345acd"},
+    {"number": 192, "role": "implementation", "item_id": "US-064-004", "merge": "387d5cc3373707ff5b7351bdf8f77f3a7f88ac46"},
+    {"number": 193, "role": "review_support", "item_id": "US-064-004", "merge": "695408478b59140b8f816cb05ab63ee1b9205477"}
+  ],
+  "required_docs": [
+    "docs/reports/v0.6.4-release-readiness-package.md",
+    "docs/reports/v0.6.4-money-saved-meter-release-claim-boundary.md",
+    "docs/reports/v0.6.4-known-limitations-final.md",
+    "docs/reports/v0.6.4-money-saved-meter-known-limitations.md",
+    "docs/product/v0.6.4/money-saved-meter-value-model.md",
+    "docs/product/v0.6.4/money-saved-meter-json-contract.v1.md",
+    "docs/product/v0.6.4/money-saved-meter-before-after-command.md",
+    "docs/product/v0.6.4/money-saved-meter-100-call-value-report.md",
+    "docs/product/v0.6.4/money-saved-meter-reproduce-measurements.md"
+  ],
+  "verification_commands": [
+    "python scripts/generate-router-inventory.py --check",
+    "python scripts/verify-router-inject-v2-fixture.py --json",
+    "uv run --with pytest python -m pytest tests/test_router_inject_v2.py tests/test_money_saved_meter_value_model_docs.py tests/test_money_saved_meter_cli.py -q",
+    "python scripts/verify-money-saved-100-call-report.py --json",
+    "python scripts/verify-money-saved-meter-100-call-fixture.py --json",
+    "python scripts/verify-money-saved-reproduction-docs.py --json",
+    "python scripts/verify-v06-frozen-contracts.py --json",
+    "python scripts/verify-feedback-report-boundaries.py",
+    "uv run --with pytest python -m pytest tests/test_public_alpha_docs.py tests/test_skill_delivery_success_docs.py tests/test_local_event_privacy_docs.py tests/test_docs_v04_readiness.py tests/test_install_path_docs.py -q",
+    "uv run --with pytest --with fastapi --with httpx --with cryptography --with uvicorn python -m pytest tests -q",
+    "git diff --check"
+  ],
+  "release_decision": {
+    "package": "docs/reports/v0.6.4-release-readiness-package.md",
+    "recommendation": "GO_WITH_LIMITS",
+    "release_publish_allowed": false,
+    "release_execution_authorized": false,
+    "allowed_claims": [
+      "local Money Saved Meter",
+      "local before/after measurement",
+      "deterministic 100-call fixture",
+      "exact counts remain counts",
+      "measured bytes remain measured bytes",
+      "tokens and dollars are estimates",
+      "dollars disabled by default",
+      "local-only privacy posture"
+    ],
+    "blocked_claims": [
+      "exact token savings",
+      "exact money savings",
+      "guaranteed bill reduction",
+      "provider billing reconciliation",
+      "hosted telemetry-backed savings",
+      "live hosted dashboard",
+      "automatic upload or sync",
+      "persistent meter state writer",
+      "push nudge",
+      "paid-tier exports",
+      "team/business/enterprise rollout"
+    ]
+  },
+  "blocked_surfaces": {
+    "push_nudge": true,
+    "persistent_meter_state_writer": true,
+    "paid_tier_exports": true,
+    "hosted_telemetry": true,
+    "billing_provider_reconciliation": true,
+    "exact_token_money_claims": true,
+    "team_business_enterprise_rollout": true,
+    "marketplace_submission": true,
+    "pypi_publish": true,
+    "tag_creation": true
+  }
+}
