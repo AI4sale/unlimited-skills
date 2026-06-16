@@ -587,6 +587,17 @@ def build_parser() -> argparse.ArgumentParser:
     router_health_export.add_argument("--json-status", action="store_true", help="Machine-readable write status when --out is used.")
     router_health_export.set_defaults(func=router_health_cmds.cmd_router_health_export)
 
+    router_health_team = router_health_sub.add_parser(
+        "team-rollup",
+        help="Team tier: locally aggregate multiple Registered router-health exports (no network fetch).",
+    )
+    router_health_team.add_argument("--input", action="append", default=[], help="A Registered router-health export file. Repeat for each member.")
+    router_health_team.add_argument("--alias", action="append", default=[], help="Optional local member alias, positionally matched to --input (defaults to the file stem).")
+    router_health_team.add_argument("--json", action="store_true", help="Emit the rollup JSON (output is JSON regardless).")
+    router_health_team.add_argument("--out", default="", help="Write the rollup to this local file instead of stdout.")
+    router_health_team.add_argument("--json-status", action="store_true", help="Machine-readable write status when --out is used.")
+    router_health_team.set_defaults(func=router_health_cmds.cmd_router_health_team_rollup)
+
     summary = sub.add_parser("learning-summary", help="Summarize learning-loop feedback.")
     summary.add_argument(
         "--events",
