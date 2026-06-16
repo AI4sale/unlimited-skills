@@ -3,11 +3,12 @@
   "release": "v0.6.3-alpha",
   "package_version": "0.6.3",
   "distribution": "local-learning-loop-tier-commands",
-  "status": "release_package_draft",
+  "status": "release_execution_ready",
   "git": {
     "base_branch": "main",
     "tag": "v0.6.3-alpha",
-    "tag_status": "blocked_until_release_execution_gate_owner_approval_publish_and_clean_install_verification"
+    "tag_status": "blocked_until_pypi_upload_clean_install_and_post_publish_verifier",
+    "tag_target_sha_policy": "Create and push v0.6.3-alpha only after the selected release commit passes C063-REL-02 verification, Opus O063-REL-FINAL-R1 returns PASS, PyPI Trusted Publishing uploads unlimited-skills==0.6.3, clean PyPI install smoke passes, and the post-publish verifier passes."
   },
   "value_frame": {
     "primary": "Local Learning Loop command surfaces with reproducible tier artifacts.",
@@ -17,12 +18,14 @@
       "hosted telemetry",
       "automatic skill improvement",
       "automatic mutation",
-      "release execution",
-      "tag",
-      "version bump",
-      "PyPI publish",
       "marketplace submission",
-      "hosted rollout"
+      "hosted rollout",
+      "hosted dashboard",
+      "live sync",
+      "SSO/SCIM",
+      "hosted governance",
+      "billing",
+      "signature-enforced claims"
     ]
   },
   "learning_loop_surfaces": [
@@ -106,11 +109,16 @@
     "docs/releases/v0.6.3-alpha-checklist.md",
     "docs/releases/v0.6.3-alpha-upgrade-notes.md",
     "docs/releases/v0.6.3-alpha-known-issues.md",
-    "docs/releases/v0.6.3-personal-verification.md"
+    "docs/releases/v0.6.3-alpha-pypi-publishing.md",
+    "docs/releases/v0.6.3-personal-verification.md",
+    "docs/reports/v0.6.3-release-decision-package.md"
   ],
   "verifier_scripts": [
     "scripts/verify-v063-tier-release-smoke.py",
     "scripts/verify_v063_tier_release_smoke.py",
+    "scripts/run-v063-alpha-package-smoke.py",
+    "scripts/verify-v063-alpha-release-execution.py",
+    "scripts/verify_v063_alpha_release_execution.py",
     "scripts/verify-learning-feedback-contract.py",
     "scripts/verify-learning-loop-closed-loop-proof.py",
     "scripts/verify-v06-frozen-contracts.py",
@@ -118,6 +126,8 @@
   ],
   "tests": [
     "tests/test_v063_tier_release_smoke.py",
+    "tests/test_v06_frozen_contracts.py",
+    "tests/test_pypi_trusted_publishing_workflow.py",
     "tests/test_learning_loop_cli.py",
     "tests/test_learning_export.py",
     "tests/test_learning_team_rollup.py",
@@ -127,14 +137,27 @@
   ],
   "required_verification": [
     "python scripts/verify-v063-tier-release-smoke.py --json",
-    "python -m pytest tests/test_v063_tier_release_smoke.py tests/test_learning_loop_cli.py tests/test_learning_export.py tests/test_learning_team_rollup.py tests/test_learning_admin_export.py tests/test_learning_evidence_pack.py tests/test_learning_verify_evidence_pack.py -q",
+    "python scripts/verify-v063-alpha-release-execution.py --allow-dirty --json",
     "python scripts/verify-v06-frozen-contracts.py --json",
     "python scripts/verify-feedback-report-boundaries.py",
+    "python -m pytest tests/test_v063_tier_release_smoke.py tests/test_learning_loop_cli.py tests/test_learning_export.py tests/test_learning_team_rollup.py tests/test_learning_admin_export.py tests/test_learning_evidence_pack.py tests/test_learning_verify_evidence_pack.py -q",
+    "python -m pytest tests/test_public_alpha_docs.py tests/test_pypi_trusted_publishing_workflow.py tests/test_v06_frozen_contracts.py -q",
+    "python scripts/run-v063-alpha-package-smoke.py --json",
+    "python -m py_compile scripts/run-v063-alpha-package-smoke.py scripts/verify-v063-alpha-release-execution.py scripts/verify_v063_alpha_release_execution.py scripts/verify_v063_tier_release_smoke.py",
     "git diff --check"
   ],
   "release_execution": {
-    "authorized": false,
-    "next_gate": "C063-REL-02 after release package, smoke verifier, personal procedure, and Opus review PASS"
+    "package_ready": true,
+    "executed_in_this_pr": false,
+    "deferred_reason": "Trusted Publishing workflow dispatch, PyPI upload, post-publish clean install, tag, and GitHub prerelease creation are external release-operator actions and are not performed inside the PR.",
+    "trusted_publishing_authorized_after": [
+      "C063-REL-02 PR merged into main",
+      "Opus O063-REL-FINAL-R1 returns PASS",
+      "selected main SHA passes the required verification list",
+      "release operator dispatches publish-pypi.yml with version=0.6.3 and exact expected_sha"
+    ],
+    "post_publish_tag_policy": "Do not create v0.6.3-alpha until unlimited-skills==0.6.3 installs cleanly from PyPI and the post-publish verifier passes.",
+    "stale_owner_gap_marker": "closed_reconciled_by_release_execution_package_if_all_gates_pass"
   },
   "safety_boundary": {
     "alpha_only": true,
@@ -151,7 +174,7 @@
     "team_service_rollout_claim": false,
     "business_service_rollout_claim": false,
     "enterprise_service_rollout_claim": false,
-    "pypi_availability": "blocked_until_release_execution_gate"
+    "pypi_availability": "blocked_until_trusted_publishing_and_post_publish_verifier"
   },
   "excluded_prs": [
     119

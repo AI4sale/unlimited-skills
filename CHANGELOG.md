@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+## 0.6.3-alpha
+
+### Added
+
+- v0.6.3 Learning Loop release execution package: package and runtime versions
+  move to `0.6.3`; release notes, checklist, upgrade notes, known issues,
+  release manifest, PyPI Trusted Publishing instructions, and personal
+  verification procedure now describe the final release execution path.
+- `scripts/run-v063-alpha-package-smoke.py` builds the v0.6.3 wheel/sdist,
+  installs the built wheel into clean virtual environments, and proves Free,
+  Registered, Team, Business, and Enterprise Learning Loop command evidence
+  from the installed package, including Enterprise fail-closed tamper evidence.
+- `scripts/verify-v063-alpha-release-execution.py` verifies version, manifest,
+  release docs, publish workflow guardrails, and frozen-contract consistency for
+  the selected v0.6.3 release commit.
+
+### Changed
+
+- The PyPI Trusted Publishing workflow now requires the exact
+  `version=0.6.3` and `confirm_pypi_publish=publish unlimited-skills 0.6.3 to
+  PyPI` inputs and runs the v0.6.3 package/release execution gates before
+  upload.
+- The historical `release_owner_GO_WITH_LIMITS_acceptance` gap is reconciled by
+  the release execution package when all gates pass; actual PyPI upload, tag,
+  GitHub prerelease creation, yanking, marketplace submission, and hosted/paid
+  rollout remain outside the PR.
+
+### Boundaries
+
+- No v0.6.4 release claim, docs-only tier claim, automatic skill improvement
+  claim, hosted dashboard, live sync, SSO/SCIM, hosted governance, billing,
+  telemetry, signature-enforced claim, marketplace submission, or #119/E19 work
+  is added.
+
 ## 0.6.2-alpha
 
 ### Fixed

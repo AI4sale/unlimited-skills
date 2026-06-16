@@ -30,7 +30,7 @@ def test_v06_frozen_contract_harness_passes_all_current_tree_surfaces() -> None:
     assert report["schema_version"] == 1
     assert report["report_type"] == "v06_frozen_contracts"
     assert report["ok"] is True
-    assert report["expected_version"] == "0.6.2"
+    assert report["expected_version"] == "0.6.3"
     assert report["status_counts"] == {"pass": 11}
 
     expected_surfaces = {

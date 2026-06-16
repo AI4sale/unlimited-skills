@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 from pathlib import Path
 
@@ -66,7 +67,14 @@ def test_v063_release_package_manifest_and_claim_boundaries() -> None:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
 
     assert manifest["release"] == RELEASE
-    assert manifest["release_execution"]["authorized"] is False
+    assert manifest["package_version"] == "0.6.3"
+    assert manifest["status"] == "release_execution_ready"
+    assert manifest["release_execution"]["package_ready"] is True
+    assert manifest["release_execution"]["executed_in_this_pr"] is False
+    assert (
+        manifest["release_execution"]["stale_owner_gap_marker"]
+        == "closed_reconciled_by_release_execution_package_if_all_gates_pass"
+    )
     assert manifest["value_frame"]["v0_6_2_router_health"] == "compatibility_tier_debt_closure_only_not_v0_6_3_vfp"
     assert "v0.6.4 Money Saved Meter" in manifest["value_frame"]["excluded"]
     assert manifest["excluded_prs"] == [119]
@@ -79,6 +87,7 @@ def test_v063_release_package_manifest_and_claim_boundaries() -> None:
         "docs/releases/v0.6.3-alpha-checklist.md",
         "docs/releases/v0.6.3-alpha-upgrade-notes.md",
         "docs/releases/v0.6.3-alpha-known-issues.md",
+        "docs/releases/v0.6.3-alpha-pypi-publishing.md",
         "docs/releases/v0.6.3-personal-verification.md",
     ]
     text = "\n".join((REPO_ROOT / raw).read_text(encoding="utf-8") for raw in release_docs).lower()
@@ -93,11 +102,36 @@ def test_v063_release_package_manifest_and_claim_boundaries() -> None:
         "unlimited-skills learning evidence-pack",
         "unlimited-skills learning verify-evidence-pack",
         "python scripts/verify-v063-tier-release-smoke.py --json",
+        "python scripts/run-v063-alpha-package-smoke.py --json",
+        "python scripts/verify-v063-alpha-release-execution.py --json",
     ]:
         assert command in text
 
     assert "no docs-only tier value claim" in text
     assert "v0.6.4 money saved meter is out of scope" in text
-    assert "does not authorize tag creation" in text
+    assert "release_owner_go_with_limits_acceptance" in text
+    assert "hosted dashboard" in text
+    assert "live sync" in text
+    assert "sso/scim" in text
     assert "compatibility evidence only" in text
     assert "learning loop value frame" in text
+
+
+def test_v063_release_execution_verifier_lightweight(monkeypatch, capsys) -> None:
+    verifier_path = REPO_ROOT / "scripts" / "verify-v063-alpha-release-execution.py"
+    spec = importlib.util.spec_from_file_location("verify_v063_alpha_release_execution_test", verifier_path)
+    assert spec is not None
+    assert spec.loader is not None
+    verifier = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(verifier)
+
+    monkeypatch.setattr(verifier, "run_frozen_contracts", lambda: {"ok": True, "status_counts": {"pass": 11}})
+
+    rc = verifier.main(["--allow-dirty", "--json"])
+
+    assert rc == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["release"] == RELEASE
+    assert payload["version"] == "0.6.3"
+    assert payload["manifest_status"] == "release_execution_ready"
+    assert payload["release_execution"]["package_ready"] is True
