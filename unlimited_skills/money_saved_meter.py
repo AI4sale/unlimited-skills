@@ -577,3 +577,86 @@ def write_report(path: Path, text: str) -> None:
     path = path.expanduser()
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(text, encoding="utf-8")
+
+
+# --- Registered tier (O064-09): local, schema-versioned savings export ---------
+
+REGISTERED_EXPORT_SCHEMA_VERSION = "registered-export-v1"
+
+
+def build_registered_export(
+    root: Path,
+    *,
+    mode: str = "current",
+    mcp_savings_report: dict[str, Any] | None = None,
+    audit_log: Path | None = None,
+    target_call_count: int = DEFAULT_TARGET_CALL_COUNT,
+    generated_at: str | None = None,
+) -> dict[str, Any]:
+    """Registered-tier local savings export (O064-09).
+
+    Builds the SAME safe aggregates as the Free meter and wraps them in a
+    future-compatible, schema-versioned envelope. Produced locally and stays
+    local: there is NO upload/sync/hosted-submit verb, and NO install/machine/
+    account id is embedded. Fail-closed: the whole export is run through
+    ``assert_money_saved_meter_safe`` before it is returned/serialized.
+    """
+    meter = build_money_saved_meter_report(
+        root,
+        mode=mode,
+        mcp_savings_report=mcp_savings_report,
+        audit_log=audit_log,
+        target_call_count=target_call_count,
+        generated_at=generated_at,
+    )
+    export: dict[str, Any] = {
+        "schema_version": REGISTERED_EXPORT_SCHEMA_VERSION,
+        "export_type": "money_saved_registered_export",
+        "tier": "registered",
+        "export_profile": "registered_local",
+        "generated_at": meter["generated_at"],
+        "source": "money_saved_meter",
+        "unlimited_skills_version": __version__,
+        # Same safe aggregate fields as the Free meter — nothing more.
+        "body": {
+            "mode": meter["mode"],
+            "window": meter["window"],
+            "measured_bytes": meter["measured_bytes"],
+            "estimates": meter["estimates"],
+            "disabled_by_default": meter["disabled_by_default"],
+        },
+        "claim_boundary": meter["claim_boundary"],
+        "privacy": dict(meter["privacy"]),
+        # Registered tier does NOT embed an install/machine/account id (O064-09).
+        "identity": {
+            "install_id_included": False,
+            "machine_id_included": False,
+            "account_id_included": False,
+        },
+        # No upload/sync/hosted submit in v0.6.4.
+        "delivery": {
+            "produced_locally": True,
+            "stays_local": True,
+            "upload": False,
+            "sync": False,
+            "hosted_submit": False,
+            "submit_verb_present": False,
+            "note": (
+                "Registered export is produced locally and stays local; "
+                "there is no upload, sync, or hosted submit in v0.6.4."
+            ),
+        },
+        "future_compatibility": {
+            "note": (
+                "schema_version lets a future hosted catalog ingest this file; "
+                "it is not uploaded now."
+            ),
+        },
+    }
+    assert_money_saved_meter_safe(export)
+    return export
+
+
+def registered_export_json(export: dict[str, Any]) -> str:
+    assert_money_saved_meter_safe(export)
+    return json.dumps(export, ensure_ascii=False, indent=2, sort_keys=True) + "\n"

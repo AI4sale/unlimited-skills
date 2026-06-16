@@ -575,6 +575,18 @@ def build_parser() -> argparse.ArgumentParser:
     money_saved_meter.add_argument("--fixture-100-call", action="store_true", help="Emit the deterministic 100-call value report fixture.")
     money_saved_meter.set_defaults(func=money_saved_cmds.cmd_money_saved_meter)
 
+    money_saved_registered = money_saved_sub.add_parser(
+        "registered-export",
+        help="Registered tier: write a schema-versioned local savings export (produced locally, stays local; no upload).",
+    )
+    money_saved_registered.add_argument("--out", default="", help="Write the export to this local file instead of stdout.")
+    money_saved_registered.add_argument("--json-status", action="store_true", help="Machine-readable write status when --out is used.")
+    money_saved_registered.add_argument("--mode", choices=["before", "after", "current"], default="current", help="Label this local measurement run.")
+    money_saved_registered.add_argument("--mcp-savings-json", default="", help="Read an existing `mcp savings --json` file instead of the latest local event snapshot.")
+    money_saved_registered.add_argument("--audit-log", default="", help="Read gateway call counts from this audit log instead of the default local audit log.")
+    money_saved_registered.add_argument("--target-calls", type=int, default=100, help="Local reporting cadence target. This is not billing math.")
+    money_saved_registered.set_defaults(func=money_saved_cmds.cmd_money_saved_registered_export)
+
     summary = sub.add_parser("learning-summary", help="Summarize learning-loop feedback.")
     summary.add_argument(
         "--events",
