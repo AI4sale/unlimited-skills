@@ -620,6 +620,14 @@ def build_parser() -> argparse.ArgumentParser:
     router_health_admin.add_argument("--json", default="", help="Write the JSON export to this local file.")
     router_health_admin.set_defaults(func=router_health_cmds.cmd_router_health_admin_export)
 
+    router_health_evidence = router_health_sub.add_parser(
+        "evidence-pack",
+        help="Enterprise tier: write a local, reproducible router-health evidence pack (no egress).",
+    )
+    router_health_evidence.add_argument("--input", default="", help="A Business admin export file.")
+    router_health_evidence.add_argument("--out", default="", help="Output directory for the evidence pack.")
+    router_health_evidence.set_defaults(func=router_health_cmds.cmd_router_health_evidence_pack)
+
     summary = sub.add_parser("learning-summary", help="Summarize learning-loop feedback.")
     summary.add_argument(
         "--events",
