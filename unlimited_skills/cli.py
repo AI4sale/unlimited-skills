@@ -688,6 +688,14 @@ def build_parser() -> argparse.ArgumentParser:
     learning_evidence.add_argument("--out", default="", help="Output directory for the evidence pack.")
     learning_evidence.set_defaults(func=learning_cmds.cmd_learning_evidence_pack)
 
+    learning_verify_evidence = learning_sub.add_parser(
+        "verify-evidence-pack",
+        help="Enterprise tier: independently verify a written Learning Loop evidence pack (tamper-evident, local-only).",
+    )
+    learning_verify_evidence.add_argument("--input", default="", help="The evidence-pack directory to verify.")
+    learning_verify_evidence.add_argument("--json", action="store_true", help="Emit the verification report JSON (output is JSON regardless).")
+    learning_verify_evidence.set_defaults(func=learning_cmds.cmd_learning_verify_evidence_pack)
+
     improvement_candidates = sub.add_parser(
         "improvement-candidates",
         help="List local privacy-safe Learning Loop improvement candidates.",

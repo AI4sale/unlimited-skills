@@ -604,3 +604,122 @@ def write_learning_evidence_pack(pack: dict[str, Any], out_dir: Path) -> list[st
         (out_dir / fname).write_text(content, encoding="utf-8")
         written.append(fname)
     return written
+
+
+LEARNING_EVIDENCE_VERIFICATION_SCHEMA_VERSION = "learning-evidence-pack-verification-v1"
+CLOSED_LOOP_PROOF_SCRIPT = "scripts/verify-learning-loop-closed-loop-proof.py"
+
+
+def verify_learning_evidence_pack(evidence_dir: Path) -> dict[str, Any]:
+    """Independently verify a written Learning Loop evidence pack
+    (O063-TIER-ENTERPRISE-IMPL-R).
+
+    Re-reads the pack from disk and proves it is a tamper-evident, local-only
+    audit artifact: manifest schema, all files present, content hashes match the
+    manifest, schema-version proof matches the tier chain, privacy proof passes
+    AND the fail-closed gate actually rejects unsafe input, non-mutation proof is
+    present, the closed-loop dry-run proof points at the real script, the
+    reproducibility hash matches the source inventory, and the pack is local-only
+    with no egress. Returns a structured report with ``ok`` and per-check results.
+    """
+    evidence_dir = Path(evidence_dir).expanduser()
+    checks: list[dict[str, Any]] = []
+
+    def add(name: str, ok: bool, detail: str = "") -> None:
+        checks.append({"check": name, "ok": bool(ok), "detail": detail})
+
+    def _load(fname: str) -> Any:
+        p = evidence_dir / fname
+        if not p.is_file():
+            return None
+        try:
+            return json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+
+    manifest = _load("manifest.json")
+    if not isinstance(manifest, dict):
+        add("manifest_present", False, "manifest.json missing or unreadable")
+        return {
+            "schema_version": LEARNING_EVIDENCE_VERIFICATION_SCHEMA_VERSION,
+            "ok": False,
+            "evidence_dir_label": evidence_dir.name,
+            "checks": checks,
+        }
+    add("manifest_present", True)
+    add(
+        "manifest_schema",
+        manifest.get("schema_version") == LEARNING_EVIDENCE_PACK_SCHEMA_VERSION,
+        str(manifest.get("schema_version")),
+    )
+
+    files_ok = True
+    missing: list[str] = []
+    bad_hash: list[str] = []
+    for entry in manifest.get("files", []) or []:
+        if not isinstance(entry, dict):
+            files_ok = False
+            continue
+        fpath = evidence_dir / str(entry.get("name", ""))
+        if not fpath.is_file():
+            files_ok = False
+            missing.append(str(entry.get("name")))
+            continue
+        if _sha256_text(fpath.read_text(encoding="utf-8")) != entry.get("content_hash"):
+            files_ok = False
+            bad_hash.append(str(entry.get("name")))
+    add("files_exist_and_hashes_match", files_ok, f"missing={missing} bad_hash={bad_hash}")
+
+    schema_proof = _load("schema-version-proof.json")
+    add(
+        "schema_version_proof_matches_chain",
+        isinstance(schema_proof, dict)
+        and schema_proof.get("schema_match") is True
+        and schema_proof.get("tier_schema_chain") == _LEARNING_SCHEMA_CHAIN,
+    )
+
+    privacy_proof = _load("privacy-proof.json")
+    privacy_ok = isinstance(privacy_proof, dict) and privacy_proof.get("all_included_flags_false") is True
+    try:
+        assert_learning_safe({"probe_local_absolute_paths_included": True})
+        fail_closed_works = False
+    except RuntimeError:
+        fail_closed_works = True
+    add("privacy_proof_passes_and_fail_closed_enforced", privacy_ok and fail_closed_works)
+
+    non_mutation = _load("non-mutation-proof.json")
+    add(
+        "non_mutation_proof",
+        isinstance(non_mutation, dict)
+        and non_mutation.get("mutation_supported") is False
+        and non_mutation.get("skill_files_written") is False
+        and non_mutation.get("apply_candidate_is_dry_run_only") is True,
+    )
+
+    closed_loop = _load("closed-loop-dry-run-proof.json")
+    add(
+        "closed_loop_dry_run_reference",
+        isinstance(closed_loop, dict) and CLOSED_LOOP_PROOF_SCRIPT in str(closed_loop.get("proof_script_reference", "")),
+    )
+
+    inventory = manifest.get("source_inventory", []) or []
+    repro = manifest.get("reproducibility_hash")
+    add(
+        "reproducibility_hash_matches_inventory",
+        bool(repro) and bool(inventory) and isinstance(inventory[0], dict) and inventory[0].get("content_hash") == repro,
+    )
+
+    privacy_block = manifest.get("privacy", {}) if isinstance(manifest.get("privacy"), dict) else {}
+    add(
+        "local_only_no_egress",
+        privacy_block.get("no_egress") is True and privacy_block.get("network_access") is False and privacy_block.get("upload") is False,
+    )
+
+    ok = all(c["ok"] for c in checks)
+    return {
+        "schema_version": LEARNING_EVIDENCE_VERIFICATION_SCHEMA_VERSION,
+        "ok": ok,
+        "evidence_dir_label": evidence_dir.name,
+        "checks": checks,
+        "privacy": {"local_only": True, "upload": False, "network_access": False},
+    }
