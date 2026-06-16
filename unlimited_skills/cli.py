@@ -598,6 +598,16 @@ def build_parser() -> argparse.ArgumentParser:
     money_saved_team.add_argument("--json-status", action="store_true", help="Machine-readable write status when --out is used.")
     money_saved_team.set_defaults(func=money_saved_cmds.cmd_money_saved_team_rollup)
 
+    money_saved_admin = money_saved_sub.add_parser(
+        "admin-export",
+        help="Business tier: local admin CSV + JSON over a Team Money Saved rollup (no hosted dashboard/billing/telemetry).",
+    )
+    money_saved_admin.add_argument("--input", default="", help="A Team Money Saved rollup file (money-saved-team-rollup-v1).")
+    money_saved_admin.add_argument("--labels", default="", help="Optional local JSON mapping alias -> {team, workspace, agent_class, project}.")
+    money_saved_admin.add_argument("--csv", default="", help="Write the admin export as CSV to this local file.")
+    money_saved_admin.add_argument("--json", default="", help="Write the admin export as JSON to this local file.")
+    money_saved_admin.set_defaults(func=money_saved_cmds.cmd_money_saved_admin_export)
+
     router_health = sub.add_parser("router-health", help="Local router-health readiness surfaces (per tier).")
     router_health_sub = router_health.add_subparsers(dest="router_health_command", required=True)
     router_health_export = router_health_sub.add_parser(
