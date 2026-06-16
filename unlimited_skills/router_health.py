@@ -461,3 +461,195 @@ def router_health_admin_export_csv(export: dict[str, Any]) -> str:
     for row in export.get("rows", []):
         writer.writerow({col: row.get(col, "") for col in columns})
     return buffer.getvalue()
+
+
+# --- Enterprise tier (O062-TIER-ENTERPRISE-IMPL): local evidence pack -----------
+
+ROUTER_HEALTH_EVIDENCE_PACK_SCHEMA_VERSION = "router-health-evidence-pack-v1"
+_SCHEMA_CHAIN = [
+    ROUTER_HEALTH_EXPORT_SCHEMA_VERSION,
+    ROUTER_HEALTH_TEAM_ROLLUP_SCHEMA_VERSION,
+    ROUTER_HEALTH_ADMIN_EXPORT_SCHEMA_VERSION,
+]
+
+
+def _sha256_text(text: str) -> str:
+    import hashlib
+
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def load_admin_export(path: Path) -> dict[str, Any]:
+    """Load + validate one Business admin export (local file only)."""
+    path = Path(path).expanduser()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise IncompatibleExportError(f"{path.name}: cannot read JSON ({exc.__class__.__name__}).") from exc
+    if not isinstance(data, dict):
+        raise IncompatibleExportError(f"{path.name}: admin export is not a JSON object.")
+    if data.get("schema_version") != ROUTER_HEALTH_ADMIN_EXPORT_SCHEMA_VERSION:
+        raise IncompatibleExportError(
+            f"{path.name}: incompatible schema_version "
+            f"{data.get('schema_version')!r} (expected {ROUTER_HEALTH_ADMIN_EXPORT_SCHEMA_VERSION!r})."
+        )
+    try:
+        assert_router_health_safe(data)
+    except RuntimeError as exc:
+        raise IncompatibleExportError(f"{path.name}: unsafe admin export rejected ({exc}).") from exc
+    return data
+
+
+def _reproducibility_hash(admin_export: dict[str, Any]) -> str:
+    """Stable for identical input data, independent of when it was generated."""
+    stable = {k: v for k, v in admin_export.items() if k != "generated_at"}
+    return _sha256_text(json.dumps(stable, ensure_ascii=False, sort_keys=True))
+
+
+def build_router_health_evidence_pack(
+    admin_export_path: Path,
+    *,
+    input_filename: str | None = None,
+    generated_at: str | None = None,
+) -> dict[str, Any]:
+    """Enterprise-tier local evidence pack over a Business admin export
+    (O062-TIER-ENTERPRISE-IMPL).
+
+    Produces a manifest, a method/assumptions statement, a privacy proof, a
+    schema-version proof, a safe source inventory, and a reproducibility hash that
+    is stable for identical input data. Local only: no network, no egress. Makes
+    no SSO/SCIM, hosted-governance, enforced-policy, or signature-enforced claim.
+    Fail-closed.
+    """
+    path = Path(admin_export_path)
+    admin = load_admin_export(path)
+    name = input_filename or path.name
+    repro_hash = _reproducibility_hash(admin)
+
+    privacy_proof = {
+        "privacy_block": admin.get("privacy", {}),
+        "all_included_flags_false": all(
+            value is False for key, value in admin.get("privacy", {}).items() if key.endswith("_included")
+        ),
+        "fail_closed_gate": "assert_router_health_safe",
+        "privacy_proof_passed": True,
+    }
+    schema_proof = {
+        "input_schema_version": admin.get("schema_version"),
+        "expected_input_schema_version": ROUTER_HEALTH_ADMIN_EXPORT_SCHEMA_VERSION,
+        "schema_match": admin.get("schema_version") == ROUTER_HEALTH_ADMIN_EXPORT_SCHEMA_VERSION,
+        "tier_schema_chain": list(_SCHEMA_CHAIN),
+    }
+    source_inventory = [
+        {
+            "label": name,  # safe label only (basename) — never an absolute path
+            "schema_version": admin.get("schema_version"),
+            "row_count": int((admin.get("measured", {}) or {}).get("row_count", 0) or 0),
+            "content_hash": repro_hash,
+        }
+    ]
+    method_md = (
+        "# Router-Health Enterprise Evidence Pack — Method & Assumptions\n\n"
+        "## What is measured\n"
+        "- Router invocation counts come straight from the local router metrics. They are facts.\n\n"
+        "## What is advisory\n"
+        "- Readiness (multilingual vector / lexical fallback / unavailable) and stale-member status\n"
+        "  are guidance derived from locally-knowable index presence, not guarantees.\n\n"
+        "## Privacy boundary\n"
+        "- Built only from aggregate router metrics that never store query/task text or filesystem\n"
+        "  paths. The pack carries no raw prompts, queries, skill bodies, secrets, machine/install\n"
+        "  ids, or provider account ids. Every artifact passes the fail-closed `assert_router_health_safe` gate.\n\n"
+        "## Reproducibility\n"
+        f"- `reproducibility_hash` is `sha256` over the admin export with the volatile `generated_at`\n"
+        "  field removed, so identical input data yields an identical hash regardless of generation time.\n\n"
+        "## Explicit non-claims\n"
+        "- No data egress and no network access. No SSO/SCIM. No hosted governance. No enforced policy.\n"
+        "- No cryptographic signature is produced or verified here (no signing code is invoked).\n"
+    )
+    files = {
+        "method-and-assumptions.md": method_md,
+        "privacy-proof.json": json.dumps(privacy_proof, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        "schema-version-proof.json": json.dumps(schema_proof, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+    }
+    manifest = {
+        "schema_version": ROUTER_HEALTH_EVIDENCE_PACK_SCHEMA_VERSION,
+        "report_type": "router_health_evidence_pack",
+        "tier": "enterprise",
+        "export_profile": "enterprise_local_evidence_pack",
+        "generated_at": generated_at or now_iso(),
+        "source": "router_health_admin_export",
+        "unlimited_skills_version": __version__,
+        "reproducibility_hash": repro_hash,
+        "source_inventory": source_inventory,
+        "files": [
+            {"name": fname, "content_hash": _sha256_text(content)} for fname, content in sorted(files.items())
+        ],
+        "privacy": {
+            **_privacy(),
+            "no_egress": True,
+            "network_access": False,
+        },
+        "non_claims": {
+            "sso_scim": False,
+            "hosted_governance": False,
+            "enforced_policy": False,
+            "signature_enforced": False,
+        },
+        "claim_boundary": {
+            "allowed_claims": [
+                "Local, reproducible evidence pack of router-health readiness method, schema, and privacy boundary.",
+            ],
+            "forbidden_claims": [
+                "SSO or SCIM",
+                "hosted governance",
+                "enforced policy",
+                "cryptographic signature enforced",
+            ],
+        },
+    }
+    assert_router_health_safe(manifest)
+    assert_router_health_safe(privacy_proof)
+    assert_router_health_safe(schema_proof)
+
+    pack = {
+        "manifest": manifest,
+        "files": files,
+        "reproducibility_hash": repro_hash,
+        "privacy_proof": privacy_proof,
+        "schema_proof": schema_proof,
+        "source_inventory": source_inventory,
+    }
+    return pack
+
+
+def validate_evidence_pack_manifest(manifest: dict[str, Any]) -> bool:
+    """True iff the manifest has the required evidence-pack structure."""
+    required = {
+        "schema_version",
+        "report_type",
+        "reproducibility_hash",
+        "source_inventory",
+        "files",
+        "non_claims",
+    }
+    if not required.issubset(manifest):
+        return False
+    if manifest.get("schema_version") != ROUTER_HEALTH_EVIDENCE_PACK_SCHEMA_VERSION:
+        return False
+    if not isinstance(manifest.get("files"), list) or not manifest["files"]:
+        return False
+    return all(isinstance(f, dict) and "name" in f and "content_hash" in f for f in manifest["files"])
+
+
+def write_router_health_evidence_pack(pack: dict[str, Any], out_dir: Path) -> list[str]:
+    """Write the evidence pack into ``out_dir``; returns the written filenames."""
+    out_dir = Path(out_dir).expanduser()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    written: list[str] = []
+    manifest_text = json.dumps(pack["manifest"], ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    (out_dir / "manifest.json").write_text(manifest_text, encoding="utf-8")
+    written.append("manifest.json")
+    for fname, content in sorted(pack["files"].items()):
+        (out_dir / fname).write_text(content, encoding="utf-8")
+        written.append(fname)
+    return written

@@ -107,3 +107,34 @@ def cmd_router_health_admin_export(args: argparse.Namespace) -> int:
         return 0
     print(json_text, end="")
     return 0
+
+
+def cmd_router_health_evidence_pack(args: argparse.Namespace) -> int:
+    from .. import cli
+    from ..router_health import (
+        IncompatibleExportError,
+        build_router_health_evidence_pack,
+        write_router_health_evidence_pack,
+    )
+
+    root = Path(args.root).expanduser()
+    cli.enforce_local_root(root, action="router-health evidence-pack library root")
+    if not args.input:
+        print("No --input admin export provided.")
+        return 2
+    if not args.out:
+        print("No --out directory provided for the evidence pack.")
+        return 2
+    try:
+        pack = build_router_health_evidence_pack(Path(args.input))
+    except IncompatibleExportError as exc:
+        print(f"Rejected incompatible input: {exc}")
+        return 2
+    written = write_router_health_evidence_pack(pack, Path(args.out))
+    print(json.dumps({
+        "evidence_pack_written": True,
+        "out_dir": str(args.out),
+        "files": written,
+        "reproducibility_hash": pack["reproducibility_hash"],
+    }, indent=2))
+    return 0
