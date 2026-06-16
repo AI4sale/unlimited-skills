@@ -113,3 +113,46 @@ def cmd_learning_team_rollup(args: argparse.Namespace) -> int:
         return 0
     print(text, end="")
     return 0
+
+
+def cmd_learning_admin_export(args: argparse.Namespace) -> int:
+    from .. import cli
+    from ..learning_tiers import (
+        IncompatibleExportError,
+        build_learning_admin_export,
+        learning_admin_export_csv,
+        learning_admin_export_json,
+    )
+    from ..money_saved_meter import write_report
+
+    root = Path(args.root).expanduser()
+    cli.enforce_local_root(root, action="learning admin-export library root")
+    if not args.input:
+        print("No --input team rollup provided.")
+        return 2
+    labels = None
+    if getattr(args, "labels", ""):
+        try:
+            labels = json.loads(Path(args.labels).expanduser().read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            print(f"Could not read --labels file: {exc.__class__.__name__}.")
+            return 2
+    try:
+        export = build_learning_admin_export(Path(args.input), labels=labels)
+    except IncompatibleExportError as exc:
+        print(f"Rejected incompatible input: {exc}")
+        return 2
+    json_text = learning_admin_export_json(export)
+    csv_text = learning_admin_export_csv(export)
+    wrote = False
+    if getattr(args, "csv", ""):
+        write_report(Path(args.csv), csv_text)
+        wrote = True
+    if getattr(args, "json", ""):
+        write_report(Path(args.json), json_text)
+        wrote = True
+    if wrote:
+        print(f"Learning admin export written (rows={export['measured']['row_count']}).")
+        return 0
+    print(json_text, end="")
+    return 0
