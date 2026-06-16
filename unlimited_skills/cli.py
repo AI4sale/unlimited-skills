@@ -442,6 +442,7 @@ def build_parser() -> argparse.ArgumentParser:
     from .commands import learning as learning_cmds
     from .commands import library as library_cmds
     from .commands import money_saved as money_saved_cmds
+    from .commands import router_health as router_health_cmds
     from .commands import mcp as mcp_cmds
     from .commands import policy as policy_cmds
     from .commands import private_packs as private_packs_cmds
@@ -574,6 +575,17 @@ def build_parser() -> argparse.ArgumentParser:
     money_saved_meter.add_argument("--target-calls", type=int, default=100, help="Local reporting cadence target. This is not billing math.")
     money_saved_meter.add_argument("--fixture-100-call", action="store_true", help="Emit the deterministic 100-call value report fixture.")
     money_saved_meter.set_defaults(func=money_saved_cmds.cmd_money_saved_meter)
+
+    router_health = sub.add_parser("router-health", help="Local router-health readiness surfaces (per tier).")
+    router_health_sub = router_health.add_subparsers(dest="router_health_command", required=True)
+    router_health_export = router_health_sub.add_parser(
+        "export",
+        help="Registered tier: write a schema-versioned local router-health export (produced locally, stays local; no upload).",
+    )
+    router_health_export.add_argument("--json", action="store_true", help="Emit the export JSON (output is JSON regardless).")
+    router_health_export.add_argument("--out", default="", help="Write the export to this local file instead of stdout.")
+    router_health_export.add_argument("--json-status", action="store_true", help="Machine-readable write status when --out is used.")
+    router_health_export.set_defaults(func=router_health_cmds.cmd_router_health_export)
 
     summary = sub.add_parser("learning-summary", help="Summarize learning-loop feedback.")
     summary.add_argument(
