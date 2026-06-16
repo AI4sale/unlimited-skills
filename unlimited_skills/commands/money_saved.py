@@ -77,3 +77,37 @@ def cmd_money_saved_registered_export(args: argparse.Namespace) -> int:
         return 0
     print(text, end="")
     return 0
+
+
+def cmd_money_saved_team_rollup(args: argparse.Namespace) -> int:
+    from .. import cli
+    from ..money_saved_meter import write_report
+    from ..money_saved_tiers import (
+        MSM_TEAM_ROLLUP_SCHEMA_VERSION,
+        IncompatibleExportError,
+        build_money_saved_team_rollup,
+        money_saved_team_rollup_json,
+    )
+
+    root = Path(args.root).expanduser()
+    cli.enforce_local_root(root, action="money-saved team-rollup library root")
+    inputs = [Path(p) for p in (args.input or [])]
+    if not inputs:
+        print("No --input exports provided. Pass one or more Registered Money Saved export files.")
+        return 2
+    aliases = list(args.alias) if getattr(args, "alias", None) else None
+    try:
+        rollup = build_money_saved_team_rollup(inputs, aliases=aliases)
+    except IncompatibleExportError as exc:
+        print(f"Rejected incompatible input: {exc}")
+        return 2
+    text = money_saved_team_rollup_json(rollup)
+    if args.out:
+        write_report(Path(args.out), text)
+        if getattr(args, "json_status", False):
+            print(json.dumps({"schema_version": MSM_TEAM_ROLLUP_SCHEMA_VERSION, "written": True, "format": "json"}, indent=2))
+        else:
+            print(f"Money Saved team rollup written ({args.out}).")
+        return 0
+    print(text, end="")
+    return 0

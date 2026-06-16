@@ -588,6 +588,16 @@ def build_parser() -> argparse.ArgumentParser:
     money_saved_registered.add_argument("--target-calls", type=int, default=100, help="Local reporting cadence target. This is not billing math.")
     money_saved_registered.set_defaults(func=money_saved_cmds.cmd_money_saved_registered_export)
 
+    money_saved_team = money_saved_sub.add_parser(
+        "team-rollup",
+        help="Team tier: roll up multiple local Registered Money Saved exports (local files only; no network fetch).",
+    )
+    money_saved_team.add_argument("--input", action="append", default=[], help="A Registered Money Saved export file. Repeat for multiple members.")
+    money_saved_team.add_argument("--alias", action="append", default=[], help="Optional local label for the matching --input (defaults to the file stem).")
+    money_saved_team.add_argument("--out", default="", help="Write the rollup to this local file instead of stdout.")
+    money_saved_team.add_argument("--json-status", action="store_true", help="Machine-readable write status when --out is used.")
+    money_saved_team.set_defaults(func=money_saved_cmds.cmd_money_saved_team_rollup)
+
     router_health = sub.add_parser("router-health", help="Local router-health readiness surfaces (per tier).")
     router_health_sub = router_health.add_subparsers(dest="router_health_command", required=True)
     router_health_export = router_health_sub.add_parser(
