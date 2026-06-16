@@ -261,3 +261,191 @@ def build_money_saved_team_rollup(
 def money_saved_team_rollup_json(rollup: dict[str, Any]) -> str:
     assert_money_saved_safe(rollup)
     return json.dumps(rollup, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+
+
+# --- Business tier (O064-MSM-BUSINESS-IMPL): admin CSV + JSON export ------------
+
+MSM_ADMIN_EXPORT_SCHEMA_VERSION = "money-saved-admin-export-v1"
+_UNLABELED = "unlabeled"
+_ADMIN_CSV_COLUMNS = [
+    "alias",
+    "team",
+    "workspace",
+    "agent_class",
+    "project",
+    # measured facts
+    "window_call_count",
+    "measured_context_bytes_avoided",
+    "measured_bytes_available",
+    # estimate (never exact)
+    "estimated_tokens_avoided",
+    "estimated_tokens_available",
+]
+
+
+def load_team_rollup(path: Path) -> dict[str, Any]:
+    """Load + validate one Team Money Saved rollup (local file only)."""
+    path = Path(path).expanduser()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise IncompatibleExportError(f"{path.name}: cannot read JSON ({exc.__class__.__name__}).") from exc
+    if not isinstance(data, dict):
+        raise IncompatibleExportError(f"{path.name}: rollup is not a JSON object.")
+    if data.get("schema_version") != MSM_TEAM_ROLLUP_SCHEMA_VERSION:
+        raise IncompatibleExportError(
+            f"{path.name}: incompatible schema_version "
+            f"{data.get('schema_version')!r} (expected {MSM_TEAM_ROLLUP_SCHEMA_VERSION!r})."
+        )
+    try:
+        assert_money_saved_safe(data)
+    except RuntimeError as exc:
+        raise IncompatibleExportError(f"{path.name}: unsafe rollup rejected ({exc}).") from exc
+    return data
+
+
+def _label_for(labels: dict[str, Any] | None, alias: str, key: str) -> str:
+    if isinstance(labels, dict):
+        entry = labels.get(alias)
+        if isinstance(entry, dict):
+            value = entry.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    return _UNLABELED
+
+
+def _group_counts(rows: list[dict[str, Any]], key: str) -> dict[str, dict[str, int]]:
+    groups: dict[str, dict[str, int]] = {}
+    for row in rows:
+        bucket = groups.setdefault(row[key], {"members": 0, "window_call_count": 0, "measured_context_bytes_avoided": 0})
+        bucket["members"] += 1
+        bucket["window_call_count"] += int(row["window_call_count"])
+        if row["measured_bytes_available"]:
+            bucket["measured_context_bytes_avoided"] += int(row["measured_context_bytes_avoided"] or 0)
+    return groups
+
+
+def build_money_saved_admin_export(
+    rollup_path: Path,
+    *,
+    labels: dict[str, Any] | None = None,
+    generated_at: str | None = None,
+) -> dict[str, Any]:
+    """Business-tier admin export over a Team Money Saved rollup
+    (O064-MSM-BUSINESS-IMPL).
+
+    Admin-supplied local labels (team/workspace/agent-class/project) group the
+    members. Measured counts/bytes (facts) are kept separate from token estimates.
+    Missing labels are handled safely (``unlabeled``). Dollars stay disabled by
+    default. The CSV is rendered from the SAME rows as the JSON, so the two always
+    agree. Local file; no hosted dashboard, billing, or telemetry. Fail-closed.
+    """
+    rollup = load_team_rollup(Path(rollup_path))
+    members = rollup.get("members") if isinstance(rollup.get("members"), list) else []
+
+    rows: list[dict[str, Any]] = []
+    for member in members:
+        if not isinstance(member, dict):
+            continue
+        alias = str(member.get("alias") or _UNLABELED)
+        measured_available = bool(member.get("measured_bytes_available", False))
+        est_available = bool(member.get("estimated_tokens_available", False))
+        rows.append({
+            "alias": alias,
+            "team": _label_for(labels, alias, "team"),
+            "workspace": _label_for(labels, alias, "workspace"),
+            "agent_class": _label_for(labels, alias, "agent_class"),
+            "project": _label_for(labels, alias, "project"),
+            # measured facts
+            "window_call_count": int(member.get("window_call_count", 0) or 0),
+            "measured_context_bytes_avoided": int(member.get("measured_context_bytes_avoided") or 0) if measured_available else "",
+            "measured_bytes_available": measured_available,
+            # estimate (never exact)
+            "estimated_tokens_avoided": int(member.get("estimated_tokens_avoided") or 0) if est_available else "",
+            "estimated_tokens_available": est_available,
+        })
+
+    measured_rows = [r for r in rows if r["measured_bytes_available"]]
+    est_rows = [r for r in rows if r["estimated_tokens_available"]]
+
+    export: dict[str, Any] = {
+        "schema_version": MSM_ADMIN_EXPORT_SCHEMA_VERSION,
+        "report_type": "money_saved_admin_export",
+        "tier": "business",
+        "export_profile": "business_local_admin",
+        "generated_at": generated_at or now_iso(),
+        "source": "money_saved_team_rollup",
+        "unlimited_skills_version": __version__,
+        "csv_columns": list(_ADMIN_CSV_COLUMNS),
+        "rows": rows,
+        "measured": {
+            "row_count": len(rows),
+            "total_window_call_count": sum(int(r["window_call_count"]) for r in rows),
+            "total_measured_context_bytes_avoided": sum(int(r["measured_context_bytes_avoided"] or 0) for r in measured_rows),
+            "members_with_measured_bytes": len(measured_rows),
+            "explanation": "Measured counts/bytes come straight from member meters; they are facts, not advice.",
+        },
+        "estimated": {
+            "total_estimated_tokens_avoided": sum(int(r["estimated_tokens_avoided"] or 0) for r in est_rows),
+            "members_with_estimated_tokens": len(est_rows),
+            "measurement_kind": "estimated",
+            "explanation": "Token totals are estimates, kept separate from measured facts; never exact, never billing math.",
+        },
+        "grouping": {
+            "by_team": _group_counts(rows, "team"),
+            "by_workspace": _group_counts(rows, "workspace"),
+            "by_agent_class": _group_counts(rows, "agent_class"),
+            "by_project": _group_counts(rows, "project"),
+        },
+        "dollars": _dollars_disabled(),
+        "privacy": {
+            **_privacy(),
+            "labels_are_admin_supplied_local": True,
+            "provider_account_ids_included": False,
+        },
+        "claim_boundary": {
+            "allowed_claims": [
+                "Local admin CSV/JSON view of Money Saved across labeled teams/workspaces/agent classes/projects.",
+                "Measured counts/bytes are facts; tokens are estimates; dollars are disabled by default.",
+            ],
+            "forbidden_claims": [
+                "exact tokens saved",
+                "exact money saved",
+                "bill reduction guaranteed",
+                "hosted admin dashboard",
+                "billing or entitlement",
+                "telemetry-backed admin analytics",
+            ],
+        },
+        "delivery": {
+            "produced_locally": True,
+            "stays_local": True,
+            "upload": False,
+            "hosted_dashboard": False,
+            "billing_or_entitlement": False,
+            "telemetry": False,
+            "note": "Local CSV + JSON admin export; no hosted dashboard, billing, or telemetry.",
+        },
+    }
+    assert_money_saved_safe(export)
+    return export
+
+
+def money_saved_admin_export_json(export: dict[str, Any]) -> str:
+    assert_money_saved_safe(export)
+    return json.dumps(export, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+
+
+def money_saved_admin_export_csv(export: dict[str, Any]) -> str:
+    """Render the admin export rows as CSV consistent with the JSON rows."""
+    import csv
+    import io
+
+    assert_money_saved_safe(export)
+    columns = export.get("csv_columns") or _ADMIN_CSV_COLUMNS
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=columns, extrasaction="ignore", lineterminator="\n")
+    writer.writeheader()
+    for row in export.get("rows", []):
+        writer.writerow({col: row.get(col, "") for col in columns})
+    return buffer.getvalue()
