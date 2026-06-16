@@ -2,6 +2,38 @@
 
 ## Unreleased
 
+## 0.6.4-alpha
+
+### Added
+
+- v0.6.4 Money Saved Meter release execution package: package and runtime
+  versions move to `0.6.4`; release notes, checklist, upgrade notes, known
+  issues, release manifest, PyPI Trusted Publishing instructions, and personal
+  verification procedure now describe the final release package path.
+- `scripts/run-v064-alpha-package-smoke.py` builds the v0.6.4 wheel/sdist,
+  installs the built wheel into a clean virtual environment, and proves the
+  Free, Registered, Team, Business, and Enterprise Money Saved Meter command
+  surfaces from the installed package, including Enterprise tamper fail-closed
+  evidence.
+- `scripts/verify-v064-alpha-release-execution.py` verifies version, manifest,
+  release docs, publish workflow guardrails, the v0.6.4 Money Saved tier smoke
+  gate, and frozen-contract consistency for the selected v0.6.4 release commit.
+
+### Changed
+
+- The PyPI Trusted Publishing workflow now requires the exact
+  `version=0.6.4` and `confirm_pypi_publish=publish unlimited-skills 0.6.4 to
+  PyPI` inputs and runs the v0.6.4 package/release execution gates before
+  upload.
+- The v0.6 frozen-contract harness now expects `0.6.4` on current main.
+
+### Boundaries
+
+- No exact token savings, exact money savings, guaranteed bill reduction,
+  hosted telemetry, live hosted dashboard, automatic upload/sync, marketplace
+  submission, hosted/team/business/enterprise rollout, or #119/E19 work is
+  added.
+
 ## 0.6.3-alpha
 
 ### Added
