@@ -449,3 +449,345 @@ def money_saved_admin_export_csv(export: dict[str, Any]) -> str:
     for row in export.get("rows", []):
         writer.writerow({col: row.get(col, "") for col in columns})
     return buffer.getvalue()
+
+
+# --- Enterprise tier (O064-MSM-ENTERPRISE-IMPL): local evidence pack + verifier --
+
+MSM_EVIDENCE_PACK_SCHEMA_VERSION = "money-saved-evidence-pack-v1"
+MSM_EVIDENCE_VERIFICATION_SCHEMA_VERSION = "money-saved-evidence-pack-verification-v1"
+_SCHEMA_CHAIN = [
+    REGISTERED_EXPORT_SCHEMA_VERSION,
+    MSM_TEAM_ROLLUP_SCHEMA_VERSION,
+    MSM_ADMIN_EXPORT_SCHEMA_VERSION,
+]
+
+
+def load_admin_export(path: Path) -> dict[str, Any]:
+    """Load + validate one Business admin export (local file only)."""
+    path = Path(path).expanduser()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise IncompatibleExportError(f"{path.name}: cannot read JSON ({exc.__class__.__name__}).") from exc
+    if not isinstance(data, dict):
+        raise IncompatibleExportError(f"{path.name}: admin export is not a JSON object.")
+    if data.get("schema_version") != MSM_ADMIN_EXPORT_SCHEMA_VERSION:
+        raise IncompatibleExportError(
+            f"{path.name}: incompatible schema_version "
+            f"{data.get('schema_version')!r} (expected {MSM_ADMIN_EXPORT_SCHEMA_VERSION!r})."
+        )
+    try:
+        assert_money_saved_safe(data)
+    except RuntimeError as exc:
+        raise IncompatibleExportError(f"{path.name}: unsafe admin export rejected ({exc}).") from exc
+    return data
+
+
+def _reproducibility_hash(admin_export: dict[str, Any]) -> str:
+    """Stable for identical input data, independent of when it was generated."""
+    stable = {k: v for k, v in admin_export.items() if k != "generated_at"}
+    return _sha256_text(json.dumps(stable, ensure_ascii=False, sort_keys=True))
+
+
+def build_money_saved_evidence_pack(
+    admin_export_path: Path,
+    *,
+    input_filename: str | None = None,
+    generated_at: str | None = None,
+) -> dict[str, Any]:
+    """Enterprise-tier local evidence pack over a Business admin export
+    (O064-MSM-ENTERPRISE-IMPL).
+
+    Produces a manifest plus method/assumptions, privacy, schema-version,
+    measurement (measured-vs-estimated), claim-boundary, and reproducibility
+    proofs, with a reproducibility hash that is stable for identical input data
+    and content hashes over every pack file. Local only: no network, no egress.
+    Makes no exact-money / exact-token / bill-reduction claim and no SSO/SCIM,
+    hosted-governance, or signature-enforced claim. Fail-closed.
+    """
+    path = Path(admin_export_path)
+    admin = load_admin_export(path)
+    name = input_filename or path.name
+    repro_hash = _reproducibility_hash(admin)
+
+    measured = admin.get("measured", {}) if isinstance(admin.get("measured"), dict) else {}
+    estimated = admin.get("estimated", {}) if isinstance(admin.get("estimated"), dict) else {}
+    dollars = admin.get("dollars", {}) if isinstance(admin.get("dollars"), dict) else {}
+
+    privacy_proof = {
+        "privacy_block": admin.get("privacy", {}),
+        "all_included_flags_false": all(
+            value is False for key, value in admin.get("privacy", {}).items() if key.endswith("_included")
+        ),
+        "fail_closed_gate": "assert_money_saved_safe",
+        "privacy_proof_passed": True,
+    }
+    schema_proof = {
+        "input_schema_version": admin.get("schema_version"),
+        "expected_input_schema_version": MSM_ADMIN_EXPORT_SCHEMA_VERSION,
+        "schema_match": admin.get("schema_version") == MSM_ADMIN_EXPORT_SCHEMA_VERSION,
+        "tier_schema_chain": list(_SCHEMA_CHAIN),
+    }
+    measurement_proof = {
+        "row_count": int(measured.get("row_count", 0) or 0),
+        "total_window_call_count": int(measured.get("total_window_call_count", 0) or 0),
+        "total_measured_context_bytes_avoided": int(measured.get("total_measured_context_bytes_avoided", 0) or 0),
+        "total_estimated_tokens_avoided": int(estimated.get("total_estimated_tokens_avoided", 0) or 0),
+        "tokens_measurement_kind": estimated.get("measurement_kind"),
+        "measured_and_estimated_are_separated": "estimated_tokens" not in measured and estimated.get("measurement_kind") == "estimated",
+        "dollars_enabled": bool(dollars.get("enabled", False)),
+    }
+    claim_boundary_proof = {
+        "claim_boundary": admin.get("claim_boundary", {}),
+        "no_exact_money_claim": "exact money saved" in (admin.get("claim_boundary", {}) or {}).get("forbidden_claims", []),
+        "no_exact_token_claim": "exact tokens saved" in (admin.get("claim_boundary", {}) or {}).get("forbidden_claims", []),
+        "no_bill_reduction_claim": "bill reduction guaranteed" in (admin.get("claim_boundary", {}) or {}).get("forbidden_claims", []),
+        "dollars_disabled_by_default": bool(dollars.get("enabled", False)) is False,
+    }
+    reproducibility_proof = {
+        "reproducibility_hash": repro_hash,
+        "method": "sha256 over the admin export with the volatile `generated_at` field removed",
+        "stable_for_identical_input": True,
+    }
+    method_md = (
+        "# Money Saved Enterprise Evidence Pack — Method & Assumptions\n\n"
+        "## What is measured\n"
+        "- Gateway-call counts and context bytes avoided come straight from member meters when local\n"
+        "  artifacts expose sizes. They are facts.\n\n"
+        "## What is estimated\n"
+        "- Token totals are estimates (bytes divided by a fixed heuristic), kept separate from measured\n"
+        "  facts. Dollars are disabled by default: the meter configures no local price.\n\n"
+        "## Privacy boundary\n"
+        "- Built only from aggregate Money Saved exports that never store raw prompts/queries, skill\n"
+        "  bodies, filesystem paths, secrets, or machine/install/account ids. Every artifact passes the\n"
+        "  fail-closed `assert_money_saved_safe` gate.\n\n"
+        "## Reproducibility\n"
+        f"- `reproducibility_hash` is `sha256` over the admin export with the volatile `generated_at`\n"
+        "  field removed, so identical input data yields an identical hash regardless of generation time.\n\n"
+        "## Explicit non-claims\n"
+        "- No exact tokens saved, no exact money saved, no guaranteed bill reduction.\n"
+        "- No data egress and no network access. No SSO/SCIM. No hosted governance. No enforced policy.\n"
+        "- No cryptographic signature is produced or verified here (no signing code is invoked).\n"
+    )
+    source_inventory = [
+        {
+            "label": name,  # safe label only (basename) — never an absolute path
+            "schema_version": admin.get("schema_version"),
+            "row_count": int(measured.get("row_count", 0) or 0),
+            "content_hash": repro_hash,
+        }
+    ]
+    files = {
+        "method-and-assumptions.md": method_md,
+        "privacy-proof.json": json.dumps(privacy_proof, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        "schema-version-proof.json": json.dumps(schema_proof, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        "measurement-proof.json": json.dumps(measurement_proof, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        "claim-boundary-proof.json": json.dumps(claim_boundary_proof, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        "reproducibility-proof.json": json.dumps(reproducibility_proof, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+    }
+    manifest = {
+        "schema_version": MSM_EVIDENCE_PACK_SCHEMA_VERSION,
+        "report_type": "money_saved_evidence_pack",
+        "tier": "enterprise",
+        "export_profile": "enterprise_local_evidence_pack",
+        "generated_at": generated_at or now_iso(),
+        "source": "money_saved_admin_export",
+        "unlimited_skills_version": __version__,
+        "reproducibility_hash": repro_hash,
+        "source_inventory": source_inventory,
+        "files": [
+            {"name": fname, "content_hash": _sha256_text(content)} for fname, content in sorted(files.items())
+        ],
+        "dollars": _dollars_disabled(),
+        "privacy": {
+            **_privacy(),
+            "no_egress": True,
+            "network_access": False,
+        },
+        "non_claims": {
+            "exact_money": False,
+            "exact_tokens": False,
+            "bill_reduction": False,
+            "sso_scim": False,
+            "hosted_governance": False,
+            "enforced_policy": False,
+            "signature_enforced": False,
+        },
+        "claim_boundary": {
+            "allowed_claims": [
+                "Local, reproducible evidence pack of Money Saved method, schema, measurement, claim boundary, and privacy.",
+            ],
+            "forbidden_claims": [
+                "exact tokens saved",
+                "exact money saved",
+                "bill reduction guaranteed",
+                "SSO or SCIM",
+                "hosted governance",
+                "enforced policy",
+                "cryptographic signature enforced",
+            ],
+        },
+    }
+    assert_money_saved_safe(manifest)
+    for proof in (privacy_proof, schema_proof, measurement_proof, claim_boundary_proof, reproducibility_proof):
+        assert_money_saved_safe(proof)
+
+    return {
+        "manifest": manifest,
+        "files": files,
+        "reproducibility_hash": repro_hash,
+        "privacy_proof": privacy_proof,
+        "schema_proof": schema_proof,
+        "measurement_proof": measurement_proof,
+        "claim_boundary_proof": claim_boundary_proof,
+        "reproducibility_proof": reproducibility_proof,
+        "source_inventory": source_inventory,
+    }
+
+
+def validate_evidence_pack_manifest(manifest: dict[str, Any]) -> bool:
+    """True iff the manifest has the required evidence-pack structure."""
+    required = {
+        "schema_version",
+        "report_type",
+        "reproducibility_hash",
+        "source_inventory",
+        "files",
+        "non_claims",
+    }
+    if not required.issubset(manifest):
+        return False
+    if manifest.get("schema_version") != MSM_EVIDENCE_PACK_SCHEMA_VERSION:
+        return False
+    if not isinstance(manifest.get("files"), list) or not manifest["files"]:
+        return False
+    return all(isinstance(f, dict) and "name" in f and "content_hash" in f for f in manifest["files"])
+
+
+def write_money_saved_evidence_pack(pack: dict[str, Any], out_dir: Path) -> list[str]:
+    """Write the evidence pack into ``out_dir``; returns the written filenames."""
+    out_dir = Path(out_dir).expanduser()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    written: list[str] = []
+    manifest_text = json.dumps(pack["manifest"], ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    (out_dir / "manifest.json").write_text(manifest_text, encoding="utf-8")
+    written.append("manifest.json")
+    for fname, content in sorted(pack["files"].items()):
+        (out_dir / fname).write_text(content, encoding="utf-8")
+        written.append(fname)
+    return written
+
+
+def verify_money_saved_evidence_pack(evidence_dir: Path) -> dict[str, Any]:
+    """Independently verify a written Money Saved evidence pack
+    (O064-MSM-ENTERPRISE-IMPL).
+
+    Re-reads the pack from disk and proves it is a tamper-evident, local-only
+    audit artifact: manifest schema, all files present, content hashes match the
+    manifest, schema-version proof matches the Registered->Team->Business->
+    Enterprise chain, privacy proof passes AND the fail-closed gate actually
+    rejects unsafe input, measured-vs-estimated separation holds with dollars
+    disabled, no exact-money/exact-token/bill-reduction claim, the reproducibility
+    hash matches the source inventory, and the pack is local-only with no egress.
+    Returns a structured report with ``ok`` and per-check results.
+    """
+    evidence_dir = Path(evidence_dir).expanduser()
+    checks: list[dict[str, Any]] = []
+
+    def add(name: str, ok: bool, detail: str = "") -> None:
+        checks.append({"check": name, "ok": bool(ok), "detail": detail})
+
+    def _load(fname: str) -> Any:
+        p = evidence_dir / fname
+        if not p.is_file():
+            return None
+        try:
+            return json.loads(p.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            return None
+
+    manifest = _load("manifest.json")
+    if not isinstance(manifest, dict):
+        add("manifest_present", False, "manifest.json missing or unreadable")
+        return {
+            "schema_version": MSM_EVIDENCE_VERIFICATION_SCHEMA_VERSION,
+            "ok": False,
+            "evidence_dir_label": evidence_dir.name,
+            "checks": checks,
+        }
+    add("manifest_present", True)
+    add("manifest_schema", validate_evidence_pack_manifest(manifest), str(manifest.get("schema_version")))
+
+    files_ok = True
+    missing: list[str] = []
+    bad_hash: list[str] = []
+    for entry in manifest.get("files", []) or []:
+        if not isinstance(entry, dict):
+            files_ok = False
+            continue
+        fpath = evidence_dir / str(entry.get("name", ""))
+        if not fpath.is_file():
+            files_ok = False
+            missing.append(str(entry.get("name")))
+            continue
+        if _sha256_text(fpath.read_text(encoding="utf-8")) != entry.get("content_hash"):
+            files_ok = False
+            bad_hash.append(str(entry.get("name")))
+    add("files_exist_and_hashes_match", files_ok, f"missing={missing} bad_hash={bad_hash}")
+
+    schema_proof = _load("schema-version-proof.json")
+    add(
+        "schema_version_proof_matches_chain",
+        isinstance(schema_proof, dict)
+        and schema_proof.get("schema_match") is True
+        and schema_proof.get("tier_schema_chain") == _SCHEMA_CHAIN,
+    )
+
+    privacy_proof = _load("privacy-proof.json")
+    privacy_ok = isinstance(privacy_proof, dict) and privacy_proof.get("all_included_flags_false") is True
+    try:
+        assert_money_saved_safe({"probe_local_absolute_paths_included": True})
+        fail_closed_works = False
+    except RuntimeError:
+        fail_closed_works = True
+    add("privacy_proof_passes_and_fail_closed_enforced", privacy_ok and fail_closed_works)
+
+    measurement_proof = _load("measurement-proof.json")
+    add(
+        "measured_vs_estimated_proof_and_dollars_disabled",
+        isinstance(measurement_proof, dict)
+        and measurement_proof.get("measured_and_estimated_are_separated") is True
+        and measurement_proof.get("dollars_enabled") is False,
+    )
+
+    claim_proof = _load("claim-boundary-proof.json")
+    add(
+        "no_exact_money_token_or_bill_reduction_claim",
+        isinstance(claim_proof, dict)
+        and claim_proof.get("no_exact_money_claim") is True
+        and claim_proof.get("no_exact_token_claim") is True
+        and claim_proof.get("no_bill_reduction_claim") is True
+        and claim_proof.get("dollars_disabled_by_default") is True,
+    )
+
+    inventory = manifest.get("source_inventory", []) or []
+    repro = manifest.get("reproducibility_hash")
+    add(
+        "reproducibility_hash_matches_inventory",
+        bool(repro) and bool(inventory) and isinstance(inventory[0], dict) and inventory[0].get("content_hash") == repro,
+    )
+
+    privacy_block = manifest.get("privacy", {}) if isinstance(manifest.get("privacy"), dict) else {}
+    add(
+        "local_only_no_egress",
+        privacy_block.get("no_egress") is True and privacy_block.get("network_access") is False and privacy_block.get("upload") is False,
+    )
+
+    ok = all(c["ok"] for c in checks)
+    return {
+        "schema_version": MSM_EVIDENCE_VERIFICATION_SCHEMA_VERSION,
+        "ok": ok,
+        "evidence_dir_label": evidence_dir.name,
+        "checks": checks,
+        "privacy": {"local_only": True, "upload": False, "network_access": False},
+    }
