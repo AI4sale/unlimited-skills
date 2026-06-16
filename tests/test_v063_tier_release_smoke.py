@@ -126,6 +126,8 @@ def test_v063_release_execution_verifier_lightweight(monkeypatch, capsys) -> Non
     spec.loader.exec_module(verifier)
 
     monkeypatch.setattr(verifier, "run_frozen_contracts", lambda: {"ok": True, "status_counts": {"pass": 11}})
+    monkeypatch.setattr(verifier, "assert_metadata", lambda: None)
+    monkeypatch.setattr(verifier, "assert_workflow", lambda: None)
 
     rc = verifier.main(["--allow-dirty", "--json"])
 
