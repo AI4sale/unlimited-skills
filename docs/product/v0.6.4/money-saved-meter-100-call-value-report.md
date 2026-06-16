@@ -11,6 +11,10 @@ The 100-call fixture proves that the Money Saved Meter can show cumulative saved
 context over one complete local reporting window. The window is a cadence for
 operator review, not billing math.
 
+For the full user reproduction path from empty/current mode through before/after
+measurement and this fixture, see
+[`money-saved-meter-reproduce-measurements.md`](money-saved-meter-reproduce-measurements.md).
+
 ## Reproduce
 
 ```powershell

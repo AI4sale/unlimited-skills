@@ -46,6 +46,11 @@ v0.6 adoption-cycle spec. The source of truth for the freeze is
 | `unlimited-skills money-saved meter --mode before --mcp-savings-json before.json --out before-meter.json --json` | Stable v0.6.4 development surface | Captures a local before-install aggregate report. The output is safe to keep as a baseline for `--compare`; it does not mutate local meter state or claim release readiness. |
 | `unlimited-skills money-saved meter --mode after --mcp-savings-json after.json --compare before-meter.json --json` | Stable v0.6.4 development surface | Emits the after-install aggregate report plus an optional local comparison delta when both reports contain measured context bytes. It never extrapolates exact tokens, exact dollars, or provider bill reduction. |
 | `unlimited-skills money-saved meter --fixture-100-call --json` | Stable v0.6.4 development surface | Emits the deterministic 100-call value report fixture with `target_call_count=100` and `window_call_count=100`. The 100-call window is reporting cadence, not billing math; counts stay counts, bytes stay measured, tokens stay method-labeled estimates, and dollar value remains disabled by default. |
+
+Money Saved Meter reproduction docs: see
+[`docs/product/v0.6.4/money-saved-meter-reproduce-measurements.md`](product/v0.6.4/money-saved-meter-reproduce-measurements.md)
+for the local empty/current, before/after, and deterministic 100-call
+verification path.
 | `python scripts/generate-public-alpha-signal-rollup.py --fixture-mode --out <path>` | Stable docs tooling | Writes Markdown to `<path>` and prints `wrote <path>`. Fixture mode is offline and deterministic. |
 | `python scripts/generate-public-alpha-signal-rollup.py --out <path>` | Stable docs tooling | Live mode may read public PyPI/GitHub aggregate counters and local tracker docs. It does not collect private user data. |
 

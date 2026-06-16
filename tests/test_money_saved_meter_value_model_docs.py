@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import re
+import sys
 from pathlib import Path
 from typing import Any
 
@@ -10,7 +11,10 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 VALUE_MODEL = REPO_ROOT / "docs" / "product" / "v0.6.4" / "money-saved-meter-value-model.md"
 JSON_CONTRACT = REPO_ROOT / "docs" / "product" / "v0.6.4" / "money-saved-meter-json-contract.v1.md"
 BEFORE_AFTER_COMMAND = REPO_ROOT / "docs" / "product" / "v0.6.4" / "money-saved-meter-before-after-command.md"
+REPRODUCTION_DOC = REPO_ROOT / "docs" / "product" / "v0.6.4" / "money-saved-meter-reproduce-measurements.md"
+CALL_REPORT_DOC = REPO_ROOT / "docs" / "product" / "v0.6.4" / "money-saved-meter-100-call-value-report.md"
 LIMITATIONS = REPO_ROOT / "docs" / "reports" / "v0.6.4-money-saved-meter-known-limitations.md"
+CLI_CONTRACTS = REPO_ROOT / "docs" / "cli-contracts.md"
 FIXTURE_DIR = REPO_ROOT / "tests" / "fixtures" / "money_saved_meter"
 EMPTY_FIXTURE = FIXTURE_DIR / "value-model-empty.json"
 EXAMPLE_FIXTURE = FIXTURE_DIR / "value-model-example.json"
@@ -182,6 +186,73 @@ def test_before_after_command_doc_defines_reproducible_local_flow() -> None:
         "no telemetry, upload, hosted calls",
     ]:
         assert phrase in lower
+
+
+def test_reproduction_walkthrough_links_commands_and_claim_boundaries() -> None:
+    text = read(REPRODUCTION_DOC)
+    lower = text.lower()
+
+    for reference in [
+        "money-saved-meter-value-model.md",
+        "money-saved-meter-json-contract.v1.md",
+        "money-saved-meter-before-after-command.md",
+        "money-saved-meter-100-call-value-report.md",
+        "v0.6.4-money-saved-meter-known-limitations.md",
+    ]:
+        assert reference in text
+
+    for command in [
+        "unlimited-skills money-saved meter --json",
+        "unlimited-skills money-saved meter --json --mode before --mcp-savings-json before-mcp-savings.json --out before-meter.json",
+        "unlimited-skills money-saved meter --json --mode after --mcp-savings-json after-mcp-savings.json --compare before-meter.json --out after-meter.json",
+        "unlimited-skills money-saved meter --json --fixture-100-call --out 100-call-value-report.json",
+        "python scripts/verify-money-saved-100-call-report.py --json",
+        "python scripts/verify-money-saved-meter-100-call-fixture.py --json",
+    ]:
+        assert command in text
+
+    for phrase in [
+        "100-call window is cadence, not billing math",
+        "tokens are estimates",
+        "dollars are disabled by default",
+        "local-only",
+        "partial window reports counts so far",
+        "push nudge",
+        "persistent meter state writer",
+        "paid-tier exports",
+    ]:
+        assert phrase in lower
+
+    for forbidden in [
+        "hosted telemetry-backed savings",
+        "provider billing reconciliation",
+    ]:
+        assert forbidden not in lower
+
+
+def test_reproduction_docs_are_discoverable_from_existing_surfaces() -> None:
+    reproduction_path = "money-saved-meter-reproduce-measurements.md"
+    assert reproduction_path in read(CALL_REPORT_DOC)
+    assert reproduction_path in read(LIMITATIONS)
+    assert reproduction_path in read(CLI_CONTRACTS)
+
+
+def test_reproduction_docs_verifier_passes() -> None:
+    sys_path_inserted = False
+    scripts_path = str(REPO_ROOT / "scripts")
+    if scripts_path not in sys.path:
+        sys.path.insert(0, scripts_path)
+        sys_path_inserted = True
+    try:
+        from verify_money_saved_reproduction_docs import verify_reproduction_docs
+
+        result = verify_reproduction_docs()
+    finally:
+        if sys_path_inserted:
+            sys.path.remove(scripts_path)
+
+    assert result["ok"] is True
+    assert result["report_type"] == "money_saved_meter_reproduction_docs_verification"
 
 
 def test_fixtures_follow_stable_contract_and_measurement_kinds() -> None:
