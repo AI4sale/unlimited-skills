@@ -610,6 +610,16 @@ def build_parser() -> argparse.ArgumentParser:
     router_health_team.add_argument("--json-status", action="store_true", help="Machine-readable write status when --out is used.")
     router_health_team.set_defaults(func=router_health_cmds.cmd_router_health_team_rollup)
 
+    router_health_admin = router_health_sub.add_parser(
+        "admin-export",
+        help="Business tier: local admin CSV + JSON export over a Team rollup (no hosted dashboard).",
+    )
+    router_health_admin.add_argument("--input", default="", help="A Team router-health rollup file.")
+    router_health_admin.add_argument("--labels", default="", help="Optional local JSON map: alias -> {team, workspace, agent_class}.")
+    router_health_admin.add_argument("--csv", default="", help="Write the CSV export to this local file.")
+    router_health_admin.add_argument("--json", default="", help="Write the JSON export to this local file.")
+    router_health_admin.set_defaults(func=router_health_cmds.cmd_router_health_admin_export)
+
     summary = sub.add_parser("learning-summary", help="Summarize learning-loop feedback.")
     summary.add_argument(
         "--events",
