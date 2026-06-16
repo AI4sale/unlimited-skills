@@ -628,6 +628,14 @@ def build_parser() -> argparse.ArgumentParser:
     router_health_evidence.add_argument("--out", default="", help="Output directory for the evidence pack.")
     router_health_evidence.set_defaults(func=router_health_cmds.cmd_router_health_evidence_pack)
 
+    router_health_verify_evidence = router_health_sub.add_parser(
+        "verify-evidence-pack",
+        help="Enterprise tier: independently verify a written router-health evidence pack (tamper-evident, local-only).",
+    )
+    router_health_verify_evidence.add_argument("--input", default="", help="The evidence-pack directory to verify.")
+    router_health_verify_evidence.add_argument("--json", action="store_true", help="Emit the verification report JSON (output is JSON regardless).")
+    router_health_verify_evidence.set_defaults(func=router_health_cmds.cmd_router_health_verify_evidence_pack)
+
     summary = sub.add_parser("learning-summary", help="Summarize learning-loop feedback.")
     summary.add_argument(
         "--events",
