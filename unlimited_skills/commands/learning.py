@@ -55,3 +55,27 @@ def cmd_apply_candidate(args: argparse.Namespace) -> int:
         return 2
     root = Path(args.root).expanduser()
     return _emit(dry_run_candidate(root, args.candidate_id))
+
+
+def cmd_learning_export(args: argparse.Namespace) -> int:
+    from .. import cli
+    from ..learning_tiers import (
+        LEARNING_EXPORT_SCHEMA_VERSION,
+        build_learning_export,
+        learning_export_json,
+    )
+    from ..money_saved_meter import write_report
+
+    root = Path(args.root).expanduser()
+    cli.enforce_local_root(root, action="learning export library root")
+    export = build_learning_export(root)
+    text = learning_export_json(export)
+    if args.out:
+        write_report(Path(args.out), text)
+        if getattr(args, "json_status", False):
+            print(json.dumps({"schema_version": LEARNING_EXPORT_SCHEMA_VERSION, "written": True, "format": "json"}, indent=2))
+        else:
+            print(f"Learning export written ({args.out}).")
+        return 0
+    print(text, end="")
+    return 0
