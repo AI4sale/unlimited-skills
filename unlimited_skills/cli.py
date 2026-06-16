@@ -680,6 +680,14 @@ def build_parser() -> argparse.ArgumentParser:
     learning_admin.add_argument("--json", default="", help="Write the JSON export to this local file.")
     learning_admin.set_defaults(func=learning_cmds.cmd_learning_admin_export)
 
+    learning_evidence = learning_sub.add_parser(
+        "evidence-pack",
+        help="Enterprise tier: write a local, reproducible Learning Loop evidence pack with non-mutation proof (no egress).",
+    )
+    learning_evidence.add_argument("--input", default="", help="A Business learning admin export file.")
+    learning_evidence.add_argument("--out", default="", help="Output directory for the evidence pack.")
+    learning_evidence.set_defaults(func=learning_cmds.cmd_learning_evidence_pack)
+
     improvement_candidates = sub.add_parser(
         "improvement-candidates",
         help="List local privacy-safe Learning Loop improvement candidates.",

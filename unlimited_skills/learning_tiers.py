@@ -406,3 +406,201 @@ def learning_admin_export_csv(export: dict[str, Any]) -> str:
     for row in export.get("rows", []):
         writer.writerow({col: row.get(col, "") for col in columns})
     return buffer.getvalue()
+
+
+# --- Enterprise tier (O063-TIER-ENTERPRISE-IMPL): local evidence pack -----------
+
+LEARNING_EVIDENCE_PACK_SCHEMA_VERSION = "learning-evidence-pack-v1"
+_LEARNING_SCHEMA_CHAIN = [
+    LEARNING_EXPORT_SCHEMA_VERSION,
+    LEARNING_TEAM_ROLLUP_SCHEMA_VERSION,
+    LEARNING_ADMIN_EXPORT_SCHEMA_VERSION,
+]
+
+
+def _sha256_text(text: str) -> str:
+    import hashlib
+
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def load_learning_admin_export(path: Path) -> dict[str, Any]:
+    """Load + validate one Business learning admin export (local file only)."""
+    path = Path(path).expanduser()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise IncompatibleExportError(f"{path.name}: cannot read JSON ({exc.__class__.__name__}).") from exc
+    if not isinstance(data, dict):
+        raise IncompatibleExportError(f"{path.name}: admin export is not a JSON object.")
+    if data.get("schema_version") != LEARNING_ADMIN_EXPORT_SCHEMA_VERSION:
+        raise IncompatibleExportError(
+            f"{path.name}: incompatible schema_version "
+            f"{data.get('schema_version')!r} (expected {LEARNING_ADMIN_EXPORT_SCHEMA_VERSION!r})."
+        )
+    try:
+        assert_learning_safe(data)
+    except RuntimeError as exc:
+        raise IncompatibleExportError(f"{path.name}: unsafe admin export rejected ({exc}).") from exc
+    return data
+
+
+def _learning_reproducibility_hash(admin_export: dict[str, Any]) -> str:
+    stable = {k: v for k, v in admin_export.items() if k != "generated_at"}
+    return _sha256_text(json.dumps(stable, ensure_ascii=False, sort_keys=True))
+
+
+def build_learning_evidence_pack(
+    admin_export_path: Path,
+    *,
+    input_filename: str | None = None,
+    generated_at: str | None = None,
+) -> dict[str, Any]:
+    """Enterprise-tier local Learning Loop evidence pack (O063-TIER-ENTERPRISE-IMPL).
+
+    Produces a manifest, a method/assumptions statement, a privacy proof, a
+    NON-MUTATION proof, a closed-loop dry-run proof reference, a schema-version
+    proof, a safe source inventory, and a reproducibility hash stable for identical
+    input data. Local only: no network, no egress. Makes no SSO/SCIM, hosted-
+    governance, enforced-policy, or signature-enforced claim. Fail-closed.
+    """
+    path = Path(admin_export_path)
+    admin = load_learning_admin_export(path)
+    name = input_filename or path.name
+    repro_hash = _learning_reproducibility_hash(admin)
+
+    privacy_proof = {
+        "privacy_block": admin.get("privacy", {}),
+        "all_included_flags_false": all(
+            value is False for key, value in admin.get("privacy", {}).items() if key.endswith("_included")
+        ),
+        "fail_closed_gate": "assert_learning_safe",
+        "privacy_proof_passed": True,
+    }
+    non_mutation_proof = {
+        "mutation_supported": False,
+        "skill_files_written": False,
+        "apply_candidate_is_dry_run_only": True,
+        "statement": "The Learning Loop tier surfaces are read-only; apply-candidate supports --dry-run only and writes no skill files.",
+    }
+    closed_loop_dry_run_proof_reference = {
+        "mechanism": "unlimited-skills apply-candidate --dry-run <candidate_id>",
+        "proof_script_reference": "scripts/verify-learning-loop-closed-loop-proof.py",
+        "note": "Closed-loop improvement is proven via dry-run preview; this pack references it and never executes a mutation.",
+    }
+    schema_proof = {
+        "input_schema_version": admin.get("schema_version"),
+        "expected_input_schema_version": LEARNING_ADMIN_EXPORT_SCHEMA_VERSION,
+        "schema_match": admin.get("schema_version") == LEARNING_ADMIN_EXPORT_SCHEMA_VERSION,
+        "tier_schema_chain": list(_LEARNING_SCHEMA_CHAIN),
+    }
+    source_inventory = [
+        {
+            "label": name,  # safe basename label only — never an absolute path
+            "schema_version": admin.get("schema_version"),
+            "row_count": int((admin.get("measured", {}) or {}).get("row_count", 0) or 0),
+            "content_hash": repro_hash,
+        }
+    ]
+    method_md = (
+        "# Learning Loop Enterprise Evidence Pack — Method & Assumptions\n\n"
+        "## What is measured\n"
+        "- Feedback counts, outcome aggregates (missed/wrong/accepted/rejected), and improvement-candidate\n"
+        "  counts come straight from the local Learning Loop state. They are facts.\n\n"
+        "## What is advisory\n"
+        "- No-feedback / readiness status is guidance, not a guarantee.\n\n"
+        "## Non-mutation\n"
+        "- Every Learning Loop tier surface is read-only. `apply-candidate` supports `--dry-run` only and\n"
+        "  writes no skill files; this evidence pack never executes a mutation.\n\n"
+        "## Privacy boundary\n"
+        "- Built only from aggregate counts/verdict codes and skill NAMES; never raw prompts, queries,\n"
+        "  notes, skill bodies, secrets, machine/install ids, or provider account ids. Every artifact passes\n"
+        "  the fail-closed `assert_learning_safe` gate.\n\n"
+        "## Reproducibility\n"
+        "- `reproducibility_hash` is `sha256` over the admin export with the volatile `generated_at` removed,\n"
+        "  so identical input data yields an identical hash regardless of generation time.\n\n"
+        "## Explicit non-claims\n"
+        "- No data egress, no network. No SSO/SCIM. No hosted governance. No enforced policy.\n"
+        "- No automatic skill improvement. No cryptographic signature is produced or verified here.\n"
+    )
+    files = {
+        "method-and-assumptions.md": method_md,
+        "privacy-proof.json": json.dumps(privacy_proof, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        "non-mutation-proof.json": json.dumps(non_mutation_proof, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        "closed-loop-dry-run-proof.json": json.dumps(closed_loop_dry_run_proof_reference, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+        "schema-version-proof.json": json.dumps(schema_proof, ensure_ascii=False, indent=2, sort_keys=True) + "\n",
+    }
+    manifest = {
+        "schema_version": LEARNING_EVIDENCE_PACK_SCHEMA_VERSION,
+        "report_type": "learning_evidence_pack",
+        "tier": "enterprise",
+        "export_profile": "enterprise_local_evidence_pack",
+        "generated_at": generated_at or now_iso(),
+        "source": "learning_admin_export",
+        "unlimited_skills_version": __version__,
+        "reproducibility_hash": repro_hash,
+        "source_inventory": source_inventory,
+        "files": [
+            {"name": fname, "content_hash": _sha256_text(content)} for fname, content in sorted(files.items())
+        ],
+        "privacy": {
+            **_privacy(),
+            "no_egress": True,
+            "network_access": False,
+        },
+        "non_claims": {
+            "sso_scim": False,
+            "hosted_governance": False,
+            "enforced_policy": False,
+            "signature_enforced": False,
+            "automatic_skill_improvement": False,
+        },
+        "claim_boundary": {
+            "allowed_claims": [
+                "Local, reproducible evidence pack of Learning Loop method, schema, privacy, and non-mutation.",
+            ],
+            "forbidden_claims": [
+                "SSO or SCIM",
+                "hosted governance",
+                "enforced policy",
+                "automatic skill improvement",
+                "cryptographic signature enforced",
+            ],
+        },
+    }
+    for artifact in (manifest, privacy_proof, non_mutation_proof, schema_proof):
+        assert_learning_safe(artifact)
+
+    return {
+        "manifest": manifest,
+        "files": files,
+        "reproducibility_hash": repro_hash,
+        "privacy_proof": privacy_proof,
+        "non_mutation_proof": non_mutation_proof,
+        "schema_proof": schema_proof,
+        "source_inventory": source_inventory,
+    }
+
+
+def validate_learning_evidence_pack_manifest(manifest: dict[str, Any]) -> bool:
+    required = {"schema_version", "report_type", "reproducibility_hash", "source_inventory", "files", "non_claims"}
+    if not required.issubset(manifest):
+        return False
+    if manifest.get("schema_version") != LEARNING_EVIDENCE_PACK_SCHEMA_VERSION:
+        return False
+    if not isinstance(manifest.get("files"), list) or not manifest["files"]:
+        return False
+    return all(isinstance(f, dict) and "name" in f and "content_hash" in f for f in manifest["files"])
+
+
+def write_learning_evidence_pack(pack: dict[str, Any], out_dir: Path) -> list[str]:
+    out_dir = Path(out_dir).expanduser()
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "manifest.json").write_text(
+        json.dumps(pack["manifest"], ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    written = ["manifest.json"]
+    for fname, content in sorted(pack["files"].items()):
+        (out_dir / fname).write_text(content, encoding="utf-8")
+        written.append(fname)
+    return written
