@@ -299,3 +299,165 @@ def build_router_health_team_rollup(
 def router_health_team_rollup_json(rollup: dict[str, Any]) -> str:
     assert_router_health_safe(rollup)
     return json.dumps(rollup, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+
+
+# --- Business tier (O062-TIER-BUSINESS-IMPL): admin CSV + JSON export -----------
+
+ROUTER_HEALTH_ADMIN_EXPORT_SCHEMA_VERSION = "router-health-admin-export-v1"
+_ADMIN_CSV_COLUMNS = [
+    "alias",
+    "team",
+    "workspace",
+    "agent_class",
+    "total_invocations",
+    "router_invoked",
+    "non_english_fallback_readiness",
+]
+_UNLABELED = "unlabeled"
+
+
+def load_team_rollup(path: Path) -> dict[str, Any]:
+    """Load + validate one Team rollup (local file only)."""
+    path = Path(path).expanduser()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise IncompatibleExportError(f"{path.name}: cannot read JSON ({exc.__class__.__name__}).") from exc
+    if not isinstance(data, dict):
+        raise IncompatibleExportError(f"{path.name}: rollup is not a JSON object.")
+    if data.get("schema_version") != ROUTER_HEALTH_TEAM_ROLLUP_SCHEMA_VERSION:
+        raise IncompatibleExportError(
+            f"{path.name}: incompatible schema_version "
+            f"{data.get('schema_version')!r} (expected {ROUTER_HEALTH_TEAM_ROLLUP_SCHEMA_VERSION!r})."
+        )
+    try:
+        assert_router_health_safe(data)
+    except RuntimeError as exc:
+        raise IncompatibleExportError(f"{path.name}: unsafe rollup rejected ({exc}).") from exc
+    return data
+
+
+def _label_for(labels: dict[str, Any] | None, alias: str, key: str) -> str:
+    if isinstance(labels, dict):
+        entry = labels.get(alias)
+        if isinstance(entry, dict):
+            value = entry.get(key)
+            if isinstance(value, str) and value.strip():
+                return value.strip()
+    return _UNLABELED
+
+
+def _group_counts(rows: list[dict[str, Any]], key: str) -> dict[str, dict[str, int]]:
+    groups: dict[str, dict[str, int]] = {}
+    for row in rows:
+        bucket = groups.setdefault(row[key], {"members": 0, "total_invocations": 0, "stale_members": 0})
+        bucket["members"] += 1
+        bucket["total_invocations"] += int(row["total_invocations"])
+        if not row["router_invoked"]:
+            bucket["stale_members"] += 1
+    return groups
+
+
+def build_router_health_admin_export(
+    rollup_path: Path,
+    *,
+    labels: dict[str, Any] | None = None,
+    generated_at: str | None = None,
+) -> dict[str, Any]:
+    """Business-tier admin export over a Team rollup (O062-TIER-BUSINESS-IMPL).
+
+    Admin-supplied local labels (team/workspace/agent-class) group the members.
+    Measured counts are kept separate from advisory status. Missing labels are
+    handled safely (``unlabeled``). Fail-closed. Local file; no hosted dashboard,
+    billing, provider account ids, or telemetry.
+    """
+    rollup = load_team_rollup(Path(rollup_path))
+    members = rollup.get("members") if isinstance(rollup.get("members"), list) else []
+
+    rows: list[dict[str, Any]] = []
+    for member in members:
+        if not isinstance(member, dict):
+            continue
+        alias = str(member.get("alias") or _UNLABELED)
+        rows.append({
+            "alias": alias,
+            "team": _label_for(labels, alias, "team"),
+            "workspace": _label_for(labels, alias, "workspace"),
+            "agent_class": _label_for(labels, alias, "agent_class"),
+            # measured
+            "total_invocations": int(member.get("total_invocations", 0) or 0),
+            "router_invoked": bool(member.get("router_invoked", False)),
+            # advisory
+            "non_english_fallback_readiness": member.get("non_english_fallback_readiness"),
+        })
+
+    export: dict[str, Any] = {
+        "schema_version": ROUTER_HEALTH_ADMIN_EXPORT_SCHEMA_VERSION,
+        "report_type": "router_health_admin_export",
+        "tier": "business",
+        "export_profile": "business_local_admin",
+        "generated_at": generated_at or now_iso(),
+        "source": "router_health_team_rollup",
+        "unlimited_skills_version": __version__,
+        "csv_columns": list(_ADMIN_CSV_COLUMNS),
+        "rows": rows,
+        "measured": {
+            "row_count": len(rows),
+            "total_invocations": sum(r["total_invocations"] for r in rows),
+            "explanation": "Measured counts come straight from the router metrics; they are facts, not advice.",
+        },
+        "advisory": {
+            "stale_or_no_router_call_members": [r["alias"] for r in rows if not r["router_invoked"]],
+            "explanation": "Advisory status (stale, readiness) is guidance, not a measured guarantee.",
+        },
+        "grouping": {
+            "by_team": _group_counts(rows, "team"),
+            "by_workspace": _group_counts(rows, "workspace"),
+            "by_agent_class": _group_counts(rows, "agent_class"),
+        },
+        "privacy": {
+            **_privacy(),
+            "labels_are_admin_supplied_local": True,
+            "provider_account_ids_included": False,
+        },
+        "claim_boundary": {
+            "allowed_claims": [
+                "Local admin CSV/JSON view of router-health readiness across labeled teams/workspaces/agent classes.",
+            ],
+            "forbidden_claims": [
+                "hosted admin dashboard",
+                "billing or entitlement",
+                "telemetry-backed admin analytics",
+            ],
+        },
+        "delivery": {
+            "produced_locally": True,
+            "stays_local": True,
+            "upload": False,
+            "hosted_dashboard": False,
+            "billing_or_entitlement": False,
+            "note": "Local CSV + JSON admin export; no hosted dashboard, billing, or telemetry.",
+        },
+    }
+    assert_router_health_safe(export)
+    return export
+
+
+def router_health_admin_export_json(export: dict[str, Any]) -> str:
+    assert_router_health_safe(export)
+    return json.dumps(export, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+
+
+def router_health_admin_export_csv(export: dict[str, Any]) -> str:
+    """Render the admin export rows as CSV consistent with the JSON rows."""
+    import csv
+    import io
+
+    assert_router_health_safe(export)
+    columns = export.get("csv_columns") or _ADMIN_CSV_COLUMNS
+    buffer = io.StringIO()
+    writer = csv.DictWriter(buffer, fieldnames=columns, extrasaction="ignore", lineterminator="\n")
+    writer.writeheader()
+    for row in export.get("rows", []):
+        writer.writerow({col: row.get(col, "") for col in columns})
+    return buffer.getvalue()
