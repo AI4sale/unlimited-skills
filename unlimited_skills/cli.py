@@ -650,6 +650,15 @@ def build_parser() -> argparse.ArgumentParser:
     learning_doctor = learning_sub.add_parser("doctor", help="Diagnose local Learning Loop state without hosted calls.")
     learning_doctor.set_defaults(func=learning_cmds.cmd_learning_doctor)
 
+    learning_export = learning_sub.add_parser(
+        "export",
+        help="Registered tier: write a schema-versioned local Learning Loop export (produced locally, stays local; no upload, no mutation).",
+    )
+    learning_export.add_argument("--json", action="store_true", help="Emit the export JSON (output is JSON regardless).")
+    learning_export.add_argument("--out", default="", help="Write the export to this local file instead of stdout.")
+    learning_export.add_argument("--json-status", action="store_true", help="Machine-readable write status when --out is used.")
+    learning_export.set_defaults(func=learning_cmds.cmd_learning_export)
+
     improvement_candidates = sub.add_parser(
         "improvement-candidates",
         help="List local privacy-safe Learning Loop improvement candidates.",
