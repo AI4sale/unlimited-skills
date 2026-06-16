@@ -44,3 +44,36 @@ def cmd_money_saved_meter(args: argparse.Namespace) -> int:
         return 0
     print(text, end="")
     return 0
+
+
+def cmd_money_saved_registered_export(args: argparse.Namespace) -> int:
+    from .. import cli
+    from ..money_saved_meter import (
+        REGISTERED_EXPORT_SCHEMA_VERSION,
+        build_registered_export,
+        load_optional_report,
+        registered_export_json,
+        write_report,
+    )
+
+    root = Path(args.root).expanduser()
+    cli.enforce_local_root(root, action="money-saved registered-export library root")
+    mcp_savings_report = load_optional_report(args.mcp_savings_json)
+    audit_log = Path(args.audit_log).expanduser() if args.audit_log else None
+    export = build_registered_export(
+        root,
+        mode=args.mode,
+        mcp_savings_report=mcp_savings_report,
+        audit_log=audit_log,
+        target_call_count=args.target_calls,
+    )
+    text = registered_export_json(export)
+    if args.out:
+        write_report(Path(args.out), text)
+        if args.json_status:
+            print(json.dumps({"schema_version": REGISTERED_EXPORT_SCHEMA_VERSION, "written": True, "format": "json"}, indent=2))
+        else:
+            print(f"Registered Money Saved export written ({args.out}).")
+        return 0
+    print(text, end="")
+    return 0
