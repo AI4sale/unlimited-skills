@@ -11,3 +11,4 @@ build/
 .unlimited-skills-vector.json
 .chroma-skills/
 .learning/
+.tmp/
