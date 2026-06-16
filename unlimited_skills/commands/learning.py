@@ -156,3 +156,48 @@ def cmd_learning_admin_export(args: argparse.Namespace) -> int:
         return 0
     print(json_text, end="")
     return 0
+
+
+def cmd_learning_evidence_pack(args: argparse.Namespace) -> int:
+    from .. import cli
+    from ..learning_tiers import (
+        IncompatibleExportError,
+        build_learning_evidence_pack,
+        write_learning_evidence_pack,
+    )
+
+    root = Path(args.root).expanduser()
+    cli.enforce_local_root(root, action="learning evidence-pack library root")
+    if not args.input:
+        print("No --input admin export provided.")
+        return 2
+    if not args.out:
+        print("No --out directory provided for the evidence pack.")
+        return 2
+    try:
+        pack = build_learning_evidence_pack(Path(args.input))
+    except IncompatibleExportError as exc:
+        print(f"Rejected incompatible input: {exc}")
+        return 2
+    written = write_learning_evidence_pack(pack, Path(args.out))
+    print(json.dumps({
+        "evidence_pack_written": True,
+        "out_dir": str(args.out),
+        "files": written,
+        "reproducibility_hash": pack["reproducibility_hash"],
+    }, indent=2))
+    return 0
+
+
+def cmd_learning_verify_evidence_pack(args: argparse.Namespace) -> int:
+    from .. import cli
+    from ..learning_tiers import verify_learning_evidence_pack
+
+    root = Path(args.root).expanduser()
+    cli.enforce_local_root(root, action="learning verify-evidence-pack library root")
+    if not args.input:
+        print("No --input evidence-pack directory provided.")
+        return 2
+    report = verify_learning_evidence_pack(Path(args.input))
+    print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
+    return 0 if report.get("ok") else 1
