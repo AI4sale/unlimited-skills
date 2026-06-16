@@ -173,3 +173,129 @@ def build_router_health_export(root: Path, *, generated_at: str | None = None) -
 def router_health_export_json(export: dict[str, Any]) -> str:
     assert_router_health_safe(export)
     return json.dumps(export, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+
+
+# --- Team tier (O062-TIER-TEAM-IMPL): local rollup of Registered exports --------
+
+ROUTER_HEALTH_TEAM_ROLLUP_SCHEMA_VERSION = "router-health-team-rollup-v1"
+
+
+class IncompatibleExportError(ValueError):
+    """Raised when a team-rollup input is not a compatible Registered export."""
+
+
+def _content_hash(data: dict[str, Any]) -> str:
+    import hashlib
+
+    payload = json.dumps(data, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
+
+
+def load_registered_export(path: Path) -> dict[str, Any]:
+    """Load + validate one Registered router-health export (local file only)."""
+    path = Path(path).expanduser()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise IncompatibleExportError(f"{path.name}: cannot read JSON ({exc.__class__.__name__}).") from exc
+    if not isinstance(data, dict):
+        raise IncompatibleExportError(f"{path.name}: export is not a JSON object.")
+    if data.get("schema_version") != ROUTER_HEALTH_EXPORT_SCHEMA_VERSION:
+        raise IncompatibleExportError(
+            f"{path.name}: incompatible schema_version "
+            f"{data.get('schema_version')!r} (expected {ROUTER_HEALTH_EXPORT_SCHEMA_VERSION!r})."
+        )
+    try:
+        assert_router_health_safe(data)  # unsafe export is rejected before aggregation
+    except RuntimeError as exc:
+        raise IncompatibleExportError(f"{path.name}: unsafe export rejected ({exc}).") from exc
+    return data
+
+
+def build_router_health_team_rollup(
+    inputs: list[Path],
+    *,
+    aliases: list[str] | None = None,
+    generated_at: str | None = None,
+) -> dict[str, Any]:
+    """Team-tier local rollup over multiple Registered exports (O062-TIER-TEAM-IMPL).
+
+    Inputs are local files gathered out of band; there is NO network fetch. Member
+    aliases are local labels (operator-supplied or the input file stem) — never OS
+    usernames or emails. Duplicate inputs are detected and counted once; an input
+    with an incompatible schema or unsafe content is rejected. Fail-closed.
+    """
+    members: list[dict[str, Any]] = []
+    duplicates: list[dict[str, Any]] = []
+    seen: dict[str, str] = {}
+    for index, raw in enumerate(inputs):
+        path = Path(raw).expanduser()
+        data = load_registered_export(path)
+        alias = aliases[index] if aliases and index < len(aliases) and aliases[index] else path.stem
+        digest = _content_hash(data)
+        if digest in seen:
+            duplicates.append({"alias": alias, "duplicate_of_alias": seen[digest]})
+            continue
+        seen[digest] = alias
+        router = data.get("router", {}) if isinstance(data.get("router"), dict) else {}
+        readiness = data.get("readiness", {}) if isinstance(data.get("readiness"), dict) else {}
+        members.append({
+            "alias": alias,
+            "total_invocations": int(router.get("total_invocations", 0) or 0),
+            "router_invoked": bool(router.get("router_invoked", False)),
+            "non_english_fallback_readiness": readiness.get("non_english_fallback_readiness"),
+            "vector_index_present": bool(readiness.get("vector_index_present", False)),
+        })
+
+    readiness_summary: dict[str, int] = {}
+    for member in members:
+        key = member["non_english_fallback_readiness"] or "unknown"
+        readiness_summary[key] = readiness_summary.get(key, 0) + 1
+
+    rollup: dict[str, Any] = {
+        "schema_version": ROUTER_HEALTH_TEAM_ROLLUP_SCHEMA_VERSION,
+        "report_type": "router_health_team_rollup",
+        "tier": "team",
+        "export_profile": "team_local_rollup",
+        "generated_at": generated_at or now_iso(),
+        "source": "registered_router_health_exports",
+        "unlimited_skills_version": __version__,
+        "member_count": len(members),
+        "team_total_invocations": sum(m["total_invocations"] for m in members),
+        "members": members,
+        "non_english_readiness_summary": readiness_summary,
+        "stale_or_no_router_call_members": [m["alias"] for m in members if not m["router_invoked"]],
+        "duplicate_inputs": duplicates,
+        "privacy": {
+            **_privacy(),
+            "aliases_are_local_labels": True,
+            "os_usernames_or_emails_included": False,
+        },
+        "claim_boundary": {
+            "allowed_claims": [
+                "Aggregates locally-gathered Registered router-health exports into a team view.",
+                "All inputs are local files; nothing is fetched over a network.",
+            ],
+            "forbidden_claims": [
+                "hosted team dashboard",
+                "live team sync",
+                "telemetry-backed team analytics",
+            ],
+        },
+        "delivery": {
+            "produced_locally": True,
+            "stays_local": True,
+            "network_fetch": False,
+            "hosted_sync": False,
+            "upload": False,
+            "dashboard": False,
+            "note": "Inputs are gathered out of band; this rollup never fetches over a network.",
+        },
+    }
+    assert_router_health_safe(rollup)
+    return rollup
+
+
+def router_health_team_rollup_json(rollup: dict[str, Any]) -> str:
+    assert_router_health_safe(rollup)
+    return json.dumps(rollup, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
