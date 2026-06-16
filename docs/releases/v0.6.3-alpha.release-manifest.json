@@ -1,49 +1,140 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "release": "v0.6.3-alpha",
   "package_version": "0.6.3",
-  "distribution": "local-learning-loop-candidate-preview",
-  "status": "draft_release_gate",
-  "roadmap_ref": "docs/roadmaps/unlimited-skills/UNLIMITED-SKILLS-PRIVATE-ROADMAP-v0.6.3-to-v0.6.13.md#v0.6.3",
+  "distribution": "local-learning-loop-tier-commands",
+  "status": "release_package_draft",
   "git": {
     "base_branch": "main",
     "tag": "v0.6.3-alpha",
-    "tag_status": "blocked_until_owner_approval_pypi_publish_and_post_publish_verification"
+    "tag_status": "blocked_until_release_execution_gate_owner_approval_publish_and_clean_install_verification"
   },
-  "required_surfaces": {
-    "learning_doctor": true,
-    "improvement_candidates": true,
-    "apply_candidate_dry_run": true,
-    "wrong_feedback_candidates": true,
-    "missed_feedback_candidates": true,
-    "rejected_feedback_candidates": true,
-    "seven_outcome_feedback_contract": true,
-    "closed_loop_dry_run_proof": true,
-    "dry_run_non_mutation": true,
-    "privacy_safe_candidate_serialization": true
+  "value_frame": {
+    "primary": "Local Learning Loop command surfaces with reproducible tier artifacts.",
+    "v0_6_2_router_health": "compatibility_tier_debt_closure_only_not_v0_6_3_vfp",
+    "excluded": [
+      "v0.6.4 Money Saved Meter",
+      "hosted telemetry",
+      "automatic skill improvement",
+      "automatic mutation",
+      "release execution",
+      "tag",
+      "version bump",
+      "PyPI publish",
+      "marketplace submission",
+      "hosted rollout"
+    ]
   },
+  "learning_loop_surfaces": [
+    {
+      "tier": "free",
+      "commands": [
+        "unlimited-skills learning doctor",
+        "unlimited-skills improvement-candidates",
+        "unlimited-skills apply-candidate --dry-run <candidate-id>",
+        "python scripts/verify-learning-feedback-contract.py",
+        "python scripts/verify-learning-loop-closed-loop-proof.py"
+      ],
+      "artifacts": [
+        "privacy-safe candidate JSON",
+        "non-mutating dry-run preview",
+        "feedback contract report",
+        "closed-loop dry-run proof"
+      ]
+    },
+    {
+      "tier": "registered",
+      "commands": [
+        "unlimited-skills learning export --out registered-learning-export.json --json-status"
+      ],
+      "artifacts": [
+        "registered-learning-export.json"
+      ]
+    },
+    {
+      "tier": "team",
+      "commands": [
+        "unlimited-skills learning team-rollup --input registered-learning-export.json --out team-learning-rollup.json --json-status"
+      ],
+      "artifacts": [
+        "team-learning-rollup.json"
+      ]
+    },
+    {
+      "tier": "business",
+      "commands": [
+        "unlimited-skills learning admin-export --input team-learning-rollup.json --json business-learning-admin.json --csv business-learning-admin.csv"
+      ],
+      "artifacts": [
+        "business-learning-admin.json",
+        "business-learning-admin.csv"
+      ]
+    },
+    {
+      "tier": "enterprise",
+      "commands": [
+        "unlimited-skills learning evidence-pack --input business-learning-admin.json --out enterprise-learning-evidence-pack",
+        "unlimited-skills learning verify-evidence-pack --input enterprise-learning-evidence-pack --json"
+      ],
+      "artifacts": [
+        "enterprise-learning-evidence-pack/manifest.json",
+        "enterprise-learning-evidence-pack/non-mutation-proof.json",
+        "enterprise-learning-evidence-pack/privacy-proof.json"
+      ],
+      "fail_closed": [
+        "tampered evidence pack verification returns non-zero and ok=false"
+      ]
+    }
+  ],
+  "compatibility_surfaces": [
+    {
+      "release": "v0.6.2-alpha",
+      "surface": "router-health tier-debt closure",
+      "commands": [
+        "unlimited-skills router-health export",
+        "unlimited-skills router-health team-rollup",
+        "unlimited-skills router-health admin-export",
+        "unlimited-skills router-health evidence-pack",
+        "unlimited-skills router-health verify-evidence-pack"
+      ],
+      "claim_boundary": "compatibility note only"
+    }
+  ],
+  "release_package_files": [
+    "docs/releases/v0.6.3-alpha.md",
+    "docs/releases/v0.6.3-alpha.release-manifest.json",
+    "docs/releases/v0.6.3-alpha-checklist.md",
+    "docs/releases/v0.6.3-alpha-upgrade-notes.md",
+    "docs/releases/v0.6.3-alpha-known-issues.md",
+    "docs/releases/v0.6.3-personal-verification.md"
+  ],
+  "verifier_scripts": [
+    "scripts/verify-v063-tier-release-smoke.py",
+    "scripts/verify_v063_tier_release_smoke.py",
+    "scripts/verify-learning-feedback-contract.py",
+    "scripts/verify-learning-loop-closed-loop-proof.py",
+    "scripts/verify-v06-frozen-contracts.py",
+    "scripts/verify-feedback-report-boundaries.py"
+  ],
+  "tests": [
+    "tests/test_v063_tier_release_smoke.py",
+    "tests/test_learning_loop_cli.py",
+    "tests/test_learning_export.py",
+    "tests/test_learning_team_rollup.py",
+    "tests/test_learning_admin_export.py",
+    "tests/test_learning_evidence_pack.py",
+    "tests/test_learning_verify_evidence_pack.py"
+  ],
   "required_verification": [
-    "python scripts/verify-learning-feedback-contract.py",
-    "python scripts/verify-learning-loop-closed-loop-proof.py",
-    "python -m pytest tests/test_learning_loop_cli.py tests/test_feedback_report.py tests/test_effectiveness_instrumentation.py tests/test_router_metrics.py -q",
+    "python scripts/verify-v063-tier-release-smoke.py --json",
+    "python -m pytest tests/test_v063_tier_release_smoke.py tests/test_learning_loop_cli.py tests/test_learning_export.py tests/test_learning_team_rollup.py tests/test_learning_admin_export.py tests/test_learning_evidence_pack.py tests/test_learning_verify_evidence_pack.py -q",
     "python scripts/verify-v06-frozen-contracts.py --json",
     "python scripts/verify-feedback-report-boundaries.py",
     "git diff --check"
   ],
-  "release_decision": {
-    "package": "docs/reports/v0.6.3-release-decision-package.md",
-    "recommendation": "GO_WITH_LIMITS",
-    "allowed_claim": "local feedback diagnostics, privacy-safe candidate review, and non-mutating dry-run preview",
-    "blocked_claims": [
-      "actually improves skills",
-      "automatically improves skills",
-      "auto-applies changes",
-      "mutates skill files",
-      "hosted sync",
-      "telemetry",
-      "paid-tier rollout"
-    ],
-    "release_execution_authorized": false
+  "release_execution": {
+    "authorized": false,
+    "next_gate": "C063-REL-02 after release package, smoke verifier, personal procedure, and Opus review PASS"
   },
   "safety_boundary": {
     "alpha_only": true,
@@ -57,8 +148,12 @@
     "marketplace_submission": false,
     "automatic_skill_editing": false,
     "hosted_readiness_claim": false,
-    "team_readiness_claim": false,
-    "enterprise_readiness_claim": false,
-    "pypi_availability": "blocked_until_trusted_publishing_and_clean_install_smoke"
-  }
+    "team_service_rollout_claim": false,
+    "business_service_rollout_claim": false,
+    "enterprise_service_rollout_claim": false,
+    "pypi_availability": "blocked_until_release_execution_gate"
+  },
+  "excluded_prs": [
+    119
+  ]
 }
