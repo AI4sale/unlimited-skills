@@ -659,6 +659,17 @@ def build_parser() -> argparse.ArgumentParser:
     learning_export.add_argument("--json-status", action="store_true", help="Machine-readable write status when --out is used.")
     learning_export.set_defaults(func=learning_cmds.cmd_learning_export)
 
+    learning_team = learning_sub.add_parser(
+        "team-rollup",
+        help="Team tier: locally aggregate multiple Registered learning exports (no network fetch, no mutation).",
+    )
+    learning_team.add_argument("--input", action="append", default=[], help="A Registered learning export file. Repeat for each member.")
+    learning_team.add_argument("--alias", action="append", default=[], help="Optional local member alias, positionally matched to --input (defaults to the file stem).")
+    learning_team.add_argument("--json", action="store_true", help="Emit the rollup JSON (output is JSON regardless).")
+    learning_team.add_argument("--out", default="", help="Write the rollup to this local file instead of stdout.")
+    learning_team.add_argument("--json-status", action="store_true", help="Machine-readable write status when --out is used.")
+    learning_team.set_defaults(func=learning_cmds.cmd_learning_team_rollup)
+
     improvement_candidates = sub.add_parser(
         "improvement-candidates",
         help="List local privacy-safe Learning Loop improvement candidates.",
