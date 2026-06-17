@@ -63,6 +63,19 @@ def test_exact_counter_failure_falls_back():
     assert out.method == tc.FALLBACK_NAME and out.release_acceptable is False
 
 
+def test_openai_uses_tiktoken_path(monkeypatch):
+    monkeypatch.setattr(tc, "make_openai_counter", lambda *a, **k: (lambda text: 7))
+    out = tc.count_tokens("abc", provider="openai")
+    assert out.method == tc.OPENAI_COUNTER and out.tokens == 7
+    assert out.exact_for_model is True and out.release_acceptable is True
+
+
+def test_openai_falls_back_when_tiktoken_absent(monkeypatch):
+    monkeypatch.setattr(tc, "make_openai_counter", lambda *a, **k: None)
+    out = tc.count_tokens("abcd", provider="openai")
+    assert out.method == tc.FALLBACK_NAME and out.release_acceptable is False
+
+
 def test_token_count_privacy_disclosure():
     block = tc.token_count_privacy(provider_count_tokens_used=True)
     assert block["provider_count_tokens_used"] is True
