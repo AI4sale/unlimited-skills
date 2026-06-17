@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 import subprocess
 import sys
 from pathlib import Path
@@ -56,23 +57,32 @@ MAX_PROMPT_CHARS = 300
 DEFAULT_TIMEOUT_SECONDS = 2.0
 KILL_SWITCH_ENV = "UNLIMITED_SKILLS_NO_INJECT"
 
+# Warm multilingual search daemon (`unlimited-skills serve`). A non-English prompt
+# IS the signal that this user needs native-language search, so the hook starts the
+# daemon in the background — for everyone — so the NEXT native-language lookups are
+# fast (~0.3s) instead of a ~14-20s cold load. Idempotent (skips if the port already
+# listens), detached, best-effort. Escape hatch for restricted envs: NO_AUTOSERVE.
+DAEMON_HOST = "127.0.0.1"
+DAEMON_PORT = 8765
+NO_AUTOSERVE_ENV = "UNLIMITED_SKILLS_NO_AUTOSERVE"
+
 # Tier-3 fallback (non-English rescue). The lexical engine scores a non-English
 # prompt at zero, and a cold multilingual embedding load can exceed the probe
 # timeout. In both cases, instead of returning silence, ask the model to do the
 # one thing it is uniquely good at across 1000 languages: restate the task as
 # English keywords and re-query the router with THAT. No prompt text is echoed.
 NON_ENGLISH_INSTRUCTION = (
-    "Unlimited Skills: this prompt may not be in English and a direct skill "
-    "search returned nothing. Do this now: restate the user's request as 3-8 "
-    'English retrieval keywords and run `unlimited-skills suggest "<English '
-    'keywords>"` with that English query (not the raw prompt), then use the top '
-    "skill it returns. "
-    "WARNING — native-language (multilingual vector) search needs a WARM daemon: "
-    "without one, every non-English lookup cold-loads the embedding model and "
-    "takes ~14 seconds (painfully slow). For fast (~0.3s) native-language search, "
-    "ASK THE USER to approve starting the daemon (`unlimited-skills serve`) and "
-    "do NOT start it without their explicit approval. Until it is running, keep "
-    "using the English-keywords path above."
+    "Unlimited Skills — NON-ENGLISH PROMPT, NO IN-BUDGET RESULT. Lexical search "
+    "scores non-English at ~0, and without a WARM multilingual daemon every "
+    "non-English lookup returns NOTHING inside the hook's short time budget — "
+    "that is exactly why no skill was suggested here. DO THIS NOW, do not skip: "
+    "restate the user's request as 3-8 English retrieval keywords and run "
+    '`unlimited-skills suggest "<English keywords>"` (the English query, not the '
+    "raw prompt). Expect ~14-20 seconds the first time (cold embedding-model "
+    "load) — that delay is EXPECTED, wait for it — then use the top skill it "
+    "returns. The hook has already triggered best-effort background daemon "
+    "warming (`unlimited-skills serve`) for future native-language searches; "
+    "set UNLIMITED_SKILLS_NO_AUTOSERVE=1 to disable that behavior."
 )
 
 
@@ -100,6 +110,48 @@ def _looks_non_english(text: str) -> bool:
     return (ascii_letters / len(letters)) < 0.6
 
 
+def _daemon_listening(host: str = DAEMON_HOST, port: int = DAEMON_PORT) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=0.2):
+            return True
+    except OSError:
+        return False
+
+
+def _start_daemon_warming(command: list[str]) -> None:
+    """Start the warm search daemon in the background for non-English users.
+
+    Fire-and-forget: detached, idempotent (no-op if the port already listens),
+    best-effort (a missing server extra just dies silently). NEVER blocks or
+    raises — the hook returns immediately and the daemon warms for the NEXT prompt.
+    """
+    if os.environ.get(NO_AUTOSERVE_ENV):
+        return
+    if _daemon_listening():
+        return
+    try:
+        kwargs: dict = {
+            "stdin": subprocess.DEVNULL,
+            "stdout": subprocess.DEVNULL,
+            "stderr": subprocess.DEVNULL,
+        }
+        if os.name == "nt":
+            # DETACHED_PROCESS (no console at all) | CREATE_NEW_PROCESS_GROUP — survives
+            # the hook exit and shows NO window (the scary blank window comes from
+            # CREATE_NEW_CONSOLE, which we never use). STARTUPINFO + SW_HIDE is
+            # belt-and-suspenders so nothing flashes even via a powershell launcher.
+            kwargs["creationflags"] = 0x00000008 | 0x00000200
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = 0  # SW_HIDE
+            kwargs["startupinfo"] = startupinfo
+        else:
+            kwargs["start_new_session"] = True
+        subprocess.Popen([*command, "serve"], **kwargs)
+    except Exception:
+        return
+
+
 def _emit(context: str) -> None:
     print(
         json.dumps(
@@ -121,9 +173,14 @@ def main() -> int:
         prompt = " ".join(prompt.split())
         if len(prompt) < MIN_PROMPT_CHARS:
             return 0
+        non_english = _looks_non_english(prompt)
         command = resolve_cli_command()
         if not command:
             return 0
+        # A non-English prompt means this user needs native-language search — warm
+        # the daemon in the background now (for everyone) so the NEXT lookups are fast.
+        if non_english:
+            _start_daemon_warming(command)
         inject_cards = not _kill_switch_active()
         cmd = [*command, "suggest", prompt[:MAX_PROMPT_CHARS], "--json", "--limit", "1"]
         if inject_cards:
@@ -140,7 +197,7 @@ def main() -> int:
             # Slowest path is a cold multilingual embedding load on a non-English
             # prompt; ask for an English re-query rather than block or fall silent.
             # English prompts that time out stay silent (fail-open, no false nag).
-            if _looks_non_english(prompt):
+            if non_english:
                 _emit(NON_ENGLISH_INSTRUCTION)
             return 0
         if proc.returncode != 0 or not proc.stdout.strip():
@@ -159,9 +216,12 @@ def main() -> int:
         # Tier 2: one-line, NAME-only hint. Tier 1: silence.
         candidates = payload_out.get("top_3_skill_candidates")
         if not isinstance(candidates, list) or not candidates:
-            # Non-English prompt that found nothing: nudge for an English re-query
-            # (tier 3). English no-match stays silent (needs_english_query unset).
-            if payload_out.get("needs_english_query") is True:
+            # No in-budget result. For a NON-ENGLISH prompt this is the expected
+            # outcome without a warm multilingual daemon (lexical scores it ~0), so
+            # we ALWAYS kick the model to run the search manually rather than fail
+            # silently — regardless of whether the CLI set needs_english_query.
+            # English no-match stays silent (no false nag).
+            if non_english or payload_out.get("needs_english_query") is True:
                 _emit(NON_ENGLISH_INSTRUCTION)
             return 0
         top = candidates[0]

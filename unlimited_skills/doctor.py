@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -57,6 +58,67 @@ def _library_summary(root: Path) -> dict[str, Any]:
         "total_skills": sum(collections.values()),
         "index_present": (root / INDEX_NAME).is_file(),
         "vector_index_present": (root / CHROMA_DIR_NAME).is_dir() or (root / VECTOR_META_NAME).is_file(),
+    }
+
+
+def _runtime_deps_summary() -> dict[str, Any]:
+    """Are the optional extras needed for native-language search installed?
+
+    ``[server]`` (fastapi/uvicorn) runs the warm daemon (``unlimited-skills serve``);
+    ``[vector]`` (fastembed/chromadb) is the multilingual embedding sidecar. Without
+    BOTH, non-English prompts return nothing. Pure ``find_spec`` — imports nothing.
+    """
+    import importlib.util
+
+    def present(mod: str) -> bool:
+        try:
+            return importlib.util.find_spec(mod) is not None
+        except (ImportError, ValueError):
+            return False
+
+    server = present("fastapi") and present("uvicorn")
+    vector = present("fastembed") and present("chromadb")
+    return {
+        "server_extra_present": server,
+        "vector_extra_present": vector,
+        "multilingual_ready": server and vector,
+    }
+
+
+# Concrete contents of the [all] extra (mirror pyproject.toml [project.optional-dependencies]).
+# We install the dep packages directly so repair works regardless of how
+# unlimited-skills itself was installed (pip / editable / git) and never touches
+# or downgrades the core package.
+RUNTIME_EXTRA_PACKAGES = ("fastapi>=0.115", "uvicorn>=0.30", "fastembed>=0.4", "chromadb>=1.0,<2")
+
+
+def repair_runtime_deps(*, dry_run: bool = False, python_executable: str | None = None, timeout: float = 600.0) -> dict[str, Any]:
+    """Deliver the optional native-language search extras ([server]+[vector]).
+
+    Best-effort and idempotent: a no-op when already present, otherwise it
+    ``pip install``s the concrete extra packages into the current venv. NEVER
+    raises — a pip failure is reported, not propagated — so callers (upgrade,
+    ``doctor --fix``) can run it unconditionally without risking the flow.
+    """
+    import sys
+
+    before = _runtime_deps_summary()
+    if before["multilingual_ready"]:
+        return {"action": "noop", "reason": "already_present", "multilingual_ready": True}
+    command = [python_executable or sys.executable, "-m", "pip", "install", *RUNTIME_EXTRA_PACKAGES]
+    if dry_run:
+        return {"action": "dry_run", "command": command, "multilingual_ready": False}
+    try:
+        proc = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
+        ok = proc.returncode == 0
+    except Exception as exc:  # never propagate — repair must not break the caller
+        return {"action": "failed", "error": exc.__class__.__name__, "multilingual_ready": False}
+    after = _runtime_deps_summary()
+    return {
+        "action": "installed" if ok else "failed",
+        "returncode": proc.returncode,
+        "multilingual_ready": after["multilingual_ready"],
+        "stderr_tail": (proc.stderr or "")[-400:] if not ok else "",
     }
 
 
@@ -346,6 +408,19 @@ def build_doctor_report(root: Path, *, agent: str = "all", project_root: Path | 
         recommendations.append("Lexical index is missing. Run `unlimited-skills reindex`.")
     for info in agents.values():
         recommendations.extend(info.get("recommendations") or [])
+    runtime_deps = _runtime_deps_summary()
+    if not runtime_deps["vector_extra_present"]:
+        recommendations.append(
+            "Multilingual search deps are MISSING ([vector]: fastembed/chromadb) — non-English "
+            "prompts return nothing. Install with `pip install \"unlimited-skills[all]\"`, then "
+            "rebuild the sidecar: `unlimited-skills vector-reindex`."
+        )
+    if not runtime_deps["server_extra_present"]:
+        recommendations.append(
+            "Warm search daemon deps are MISSING ([server]: fastapi/uvicorn) — `unlimited-skills "
+            "serve` cannot run, so native-language search stays slow (~14-20s cold). Install with "
+            "`pip install \"unlimited-skills[all]\"`."
+        )
     from .search_core import read_router_metrics
 
     router_metrics = read_router_metrics(root)
@@ -354,6 +429,7 @@ def build_doctor_report(root: Path, *, agent: str = "all", project_root: Path | 
         "root": str(root),
         "registration": _registration_summary(),
         "library": library,
+        "runtime_deps": runtime_deps,
         "private_packs": private_pack_local_summary(root),
         "router": {
             "total_invocations": router_metrics.get("total_invocations", 0),
@@ -380,6 +456,11 @@ def format_doctor_text(report: dict[str, Any]) -> str:
         f"Private packs: {report.get('private_packs', {}).get('installed_count', 0)}",
         "Lexical index: " + ("present" if library["index_present"] else "missing"),
         "Vector index: " + ("present" if library["vector_index_present"] else "missing"),
+        "Multilingual ready: " + (
+            "yes"
+            if report.get("runtime_deps", {}).get("multilingual_ready")
+            else "NO — non-English search is dead; run `pip install \"unlimited-skills[all]\"` + `unlimited-skills vector-reindex`"
+        ),
     ]
     router = report.get("router", {})
     last_call = router.get("last_call", {})
