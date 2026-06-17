@@ -436,6 +436,7 @@ def resolve_skill_path(root: Path, name_or_path: str) -> Path | None:
 
 def build_parser() -> argparse.ArgumentParser:
     from .commands import accounts as accounts_cmds
+    from .commands import agent_lifecycle as agent_lifecycle_cmds
     from .commands import catalog as catalog_cmds
     from .commands import community as community_cmds
     from .commands import feedback as feedback_cmds
@@ -673,6 +674,29 @@ def build_parser() -> argparse.ArgumentParser:
     money_saved_record.add_argument("--model", default="", help="Explicit provider:model (else detected/assumed per agent).")
     money_saved_record.add_argument("--agent", default="", help="Agent identity (claude-code/codex/openclaw/hermes); else auto-detected.")
     money_saved_record.set_defaults(func=money_saved_cmds.cmd_money_saved_record_event)
+
+    agent_lifecycle = sub.add_parser(
+        "agent-lifecycle",
+        help="Host-wrapper lifecycle entrypoints for agents without native plugin hooks.",
+    )
+    agent_lifecycle_sub = agent_lifecycle.add_subparsers(dest="agent_lifecycle_command", required=True)
+    agent_lifecycle_record = agent_lifecycle_sub.add_parser(
+        "record",
+        help="Record one Money Saved lifecycle event for Codex, Hermes, or OpenClaw wrappers.",
+    )
+    agent_lifecycle_record.add_argument(
+        "event",
+        choices=sorted(agent_lifecycle_cmds.EVENT_ALIASES),
+        help="Lifecycle event alias to record, for example session-start or pre-compact.",
+    )
+    agent_lifecycle_record.add_argument(
+        "--agent",
+        choices=agent_lifecycle_cmds.SUPPORTED_AGENT_LIFECYCLE_AGENTS,
+        required=True,
+        help="Agent wrapper emitting the lifecycle event.",
+    )
+    agent_lifecycle_record.add_argument("--model", default="", help="Explicit provider:model, else runtime/env/default agent profile.")
+    agent_lifecycle_record.set_defaults(func=agent_lifecycle_cmds.cmd_agent_lifecycle_record)
 
     router_health = sub.add_parser("router-health", help="Local router-health readiness surfaces (per tier).")
     router_health_sub = router_health.add_subparsers(dest="router_health_command", required=True)
