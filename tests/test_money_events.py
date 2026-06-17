@@ -104,3 +104,25 @@ def test_no_backdating_refuses_pre_genesis_events(tmp_path: Path):
     # An event at/after genesis is counted normally.
     s3 = me.record_event(_event("compaction", gen="2026-06-17T11:00:00Z", eid="new"), d)
     assert next(iter(s3["buckets"].values()))["event_count"] == 2
+
+
+def test_money_from_summary_sums_each_event_at_its_own_price_class(tmp_path: Path):
+    from unlimited_skills import money_saved_meter_v2 as m2
+    from unlimited_skills.money_pricing import resolve_model
+    d = tmp_path
+    # 1 session_start (base_input $5) + 3 compactions (cache_write_5m $6.25), skills only.
+    me.record_event(_event("session_start", price_class="base_input",
+                           gen="2026-06-17T10:00:00Z", eid="s1", mcp_base=0, mcp_actual=0), d)
+    for i in range(3):
+        me.record_event(_event("compaction", price_class="cache_write_5m",
+                               gen=f"2026-06-17T1{i+1}:00:00Z", eid=f"c{i}", mcp_base=0, mcp_actual=0), d)
+    summary = me.load_summary(d)
+    opus = resolve_model("anthropic:claude-opus-4.8")
+    out = m2.money_from_summary(summary, opus, provider="anthropic", model="claude-opus-4.8")
+    assert out["source"] == "measured_events"
+    assert out["events"]["event_count"] == 4
+    assert out["events"]["event_types"] == {"session_start": 1, "compaction": 3}
+    saved = 1000 - 60  # _event default skills baseline 1000 - router 60 = 940/event
+    expected = saved * 5 / 1e6 + 3 * saved * 6.25 / 1e6  # base_input + 3×cache_write_5m
+    assert abs(out["savings"]["skills"]["estimated_money_saved_usd"] - expected) < 1e-9
+    assert out["savings"]["total"]["tokens_saved"] == 4 * saved
