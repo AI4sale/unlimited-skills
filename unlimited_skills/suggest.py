@@ -18,8 +18,9 @@ Design contract (A0 invocation rescue, F1 + Hermes privacy hardening):
   ``recommended_next_action`` (a command by skill NAME only), and
   ``latency_ms``. The task/query text, local filesystem paths, and skill
   bodies must never appear in the output;
-- ``--card`` (F3b ambient injection, opt-in, JSON mode only) adds
-  ``delivery_tier`` (1 silence / 2 hint / 3 card) and, ONLY at tier 3,
+- ``--card`` (F3b ambient injection, opt-in, JSON mode only) adds visible
+  candidate-family source metadata plus ``delivery_tier`` (1 silence / 2
+  hint / 3 card) and, ONLY at tier 3,
   a ``skill_card`` object whose ``card`` text intentionally carries the head
   of the matched skill's own SKILL.md body (hard-capped, see
   :func:`build_skill_card`). The card channel is the single sanctioned
@@ -48,6 +49,7 @@ from pathlib import Path
 from .search_core import (
     DEFAULT_ROOT,
     SkillHit,
+    candidate_sources,
     lexical_search,
     load_records,
     log_event,
@@ -55,6 +57,7 @@ from .search_core import (
     read_text,
     record_router_call,
     score_bucket,
+    shared_candidate_family,
     split_frontmatter,
 )
 
@@ -284,12 +287,19 @@ def recommended_next_action(hits: list[SkillHit], reason_code: str) -> str:
     return "no skill clears the score floor; proceed with the task"
 
 
-def candidate_payload(hits: list[SkillHit]) -> list[dict]:
-    """JSON candidates: name, source (collection/pack), score. Nothing else."""
-    return [
-        {"name": hit.name, "source": hit.collection, "score": round(float(hit.score), 1)}
-        for hit in hits
-    ]
+def candidate_payload(hits: list[SkillHit], *, include_sources: bool = False) -> list[dict]:
+    """JSON candidates: name/source/score; card mode also exposes family sources."""
+    rows = []
+    for hit in hits:
+        row = {"name": hit.name, "source": hit.collection, "score": round(float(hit.score), 1)}
+        if include_sources:
+            sources = candidate_sources(hit)
+            row["candidate_sources"] = list(sources or ("lexical",))
+            rank = getattr(hit, "candidate_rank", None)
+            if rank is not None:
+                row["candidate_rank"] = int(rank)
+        rows.append(row)
+    return rows
 
 
 def format_suggestion(hit: SkillHit) -> str:
@@ -317,10 +327,10 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _print_json(query: str, hits: list[SkillHit], reason_code: str, elapsed_ms: float, extra: dict | None = None) -> None:
+def _print_json(query: str, hits: list[SkillHit], reason_code: str, elapsed_ms: float, extra: dict | None = None, *, include_candidate_sources: bool = False) -> None:
     payload = {
         "task_summary_hash": task_summary_hash(query),
-        "top_3_skill_candidates": candidate_payload(hits),
+        "top_3_skill_candidates": candidate_payload(hits, include_sources=include_candidate_sources),
         "reason_code": reason_code,
         "recommended_next_action": recommended_next_action(hits, reason_code),
         "latency_ms": round(elapsed_ms, 1),
@@ -361,7 +371,13 @@ def main(argv: list[str] | None = None) -> int:
         if not _vector_fallback_disabled() and sidecar_installed(root):
             vector_hits = vector_probe(root, args.query, fetch_limit, args.collection)
             if vector_hits:
-                hits = vector_hits
+                hits = shared_candidate_family(
+                    root,
+                    args.query,
+                    fetch_limit,
+                    collection=args.collection,
+                    vector_hits=vector_hits,
+                )
                 reason_code = REASON_MATCH_FOUND
                 retrieval_path = "vector"
         if not hits:
@@ -392,7 +408,7 @@ def main(argv: list[str] | None = None) -> int:
     elapsed_ms = (time.perf_counter() - started) * 1000.0
 
     if args.json:
-        _print_json(args.query, display_hits, reason_code, elapsed_ms, extra)
+        _print_json(args.query, display_hits, reason_code, elapsed_ms, extra, include_candidate_sources=bool(args.card))
     else:
         for hit in display_hits:
             print(format_suggestion(hit))

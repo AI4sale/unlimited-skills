@@ -185,6 +185,12 @@ class SkillHit:
     score: float = 0.0
 
 
+VECTOR_SCORE_WEIGHT = 20.0
+LEARNING_BOOST_WEIGHT = 2.0
+LEARNING_DEMOTION_WEIGHT = 2.0
+LEARNING_MAX_ADJUSTMENT = 6.0
+
+
 def read_text(path: Path) -> str:
     return path.read_text(encoding="utf-8", errors="replace").lstrip("﻿")
 
@@ -386,6 +392,200 @@ def score_skill(query: str, hit: SkillHit, body: str) -> float:
     return score * ecosystem_factor(tokens(query), hit)
 
 
+def _clone_hit(hit: SkillHit, *, score: float | None = None) -> SkillHit:
+    return SkillHit(
+        name=hit.name,
+        description=hit.description,
+        collection=hit.collection,
+        path=hit.path,
+        score=float(hit.score if score is None else score),
+    )
+
+
+def _candidate_key(hit: SkillHit) -> str:
+    path = str(hit.path or "").strip()
+    if path:
+        return "path:" + path
+    return "name:" + skill_identity(hit.name)
+
+
+def _set_candidate_metadata(
+    hit: SkillHit,
+    *,
+    sources: Iterable[str],
+    lexical_score: float = 0.0,
+    vector_score: float = 0.0,
+    learning_adjustment: float = 0.0,
+    rank: int | None = None,
+) -> SkillHit:
+    clean_sources = tuple(sorted({source for source in sources if source}))
+    setattr(hit, "candidate_sources", clean_sources)
+    setattr(hit, "lexical_score", round(float(lexical_score), 3))
+    setattr(hit, "vector_score", round(float(vector_score), 3))
+    setattr(hit, "learning_adjustment", round(float(learning_adjustment), 3))
+    if rank is not None:
+        setattr(hit, "candidate_rank", int(rank))
+    return hit
+
+
+def candidate_sources(hit: SkillHit) -> tuple[str, ...]:
+    value = getattr(hit, "candidate_sources", ())
+    return tuple(str(item) for item in value if str(item))
+
+
+def _source_markers(query: str, hit: SkillHit, body: str) -> set[str]:
+    expanded = expanded_query(query)
+    base_tokens = tokens(query)
+    expanded_tokens = tokens(expanded)
+    skill_name_tokens = tokens(hit.name)
+    description_tokens = tokens(hit.description)
+    body_tokens = tokens(body[:12000])
+    markers: set[str] = set()
+    if base_tokens & skill_name_tokens:
+        markers.add("name")
+    if base_tokens & description_tokens:
+        markers.add("description")
+    if base_tokens & body_tokens:
+        markers.add("body")
+    if (expanded_tokens - base_tokens) & (skill_name_tokens | description_tokens | body_tokens):
+        markers.add("query_expansion")
+    q_lower = (query or "").lower()
+    expanded_lower = expanded.lower()
+    name_lower = (hit.name or "").lower()
+    if name_lower and (name_lower in q_lower or skill_identity(hit.name).replace("-", " ") in expanded_lower):
+        markers.add("exact_name")
+    if not markers:
+        markers.add("lexical")
+    return markers
+
+
+def _read_learning_adjustments(root: Path) -> dict[str, float]:
+    path = root / ".learning" / "feedback.jsonl"
+    if not path.is_file():
+        return {}
+    adjustments: dict[str, float] = {}
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError:
+        return {}
+    for line in lines[-1000:]:
+        try:
+            row = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(row, dict):
+            continue
+        name = skill_identity(str(row.get("name") or row.get("skill_name") or ""))
+        if not name:
+            continue
+        verdict = str(row.get("verdict") or row.get("outcome") or "").strip().lower()
+        if verdict == "accepted":
+            adjustments[name] = adjustments.get(name, 0.0) + LEARNING_BOOST_WEIGHT
+        elif verdict in {"rejected", "wrong"}:
+            adjustments[name] = adjustments.get(name, 0.0) - LEARNING_DEMOTION_WEIGHT
+    return {
+        key: max(-LEARNING_MAX_ADJUSTMENT, min(LEARNING_MAX_ADJUSTMENT, value))
+        for key, value in adjustments.items()
+        if value
+    }
+
+
+def shared_candidate_family(
+    root: Path,
+    query: str,
+    limit: int,
+    *,
+    collection: str | None = None,
+    fresh: bool = False,
+    vector_hits: Iterable[SkillHit] | None = None,
+    vector_weight: float = VECTOR_SCORE_WEIGHT,
+) -> list[SkillHit]:
+    """Merge and rank every supported retrieval source through one family.
+
+    The function is intentionally cheap when ``vector_hits`` is omitted: it
+    imports no embedding dependencies and uses the same lexical index as the
+    fast ``suggest`` path. Callers with vector results pass them in, and the
+    same merge/rank/source metadata is used by search, suggest, and hooks.
+    """
+    query = (query or "").strip()
+    if not query:
+        return []
+    requested = max(int(limit or 1), 1)
+    scan_limit = max(requested * 3, 12)
+    adjustments = _read_learning_adjustments(root)
+    merged: dict[str, SkillHit] = {}
+    meta: dict[str, dict[str, object]] = {}
+
+    for hit, body in load_records(root, fresh=fresh):
+        if collection and hit.collection != collection:
+            continue
+        lexical_score = score_skill(query, hit, body)
+        if lexical_score <= 0.0:
+            continue
+        item = _clone_hit(hit, score=lexical_score)
+        key = _candidate_key(item)
+        learning_adjustment = adjustments.get(skill_identity(item.name), 0.0)
+        item.score = max(0.0, lexical_score + learning_adjustment)
+        sources = _source_markers(query, item, body)
+        sources.add("lexical")
+        if learning_adjustment > 0:
+            sources.add("learning_boost")
+        elif learning_adjustment < 0:
+            sources.add("learning_demotion")
+        merged[key] = item
+        meta[key] = {
+            "sources": sources,
+            "lexical_score": lexical_score,
+            "vector_score": 0.0,
+            "learning_adjustment": learning_adjustment,
+        }
+
+    for raw_vector_hit in vector_hits or []:
+        if collection and raw_vector_hit.collection != collection:
+            continue
+        key = _candidate_key(raw_vector_hit)
+        vector_score = float(getattr(raw_vector_hit, "score", 0.0) or 0.0)
+        if vector_score <= 0.0:
+            continue
+        learning_adjustment = adjustments.get(skill_identity(raw_vector_hit.name), 0.0)
+        weighted = vector_score * vector_weight
+        if key in merged:
+            merged[key].score = max(0.0, float(merged[key].score) + weighted)
+            row = meta[key]
+            row["vector_score"] = vector_score
+            sources = set(row.get("sources") or ())
+            sources.add("vector")
+            row["sources"] = sources
+        else:
+            item = _clone_hit(raw_vector_hit, score=max(0.0, weighted + learning_adjustment))
+            merged[key] = item
+            sources = {"vector"}
+            if learning_adjustment > 0:
+                sources.add("learning_boost")
+            elif learning_adjustment < 0:
+                sources.add("learning_demotion")
+            meta[key] = {
+                "sources": sources,
+                "lexical_score": 0.0,
+                "vector_score": vector_score,
+                "learning_adjustment": learning_adjustment,
+            }
+
+    hits = list(merged.values())
+    hits.sort(key=lambda item: (-item.score, item.collection, item.name))
+    for rank, hit in enumerate(hits[:scan_limit], start=1):
+        row = meta.get(_candidate_key(hit), {})
+        _set_candidate_metadata(
+            hit,
+            sources=row.get("sources") or (),
+            lexical_score=float(row.get("lexical_score") or 0.0),
+            vector_score=float(row.get("vector_score") or 0.0),
+            learning_adjustment=float(row.get("learning_adjustment") or 0.0),
+            rank=rank,
+        )
+    return hits[:requested]
+
+
 def find_by_name(root: Path, name: str) -> Path | None:
     wanted = name.lower()
     candidates = []
@@ -397,15 +597,7 @@ def find_by_name(root: Path, name: str) -> Path | None:
 
 
 def lexical_search(root: Path, query: str, limit: int, collection: str | None = None, fresh: bool = False) -> list[SkillHit]:
-    hits = []
-    for hit, body in load_records(root, fresh=fresh):
-        if collection and hit.collection != collection:
-            continue
-        hit.score = score_skill(query, hit, body)
-        if hit.score > 0:
-            hits.append(hit)
-    hits.sort(key=lambda item: (-item.score, item.collection, item.name))
-    return hits[:limit]
+    return shared_candidate_family(root, query, limit, collection=collection, fresh=fresh)
 
 
 def _salt_path() -> Path:

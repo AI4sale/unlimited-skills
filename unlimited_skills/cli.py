@@ -55,6 +55,7 @@ from .search_core import (  # noqa: F401 - re-exported for backwards compatibili
     save_index,
     score_skill,
     session_correlation_id,
+    shared_candidate_family,
     skill_identity,
     skill_priority,
     split_frontmatter,
@@ -350,14 +351,9 @@ def hybrid_search(
     fresh: bool = False,
     require_vector: bool = False,
 ) -> list[SkillHit]:
-    merged = {hit.path: hit for hit in lexical_search(root, query, limit=max(limit * 3, 12), collection=collection_name, fresh=fresh)}
+    vector_hits: list[SkillHit] = []
     try:
-        for hit in vector_search(root, query, limit=max(limit * 3, 12), model=model, collection_name=collection_name):
-            hit.score *= 20.0
-            if hit.path in merged:
-                merged[hit.path].score += hit.score
-            else:
-                merged[hit.path] = hit
+        vector_hits = vector_search(root, query, limit=max(limit * 3, 12), model=model, collection_name=collection_name)
     except VectorModelMismatch as exc:
         if require_vector:
             raise
@@ -366,9 +362,14 @@ def hybrid_search(
     except Exception:
         if require_vector:
             raise
-    hits = list(merged.values())
-    hits.sort(key=lambda item: (-item.score, item.collection, item.name))
-    return hits[:limit]
+    return shared_candidate_family(
+        root,
+        query,
+        limit,
+        collection=collection_name,
+        fresh=fresh,
+        vector_hits=vector_hits,
+    )
 
 
 def emit_hits(hits: list[SkillHit], as_json: bool) -> int:
