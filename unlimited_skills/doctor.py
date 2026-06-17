@@ -227,18 +227,27 @@ def _openclaw_summary() -> dict[str, Any]:
     root = workspace / "skills"
     router = _router_present(root)
     agents_file = workspace / "AGENTS.md"
+    block = _managed_block_status(agents_file)
     recommendations = []
     status = "ok"
-    if router and not _has_managed_block(agents_file):
+    if router and not block["present"]:
         status = "warn"
         recommendations.append("OpenClaw router is installed, but the workspace AGENTS.md managed block is missing.")
+    if router and block["stale"]:
+        status = "warn"
+        recommendations.append(
+            f"Workspace AGENTS.md inject is stale (contract v{block['contract_version']} < "
+            f"v{block['current_contract_version']}). Run `unlimited-skills sync-inject` to refresh it."
+        )
     return {
         "status": status,
         "visible_skill_roots": [str(root)],
         "visible_skill_count": _skill_count(root),
         "router_present": router,
         "agents_file": str(agents_file),
-        "agents_patch_present": _has_managed_block(agents_file),
+        "agents_patch_present": block["present"],
+        "agents_contract_version": block["contract_version"],
+        "current_contract_version": block["current_contract_version"],
         "recommendations": recommendations,
     }
 

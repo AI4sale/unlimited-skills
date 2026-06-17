@@ -121,6 +121,8 @@ def refresh_injects(
     codex_home: Path,
     hermes_home: Path,
     project_root: Path,
+    openclaw_home: Path | None = None,
+    openclaw_workspace: Path | None = None,
     agents: set[str] | None = None,
     patch_global: bool = True,
     patch_project: bool = True,
@@ -131,16 +133,20 @@ def refresh_injects(
 
     Each agent is refreshed only when its router is installed under
     ``<home>/skills/unlimited-skills``. ``agents`` optionally restricts the set
-    (default: all of claude-code, codex, hermes). The managed block is rendered
-    from in-package functions and applied with the BEGIN/END markers, so a stale
-    block is upgraded in place rather than duplicated.
+    (default: all of claude-code, codex, openclaw, hermes). The managed block is
+    rendered from in-package functions and applied with the BEGIN/END markers, so
+    a stale block is upgraded in place rather than duplicated.
     """
     claude_home = Path(claude_home).expanduser()
     codex_home = Path(codex_home).expanduser()
     hermes_home = Path(hermes_home).expanduser()
     project_root = Path(project_root).expanduser()
+    openclaw_home = Path(openclaw_home).expanduser() if openclaw_home is not None else Path.home() / ".openclaw"
+    openclaw_workspace = (
+        Path(openclaw_workspace).expanduser() if openclaw_workspace is not None else openclaw_home / "workspace"
+    )
     stamp = timestamp or datetime.now().strftime("%Y%m%d_%H%M%S")
-    wanted = agents or {"claude-code", "codex", "hermes"}
+    wanted = agents or {"claude-code", "codex", "openclaw", "hermes"}
 
     report = SyncInjectReport(contract_version=CONTRACT_VERSION)
 
@@ -167,6 +173,16 @@ def refresh_injects(
         if patch_project:
             report.files.append(_refresh_one("codex", project_root / "AGENTS.md", block, backup=backup, timestamp=stamp))
 
+    # OpenClaw: workspace AGENTS.md managed block (single launcher).
+    if "openclaw" in wanted and _router_present(openclaw_workspace):
+        report.agents_present.append("openclaw")
+        sh, _ = _launchers(openclaw_workspace)
+        block = agents_block(sh)
+        if patch_project:
+            report.files.append(
+                _refresh_one("openclaw", openclaw_workspace / "AGENTS.md", block, backup=backup, timestamp=stamp)
+            )
+
     # Hermes: the contract block embedded in the visible router SKILL.md.
     if "hermes" in wanted and _router_present(hermes_home):
         report.agents_present.append("hermes")
@@ -178,7 +194,7 @@ def refresh_injects(
 
     if not report.agents_present:
         report.messages.append(
-            "No Unlimited Skills router found under ~/.claude, ~/.codex, or ~/.hermes; "
+            "No Unlimited Skills router found under ~/.claude, ~/.codex, ~/.openclaw/workspace, or ~/.hermes; "
             "run the installer first. No inject was refreshed."
         )
     return report
