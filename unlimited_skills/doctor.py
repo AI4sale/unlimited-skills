@@ -85,6 +85,7 @@ def _codex_summary(project_root: Path) -> dict[str, Any]:
     router = _router_present(root)
     agents_file = project_root / "AGENTS.md"
     block = _managed_block_status(agents_file)
+    launcher = _launcher_status(root)
     recommendations = []
     status = "ok"
     if router and not block["present"]:
@@ -96,6 +97,12 @@ def _codex_summary(project_root: Path) -> dict[str, Any]:
             f"Project AGENTS.md inject is stale (contract v{block['contract_version']} < "
             f"v{block['current_contract_version']}). Run `unlimited-skills sync-inject` to refresh it."
         )
+    if router and launcher["stale"]:
+        status = "warn"
+        recommendations.append(
+            f"Codex launcher is stale (contract v{launcher['contract_version']} < "
+            f"v{launcher['current_contract_version']}); it may run a pre-upgrade package. {_HEAL_LAUNCHER_HINT}"
+        )
     return {
         "status": status,
         "visible_skill_roots": [str(root)],
@@ -105,6 +112,9 @@ def _codex_summary(project_root: Path) -> dict[str, Any]:
         "agents_patch_present": block["present"],
         "agents_contract_version": block["contract_version"],
         "current_contract_version": block["current_contract_version"],
+        "launcher_present": launcher["present"],
+        "launcher_contract_version": launcher["contract_version"],
+        "launcher_stale": launcher["stale"],
         "recommendations": recommendations,
     }
 
@@ -112,6 +122,38 @@ def _codex_summary(project_root: Path) -> dict[str, Any]:
 def _claude_project_root(project_root: Path) -> Path:
     value = os.environ.get("UNLIMITED_SKILLS_CLAUDE_PROJECT_ROOT") or os.environ.get("CLAUDE_PROJECT_DIR") or ""
     return Path(value).expanduser() if value else project_root
+
+
+def _launcher_status(skills_root: Path) -> dict[str, Any]:
+    """Presence + contract freshness of an agent's ``unlimited-skills.sh`` launcher.
+
+    Detects a launcher left behind by an older install — the legacy
+    ``PYTHONPATH=<repo checkout>`` form that SHADOWED the pip-installed package and
+    pinned the router to the version present at first install. Such launchers parse
+    as contract 0 (pre-stamp) and read as stale.
+    """
+    from .launchers import LAUNCHER_CONTRACT_VERSION, parse_launcher_contract
+
+    launcher = skills_root / ROUTER_NAME / "scripts" / "unlimited-skills.sh"
+    present = launcher.is_file()
+    version: int | None = None
+    if present:
+        try:
+            version = parse_launcher_contract(launcher.read_text(encoding="utf-8", errors="replace"))
+        except OSError:
+            version = None
+    return {
+        "present": present,
+        "launcher_path": str(launcher),
+        "contract_version": version,
+        "current_contract_version": LAUNCHER_CONTRACT_VERSION,
+        "stale": bool(present and version is not None and version < LAUNCHER_CONTRACT_VERSION),
+    }
+
+
+_HEAL_LAUNCHER_HINT = (
+    "Run `unlimited-skills sync-inject --heal-launchers` to regenerate it against the installed package."
+)
 
 
 def _managed_block_status(path: Path) -> dict[str, Any]:
@@ -146,6 +188,7 @@ def _claude_summary(project_root: Path) -> dict[str, Any]:
     global_claude_file = home / "CLAUDE.md"
     project_block = _managed_block_status(claude_file)
     global_block = _managed_block_status(global_claude_file)
+    launcher = _launcher_status(root)
     recommendations = []
     status = "ok"
     if router and not project_block["present"]:
@@ -163,6 +206,12 @@ def _claude_summary(project_root: Path) -> dict[str, Any]:
             f"Global CLAUDE.md inject is stale (contract v{global_block['contract_version']} < "
             f"v{global_block['current_contract_version']}). Run `unlimited-skills sync-inject` to refresh it."
         )
+    if router and launcher["stale"]:
+        status = "warn"
+        recommendations.append(
+            f"Claude Code launcher is stale (contract v{launcher['contract_version']} < "
+            f"v{launcher['current_contract_version']}); it may run a pre-upgrade package. {_HEAL_LAUNCHER_HINT}"
+        )
     return {
         "status": status,
         "visible_skill_roots": [str(root)],
@@ -175,6 +224,9 @@ def _claude_summary(project_root: Path) -> dict[str, Any]:
         "global_patch_present": global_block["present"],
         "global_contract_version": global_block["contract_version"],
         "current_contract_version": project_block["current_contract_version"],
+        "launcher_present": launcher["present"],
+        "launcher_contract_version": launcher["contract_version"],
+        "launcher_stale": launcher["stale"],
         "recommendations": recommendations,
     }
 
@@ -185,6 +237,7 @@ def _hermes_summary() -> dict[str, Any]:
     router = _router_present(root)
     skill_file = root / ROUTER_NAME / "SKILL.md"
     block = _managed_block_status(skill_file)
+    launcher = _launcher_status(root)
     recommendations = []
     status = "unknown"
     context_status = "unknown"
@@ -205,6 +258,12 @@ def _hermes_summary() -> dict[str, Any]:
             f"Hermes router SKILL.md inject is stale (contract v{block['contract_version']} < "
             f"v{block['current_contract_version']}). Run `unlimited-skills sync-inject` to refresh it."
         )
+    if router and launcher["stale"]:
+        status = "warn"
+        recommendations.append(
+            f"Hermes launcher is stale (contract v{launcher['contract_version']} < "
+            f"v{launcher['current_contract_version']}); it may run a pre-upgrade package. {_HEAL_LAUNCHER_HINT}"
+        )
     return {
         "status": status,
         "visible_skill_roots": [str(root)],
@@ -213,6 +272,9 @@ def _hermes_summary() -> dict[str, Any]:
         "context_reduction_status": context_status,
         "router_contract_version": block["contract_version"],
         "current_contract_version": block["current_contract_version"],
+        "launcher_present": launcher["present"],
+        "launcher_contract_version": launcher["contract_version"],
+        "launcher_stale": launcher["stale"],
         "recommendations": recommendations,
     }
 
@@ -228,6 +290,7 @@ def _openclaw_summary() -> dict[str, Any]:
     router = _router_present(root)
     agents_file = workspace / "AGENTS.md"
     block = _managed_block_status(agents_file)
+    launcher = _launcher_status(root)
     recommendations = []
     status = "ok"
     if router and not block["present"]:
@@ -239,6 +302,12 @@ def _openclaw_summary() -> dict[str, Any]:
             f"Workspace AGENTS.md inject is stale (contract v{block['contract_version']} < "
             f"v{block['current_contract_version']}). Run `unlimited-skills sync-inject` to refresh it."
         )
+    if router and launcher["stale"]:
+        status = "warn"
+        recommendations.append(
+            f"OpenClaw launcher is stale (contract v{launcher['contract_version']} < "
+            f"v{launcher['current_contract_version']}); it may run a pre-upgrade package. {_HEAL_LAUNCHER_HINT}"
+        )
     return {
         "status": status,
         "visible_skill_roots": [str(root)],
@@ -248,6 +317,9 @@ def _openclaw_summary() -> dict[str, Any]:
         "agents_patch_present": block["present"],
         "agents_contract_version": block["contract_version"],
         "current_contract_version": block["current_contract_version"],
+        "launcher_present": launcher["present"],
+        "launcher_contract_version": launcher["contract_version"],
+        "launcher_stale": launcher["stale"],
         "recommendations": recommendations,
     }
 

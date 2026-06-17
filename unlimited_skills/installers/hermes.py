@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import shlex
 import shutil
 import sys
 from dataclasses import dataclass, field
@@ -12,6 +11,7 @@ from pathlib import Path
 
 from unlimited_skills.cli import index_path, save_index
 from unlimited_skills.hub import remote_config_path
+from unlimited_skills.launchers import write_launchers
 
 from .common import (
     InstallTransaction,
@@ -162,34 +162,14 @@ def _launcher_paths(visible_root: Path) -> tuple[Path, Path]:
 
 
 def _write_launchers(sh_launcher: Path, ps_launcher: Path, repo_root: Path, library_root: Path, python_executable: str) -> None:
-    sh_launcher.parent.mkdir(parents=True, exist_ok=True)
-    sh_repo_root = shlex.quote(str(repo_root).replace("\\", "/"))
-    sh_library_root = shlex.quote(str(library_root).replace("\\", "/"))
-    sh_python = shlex.quote(str(python_executable).replace("\\", "/"))
-    sh_launcher.write_text(
-        "#!/usr/bin/env bash\n"
-        "set -euo pipefail\n"
-        f"if [[ -n \"${{PYTHONPATH:-}}\" ]]; then\n"
-        f"  export PYTHONPATH={sh_repo_root}:\"$PYTHONPATH\"\n"
-        "else\n"
-        f"  export PYTHONPATH={sh_repo_root}\n"
-        "fi\n"
-        f"exec {sh_python} -m unlimited_skills --root {sh_library_root} \"$@\"\n",
-        encoding="utf-8",
-    )
-    try:
-        sh_launcher.chmod(0o755)
-    except OSError:
-        pass
-    ps_launcher.write_text(
-        "param(\n"
-        "  [Parameter(ValueFromRemainingArguments = $true)]\n"
-        "  [string[]]$Args\n"
-        ")\n\n"
-        "$ErrorActionPreference = \"Stop\"\n"
-        f"$env:PYTHONPATH = {json.dumps(str(repo_root))} + [System.IO.Path]::PathSeparator + $env:PYTHONPATH\n"
-        f"& {json.dumps(python_executable)} -m unlimited_skills --root {json.dumps(str(library_root))} @Args\n",
-        encoding="utf-8",
+    # Shared launcher templates: run the INSTALLED package (no shadowing
+    # PYTHONPATH=<repo>) + version/contract stamp. Hermes sets no project root.
+    write_launchers(
+        sh_launcher=sh_launcher,
+        ps_launcher=ps_launcher,
+        python_executable=python_executable,
+        library_root=library_root,
+        repo_root=repo_root,
     )
 
 

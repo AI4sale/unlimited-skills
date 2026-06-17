@@ -164,7 +164,9 @@ cli_python="$python_cmd"
 if [[ -x "$venv_python" ]]; then
   cli_python="$venv_python"
 fi
-export PYTHONPATH="$repo_root:${PYTHONPATH:-}"
+if ! "$cli_python" -I -c "import unlimited_skills" >/dev/null 2>&1; then
+  export PYTHONPATH="$repo_root:${PYTHONPATH:-}"
+fi
 remote_enabled=0
 if [[ "$no_remote" -eq 0 && ( "$remote_first" -eq 1 || -n "$remote_hub_url" || -n "$hub_token_env" || -n "$hub_token" ) ]]; then
   remote_enabled=1
@@ -191,12 +193,18 @@ mkdir -p "$(dirname "$launcher")"
 cat > "$launcher" <<EOF
 #!/usr/bin/env bash
 set -euo pipefail
+# unlimited-skills-launcher: 1 (shell-installed)
+# Runs the INSTALLED unlimited_skills package; only a source/editable checkout that
+# is not importable from this interpreter falls back to PYTHONPATH=<repo>, so a
+# \`pip install --upgrade\` is picked up automatically (no shadowing stale checkout).
 if [[ -x "$venv_python" ]]; then
   export UNLIMITED_SKILLS_HOME="$install_root"
   export UNLIMITED_SKILLS_ROOT="$library_root"
   exec "$venv_python" -m unlimited_skills --root "$library_root" "\$@"
 fi
-export PYTHONPATH="$repo_root:\${PYTHONPATH:-}"
+if ! "$python_cmd" -I -c "import unlimited_skills" >/dev/null 2>&1; then
+  export PYTHONPATH="$repo_root:\${PYTHONPATH:-}"
+fi
 export UNLIMITED_SKILLS_HOME="$install_root"
 export UNLIMITED_SKILLS_ROOT="$library_root"
 exec "$python_cmd" -m unlimited_skills --root "$library_root" "\$@"

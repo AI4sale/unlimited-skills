@@ -967,6 +967,9 @@ def build_parser() -> argparse.ArgumentParser:
     sync_inject.add_argument("--no-global", action="store_true", help="Do not refresh the global ~/.claude/CLAUDE.md block.")
     sync_inject.add_argument("--no-project", action="store_true", help="Do not refresh the project CLAUDE.md / AGENTS.md block.")
     sync_inject.add_argument("--no-backup", action="store_true", help="Do not back up a file before refreshing its block.")
+    sync_inject.add_argument("--heal-launchers", action="store_true", help="Also regenerate each agent's launcher scripts so they run the INSTALLED package (fixes a launcher left behind by an older install that pinned a stale PYTHONPATH).")
+    sync_inject.add_argument("--library-root", default="", help="Skill library root the healed launcher should target (default: ~/.unlimited-skills/library).")
+    sync_inject.add_argument("--repo-root", default="", help="Source checkout to fall back to only if the package is not importable from this interpreter (rare; default: none, run the installed package).")
     sync_inject.add_argument("--json", action="store_true", help="Print a machine-readable refresh report.")
     sync_inject.set_defaults(func=sync_inject_cmds.cmd_sync_inject)
 

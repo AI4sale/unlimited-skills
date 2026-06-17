@@ -49,7 +49,10 @@ if (-not $SkipPipInstall) {
 }
 
 $cliPython = if (Test-Path $venvPython) { $venvPython } else { $Python }
-$env:PYTHONPATH = "$RepoRoot;$env:PYTHONPATH"
+& $cliPython -I -c "import unlimited_skills" 2>$null
+if ($LASTEXITCODE -ne 0) {
+  $env:PYTHONPATH = "$RepoRoot;$env:PYTHONPATH"
+}
 $remoteEnabled = (-not $NoRemote) -and ($RemoteFirst -or $RemoteHubUrl -or $HubTokenEnv -or $HubToken)
 if ($NoRemote -and ($RemoteFirst -or $RemoteHubUrl -or $HubTokenEnv -or $HubToken)) {
   throw "-NoRemote cannot be combined with remote hub options."
@@ -73,7 +76,13 @@ param(
 )
 
 `$ErrorActionPreference = "Stop"
-`$env:PYTHONPATH = "$RepoRoot;`$env:PYTHONPATH"
+# unlimited-skills-launcher: 1 (powershell-installed)
+# Runs the INSTALLED unlimited_skills package; only a source/editable checkout
+# that is not importable from this interpreter falls back to PYTHONPATH=<repo>.
+& "$cliPython" -I -c "import unlimited_skills" 2>`$null
+if (`$LASTEXITCODE -ne 0) {
+  `$env:PYTHONPATH = "$RepoRoot" + [System.IO.Path]::PathSeparator + `$env:PYTHONPATH
+}
 `$env:UNLIMITED_SKILLS_HOME = "$InstallRoot"
 `$env:UNLIMITED_SKILLS_ROOT = "$libraryRoot"
 & "$cliPython" -m unlimited_skills --root "$libraryRoot" @Args

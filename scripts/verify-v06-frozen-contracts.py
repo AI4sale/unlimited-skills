@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_EXPECTED_VERSION = "0.6.4"
+DEFAULT_EXPECTED_VERSION = "0.6.4.post1"
 TASK_QUERY = "Design a REST API for a service"
 OWNER = "release owner"
 ACTION = "Fix the frozen contract drift before publishing or tagging another v0.6 release."

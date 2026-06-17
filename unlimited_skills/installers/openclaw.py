@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import shlex
 import shutil
 import subprocess
 import sys
@@ -14,6 +13,7 @@ from unlimited_skills.adapters import adapt_library
 from unlimited_skills.agents_patch import agents_block, patch_agents_file
 from unlimited_skills.cli import index_path, save_index, vector_meta_path, vector_sidecar_path
 from unlimited_skills.hub import remote_config_path
+from unlimited_skills.launchers import write_launchers
 
 from .common import InstallTransaction, MigrationResult, migrate_source, rollback_install
 from .remote import RemoteHubInstallOptions, configure_remote_if_enabled, remote_messages, remote_report_lines, render_remote_router_block
@@ -122,25 +122,15 @@ def _router_source(repo_root: Path) -> Path:
 
 
 def _write_launcher(launcher: Path, repo_root: Path, library_root: Path, python_executable: str) -> None:
-    launcher.parent.mkdir(parents=True, exist_ok=True)
-    sh_repo_root = shlex.quote(str(repo_root).replace("\\", "/"))
-    sh_library_root = shlex.quote(str(library_root).replace("\\", "/"))
-    sh_python = shlex.quote(str(python_executable).replace("\\", "/"))
-    launcher.write_text(
-        "#!/usr/bin/env bash\n"
-        "set -euo pipefail\n"
-        f"if [[ -n \"${{PYTHONPATH:-}}\" ]]; then\n"
-        f"  export PYTHONPATH={sh_repo_root}:\"$PYTHONPATH\"\n"
-        "else\n"
-        f"  export PYTHONPATH={sh_repo_root}\n"
-        "fi\n"
-        f"exec {sh_python} -m unlimited_skills --root {sh_library_root} \"$@\"\n",
-        encoding="utf-8",
+    # Shared launcher templates: run the INSTALLED package (no shadowing
+    # PYTHONPATH=<repo>) + version/contract stamp. OpenClaw writes only the .sh.
+    write_launchers(
+        sh_launcher=launcher,
+        ps_launcher=None,
+        python_executable=python_executable,
+        library_root=library_root,
+        repo_root=repo_root,
     )
-    try:
-        launcher.chmod(0o755)
-    except OSError:
-        pass
 
 
 def _render_router_skill(router_skill: Path, launcher: Path, library_root: Path, remote: RemoteHubInstallOptions) -> None:

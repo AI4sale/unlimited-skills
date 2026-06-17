@@ -40,7 +40,10 @@ if (-not $SkipPipInstall) {
   $cliPython = $venvPython
 }
 
-$env:PYTHONPATH = "$RepoRoot$([System.IO.Path]::PathSeparator)$env:PYTHONPATH"
+& $cliPython -I -c "import unlimited_skills" 2>$null
+if ($LASTEXITCODE -ne 0) {
+  $env:PYTHONPATH = "$RepoRoot$([System.IO.Path]::PathSeparator)$env:PYTHONPATH"
+}
 
 $argsList = @(
   "-m", "unlimited_skills.installers.openclaw",
