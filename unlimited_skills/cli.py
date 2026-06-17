@@ -575,6 +575,12 @@ def build_parser() -> argparse.ArgumentParser:
     money_saved_meter.add_argument("--compare", default="", help="Compare this report with a previous Money Saved Meter JSON report.")
     money_saved_meter.add_argument("--target-calls", type=int, default=100, help="Local reporting cadence target. This is not billing math.")
     money_saved_meter.add_argument("--fixture-100-call", action="store_true", help="Emit the deterministic 100-call value report fixture.")
+    money_saved_meter.add_argument("--model", default="", help="Real Money Saved (v2): bind to provider:model (e.g. anthropic:claude-opus-4.8). Emits the money-saved-meter-v2 report with API-equivalent dollars.")
+    money_saved_meter.add_argument("--include-skills", action="store_true", help="v2: include the skills context-savings half (default: both halves).")
+    money_saved_meter.add_argument("--include-mcp", action="store_true", help="v2: include the MCP context-savings half (default: both halves).")
+    money_saved_meter.add_argument("--token-counter", choices=["anthropic", "bytes"], default="anthropic", help="v2: token counter (anthropic=exact for Claude; bytes=approximation, not release-acceptable).")
+    money_saved_meter.add_argument("--event-count", type=int, default=1, help="v2: number of standing-context re-entry events to scale the headline by.")
+    money_saved_meter.add_argument("--price-class", choices=["base_input", "cache_write_5m", "cache_write_1h", "cache_hit_refresh"], default="", help="v2: cache price class (default cache_write_5m).")
     money_saved_meter.set_defaults(func=money_saved_cmds.cmd_money_saved_meter)
 
     money_saved_registered = money_saved_sub.add_parser(
@@ -587,6 +593,13 @@ def build_parser() -> argparse.ArgumentParser:
     money_saved_registered.add_argument("--mcp-savings-json", default="", help="Read an existing `mcp savings --json` file instead of the latest local event snapshot.")
     money_saved_registered.add_argument("--audit-log", default="", help="Read gateway call counts from this audit log instead of the default local audit log.")
     money_saved_registered.add_argument("--target-calls", type=int, default=100, help="Local reporting cadence target. This is not billing math.")
+    money_saved_registered.add_argument("--model", default="", help="Real Money Saved (v2): bind to provider:model. Emits a money-saved-registered-export-v2 carrying API-equivalent dollars.")
+    money_saved_registered.add_argument("--alias", default="", help="v2: local member alias for team rollup (label, not PII).")
+    money_saved_registered.add_argument("--include-skills", action="store_true", help="v2: include the skills half (default: both).")
+    money_saved_registered.add_argument("--include-mcp", action="store_true", help="v2: include the MCP half (default: both).")
+    money_saved_registered.add_argument("--token-counter", choices=["anthropic", "bytes"], default="anthropic", help="v2: token counter (anthropic=exact; bytes=approximation).")
+    money_saved_registered.add_argument("--event-count", type=int, default=1, help="v2: standing-context re-entry events to scale by.")
+    money_saved_registered.add_argument("--price-class", choices=["base_input", "cache_write_5m", "cache_write_1h", "cache_hit_refresh"], default="", help="v2: cache price class (default cache_write_5m).")
     money_saved_registered.set_defaults(func=money_saved_cmds.cmd_money_saved_registered_export)
 
     money_saved_team = money_saved_sub.add_parser(
@@ -624,6 +637,33 @@ def build_parser() -> argparse.ArgumentParser:
     money_saved_verify.add_argument("--input", default="", help="The evidence-pack directory to verify.")
     money_saved_verify.add_argument("--json", action="store_true", help="Emit the verification report JSON (output is JSON regardless).")
     money_saved_verify.set_defaults(func=money_saved_cmds.cmd_money_saved_verify_evidence_pack)
+
+    money_saved_model_detect = money_saved_sub.add_parser(
+        "model-detect",
+        help="Real Money Saved (v2): detect/bind the runtime model used for money (exit 2 if a supported agent has no binding).",
+    )
+    money_saved_model_detect.add_argument("--model", default="", help="Explicit provider:model to bind instead of detecting.")
+    money_saved_model_detect.add_argument("--json", action="store_true", help="Output is JSON regardless.")
+    money_saved_model_detect.set_defaults(func=money_saved_cmds.cmd_money_saved_model_detect)
+
+    money_saved_prices = money_saved_sub.add_parser(
+        "prices",
+        help="Real Money Saved (v2): show the in-package API price DB used to denominate savings.",
+    )
+    money_saved_prices.add_argument("prices_action", choices=["list", "show"], help="list all priceable models, or show one (--model).")
+    money_saved_prices.add_argument("--model", default="", help="With 'show': the provider:model / alias to display.")
+    money_saved_prices.add_argument("--json", action="store_true", help="Output is JSON regardless.")
+    money_saved_prices.set_defaults(func=money_saved_cmds.cmd_money_saved_prices)
+
+    money_saved_events = money_saved_sub.add_parser(
+        "events",
+        help="Real Money Saved (v2): inspect the compact event store, or record a deterministic fixture.",
+    )
+    money_saved_events.add_argument("events_action", choices=["inspect", "record-fixture"], help="inspect the rolling aggregate + capped tail, or record N fixture events.")
+    money_saved_events.add_argument("--event-count", type=int, default=3, help="With 'record-fixture': number of events to record.")
+    money_saved_events.add_argument("--model", default="", help="With 'record-fixture': model for the basis (default claude-opus-4.8).")
+    money_saved_events.add_argument("--json", action="store_true", help="Output is JSON regardless.")
+    money_saved_events.set_defaults(func=money_saved_cmds.cmd_money_saved_events)
 
     router_health = sub.add_parser("router-health", help="Local router-health readiness surfaces (per tier).")
     router_health_sub = router_health.add_subparsers(dest="router_health_command", required=True)
