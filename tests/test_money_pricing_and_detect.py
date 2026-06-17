@@ -114,6 +114,13 @@ def test_codex_assumption_is_gpt55(clean_env):
     assert b.confidence == "assumed"
 
 
+def test_hermes_assumption_is_conservative_gpt55_not_pro(clean_env):
+    b = md.bind_model(agent="hermes")
+    assert b.available and b.provider == "openai" and b.model == "gpt-5.5"
+    assert b.confidence == "assumed"
+    assert b.assumption_profile == "hermes"
+
+
 def test_explicit_unresolvable_is_unavailable(clean_env):
     b = md.bind_model("anthropic:does-not-exist", agent="claude-code")
     assert not b.available and b.source == "explicit_cli" and b.confidence == "unknown"

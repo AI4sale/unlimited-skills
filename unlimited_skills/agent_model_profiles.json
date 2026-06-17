@@ -16,8 +16,9 @@
     },
     "hermes": {
       "provider": "openai",
-      "model": "gpt-5.5-pro",
-      "rationale": "Hermes baseline = gpt-5.5-pro."
+      "model": "gpt-5.5",
+      "effort": "medium",
+      "rationale": "Hermes hidden-runtime baseline uses the conservative gpt-5.5 medium profile; use --model for exact/pro overrides."
     },
     "openclaw": {
       "provider": "openai",
