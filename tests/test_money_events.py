@@ -40,7 +40,7 @@ def test_record_event_same_basis_aggregates(tmp_path: Path):
     d = tmp_path
     me.record_event(_event("session_start", price_class="base_input", gen="2026-06-17T00:00:01Z", eid="a"), d)
     summary = me.record_event(_event("compaction", price_class="base_input", gen="2026-06-17T00:00:09Z", eid="b"), d)
-    # Same 8-field basis (we pinned price_class) -> ONE bucket, count 2.
+    # Same 9-field basis (we pinned price_class) -> ONE bucket, count 2.
     assert len(summary["buckets"]) == 1
     bucket = next(iter(summary["buckets"].values()))
     assert bucket["event_count"] == 2
@@ -59,6 +59,18 @@ def test_record_event_different_basis_separate_buckets_but_bounded(tmp_path: Pat
     me.record_event(_event("compaction", price_class="base_input", eid="y"), d)
     summary = me.record_event(_event("compaction", model="claude-sonnet-4.6", price_class="cache_write_5m", eid="z"), d)
     assert len(summary["buckets"]) == 3  # O(distinct model x price_class), not session count
+
+
+def test_record_event_different_agents_have_separate_buckets(tmp_path: Path):
+    d = tmp_path
+    codex = _event("session_start", price_class="base_input", eid="codex")
+    codex["agent"] = "codex"
+    hermes = _event("session_start", price_class="base_input", eid="hermes")
+    hermes["agent"] = "hermes"
+    summary = me.record_event(codex, d)
+    summary = me.record_event(hermes, d)
+    assert len(summary["buckets"]) == 2
+    assert {bucket["basis"]["agent"] for bucket in summary["buckets"].values()} == {"codex", "hermes"}
 
 
 def test_recent_events_tail_is_capped(tmp_path: Path):
