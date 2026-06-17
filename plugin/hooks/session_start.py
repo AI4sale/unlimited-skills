@@ -31,6 +31,7 @@ _LAUNCHER_STAMP_RE = re.compile(r"unlimited-skills-launcher:\s*(\d+)")
 _INJECT_STAMP_RE = re.compile(r"unlimited-skills-contract:\s*(\d+)")
 _UNLIMITED_BLOCK_MARKER = "<!-- BEGIN UNLIMITED SKILLS -->"
 _HEAL_TIMEOUT_SECONDS = 25.0
+_MONEY_EVENT_TIMEOUT_SECONDS = 10.0
 
 CONTRACT_TEMPLATE = """## Unlimited Skills Library (plugin)
 
@@ -144,6 +145,26 @@ def _maybe_autoheal(command: list[str]) -> None:
         return
 
 
+def _record_money_event(command: list[str], event_type: str) -> None:
+    """Best-effort: record one Money Saved context-load event for this session.
+
+    This is the observer half of the meter — the standing skill/MCP context
+    re-enters the model here, so we count it. Fast (bytes//4, no API), capped by
+    a short timeout, fully guarded: it must NEVER block or break the session.
+    Opt out with ``UNLIMITED_SKILLS_NO_MONEY_EVENTS``.
+    """
+    if os.environ.get("UNLIMITED_SKILLS_NO_MONEY_EVENTS"):
+        return
+    try:
+        subprocess.run(
+            [*command, "money-saved", "record-event", event_type],
+            capture_output=True,
+            timeout=_MONEY_EVENT_TIMEOUT_SECONDS,
+        )
+    except Exception:
+        return
+
+
 def main() -> int:
     try:
         command = resolve_cli_command()
@@ -155,6 +176,10 @@ def main() -> int:
         except Exception:
             pass
         sys.stdout.write(CONTRACT_TEMPLATE.format(cli=display_command(command)))
+        try:
+            _record_money_event(command, "session_start")
+        except Exception:
+            pass
     else:
         sys.stdout.write(MISSING_CLI)
     return 0

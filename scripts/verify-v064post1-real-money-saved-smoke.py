@@ -195,8 +195,8 @@ def run_smoke() -> dict:
         "exit_code": 0 if not failures else 1,
         "checks": checks,
         "failures": failures,
-        "note": "Offline smoke uses a deterministic exact counter; the release gate "
-                "requires Anthropic count_tokens for the Claude path.",
+        "note": "Money Saved is an estimate; bytes//4 is the accepted default token "
+                "counter. Exact count_tokens is optional and not required to close the release.",
     }
 
 

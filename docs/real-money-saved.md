@@ -39,11 +39,12 @@ apples-to-apples.
 
 ## Token counting
 
-- **Primary (Claude):** Anthropic `count_tokens` — exact for the bound model.
-- **Fallback:** `bytes_divided_by_4` — flagged `release_acceptable: false`. It
-  systematically *undercounts* Claude context (Opus 4.7+ can emit ~35% more
-  tokens than the byte heuristic), so it **cannot** close the release for a
-  Claude model.
+- **Default:** `bytes_divided_by_4` (~4 bytes/token) — the accepted method. Money
+  Saved is explicitly an *estimate*, so the fast offline byte heuristic is the
+  default and is release-acceptable. No tokenizer dependency is required.
+- **Optional exact:** Anthropic `count_tokens` (when an API key is present) or any
+  injected counter — used to mark a count `exact_for_model: true`. Optional, not
+  required to close the release.
 - **Privacy:** exact counting sends only Level-1 descriptors / tool schemas to the
   provider — never raw prompts or skill bodies. Disclosed in every report's
   `token_count_privacy`.
@@ -112,6 +113,6 @@ ok=false, and legacy proxy rejected. The release fails if money is null, either
 savings half is missing, the model binding / pricing source / token-counter
 method / money formula is missing, the Business CSV lacks money columns, the
 Enterprise verifier does not recompute, or any allowed claim asserts exact money,
-bill reduction, or invoice reconciliation. For a Claude model the gate additionally
-requires the Anthropic `count_tokens` path (the byte fallback is not
-release-acceptable).
+bill reduction, or invoice reconciliation. Token counting uses the `bytes//4`
+estimate by default (Money Saved is an estimate); an exact `count_tokens` path is
+optional and not required to close the release.

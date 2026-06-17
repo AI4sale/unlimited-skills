@@ -1,24 +1,18 @@
 """Token counting for the Money Saved meter (O064-R2-02 / R2-03).
 
-The Money Saved value model is denominated in REAL tokens, not bytes. For the
-Claude path the truth source is Anthropic's ``count_tokens`` API — Opus 4.7+
-uses a tokenizer that can emit up to ~35% more tokens than ``bytes // 4``, so
-the old byte heuristic systematically *undercounts* Claude context and is
-FORBIDDEN as the primary method (the R2 release gate fails on it).
+Money Saved is an ESTIMATE, so ``bytes // 4`` (~4 bytes/token) is the accepted,
+default counting method — fast, offline, no API key, no extra dependency. Owner
+call (2026-06-17): do not chase token-level exactness for an estimate, and do not
+drag in tokenizer packages to do it.
 
-Two methods, in priority order:
-
-1. ``anthropic_count_tokens`` — exact for the bound Claude model. Requires the
-   ``anthropic`` SDK and an API key; sends only the Level-1 descriptor / tool
-   schema text (never raw prompts or skill bodies — see :func:`token_count_privacy`).
-   ``exact_for_model=True`` and ``release_acceptable=True``.
-2. ``bytes_divided_by_4`` — offline approximation fallback. ``exact_for_model=False``
-   and ``release_acceptable=False``: usable for a quick local estimate, but it
-   CANNOT close the R2 release for a Claude model.
+``exact_for_model`` honestly records whether a count is exact (an optional
+injected counter, or the optional Anthropic ``count_tokens`` path when an API key
+is present) or the byte estimate. Both are ``release_acceptable`` — the estimate
+does NOT block the release.
 
 Callers may inject an ``exact_counter`` (a ``Callable[[str], int]``) to supply an
-exact count from any tokenizer — tests use this for determinism, and a non-Claude
-provider can plug in its own native counter the same way.
+exact count from any tokenizer — tests use this for determinism, and a provider
+can plug in its own native counter the same way.
 """
 
 from __future__ import annotations
@@ -117,7 +111,9 @@ def count_tokens(
                     return TokenCount(int(counter(text)), provider, ANTHROPIC_COUNTER, True, True, model_api_id)
                 except Exception:
                     pass
-    return TokenCount(bytes_divided_by_4(text), provider, FALLBACK_NAME, False, False, model_api_id)
+    # bytes//4 is exact_for_model=False (it's an estimate) but release_acceptable=True
+    # (Money Saved is an estimate; the byte heuristic is the accepted default method).
+    return TokenCount(bytes_divided_by_4(text), provider, FALLBACK_NAME, False, True, model_api_id)
 
 
 def token_count_privacy(*, provider_count_tokens_used: bool) -> dict[str, Any]:

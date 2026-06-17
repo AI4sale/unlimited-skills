@@ -59,6 +59,47 @@ def _default_events(event_count: int) -> dict[str, Any]:
     return {"event_count": n, "event_types": {"compaction": n}}
 
 
+def money_from_summary(summary: dict[str, Any], price: ModelPrice, *, provider: str | None = None, model: str | None = None) -> dict[str, Any]:
+    """Honest MEASURED headline: sum REAL recorded events by their own price class.
+
+    Each event was bucketed at record time by its money-basis, whose ``price_class``
+    is already the right cache class for that event type (session_start → base_input,
+    compaction → cache_write_5m, a cached read → cache_hit_refresh). So the money is
+    simply ``Σ_buckets tokens_saved × price_per_1m(model, bucket.price_class)`` over
+    the buckets matching the bound model — no fabricated multiplier, no single price.
+    """
+    skills_usd = mcp_usd = 0.0
+    skills_tok = mcp_tok = 0
+    event_count = 0
+    event_types: dict[str, int] = {}
+    for bucket in (summary.get("buckets") or {}).values():
+        basis = bucket.get("basis") or {}
+        if provider and basis.get("provider") != provider:
+            continue
+        if model and basis.get("model") != model:
+            continue
+        pc = basis.get("price_class") or "cache_write_5m"
+        st = int(bucket.get("skills_total_tokens_saved", 0))
+        mt = int(bucket.get("mcp_total_tokens_saved", 0))
+        skills_tok += st
+        mcp_tok += mt
+        skills_usd += money_for_tokens(st, price, pc)
+        mcp_usd += money_for_tokens(mt, price, pc)
+        event_count += int(bucket.get("event_count", 0))
+        for etype, count in (bucket.get("event_types") or {}).items():
+            event_types[etype] = event_types.get(etype, 0) + int(count)
+    return {
+        "source": "measured_events",
+        "counter_genesis_at": summary.get("counter_genesis_at"),
+        "events": {"event_count": event_count, "event_types": event_types},
+        "savings": {
+            "skills": {"tokens_saved": skills_tok, "estimated_money_saved_usd": skills_usd},
+            "mcp": {"tokens_saved": mcp_tok, "estimated_money_saved_usd": mcp_usd},
+            "total": {"tokens_saved": skills_tok + mcp_tok, "estimated_money_saved_usd": skills_usd + mcp_usd},
+        },
+    }
+
+
 def build_meter_v2(
     *,
     model: str | None = None,
