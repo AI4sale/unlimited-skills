@@ -289,12 +289,21 @@ def run_e2e(registry_repo: Path, *, temp_home: bool = False) -> dict[str, Any]:
 
         home = tmp_root / "home" if temp_home else Path(os.environ.get("UNLIMITED_SKILLS_HOME", tmp_root / "home")).parent
         library = tmp_root / "library"
+        # Save and restore the process env this runner mutates. A full `pytest` run
+        # must not leak UNLIMITED_SKILLS_HOME (which points at this temp dir, deleted
+        # on exit) into later tests: a leaked home makes `unlimited_skills_home()`
+        # resolve to a dead temp path, and a later launcher write/heal then repoints
+        # a real launcher's `--root` at it. Restore unconditionally in `finally`.
+        _env_keys = ("UNLIMITED_SKILLS_HOME", "UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS")
+        _saved_env = {key: os.environ.get(key) for key in _env_keys}
         os.environ["UNLIMITED_SKILLS_HOME"] = str(home / ".unlimited-skills")
         os.environ["UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS"] = trusted_keys_env(private_root)
 
         db_url = f"sqlite:///{tmp_root / 'registry.sqlite3'}"
-        server, thread, server_url = start_registry_server(registry_repo, artifact_root, db_url)
+        server = None
+        thread = None
         try:
+            server, thread, server_url = start_registry_server(registry_repo, artifact_root, db_url)
             state = register_client(server_url, install_id="uls_inst_master", agent="codex", home=home)
             grant_private_pack_entitlement(db_url, state.install_id)
             governance = verify_registry_org_governance(registry_repo, db_url, state.install_id)
@@ -396,8 +405,15 @@ def run_e2e(registry_repo: Path, *, temp_home: bool = False) -> dict[str, Any]:
                 "production_hosted_calls": False,
             }
         finally:
-            server.should_exit = True
-            thread.join(timeout=5)
+            if server is not None:
+                server.should_exit = True
+            if thread is not None:
+                thread.join(timeout=5)
+            for key, value in _saved_env.items():
+                if value is None:
+                    os.environ.pop(key, None)
+                else:
+                    os.environ[key] = value
 
 
 def main() -> int:
