@@ -84,18 +84,27 @@ def _codex_summary(project_root: Path) -> dict[str, Any]:
     root = _env_path("CODEX_HOME", _home() / ".codex") / "skills"
     router = _router_present(root)
     agents_file = project_root / "AGENTS.md"
+    block = _managed_block_status(agents_file)
     recommendations = []
     status = "ok"
-    if router and not _has_managed_block(agents_file):
+    if router and not block["present"]:
         status = "warn"
         recommendations.append("Codex router is installed, but the project AGENTS.md managed block is missing.")
+    if router and block["stale"]:
+        status = "warn"
+        recommendations.append(
+            f"Project AGENTS.md inject is stale (contract v{block['contract_version']} < "
+            f"v{block['current_contract_version']}). Run `unlimited-skills sync-inject` to refresh it."
+        )
     return {
         "status": status,
         "visible_skill_roots": [str(root)],
         "visible_skill_count": _skill_count(root),
         "router_present": router,
         "agents_file": str(agents_file),
-        "agents_patch_present": _has_managed_block(agents_file),
+        "agents_patch_present": block["present"],
+        "agents_contract_version": block["contract_version"],
+        "current_contract_version": block["current_contract_version"],
         "recommendations": recommendations,
     }
 
@@ -105,22 +114,67 @@ def _claude_project_root(project_root: Path) -> Path:
     return Path(value).expanduser() if value else project_root
 
 
+def _managed_block_status(path: Path) -> dict[str, Any]:
+    """Presence + contract-version freshness of a CLAUDE.md managed block.
+
+    Detects the case where the block exists but carries an OLDER contract than
+    the installed package ships — the exact state left behind when a package is
+    upgraded without re-running the installer.
+    """
+    from .installers.claude_code import CLAUDE_CONTRACT_VERSION, parse_claude_contract_version
+
+    present = _has_managed_block(path)
+    version: int | None = None
+    if present:
+        try:
+            version = parse_claude_contract_version(path.read_text(encoding="utf-8", errors="replace"))
+        except OSError:
+            version = None
+    return {
+        "present": present,
+        "contract_version": version,
+        "current_contract_version": CLAUDE_CONTRACT_VERSION,
+        "stale": bool(present and version is not None and version < CLAUDE_CONTRACT_VERSION),
+    }
+
+
 def _claude_summary(project_root: Path) -> dict[str, Any]:
-    root = _env_path("CLAUDE_HOME", _home() / ".claude") / "skills"
+    home = _env_path("CLAUDE_HOME", _home() / ".claude")
+    root = home / "skills"
     router = _router_present(root)
     claude_file = _claude_project_root(project_root) / "CLAUDE.md"
+    global_claude_file = home / "CLAUDE.md"
+    project_block = _managed_block_status(claude_file)
+    global_block = _managed_block_status(global_claude_file)
     recommendations = []
     status = "ok"
-    if router and not _has_managed_block(claude_file):
+    if router and not project_block["present"]:
         status = "warn"
         recommendations.append("Claude Code router is installed, but the project CLAUDE.md managed block is missing.")
+    if router and project_block["stale"]:
+        status = "warn"
+        recommendations.append(
+            f"Project CLAUDE.md inject is stale (contract v{project_block['contract_version']} < "
+            f"v{project_block['current_contract_version']}). Run `unlimited-skills sync-inject` to refresh it."
+        )
+    if router and global_block["stale"]:
+        status = "warn"
+        recommendations.append(
+            f"Global CLAUDE.md inject is stale (contract v{global_block['contract_version']} < "
+            f"v{global_block['current_contract_version']}). Run `unlimited-skills sync-inject` to refresh it."
+        )
     return {
         "status": status,
         "visible_skill_roots": [str(root)],
         "visible_skill_count": _skill_count(root),
         "router_present": router,
         "claude_file": str(claude_file),
-        "claude_patch_present": _has_managed_block(claude_file),
+        "claude_patch_present": project_block["present"],
+        "claude_contract_version": project_block["contract_version"],
+        "global_claude_file": str(global_claude_file),
+        "global_patch_present": global_block["present"],
+        "global_contract_version": global_block["contract_version"],
+        "current_contract_version": project_block["current_contract_version"],
         "recommendations": recommendations,
     }
 
@@ -129,6 +183,8 @@ def _hermes_summary() -> dict[str, Any]:
     root = _env_path("HERMES_HOME", _home() / ".hermes") / "skills"
     count = _skill_count(root)
     router = _router_present(root)
+    skill_file = root / ROUTER_NAME / "SKILL.md"
+    block = _managed_block_status(skill_file)
     recommendations = []
     status = "unknown"
     context_status = "unknown"
@@ -143,12 +199,20 @@ def _hermes_summary() -> dict[str, Any]:
         else:
             status = "warn"
             recommendations.append("Hermes skill root exists, but the Unlimited Skills router is not visible.")
+    if router and block["stale"]:
+        status = "warn"
+        recommendations.append(
+            f"Hermes router SKILL.md inject is stale (contract v{block['contract_version']} < "
+            f"v{block['current_contract_version']}). Run `unlimited-skills sync-inject` to refresh it."
+        )
     return {
         "status": status,
         "visible_skill_roots": [str(root)],
         "visible_skill_count": count,
         "router_present": router,
         "context_reduction_status": context_status,
+        "router_contract_version": block["contract_version"],
+        "current_contract_version": block["current_contract_version"],
         "recommendations": recommendations,
     }
 

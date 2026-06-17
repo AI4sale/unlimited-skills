@@ -10,6 +10,13 @@ import sys
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+from unlimited_skills.agents_patch import (
+    CONTRACT_VERSION,
+    UNLIMITED_END,
+    UNLIMITED_START,
+    contract_stamp,
+    parse_contract_version,
+)
 from unlimited_skills.adapters import adapt_library
 from unlimited_skills.cli import index_path, save_index, vector_meta_path, vector_sidecar_path
 from unlimited_skills.hub import remote_config_path
@@ -19,6 +26,43 @@ from .remote import RemoteHubInstallOptions, configure_remote_if_enabled, remote
 
 INSTALL_MODES = {"default", "bundled", "adapt-installed"}
 ROUTER_NAME = "unlimited-skills"
+
+# The CLAUDE.md managed block shares the router-inject contract version with
+# every other agent surface (see ``agents_patch.CONTRACT_VERSION``). Aliases are
+# kept here for backwards-compatible imports.
+CLAUDE_CONTRACT_VERSION = CONTRACT_VERSION
+CLAUDE_BLOCK_START = UNLIMITED_START
+CLAUDE_BLOCK_END = UNLIMITED_END
+_contract_stamp = contract_stamp
+parse_claude_contract_version = parse_contract_version
+
+
+def apply_claude_block(text: str, block: str) -> str:
+    """Insert or replace the managed UNLIMITED SKILLS block in CLAUDE.md text.
+
+    Idempotent + upgrade-safe: an existing marked block (any contract version)
+    is replaced in place; otherwise the block is appended. Keying on the
+    BEGIN/END markers means a stale block is upgraded rather than duplicated.
+    Applying the same block twice is a no-op (byte-for-byte stable), so
+    `sync-inject` reports ``changed=False`` on an already-current file.
+    """
+    block = block.strip()
+    start = text.find(CLAUDE_BLOCK_START)
+    end = text.find(CLAUDE_BLOCK_END)
+    if start >= 0 and end >= start:
+        before = text[:start].rstrip()
+        after = text[end + len(CLAUDE_BLOCK_END):].strip()
+    elif text.strip():
+        before = text.rstrip()
+        after = ""
+    else:
+        before = ""
+        after = ""
+    out = (before + "\n\n") if before else ""
+    out += block + "\n"
+    if after:
+        out += "\n" + after + "\n"
+    return out
 
 
 @dataclass
@@ -190,7 +234,8 @@ def router_block_lines(sh_text: str, ps_text: str) -> list[str]:
     BEGIN/END UNLIMITED SKILLS markers with the current contract.
     """
     return [
-        "<!-- BEGIN UNLIMITED SKILLS -->",
+        CLAUDE_BLOCK_START,
+        _contract_stamp(),
         "## Unlimited Skills Library",
         "",
         "A generated inventory of proven skills (checklists, workflows, regression recipes) that is deliberately NOT in your skill list. A 1-second lookup often replaces 20 minutes of rediscovery because the library has shipped-and-tested procedures for recurring tasks.",
@@ -234,19 +279,8 @@ def router_block_lines(sh_text: str, ps_text: str) -> list[str]:
 def _patch_claude_file(claude_file: Path, sh_launcher: Path, ps_launcher: Path) -> None:
     claude_file.parent.mkdir(parents=True, exist_ok=True)
     block = "\n".join(router_block_lines(sh_launcher.as_posix(), ps_launcher.as_posix()))
-    pattern_start = "<!-- BEGIN UNLIMITED SKILLS -->"
-    pattern_end = "<!-- END UNLIMITED SKILLS -->"
     text = claude_file.read_text(encoding="utf-8", errors="replace") if claude_file.is_file() else ""
-    start = text.find(pattern_start)
-    end = text.find(pattern_end)
-    if start >= 0 and end >= start:
-        end += len(pattern_end)
-        text = text[:start].rstrip() + "\n\n" + block.rstrip() + "\n" + text[end:].lstrip()
-    elif text.strip():
-        text = text.rstrip() + "\n\n" + block
-    else:
-        text = block
-    claude_file.write_text(text, encoding="utf-8")
+    claude_file.write_text(apply_claude_block(text, block), encoding="utf-8")
 
 
 HOOK_SCRIPTS = ("_cli_resolve.py", "session_start.py", "user_prompt_submit.py")

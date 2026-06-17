@@ -12,6 +12,77 @@ UNLIMITED_END = "<!-- END UNLIMITED SKILLS -->"
 ECC_START = "<!-- BEGIN ECC -->"
 ECC_END = "<!-- END ECC -->"
 
+# Single source of truth for the router-inject contract version, shared by every
+# agent surface (CLAUDE.md block, AGENTS.md block, Hermes router SKILL.md). Bump
+# this whenever the inject contract changes meaningfully. The version is stamped
+# INSIDE each rendered inject so an upgraded package can detect a stale inject
+# (one written by an older install) and refresh it via `unlimited-skills
+# sync-inject`, instead of silently keeping the old contract because
+# `pip install --upgrade` never re-runs the installer.
+CONTRACT_VERSION = 2
+_CONTRACT_STAMP_RE = re.compile(r"<!--\s*unlimited-skills-contract:\s*(\d+)\s*-->")
+
+
+def contract_stamp(version: int = CONTRACT_VERSION) -> str:
+    return f"<!-- unlimited-skills-contract: {version} -->"
+
+
+def parse_contract_version(text: str) -> int | None:
+    """Return the inject contract version found in agent text.
+
+    Returns the stamped integer, ``1`` for a managed block that predates the
+    stamp (legacy contract), or ``None`` when there is no managed block at all.
+    """
+    if UNLIMITED_START not in text:
+        return None
+    match = _CONTRACT_STAMP_RE.search(text)
+    return int(match.group(1)) if match else 1
+
+
+def agents_block_lines(launcher: str) -> list[str]:
+    """The managed AGENTS.md router block (Codex / OpenClaw).
+
+    Regenerable: re-applying replaces everything between the BEGIN/END markers
+    with the current contract. Stamped with ``CONTRACT_VERSION``.
+    """
+    return [
+        UNLIMITED_START,
+        contract_stamp(),
+        "## Unlimited Skills Library",
+        "",
+        "A generated inventory of proven skills (checklists, workflows, regression recipes) that is deliberately NOT in the always-loaded skill list. A 1-second lookup often replaces 20 minutes of rediscovery because the library has shipped-and-tested procedures for recurring tasks.",
+        "",
+        "RUN this single command BEFORE starting every substantive work phase that matches a trigger below. It costs ~1 second and returns at most one compact card, one name hint, or nothing:",
+        "",
+        "```bash",
+        f"\"{launcher}\" suggest \"<3-8 keyword phase summary>\" --json --card --limit 1",
+        "```",
+        "",
+        "TRIGGERS (any one suffices):",
+        "",
+        "- writing or reviewing code in a named language/framework (React, Python, Go, n8n, ...)",
+        "- review, audit, or security check of any artifact",
+        "- writing tests, fixing a bug, or debugging a failure",
+        "- git/GitHub workflows: branches, PRs, releases, changelogs",
+        "- writing prose: docs, posts, outreach, marketing, research reports",
+        "- planning, refactoring, migrations, deployments, ops procedures",
+        "- the user names a skill, workflow, or asks \"what can you do\"",
+        "",
+        "PHASE FRESHNESS: a `suggest` result is fresh only for the current substantive phase. Re-query at phase boundaries such as planning -> implementation, backend/API -> frontend/UI, implementation -> testing, testing -> debugging, implementation -> security review, code -> docs, or docs -> release/git workflow. A no-hit result is also scoped only to the current phase.",
+        "",
+        "ACT on the result: if a suggestion looks relevant, run `view <skill-name>` with the same launcher and follow it. If `suggest` returns nothing, proceed with the current phase; do not search again with synonyms for that same phase. Anti-spam: at most one `suggest` probe per phase unless the user explicitly asks for a broader search. For deeper retrieval use `search \"<query>\" --mode hybrid --limit 8`; for inventory questions use `list --limit 80`.",
+        "",
+        "TIER BEHAVIOR: silence means no confident match; a name hint means inspect that skill if it looks relevant; a compact card means a high-confidence match for this phase.",
+        "",
+        "SKIP only when a relevant skill is already active in the current context.",
+        UNLIMITED_END,
+        "",
+    ]
+
+
+def agents_block(launcher: str) -> str:
+    return "\n".join(agents_block_lines(launcher))
+
 UNLIMITED_BLOCK_RE = re.compile(
     rf"(?s){re.escape(UNLIMITED_START)}.*?{re.escape(UNLIMITED_END)}"
 )
