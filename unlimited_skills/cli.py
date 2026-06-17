@@ -578,7 +578,7 @@ def build_parser() -> argparse.ArgumentParser:
     money_saved_meter.add_argument("--model", default="", help="Real Money Saved (v2): bind to provider:model (e.g. anthropic:claude-opus-4.8). Emits the money-saved-meter-v2 report with API-equivalent dollars.")
     money_saved_meter.add_argument("--include-skills", action="store_true", help="v2: include the skills context-savings half (default: both halves).")
     money_saved_meter.add_argument("--include-mcp", action="store_true", help="v2: include the MCP context-savings half (default: both halves).")
-    money_saved_meter.add_argument("--token-counter", choices=["anthropic", "bytes"], default="anthropic", help="v2: token counter (anthropic=exact for Claude; bytes=approximation, not release-acceptable).")
+    money_saved_meter.add_argument("--token-counter", choices=["anthropic", "bytes"], default="anthropic", help="v2: token counter. bytes (~4 bytes/token) is the accepted default estimate; anthropic uses count_tokens for an exact count when an API key is present.")
     money_saved_meter.add_argument("--event-count", type=int, default=1, help="v2: number of standing-context re-entry events to scale the headline by.")
     money_saved_meter.add_argument("--price-class", choices=["base_input", "cache_write_5m", "cache_write_1h", "cache_hit_refresh"], default="", help="v2: cache price class (default cache_write_5m).")
     money_saved_meter.set_defaults(func=money_saved_cmds.cmd_money_saved_meter)

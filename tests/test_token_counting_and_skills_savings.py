@@ -18,10 +18,11 @@ from unlimited_skills import skills_savings as ss
 
 # --- token counting ------------------------------------------------------------
 
-def test_bytes_fallback_is_not_release_acceptable():
+def test_bytes_fallback_is_an_accepted_estimate():
     out = tc.count_tokens("hello world", provider="anthropic")  # no API, no injected counter
     assert out.method == tc.FALLBACK_NAME
-    assert out.exact_for_model is False and out.release_acceptable is False
+    # Estimate, not exact — but accepted for the release (Money Saved is an estimate).
+    assert out.exact_for_model is False and out.release_acceptable is True
     assert out.tokens == len("hello world".encode("utf-8")) // 4
     assert out.used_provider_api is False
     desc = out.descriptor()
@@ -29,7 +30,7 @@ def test_bytes_fallback_is_not_release_acceptable():
         "provider": "anthropic",
         "method": "bytes_divided_by_4",
         "exact_for_model": False,
-        "release_acceptable": False,
+        "release_acceptable": True,
     }
 
 
@@ -60,7 +61,7 @@ def test_exact_counter_failure_falls_back():
         raise RuntimeError("network down")
 
     out = tc.count_tokens("abcd", provider="anthropic", exact_counter=boom)
-    assert out.method == tc.FALLBACK_NAME and out.release_acceptable is False
+    assert out.method == tc.FALLBACK_NAME and out.exact_for_model is False
 
 
 def test_token_count_privacy_disclosure():
@@ -146,10 +147,11 @@ def test_skills_savings_event_count_scales_total(big_library: Path):
     assert block["total_tokens_saved"] == block["tokens_saved_per_event"] * 4
 
 
-def test_skills_savings_fallback_path_not_release_acceptable(big_library: Path):
+def test_skills_savings_fallback_path_is_accepted_estimate(big_library: Path):
     block = ss.build_skills_savings(provider="anthropic", model_api_id="claude-opus-4-8", root=big_library)
     assert block["token_counter"]["method"] == "bytes_divided_by_4"
-    assert block["token_counter"]["release_acceptable"] is False
+    assert block["token_counter"]["exact_for_model"] is False
+    assert block["token_counter"]["release_acceptable"] is True
     assert block["token_count_privacy"]["provider_count_tokens_used"] is False
     assert block["tokens_saved_per_event"] >= 0
 

@@ -58,13 +58,14 @@ def test_mcp_savings_event_count_scales_total():
     assert block["total_tokens_saved"] == block["tokens_saved_per_event"] * 5
 
 
-def test_mcp_savings_fallback_not_release_acceptable():
+def test_mcp_savings_fallback_is_accepted_estimate():
     block = ms.build_mcp_savings(
         provider="anthropic", model_api_id="claude-opus-4-8",
         server_payloads=UPSTREAM_ROWS, gateway_payload_text=GATEWAY_TEXT,
     )
     assert block["token_counter"]["method"] == "bytes_divided_by_4"
-    assert block["token_counter"]["release_acceptable"] is False
+    assert block["token_counter"]["exact_for_model"] is False
+    assert block["token_counter"]["release_acceptable"] is True
     assert block["token_count_privacy"]["provider_count_tokens_used"] is False
 
 
