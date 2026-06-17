@@ -13,7 +13,8 @@ Design contract (A0 invocation rescue, F1 + Hermes privacy hardening):
 - ``--json`` prints a privacy-hardened object containing ONLY
   ``task_summary_hash`` (short sha256 of the normalized query),
   ``top_3_skill_candidates`` (name, source, score — never paths or bodies),
-  ``reason_code`` (match_found / below_floor / empty_library / error),
+  ``reason_code`` (match_found / low_confidence_candidates / below_floor /
+  empty_library / error),
   ``recommended_next_action`` (a command by skill NAME only), and
   ``latency_ms``. The task/query text, local filesystem paths, and skill
   bodies must never appear in the output;
@@ -92,6 +93,7 @@ TIER_CARD = 3
 
 REASON_MATCH_FOUND = "match_found"
 REASON_BELOW_FLOOR = "below_floor"
+REASON_LOW_CONFIDENCE = "low_confidence_candidates"
 REASON_EMPTY_LIBRARY = "empty_library"
 REASON_ERROR = "error"
 
@@ -125,9 +127,12 @@ def probe(
     collection: str | None = None,
 ) -> tuple[list[SkillHit], str]:
     """Return (hits, reason_code). Never raises for I/O-shaped failures."""
-    hits = suggest_hits(root, query, limit=limit, floor=floor, collection=collection)
+    query = (query or "").strip()[:MAX_QUERY_CHARS]
+    hits = lexical_search(root, query, limit=max(limit, 1), collection=collection) if query else []
     if hits:
-        return hits, REASON_MATCH_FOUND
+        if hits[0].score >= floor:
+            return hits, REASON_MATCH_FOUND
+        return hits, REASON_LOW_CONFIDENCE
     # Only the empty path pays for the second (cheap, cached-on-disk) load.
     if not load_records(root):
         return [], REASON_EMPTY_LIBRARY
@@ -274,6 +279,8 @@ def recommended_next_action(hits: list[SkillHit], reason_code: str) -> str:
         return "no skill library found; proceed with the task (or run: unlimited-skills reindex)"
     if reason_code == REASON_ERROR:
         return "probe failed; proceed with the task"
+    if reason_code == REASON_LOW_CONFIDENCE and hits:
+        return f"low-confidence candidates available; consider: unlimited-skills view {hits[0].name}"
     return "no skill clears the score floor; proceed with the task"
 
 
@@ -330,7 +337,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         # Card mode needs the runner-up score for the margin check even when
         # the caller only displays one candidate.
-        fetch_limit = max(args.limit, 2) if args.card else args.limit
+        fetch_limit = max(args.limit, 5) if args.card else args.limit
         hits, reason_code = probe(root, args.query, limit=fetch_limit, floor=args.floor, collection=args.collection)
     except Exception:
         # The probe must never block the task it is trying to help.
@@ -403,6 +410,7 @@ def main(argv: list[str] | None = None) -> int:
             "floor": args.floor,
             "elapsed_ms": round(elapsed_ms, 1),
             "reason_code": reason_code,
+            "low_confidence": reason_code == REASON_LOW_CONFIDENCE,
             "injected": injected,
             "score_bucket": score_bucket(top_score),
             "margin_bucket": margin_bucket(top_score, runner_up_score),

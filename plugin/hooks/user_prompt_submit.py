@@ -54,6 +54,8 @@ if hasattr(sys.stdout, "reconfigure"):
 
 MIN_PROMPT_CHARS = 12
 MAX_PROMPT_CHARS = 300
+HOOK_CANDIDATE_LIMIT = 5
+HOOK_CANDIDATE_DISPLAY_LIMIT = 5
 DEFAULT_TIMEOUT_SECONDS = 2.0
 KILL_SWITCH_ENV = "UNLIMITED_SKILLS_NO_INJECT"
 
@@ -166,6 +168,32 @@ def _emit(context: str) -> None:
     )
 
 
+def _candidate_hint(candidates: list[dict]) -> str:
+    items: list[tuple[str, str]] = []
+    for candidate in candidates[:HOOK_CANDIDATE_DISPLAY_LIMIT]:
+        if not isinstance(candidate, dict):
+            continue
+        name = str(candidate.get("name") or "").strip()
+        source = str(candidate.get("source") or "").strip()
+        if not name:
+            continue
+        items.append((name, source))
+    if not items:
+        return ""
+    if len(items) == 1:
+        name, source = items[0]
+        origin = f" (from the {source} pack)" if source else ""
+        return f"Relevant skill available: {name}{origin} — view it with: unlimited-skills view {name}"
+    names = [f"{name} ({source})" if source else name for name, source in items]
+    view_commands = ", ".join(f"unlimited-skills view {item.split(' (', 1)[0]}" for item in names[:3])
+    return (
+        "Relevant skill candidates: "
+        + ", ".join(names)
+        + ". Review the best fit by name; suggested commands: "
+        + view_commands
+    )
+
+
 def main() -> int:
     try:
         payload = json.load(sys.stdin)
@@ -182,7 +210,7 @@ def main() -> int:
         if non_english:
             _start_daemon_warming(command)
         inject_cards = not _kill_switch_active()
-        cmd = [*command, "suggest", prompt[:MAX_PROMPT_CHARS], "--json", "--limit", "1"]
+        cmd = [*command, "suggest", prompt[:MAX_PROMPT_CHARS], "--json", "--limit", str(HOOK_CANDIDATE_LIMIT)]
         if inject_cards:
             cmd.append("--card")
         try:
@@ -211,7 +239,9 @@ def main() -> int:
             card_text = str(card.get("card") or "").strip()
             card_name = str(card.get("name") or "").strip()
             if card_text and card_name:
-                _emit(card_text)
+                candidates = payload_out.get("top_3_skill_candidates")
+                hint = _candidate_hint(candidates) if isinstance(candidates, list) and len(candidates) > 1 else ""
+                _emit(card_text + ("\n\n" + hint if hint else ""))
                 return 0
         # Tier 2: one-line, NAME-only hint. Tier 1: silence.
         candidates = payload_out.get("top_3_skill_candidates")
@@ -223,6 +253,10 @@ def main() -> int:
             # English no-match stays silent (no false nag).
             if non_english or payload_out.get("needs_english_query") is True:
                 _emit(NON_ENGLISH_INSTRUCTION)
+            return 0
+        hint = _candidate_hint(candidates)
+        if hint:
+            _emit(hint)
             return 0
         top = candidates[0]
         if not isinstance(top, dict):

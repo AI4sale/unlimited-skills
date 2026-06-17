@@ -4,8 +4,6 @@ import json
 import importlib.util
 from pathlib import Path
 
-import pytest
-
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_PATH = REPO_ROOT / "scripts" / "verify-v065-zero-candidate-gates.py"
 spec = importlib.util.spec_from_file_location("verify_v065_zero_candidate_gates", SCRIPT_PATH)
@@ -31,24 +29,17 @@ def test_zero_candidate_report_shape(tmp_path: Path) -> None:
     root = gate_audit.build_fixture_library(tmp_path / "library")
     report = gate_audit.build_report(root, gate_audit.load_fixture(), tmp_path)
     assert report["query_count"] == 6
-    assert report["loss_count"] >= 1
+    assert report["loss_count"] == 0
     row = next(item for item in report["rows"] if item["id"] == "ru_linkedin_post")
     assert row["library_skill_count"] >= 5
     assert row["english_hybrid_search_top_10"]["hits"]
-    assert row["suggest_json"]["payload"]["top_3_skill_candidates"] == []
-    assert row["suggest_card_json"]["payload"]["delivery_tier"] == 1
-    assert row["zero_candidate_loss"] is True
-    assert {"floor", "lexical-only path", "limit=1", "non-English branch"} <= set(row["drop_reasons"])
+    assert len(row["suggest_json"]["payload"]["top_3_skill_candidates"]) >= 3
+    assert row["hook_candidate_count"] >= 3
+    assert row["zero_candidate_loss"] is False
+    assert row["insufficient_candidate_delivery"] is False
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "C065-GATE-AUDIT-01: current hook/suggest delivery loses candidates "
-        "for at least one query even though retrieval has a candidate family."
-    ),
-)
-def test_zero_candidate_audit_invariant_currently_fails(tmp_path: Path) -> None:
+def test_zero_candidate_audit_invariant_passes(tmp_path: Path) -> None:
     root = gate_audit.build_fixture_library(tmp_path / "library")
     report = gate_audit.build_report(root, gate_audit.load_fixture(), tmp_path)
     assert report["ok"] is True, json.dumps(report, ensure_ascii=False, indent=2)
