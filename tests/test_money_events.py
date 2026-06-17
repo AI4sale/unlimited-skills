@@ -89,3 +89,18 @@ def test_events_inspect_reports_aggregate_and_tail(tmp_path: Path):
     assert report["total_event_count"] == 2
     assert report["bucket_count"] == 1
     assert len(report["recent_events"]) == 2
+
+
+def test_no_backdating_refuses_pre_genesis_events(tmp_path: Path):
+    d = tmp_path
+    # First recorded event sets the counter genesis.
+    s = me.record_event(_event("compaction", gen="2026-06-17T10:00:00Z", eid="g1"), d)
+    assert s["counter_genesis_at"] == "2026-06-17T10:00:00Z"
+    assert next(iter(s["buckets"].values()))["event_count"] == 1
+    # An event dated BEFORE genesis is refused — bucket + genesis unchanged.
+    s2 = me.record_event(_event("compaction", gen="2026-06-12T08:00:00Z", eid="old"), d)
+    assert s2["counter_genesis_at"] == "2026-06-17T10:00:00Z"
+    assert next(iter(s2["buckets"].values()))["event_count"] == 1
+    # An event at/after genesis is counted normally.
+    s3 = me.record_event(_event("compaction", gen="2026-06-17T11:00:00Z", eid="new"), d)
+    assert next(iter(s3["buckets"].values()))["event_count"] == 2

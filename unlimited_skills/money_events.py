@@ -223,6 +223,16 @@ def record_event(event: dict[str, Any], directory: Path | None = None, *, home: 
     event_type = str(event.get("event_type", ""))
     generated_at = str(event.get("generated_at", "")) or now_iso()
 
+    # NO BACKDATING (owner 2026-06-17): savings are only ever counted from the
+    # moment the counter first observed an event. The first record sets the
+    # genesis; anything dated earlier is refused — we have no evidence it
+    # happened under our skill, so we never claim savings for a pre-counter past.
+    genesis = summary.get("counter_genesis_at")
+    if genesis is None:
+        summary["counter_genesis_at"] = generated_at
+    elif generated_at < genesis:
+        return summary
+
     if bucket is None:
         bucket = {
             "basis": basis,
