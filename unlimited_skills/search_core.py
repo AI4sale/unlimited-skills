@@ -49,7 +49,7 @@ SESSION_SALT_ENV = "UNLIMITED_SKILLS_SESSION_SALT"
 SESSION_SALT_FILE = ".session_salt"
 _SALT_CACHE: str | None = None
 _RUN_CORRELATION_CACHE: str | None = None
-WORD_RE = re.compile(r"[a-zA-Z0-9][a-zA-Z0-9_+.#/-]*")
+WORD_RE = re.compile(r"(?u)[^\W_][\w+.#/-]*")
 IGNORED_SKILL_PATH_PARTS = {
     ".chroma-skills",
     ".git",
@@ -102,6 +102,9 @@ QUERY_EXPANSIONS = {
     "sql": "postgres postgresql mysql database query index",
     "prompt": "prompts prompting",
     "prompts": "prompt prompting",
+    "social": "social media linkedin post content marketing",
+    "media": "social media linkedin post content marketing",
+    "content": "content social media linkedin post marketing",
     # Performance-measurement vocabulary: profiling and benchmarking name the
     # same activity (measure, compare, find the slow part) in different tools.
     "profiling": "profiler benchmark benchmarking performance measure",
@@ -119,6 +122,12 @@ QUERY_EXPANSIONS = {
     "безопасно": "security secure secrets credentials auth",
     "скил": "skill procedure workflow",
     "скилы": "skills procedures workflows",
+    "линкедин": "linkedin social content post marketing",
+    "linkedin": "linkedin social content post marketing",
+    "пост": "post content social writing",
+    "релиз": "release launch changelog announcement marketing",
+    "обнови": "update upgrade refresh repair",
+    "после": "after upgrade refresh repair",
 }
 
 # Multi-word aliases applied on the lowercased query before token expansion:
@@ -128,6 +137,8 @@ PHRASE_EXPANSIONS = {
     "pull request": "pr github merge review branch",
     "merge request": "pr mr github gitlab merge review",
     "release notes": "changelog release versioning publish github",
+    "social media": "linkedin post content marketing campaign",
+    "social media content": "linkedin post content marketing campaign",
 }
 
 # Ecosystem ranking guard (A0 fix): when the query clearly names one
