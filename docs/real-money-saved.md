@@ -65,10 +65,12 @@ Default cache price class is `cache_write_5m` (standing-context re-write); the
 first session with no warm cache uses `base_input`.
 
 Storage is **compact, not an infinite log**: a rolling `summary.json` bucketed by
-the 8-field money-basis tuple (`provider, model, model_source, currency,
+the 9-field money-basis tuple (`agent, provider, model, model_source, currency,
 price_class, price_source_date, token_counter_method, money_model_version`) plus a
 `recent-events.jsonl` tail capped at 200 lines. The basis key is also the
-Team/Business "sum only when the basis matches" rule.
+Team/Business "sum only when the basis matches" rule; the `agent` field keeps
+Codex, Hermes, OpenClaw, and Claude Code evidence separate even when they share
+the same conservative model assumption.
 
 ## Commands
 
@@ -85,6 +87,19 @@ unlimited-skills money-saved evidence-pack --input admin.json --out evidence/
 unlimited-skills money-saved verify-evidence-pack --input evidence/   # exit 0 valid / 1 tampered / 2 bad input
 unlimited-skills money-saved events inspect --json
 ```
+
+Agent hosts that do not use the Claude Code plugin hook format call the same
+event recorder through a small wrapper command from their lifecycle:
+
+```
+unlimited-skills agent-lifecycle record session-start --agent codex
+unlimited-skills agent-lifecycle record pre-compact --agent codex
+unlimited-skills agent-lifecycle record session-start --agent hermes
+unlimited-skills agent-lifecycle record pre-compact --agent openclaw
+```
+
+The wrapper is fail-open and delegates to `money-saved record-event`; it exists so
+Hermes/Codex/OpenClaw integrations do not duplicate Money Saved logic.
 
 The tier commands auto-route to v2 when the input carries a v2 schema; legacy
 v0.6.4 proxy reports are rejected as money-tier input.

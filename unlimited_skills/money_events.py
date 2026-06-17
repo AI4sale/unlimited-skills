@@ -9,11 +9,12 @@ Owner directive (2026-06-17): "хранить компактно, не беск�
 NOT keep an unbounded append-only events log. Storage is two bounded parts:
 
 (a) ``summary.json`` (schema ``money-saved-summary-v1``) — a rolling aggregate
-    bucketed by the money-BASIS tuple ``(provider, model, model_source, currency,
-    price_class, price_source_date, token_counter_method, money_model_version)``.
-    Its size is O(distinct model × price_class), ~1–3 records — it never grows
-    with session count. The basis key is intentional: it IS the Team/Business
-    "sum only when the basis matches" rule.
+    bucketed by the money-BASIS tuple ``(agent, provider, model, model_source,
+    currency, price_class, price_source_date, token_counter_method,
+    money_model_version)``.
+    Its size is O(distinct agent × model × price_class), still tiny compared to
+    session count. The basis key is intentional: it IS the Team/Business "sum
+    only when the basis matches" rule.
 
 (b) ``recent-events.jsonl`` — only the newest ~200 ``money-saved-event-v1`` lines,
     truncated on every write. For ``events inspect`` / debugging only.
@@ -139,6 +140,7 @@ def event_basis(event: dict[str, Any]) -> dict[str, Any]:
     pricing = event.get("pricing") or {}
     counter = event.get("token_counter") or {}
     return {
+        "agent": str(event.get("agent", "")),
         "provider": str(model.get("provider", "")),
         "model": str(model.get("model", "")),
         "model_source": str(model.get("source", "")),
@@ -151,7 +153,7 @@ def event_basis(event: dict[str, Any]) -> dict[str, Any]:
 
 
 _BASIS_ORDER = (
-    "provider", "model", "model_source", "currency",
+    "agent", "provider", "model", "model_source", "currency",
     "price_class", "price_source_date", "token_counter_method", "money_model_version",
 )
 
