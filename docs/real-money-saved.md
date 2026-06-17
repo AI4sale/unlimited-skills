@@ -27,6 +27,16 @@ total_tokens_saved        = skills_tokens_saved + mcp_tokens_saved   (kept separ
 Both halves are counted with the **same** token counter so the subtraction is
 apples-to-apples.
 
+> **MCP is gateway-gated — no gateway, no MCP claim.** The MCP half is reported
+> **only when the Unlimited Tools gateway is actually configured as your MCP
+> front** (then we proxy every upstream and the baseline + savings are both real
+> and accurately measured). When the gateway is not in the loop, the host talks
+> to its MCP servers directly and we are not measuring or saving anything there —
+> so the meter reports `mcp_status: gateway_not_configured`, includes **no** MCP
+> number, and the total is skills-only. Skills savings, by contrast, are realized
+> by the router the moment it is installed (the library is kept out of context
+> regardless of MCP).
+
 ## Token counting
 
 - **Primary (Claude):** Anthropic `count_tokens` — exact for the bound model.
