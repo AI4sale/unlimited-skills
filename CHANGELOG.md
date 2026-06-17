@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### Added (0.6.4.post1 — Real Money Saved)
+
+- Real Money Saved value model: model-bound, cache-aware, event-counted
+  API-equivalent dollars from BOTH skills and MCP context savings (kept separate,
+  then summed). New modules: `token_counting` (Anthropic `count_tokens` primary;
+  `bytes_divided_by_4` fallback flagged not-release-acceptable), `skills_savings`,
+  `mcp_savings`, `model_detect` + `agent_model_profiles.json`, `money_pricing` +
+  `model_prices.json` (`model-prices-v1`), `money_events` (compact
+  summary.json + capped recent-events.jsonl), `money_saved_meter_v2`
+  (`money-saved-meter-v2`), `money_saved_tiers_v2`
+  (registered/team/admin v2), `money_evidence_pack` (13-file pack +
+  recomputing verifier, `money-saved-evidence-pack-v2`).
+- New CLI: `money-saved model-detect`, `prices list|show`,
+  `events inspect|record-fixture`; `meter`/`registered-export` gain
+  `--model/--include-skills/--include-mcp/--token-counter/--event-count/--price-class`;
+  `team-rollup`/`admin-export`/`evidence-pack`/`verify-evidence-pack` auto-route to
+  v2 by input schema. See `docs/real-money-saved.md`.
+- `scripts/verify-v064post1-real-money-saved-smoke.py`: 11-check release gate
+  across the exact-model and hidden-runtime assumption paths.
+
+### Changed (0.6.4.post1)
+
+- Legacy v0.6.4 proxy Money Saved reports (dollars disabled, byte-estimated
+  tokens) are rejected as money-tier input; the real money model supersedes them.
+
 ## 0.6.4-alpha
 
 ### Added
