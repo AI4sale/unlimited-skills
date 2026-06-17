@@ -49,7 +49,7 @@ from pathlib import Path
 from .search_core import (
     DEFAULT_ROOT,
     SkillHit,
-    candidate_sources,
+    candidate_debug_payload,
     lexical_search,
     load_records,
     log_event,
@@ -293,11 +293,7 @@ def candidate_payload(hits: list[SkillHit], *, include_sources: bool = False) ->
     for hit in hits:
         row = {"name": hit.name, "source": hit.collection, "score": round(float(hit.score), 1)}
         if include_sources:
-            sources = candidate_sources(hit)
-            row["candidate_sources"] = list(sources or ("lexical",))
-            rank = getattr(hit, "candidate_rank", None)
-            if rank is not None:
-                row["candidate_rank"] = int(rank)
+            row.update(candidate_debug_payload(hit))
         rows.append(row)
     return rows
 
@@ -362,13 +358,17 @@ def main(argv: list[str] | None = None) -> int:
             pass
         return 0
 
-    # Non-English / lexical-empty rescue: try the local multilingual embedding
-    # sidecar; if none is installed (or disabled), flag needs_english_query so
-    # the caller re-queries with English keywords instead of getting silence.
+    # Card/hook mode uses the shared candidate family across lexical + vector
+    # when a sidecar is present. Without a sidecar, it records an explicit
+    # vector_status and keeps lexical delivery alive.
     retrieval_path = "lexical" if hits else "none"
+    vector_status = "not_requested"
     needs_english = False
-    if not hits and not looks_english(args.query):
-        if not _vector_fallback_disabled() and sidecar_installed(root):
+    if args.card:
+        if _vector_fallback_disabled():
+            vector_status = "disabled"
+        elif sidecar_installed(root):
+            vector_status = "available_no_hits"
             vector_hits = vector_probe(root, args.query, fetch_limit, args.collection)
             if vector_hits:
                 hits = shared_candidate_family(
@@ -378,10 +378,17 @@ def main(argv: list[str] | None = None) -> int:
                     collection=args.collection,
                     vector_hits=vector_hits,
                 )
-                reason_code = REASON_MATCH_FOUND
-                retrieval_path = "vector"
-        if not hits:
-            needs_english = True
+                reason_code = REASON_MATCH_FOUND if hits and hits[0].score >= args.floor else REASON_LOW_CONFIDENCE
+                retrieval_path = "hybrid" if any("lexical" in candidate_debug_payload(hit).get("candidate_sources", []) for hit in hits) else "vector"
+                vector_status = "available_used"
+        else:
+            vector_status = "unavailable_missing_sidecar"
+
+    # Non-English / no-result rescue: if no candidate survived the shared
+    # family and there is no usable vector path, flag needs_english_query so
+    # the caller re-queries with English keywords instead of getting silence.
+    if not hits and not looks_english(args.query):
+        needs_english = True
 
     # The new routing fields ride only on the --card channel (the hook's mode);
     # the plain --json contract stays byte-identical for existing consumers.
@@ -390,6 +397,7 @@ def main(argv: list[str] | None = None) -> int:
     injected = False
     if args.card:
         extra["retrieval_path"] = retrieval_path
+        extra["vector_status"] = vector_status
         if needs_english:
             extra["needs_english_query"] = True
         tier = select_tier(hits, floor=args.floor, high_threshold=args.high_threshold, margin=args.high_margin)

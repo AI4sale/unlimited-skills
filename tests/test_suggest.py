@@ -236,9 +236,10 @@ def test_suggest_json_card_mode_injects_at_high_confidence(library: Path, capsys
     assert str(library) not in card["card"]
     assert ":\\" not in card["card"] and ":/" not in card["card"]
     # The base contract keys are unchanged alongside the card fields
-    # (retrieval_path is added on the --card channel; see language-routing tests).
-    assert set(payload) == {"task_summary_hash", "top_3_skill_candidates", "reason_code", "recommended_next_action", "latency_ms", "delivery_tier", "skill_card", "retrieval_path"}
+    # (retrieval_path/vector_status are added on the --card channel; see language-routing tests).
+    assert set(payload) == {"task_summary_hash", "top_3_skill_candidates", "reason_code", "recommended_next_action", "latency_ms", "delivery_tier", "skill_card", "retrieval_path", "vector_status"}
     assert payload["retrieval_path"] == "lexical"
+    assert payload["vector_status"] == "unavailable_missing_sidecar"
 
 
 def test_suggest_card_mode_degrades_to_hint_without_confidence_or_margin(library: Path, capsys: pytest.CaptureFixture) -> None:

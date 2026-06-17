@@ -39,6 +39,7 @@ from .search_core import (  # noqa: F401 - re-exported for backwards compatibili
     WORD_RE,
     SkillHit,
     build_index,
+    candidate_debug_payload,
     collection_for,
     ecosystem_factor,
     expanded_query,
@@ -59,6 +60,7 @@ from .search_core import (  # noqa: F401 - re-exported for backwards compatibili
     skill_identity,
     skill_priority,
     split_frontmatter,
+    task_summary_hash,
     tokens,
     write_jsonl,
 )
@@ -250,7 +252,7 @@ def _model_mismatch_error(built_with: str, requested: str, index_path: Path) -> 
     )
 
 
-def load_vector_sidecar(root: Path, model: str) -> list[dict] | None:
+def load_vector_sidecar_payload(root: Path, model: str) -> dict | None:
     path = vector_sidecar_path(root)
     if not path.is_file():
         return None
@@ -266,14 +268,35 @@ def load_vector_sidecar(root: Path, model: str) -> list[dict] | None:
     records = payload.get("records")
     if not isinstance(records, list):
         raise RuntimeError(f"Vector sidecar has no records list: {path}")
+    return payload
+
+
+def load_vector_sidecar(root: Path, model: str) -> list[dict] | None:
+    payload = load_vector_sidecar_payload(root, model)
+    if payload is None:
+        return None
+    records = payload.get("records")
+    if not isinstance(records, list):
+        raise RuntimeError(f"Vector sidecar has no records list: {vector_sidecar_path(root)}")
     return records
 
 
 def vector_search_sidecar(root: Path, query: str, limit: int, model: str, collection_name: str | None = None) -> list[SkillHit] | None:
-    records = load_vector_sidecar(root, model)
-    if records is None:
+    payload = load_vector_sidecar_payload(root, model)
+    if payload is None:
         return None
-    query_embedding = embed_texts([query], model)[0]
+    records = payload["records"]
+    query_embeddings = payload.get("query_embeddings")
+    query_embedding = None
+    if isinstance(query_embeddings, dict):
+        lookup_keys = [task_summary_hash(query), " ".join(str(query or "").split()).lower(), str(query or "")]
+        for key in lookup_keys:
+            value = query_embeddings.get(key)
+            if isinstance(value, list):
+                query_embedding = [float(item) for item in value]
+                break
+    if query_embedding is None:
+        query_embedding = embed_texts([query], model)[0]
     scored: list[SkillHit] = []
     for record in records:
         if not isinstance(record, dict):
@@ -374,7 +397,12 @@ def hybrid_search(
 
 def emit_hits(hits: list[SkillHit], as_json: bool) -> int:
     if as_json:
-        print(json.dumps([asdict(hit) for hit in hits], ensure_ascii=False, indent=2))
+        rows = []
+        for hit in hits:
+            row = asdict(hit)
+            row.update(candidate_debug_payload(hit))
+            rows.append(row)
+        print(json.dumps(rows, ensure_ascii=False, indent=2))
         return 0
     if not hits:
         print("No matching skills found.")

@@ -416,6 +416,8 @@ def _set_candidate_metadata(
     lexical_score: float = 0.0,
     vector_score: float = 0.0,
     learning_adjustment: float = 0.0,
+    lexical_rank: int | None = None,
+    vector_rank: int | None = None,
     rank: int | None = None,
 ) -> SkillHit:
     clean_sources = tuple(sorted({source for source in sources if source}))
@@ -423,14 +425,47 @@ def _set_candidate_metadata(
     setattr(hit, "lexical_score", round(float(lexical_score), 3))
     setattr(hit, "vector_score", round(float(vector_score), 3))
     setattr(hit, "learning_adjustment", round(float(learning_adjustment), 3))
+    setattr(hit, "exact_match", "exact_name" in clean_sources or "name" in clean_sources)
+    setattr(hit, "learning_boost", float(learning_adjustment) > 0.0)
+    setattr(hit, "learning_demotion", float(learning_adjustment) < 0.0)
+    if lexical_rank is not None:
+        setattr(hit, "lexical_rank", int(lexical_rank))
+    if vector_rank is not None:
+        setattr(hit, "vector_rank", int(vector_rank))
     if rank is not None:
         setattr(hit, "candidate_rank", int(rank))
+        setattr(hit, "final_rank", int(rank))
+        setattr(hit, "hybrid_or_fusion_rank", int(rank))
     return hit
 
 
 def candidate_sources(hit: SkillHit) -> tuple[str, ...]:
     value = getattr(hit, "candidate_sources", ())
     return tuple(str(item) for item in value if str(item))
+
+
+def candidate_debug_payload(hit: SkillHit) -> dict[str, object]:
+    """Comparable retrieval explanation fields for search/suggest verifiers."""
+    payload: dict[str, object] = {
+        "candidate_sources": list(candidate_sources(hit)),
+        "exact_match": bool(getattr(hit, "exact_match", False)),
+        "lexical_score": round(float(getattr(hit, "lexical_score", 0.0) or 0.0), 3),
+        "vector_score": round(float(getattr(hit, "vector_score", 0.0) or 0.0), 3),
+        "learning_boost": bool(getattr(hit, "learning_boost", False)),
+        "learning_demotion": bool(getattr(hit, "learning_demotion", False)),
+        "confidence": score_bucket(float(getattr(hit, "score", 0.0) or 0.0)),
+    }
+    for source_attr, output_key in (
+        ("lexical_rank", "lexical_rank"),
+        ("vector_rank", "vector_rank"),
+        ("hybrid_or_fusion_rank", "hybrid_or_fusion_rank"),
+        ("final_rank", "final_rank"),
+        ("candidate_rank", "candidate_rank"),
+    ):
+        value = getattr(hit, source_attr, None)
+        if value is not None:
+            payload[output_key] = int(value)
+    return payload
 
 
 def _source_markers(query: str, hit: SkillHit, body: str) -> set[str]:
@@ -515,6 +550,8 @@ def shared_candidate_family(
     adjustments = _read_learning_adjustments(root)
     merged: dict[str, SkillHit] = {}
     meta: dict[str, dict[str, object]] = {}
+    lexical_order: list[str] = []
+    vector_order: list[str] = []
 
     for hit, body in load_records(root, fresh=fresh):
         if collection and hit.collection != collection:
@@ -539,6 +576,7 @@ def shared_candidate_family(
             "vector_score": 0.0,
             "learning_adjustment": learning_adjustment,
         }
+        lexical_order.append(key)
 
     for raw_vector_hit in vector_hits or []:
         if collection and raw_vector_hit.collection != collection:
@@ -570,17 +608,49 @@ def shared_candidate_family(
                 "vector_score": vector_score,
                 "learning_adjustment": learning_adjustment,
             }
+        vector_order.append(key)
 
     hits = list(merged.values())
     hits.sort(key=lambda item: (-item.score, item.collection, item.name))
+    lexical_ranks = {
+        key: rank
+        for rank, key in enumerate(
+            sorted(
+                lexical_order,
+                key=lambda candidate_key: (
+                    -float(meta[candidate_key].get("lexical_score") or 0.0),
+                    merged[candidate_key].collection,
+                    merged[candidate_key].name,
+                ),
+            ),
+            start=1,
+        )
+    }
+    vector_ranks = {
+        key: rank
+        for rank, key in enumerate(
+            sorted(
+                vector_order,
+                key=lambda candidate_key: (
+                    -float(meta[candidate_key].get("vector_score") or 0.0),
+                    merged[candidate_key].collection,
+                    merged[candidate_key].name,
+                ),
+            ),
+            start=1,
+        )
+    }
     for rank, hit in enumerate(hits[:scan_limit], start=1):
-        row = meta.get(_candidate_key(hit), {})
+        key = _candidate_key(hit)
+        row = meta.get(key, {})
         _set_candidate_metadata(
             hit,
             sources=row.get("sources") or (),
             lexical_score=float(row.get("lexical_score") or 0.0),
             vector_score=float(row.get("vector_score") or 0.0),
             learning_adjustment=float(row.get("learning_adjustment") or 0.0),
+            lexical_rank=lexical_ranks.get(key),
+            vector_rank=vector_ranks.get(key),
             rank=rank,
         )
     return hits[:requested]

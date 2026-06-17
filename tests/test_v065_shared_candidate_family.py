@@ -4,6 +4,7 @@ import importlib.util
 import json
 from pathlib import Path
 
+from unlimited_skills import cli
 from unlimited_skills import suggest
 from unlimited_skills.search_core import candidate_sources, shared_candidate_family, write_jsonl
 
@@ -36,6 +37,46 @@ def test_suggest_card_candidates_expose_shared_sources(tmp_path: Path, capsys) -
     assert {candidate["name"] for candidate in candidates} <= {
         hit.name for hit in shared_candidate_family(root, "write LinkedIn post", 10)
     }
+    assert all("candidate_rank" in candidate for candidate in candidates)
+    assert all("confidence" in candidate for candidate in candidates)
+    assert payload["vector_status"] == "unavailable_missing_sidecar"
+
+
+def test_search_json_exposes_comparable_candidate_sources(tmp_path: Path, capsys) -> None:
+    root = shared_family.zero_gate.build_fixture_library(tmp_path / "library")
+    rc = cli.main(
+        [
+            "--root",
+            str(root),
+            "search",
+            "write LinkedIn post",
+            "--mode",
+            "hybrid",
+            "--json",
+            "--limit",
+            "3",
+            "--no-native-sync",
+        ]
+    )
+    assert rc == 0
+    rows = json.loads(capsys.readouterr().out)
+    assert rows
+    assert all(row.get("candidate_sources") for row in rows)
+    assert all("candidate_rank" in row for row in rows)
+    assert all("confidence" in row for row in rows)
+
+
+def test_vector_only_fixture_reaches_suggest_and_hook(tmp_path: Path) -> None:
+    report = shared_family._vector_only_probe(tmp_path)
+    assert report["ok"] is True, json.dumps(report, ensure_ascii=False, indent=2)
+    assert report["target"] not in report["lexical_top"]
+    assert report["vector_top"][0] == report["target"]
+    assert report["target"] in report["hybrid_top"][:3]
+    assert report["target"] in report["suggest_top"]
+    assert report["target"] in report["hook_candidates"]
+    assert report["suggest_vector_status"] == "available_used"
+    assert "vector" in report["target_suggest_sources"]
+    assert "vector" in report["target_search_sources"]
 
 
 def test_learning_feedback_marks_boost_without_new_search_path(tmp_path: Path) -> None:
