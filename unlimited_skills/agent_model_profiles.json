@@ -1,0 +1,33 @@
+{
+  "schema_version": "agent-model-profiles-v1",
+  "description": "Default 'basic assumption' model per agent. Used ONLY when the live runtime model is hidden by the host. Owner directive (2026-06-17): the model is normally always known in chat; if the runtime hides it, compute money by the agent's baseline profile (NOT a model_required dead-end). Every report built from a profile marks model_binding.source='basic_assumption_due_hidden_runtime', confidence='assumed'. Each profile model MUST exist with status 'active' in model_prices.json.",
+  "source_date": "2026-06-17",
+  "profiles": {
+    "claude-code": {
+      "provider": "anthropic",
+      "model": "claude-sonnet-4.6",
+      "rationale": "Claude Code baseline is Sonnet-class when the exact runtime model is hidden."
+    },
+    "codex": {
+      "provider": "openai",
+      "model": "gpt-5.5",
+      "effort": "medium",
+      "rationale": "Codex baseline = gpt-5.5 (medium effort); price basis is gpt-5.5."
+    },
+    "hermes": {
+      "provider": "openai",
+      "model": "gpt-5.5-pro",
+      "rationale": "Hermes baseline = gpt-5.5-pro."
+    },
+    "openclaw": {
+      "provider": "openai",
+      "model": "gpt-5.5",
+      "effort": "medium",
+      "rationale": "OpenClaw baseline = gpt-5.5 (medium effort); price basis is gpt-5.5."
+    }
+  },
+  "notes": [
+    "Chinese-agent baseline profiles (Qwen/Kimi/Zhipu-GLM) are added ONLY once concrete active model+price entries exist in model_prices.json.",
+    "A profile is an assumption, never an exact reading; the report must say so plainly and never claim the assumed model was the real runtime model."
+  ]
+}

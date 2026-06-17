@@ -1,0 +1,130 @@
+{
+  "schema_version": "model-prices-v1",
+  "description": "In-package API price DB for the Money Saved meter. Prices are USD per 1,000,000 tokens. Used to denominate context savings in API-equivalent dollars (always, even on subscription, because a subscription still consumes usage limits). cache_write_5m/1h_per_1m may be null for providers with no separate cache-write premium (the pricing engine falls back to base_input for that class). status='todo' models are NOT selectable for money unless an explicit local override is provided.",
+  "unit": "USD per 1,000,000 tokens",
+  "fetched": "2026-06-17",
+  "notes": [
+    "Anthropic cache multipliers: 5m write = 1.25x base input, 1h write = 2x, cache read/refresh = 0.1x.",
+    "Anthropic Opus 4.7+ uses a newer tokenizer that can produce up to ~35% more tokens than tiktoken; use anthropic_count_tokens for exact Claude counts (see token counting spec).",
+    "OpenAI/Google have no separate 5m/1h cache-WRITE premium in this schema (cache_write fields null -> engine uses base_input); cache_hit_refresh_per_1m holds the cached/refresh input rate where published.",
+    "OpenAI/Google/DeepSeek prices reflect the providers' published pricing pages on source_date; refresh at release time."
+  ],
+  "prices": [
+    {
+      "provider": "anthropic", "model": "claude-opus-4.8",
+      "aliases": ["claude-opus-4-8", "claude-opus-4.8-latest", "opus-4.8"],
+      "currency": "USD", "unit": "per_1m_tokens",
+      "base_input_per_1m": 5.0, "cache_write_5m_per_1m": 6.25, "cache_write_1h_per_1m": 10.0,
+      "cache_hit_refresh_per_1m": 0.50, "output_per_1m": 25.0,
+      "source_url": "https://platform.claude.com/docs/en/about-claude/pricing", "source_date": "2026-06-17", "status": "active"
+    },
+    {
+      "provider": "anthropic", "model": "claude-sonnet-4.6",
+      "aliases": ["claude-sonnet-4-6", "claude-sonnet", "sonnet", "claude-sonnet-4.6-latest"],
+      "currency": "USD", "unit": "per_1m_tokens",
+      "base_input_per_1m": 3.0, "cache_write_5m_per_1m": 3.75, "cache_write_1h_per_1m": 6.0,
+      "cache_hit_refresh_per_1m": 0.30, "output_per_1m": 15.0,
+      "source_url": "https://platform.claude.com/docs/en/about-claude/pricing", "source_date": "2026-06-17", "status": "active"
+    },
+    {
+      "provider": "anthropic", "model": "claude-haiku-4.5",
+      "aliases": ["claude-haiku-4-5", "claude-haiku", "haiku"],
+      "currency": "USD", "unit": "per_1m_tokens",
+      "base_input_per_1m": 1.0, "cache_write_5m_per_1m": 1.25, "cache_write_1h_per_1m": 2.0,
+      "cache_hit_refresh_per_1m": 0.10, "output_per_1m": 5.0,
+      "source_url": "https://platform.claude.com/docs/en/about-claude/pricing", "source_date": "2026-06-17", "status": "active"
+    },
+    {
+      "provider": "openai", "model": "gpt-5.5",
+      "aliases": ["gpt-5.5-medium", "gpt-5.5-latest"],
+      "currency": "USD", "unit": "per_1m_tokens",
+      "base_input_per_1m": 5.0, "cache_write_5m_per_1m": null, "cache_write_1h_per_1m": null,
+      "cache_hit_refresh_per_1m": 0.50, "output_per_1m": 30.0,
+      "source_url": "https://developers.openai.com/api/docs/pricing", "source_date": "2026-06-17", "status": "active"
+    },
+    {
+      "provider": "openai", "model": "gpt-5.5-pro",
+      "aliases": [],
+      "currency": "USD", "unit": "per_1m_tokens",
+      "base_input_per_1m": 30.0, "cache_write_5m_per_1m": null, "cache_write_1h_per_1m": null,
+      "cache_hit_refresh_per_1m": null, "output_per_1m": 180.0,
+      "source_url": "https://developers.openai.com/api/docs/pricing", "source_date": "2026-06-17", "status": "active"
+    },
+    {
+      "provider": "openai", "model": "gpt-5.4",
+      "aliases": [],
+      "currency": "USD", "unit": "per_1m_tokens",
+      "base_input_per_1m": 2.50, "cache_write_5m_per_1m": null, "cache_write_1h_per_1m": null,
+      "cache_hit_refresh_per_1m": 0.25, "output_per_1m": 15.0,
+      "source_url": "https://developers.openai.com/api/docs/pricing", "source_date": "2026-06-17", "status": "active"
+    },
+    {
+      "provider": "openai", "model": "gpt-5.4-mini",
+      "aliases": [],
+      "currency": "USD", "unit": "per_1m_tokens",
+      "base_input_per_1m": 0.75, "cache_write_5m_per_1m": null, "cache_write_1h_per_1m": null,
+      "cache_hit_refresh_per_1m": 0.075, "output_per_1m": 4.50,
+      "source_url": "https://developers.openai.com/api/docs/pricing", "source_date": "2026-06-17", "status": "active"
+    },
+    {
+      "provider": "google", "model": "gemini-3.1-pro",
+      "aliases": ["gemini-3.1-pro-preview"],
+      "currency": "USD", "unit": "per_1m_tokens",
+      "base_input_per_1m": 2.00, "cache_write_5m_per_1m": null, "cache_write_1h_per_1m": null,
+      "cache_hit_refresh_per_1m": 0.20, "output_per_1m": 12.0,
+      "source_url": "https://ai.google.dev/gemini-api/docs/pricing", "source_date": "2026-06-17", "status": "active",
+      "note": "<=200k-token tier; >200k prompts are billed at a higher tier not modeled here."
+    },
+    {
+      "provider": "google", "model": "gemini-3.1-flash-lite",
+      "aliases": [],
+      "currency": "USD", "unit": "per_1m_tokens",
+      "base_input_per_1m": 0.25, "cache_write_5m_per_1m": null, "cache_write_1h_per_1m": null,
+      "cache_hit_refresh_per_1m": null, "output_per_1m": 1.50,
+      "source_url": "https://ai.google.dev/gemini-api/docs/pricing", "source_date": "2026-06-17", "status": "active"
+    },
+    {
+      "provider": "google", "model": "gemini-3-flash",
+      "aliases": ["gemini-3-flash-preview", "gemini-3.5-flash"],
+      "currency": "USD", "unit": "per_1m_tokens",
+      "base_input_per_1m": 1.50, "cache_write_5m_per_1m": null, "cache_write_1h_per_1m": null,
+      "cache_hit_refresh_per_1m": null, "output_per_1m": 9.0,
+      "source_url": "https://ai.google.dev/gemini-api/docs/pricing", "source_date": "2026-06-17", "status": "active"
+    },
+    {
+      "provider": "deepseek", "model": "deepseek-v4-flash",
+      "aliases": ["deepseek-chat", "deepseek-reasoner"],
+      "currency": "USD", "unit": "per_1m_tokens",
+      "base_input_per_1m": 0.14, "cache_write_5m_per_1m": null, "cache_write_1h_per_1m": null,
+      "cache_hit_refresh_per_1m": 0.0028, "output_per_1m": 0.28,
+      "source_url": "https://api-docs.deepseek.com/quick_start/pricing", "source_date": "2026-06-17", "status": "active"
+    },
+    {
+      "provider": "deepseek", "model": "deepseek-v4-pro",
+      "aliases": [],
+      "currency": "USD", "unit": "per_1m_tokens",
+      "base_input_per_1m": null, "cache_write_5m_per_1m": null, "cache_write_1h_per_1m": null,
+      "cache_hit_refresh_per_1m": null, "output_per_1m": null,
+      "source_url": "https://api-docs.deepseek.com/quick_start/pricing", "source_date": "2026-06-17", "status": "todo",
+      "note": "Confirm exact published price at release time before marking active."
+    },
+    {
+      "provider": "alibaba", "model": "qwen", "aliases": [], "currency": "USD", "unit": "per_1m_tokens",
+      "base_input_per_1m": null, "cache_write_5m_per_1m": null, "cache_write_1h_per_1m": null,
+      "cache_hit_refresh_per_1m": null, "output_per_1m": null,
+      "source_url": "", "source_date": "2026-06-17", "status": "todo", "note": "Not selectable for money unless explicit local override."
+    },
+    {
+      "provider": "moonshot", "model": "kimi", "aliases": [], "currency": "USD", "unit": "per_1m_tokens",
+      "base_input_per_1m": null, "cache_write_5m_per_1m": null, "cache_write_1h_per_1m": null,
+      "cache_hit_refresh_per_1m": null, "output_per_1m": null,
+      "source_url": "", "source_date": "2026-06-17", "status": "todo", "note": "Not selectable for money unless explicit local override."
+    },
+    {
+      "provider": "zhipu", "model": "glm", "aliases": [], "currency": "USD", "unit": "per_1m_tokens",
+      "base_input_per_1m": null, "cache_write_5m_per_1m": null, "cache_write_1h_per_1m": null,
+      "cache_hit_refresh_per_1m": null, "output_per_1m": null,
+      "source_url": "", "source_date": "2026-06-17", "status": "todo", "note": "Not selectable for money unless explicit local override."
+    }
+  ]
+}
