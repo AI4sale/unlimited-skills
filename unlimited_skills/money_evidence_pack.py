@@ -43,8 +43,8 @@ from .money_events import MONEY_MODEL_VERSION
 from .money_pricing import PRICE_DB_SCHEMA_VERSION, money_for_tokens, price_per_1m, resolve_model
 from .money_saved_meter_v2 import claim_boundary
 
-EVIDENCE_PACK_SCHEMA = "money-saved-evidence-pack-v1"
-VERIFICATION_SCHEMA = "money-saved-evidence-pack-verification-v1"
+EVIDENCE_PACK_SCHEMA = "money-saved-evidence-pack-v2"
+VERIFICATION_SCHEMA = "money-saved-evidence-pack-verification-v2"
 MONEY_FORMULA = "estimated_money_saved_usd = total_tokens_saved / 1_000_000 * price_per_1m_input_tokens"
 ADMIN_EXPORT_V2_SCHEMA = "money-saved-admin-export-v2"
 
