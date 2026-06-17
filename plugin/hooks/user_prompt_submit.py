@@ -80,9 +80,9 @@ NON_ENGLISH_INSTRUCTION = (
     '`unlimited-skills suggest "<English keywords>"` (the English query, not the '
     "raw prompt). Expect ~14-20 seconds the first time (cold embedding-model "
     "load) — that delay is EXPECTED, wait for it — then use the top skill it "
-    "returns. For fast (~0.3s) native-language search, ASK THE USER to approve "
-    "starting the daemon (`unlimited-skills serve`); do NOT start it without "
-    "their explicit approval."
+    "returns. The hook has already triggered best-effort background daemon "
+    "warming (`unlimited-skills serve`) for future native-language searches; "
+    "set UNLIMITED_SKILLS_NO_AUTOSERVE=1 to disable that behavior."
 )
 
 

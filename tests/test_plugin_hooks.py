@@ -263,8 +263,9 @@ def test_user_prompt_submit_instructs_english_requery_for_non_english(tmp_path: 
     assert result.returncode == 0, result.stderr
     context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
     assert "English" in context and "unlimited-skills suggest" in context
-    # Warns about the cold-load cost and asks for user approval to start the daemon.
-    assert "serve" in context and "approv" in context.lower()
+    # Warns about the cold-load cost and states that daemon warming was triggered.
+    assert "serve" in context and "background daemon" in context
+    assert "approv" not in context.lower()
     assert "14" in context
     assert prompt not in context  # privacy: no raw prompt echo
 
