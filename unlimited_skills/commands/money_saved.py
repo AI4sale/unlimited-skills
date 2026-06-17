@@ -448,3 +448,46 @@ def _cmd_verify_evidence_pack_v2(args: argparse.Namespace) -> int:
     report = verify_evidence_pack(Path(args.input))
     _print_json(report)
     return int(report.get("exit_code", 1))
+
+
+def cmd_money_saved_record_event(args: argparse.Namespace) -> int:
+    """Record ONE real context-load event (session_start / compaction / ...).
+
+    The shared, agent-agnostic entrypoint that every host's lifecycle calls:
+    Claude Code SessionStart/PreCompact hooks, and Codex/OpenClaw/Hermes from
+    their own session lifecycle. Best-effort: it must NEVER break a session, so
+    any failure is swallowed and reported as ok=false.
+    """
+    try:
+        from ..mcp_savings import build_mcp_savings, gateway_is_configured
+        from ..model_detect import bind_model
+        from ..money_events import build_event, record_event
+        from ..skills_savings import build_skills_savings
+
+        root = Path(args.root).expanduser()
+        binding = bind_model(getattr(args, "model", "") or None, agent=getattr(args, "agent", "") or None)
+        if not binding.available or binding.price is None:
+            _print_json({"ok": False, "reason": "model_binding_missing", "agent": binding.agent})
+            return 0
+        price = binding.price
+        sk = build_skills_savings(provider=price.provider, model_api_id=None, root=root)
+        mcp = {"baseline_tokens": 0, "actual_gateway_tokens": 0}
+        if gateway_is_configured():  # MCP only counted behind our gateway
+            m = build_mcp_savings(provider=price.provider)
+            mcp = {"baseline_tokens": int(m["baseline_tokens"]), "actual_gateway_tokens": int(m["actual_gateway_tokens"])}
+        event = build_event(
+            agent=binding.agent, event_type=getattr(args, "event_type", "session_start"),
+            provider=price.provider, model=price.model, model_source=binding.source,
+            currency=price.currency, price_source_date=price.source_date,
+            token_counter_method=sk["token_counter"]["method"],
+            skills={"visible_skill_count": sk["baseline_skill_count"],
+                    "baseline_tokens": sk["baseline_tokens"], "actual_router_tokens": sk["actual_router_tokens"]},
+            mcp=mcp,
+        )
+        summary = record_event(event)
+        _print_json({"ok": True, "event_type": event["event_type"], "agent": binding.agent,
+                     "model": price.model, "price_class": event["cache"]["price_class"],
+                     "counter_genesis_at": summary.get("counter_genesis_at")})
+    except Exception as exc:  # never break the host session
+        _print_json({"ok": False, "reason": "record_failed", "error": exc.__class__.__name__})
+    return 0

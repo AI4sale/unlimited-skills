@@ -665,6 +665,15 @@ def build_parser() -> argparse.ArgumentParser:
     money_saved_events.add_argument("--json", action="store_true", help="Output is JSON regardless.")
     money_saved_events.set_defaults(func=money_saved_cmds.cmd_money_saved_events)
 
+    money_saved_record = money_saved_sub.add_parser(
+        "record-event",
+        help="Real Money Saved (v2): record ONE real context-load event (the shared entrypoint hosts' SessionStart/PreCompact lifecycles call). Best-effort, never fails a session.",
+    )
+    money_saved_record.add_argument("event_type", choices=["session_start", "compaction", "context_rebuild", "agent_restart", "manual_reindex_reload"], help="The lifecycle event being recorded.")
+    money_saved_record.add_argument("--model", default="", help="Explicit provider:model (else detected/assumed per agent).")
+    money_saved_record.add_argument("--agent", default="", help="Agent identity (claude-code/codex/openclaw/hermes); else auto-detected.")
+    money_saved_record.set_defaults(func=money_saved_cmds.cmd_money_saved_record_event)
+
     router_health = sub.add_parser("router-health", help="Local router-health readiness surfaces (per tier).")
     router_health_sub = router_health.add_subparsers(dest="router_health_command", required=True)
     router_health_export = router_health_sub.add_parser(
