@@ -250,28 +250,20 @@ def estimate_tokens(size_bytes: int) -> int:
     return int(size_bytes) // TOKEN_BYTES
 
 
-def measure_server(server: DiscoveredServer, *, timeout: float = DEFAULT_SERVER_TIMEOUT) -> dict:
-    """Measure one configured server's full ``tools/list`` payload.
+def _list_server_tools(server: DiscoveredServer, *, timeout: float) -> tuple[str, list[dict]]:
+    """Spawn the server exactly as the host would and return its ``tools/list``.
 
-    Returns a privacy-safe row: name, status, tool count, bytes, est tokens.
-    Never raises for an unreachable server.
+    Returns ``(status, tools)``; ``tools`` is ``[]`` for any non-OK status.
+    Never raises for an unreachable server. Shared by the byte measurement
+    (:func:`measure_server`) and the exact-token measurement
+    (:func:`measure_server_payload`).
     """
-
-    def row(status: str, tools_count: int = 0, schema_bytes: int = 0) -> dict:
-        return {
-            "name": server.name,
-            "status": status,
-            "tools_count": tools_count,
-            "schema_bytes": schema_bytes,
-            "est_tokens": estimate_tokens(schema_bytes),
-        }
-
     if server.transport not in {"stdio", ""}:
-        return row(STATUS_REMOTE)
+        return STATUS_REMOTE, []
     try:
         command, args = resolve_spawn(server.command, server.args)
     except MeasurementSkip as skip:
-        return row(skip.status)
+        return skip.status, []
 
     spec = {
         "name": server.name,
@@ -293,17 +285,50 @@ def measure_server(server: DiscoveredServer, *, timeout: float = DEFAULT_SERVER_
         result = client.request("tools/list", {}, timeout=timeout)
         listing = result.get("tools") if isinstance(result, dict) else None
         tools = [tool for tool in listing if isinstance(tool, dict)] if isinstance(listing, list) else []
-        return row(STATUS_OK, tools_count=len(tools), schema_bytes=payload_bytes(tools))
+        return STATUS_OK, tools
     except Exception:
         # Spawn failure, handshake refusal, timeout, garbage output: the
         # server is simply not measurable right now.
-        return row(STATUS_NOT_REACHABLE)
+        return STATUS_NOT_REACHABLE, []
     finally:
         client.terminate()
 
 
-def measure_gateway_standing_cost() -> int:
-    """Recompute the gateway's standing context cost (3 meta-tools) live."""
+def measure_server(server: DiscoveredServer, *, timeout: float = DEFAULT_SERVER_TIMEOUT) -> dict:
+    """Measure one configured server's full ``tools/list`` payload.
+
+    Returns a privacy-safe row: name, status, tool count, bytes, est tokens.
+    Never raises for an unreachable server.
+    """
+    status, tools = _list_server_tools(server, timeout=timeout)
+    schema_bytes = payload_bytes(tools) if status == STATUS_OK else 0
+    return {
+        "name": server.name,
+        "status": status,
+        "tools_count": len(tools) if status == STATUS_OK else 0,
+        "schema_bytes": schema_bytes,
+        "est_tokens": estimate_tokens(schema_bytes),
+    }
+
+
+def measure_server_payload(server: DiscoveredServer, *, timeout: float = DEFAULT_SERVER_TIMEOUT) -> dict:
+    """Like :func:`measure_server` but carries the ``tools/list`` JSON *text*.
+
+    The text (``payload_text``) is what the exact token counter is given; it is
+    never written to a report or persisted — only its token count is. Empty for
+    any non-OK status.
+    """
+    status, tools = _list_server_tools(server, timeout=timeout)
+    return {
+        "name": server.name,
+        "status": status,
+        "tools_count": len(tools) if status == STATUS_OK else 0,
+        "payload_text": json.dumps(tools, ensure_ascii=False) if status == STATUS_OK else "",
+    }
+
+
+def gateway_tools_list_payload_text() -> str:
+    """The JSON *text* of the gateway's standing ``tools/list`` (3 meta-tools)."""
     from .audit import AuditLog
     from .gateway import Gateway, build_gateway_registry
     from .protocol import StdioServer
@@ -313,7 +338,12 @@ def measure_gateway_standing_cost() -> int:
     audit_path = Path(tempfile.gettempdir()) / "unlimited-skills-savings-audit-never-written.jsonl"
     gateway = Gateway({"upstreams": []}, AuditLog(audit_path))
     server = StdioServer(build_gateway_registry(gateway), server_name="unlimited-tools-gateway")
-    return payload_bytes(server.list_tools())
+    return json.dumps(server.list_tools(), ensure_ascii=False)
+
+
+def measure_gateway_standing_cost() -> int:
+    """Recompute the gateway's standing context cost (3 meta-tools) live."""
+    return len(gateway_tools_list_payload_text().encode("utf-8"))
 
 
 def build_savings_report(
