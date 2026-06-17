@@ -347,6 +347,20 @@ def _cmd_meter_v2(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     cli.enforce_local_root(root, action="money-saved meter library root")
     report = _meter_v2_report(args)
+    # Headline = MEASURED money from real recorded events (session starts + compactions),
+    # not the per-event 'rate' above. Empty until the hooks have recorded events.
+    if report.get("available"):
+        try:
+            from ..model_detect import bind_model
+            from ..money_events import load_summary
+            from ..money_saved_meter_v2 import money_from_summary
+            binding = bind_model(getattr(args, "model", "") or None, agent=getattr(args, "agent", "") or None)
+            if binding.price is not None:
+                report["measured"] = money_from_summary(
+                    load_summary(), binding.price, provider=binding.provider, model=binding.model
+                )
+        except Exception:
+            pass
     text = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
     if getattr(args, "out", ""):
         write_report(Path(args.out), text + "\n")
