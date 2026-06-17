@@ -41,10 +41,13 @@ _STALE_V1_BLOCK = (
 
 
 def _homes(tmp_path: Path) -> dict[str, Path]:
+    openclaw_home = tmp_path / "openclaw"
     return {
         "claude_home": tmp_path / "claude",
         "codex_home": tmp_path / "codex",
         "hermes_home": tmp_path / "hermes",
+        "openclaw_home": openclaw_home,
+        "openclaw_workspace": openclaw_home / "workspace",
         "project_root": tmp_path / "proj",
     }
 
@@ -120,6 +123,22 @@ def test_codex_agents_md_refreshed(tmp_path):
     assert text.count("<!-- BEGIN UNLIMITED SKILLS -->") == 1
 
 
+# --- OpenClaw ------------------------------------------------------------------
+
+def test_openclaw_agents_md_refreshed(tmp_path):
+    h = _homes(tmp_path)
+    _install_router(h["openclaw_workspace"])
+    agents_file = h["openclaw_workspace"] / "AGENTS.md"
+    agents_file.write_text(_STALE_V1_BLOCK, encoding="utf-8")
+    report = refresh_injects(**h, agents={"openclaw"}, timestamp="20260617_000000")
+    assert "openclaw" in report.agents_present
+    result = report.files[0]
+    assert result.agent == "openclaw" and result.from_contract == 1 and result.changed
+    text = agents_file.read_text(encoding="utf-8")
+    assert parse_contract_version(text) == CONTRACT_VERSION
+    assert text.count("<!-- BEGIN UNLIMITED SKILLS -->") == 1
+
+
 # --- Hermes --------------------------------------------------------------------
 
 def test_hermes_skill_md_block_refreshed(tmp_path):
@@ -145,8 +164,9 @@ def test_all_installed_agents_refreshed(tmp_path):
     h = _homes(tmp_path)
     for key in ("claude_home", "codex_home", "hermes_home"):
         _install_router(h[key])
+    _install_router(h["openclaw_workspace"])
     report = refresh_injects(**h, patch_project=True, timestamp="20260617_000000")
-    assert set(report.agents_present) == {"claude-code", "codex", "hermes"}
+    assert set(report.agents_present) == {"claude-code", "codex", "openclaw", "hermes"}
 
 
 def test_no_router_present_is_a_noop_failure(tmp_path):
@@ -160,7 +180,8 @@ def test_no_router_present_is_a_noop_failure(tmp_path):
 def _cli_args(h: dict, **over):
     base = dict(
         claude_home=str(h["claude_home"]), codex_home=str(h["codex_home"]),
-        hermes_home=str(h["hermes_home"]), project_root=str(h["project_root"]),
+        hermes_home=str(h["hermes_home"]), openclaw_home=str(h["openclaw_home"]),
+        openclaw_workspace=str(h["openclaw_workspace"]), project_root=str(h["project_root"]),
         agent=None, no_global=False, no_project=True, no_backup=False, json=True,
     )
     base.update(over)
@@ -182,6 +203,17 @@ def test_cli_exit_1_when_no_router(tmp_path):
     assert cmd_sync_inject(_cli_args(h)) == 1
 
 
+def test_cli_refreshes_openclaw_workspace_agents_md(tmp_path, capsys):
+    h = _homes(tmp_path)
+    _install_router(h["openclaw_workspace"])
+    agents_file = h["openclaw_workspace"] / "AGENTS.md"
+    agents_file.write_text(_STALE_V1_BLOCK, encoding="utf-8")
+    assert cmd_sync_inject(_cli_args(h, agent=["openclaw"], no_project=False)) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["files"][0]["agent"] == "openclaw"
+    assert parse_contract_version(agents_file.read_text(encoding="utf-8")) == CONTRACT_VERSION
+
+
 # --- doctor staleness ----------------------------------------------------------
 
 def test_doctor_flags_stale_injects(tmp_path, monkeypatch):
@@ -190,19 +222,26 @@ def test_doctor_flags_stale_injects(tmp_path, monkeypatch):
     h = _homes(tmp_path)
     _install_router(h["claude_home"])
     _install_router(h["codex_home"])
+    _install_router(h["openclaw_workspace"])
     (h["claude_home"] / "CLAUDE.md").write_text(_STALE_V1_BLOCK, encoding="utf-8")
     agents_file = h["project_root"] / "AGENTS.md"
     agents_file.parent.mkdir(parents=True, exist_ok=True)
     agents_file.write_text(_STALE_V1_BLOCK, encoding="utf-8")
+    openclaw_agents_file = h["openclaw_workspace"] / "AGENTS.md"
+    openclaw_agents_file.write_text(_STALE_V1_BLOCK, encoding="utf-8")
     monkeypatch.setenv("CLAUDE_HOME", str(h["claude_home"]))
     monkeypatch.setenv("CODEX_HOME", str(h["codex_home"]))
+    monkeypatch.setenv("OPENCLAW_HOME", str(h["openclaw_home"]))
 
     claude = doctor._claude_summary(h["project_root"])
     codex = doctor._codex_summary(h["project_root"])
+    openclaw = doctor._openclaw_summary()
     assert claude["global_contract_version"] == 1 and claude["status"] == "warn"
     assert codex["agents_contract_version"] == 1 and codex["status"] == "warn"
+    assert openclaw["agents_contract_version"] == 1 and openclaw["status"] == "warn"
     assert any("sync-inject" in r for r in claude["recommendations"])
     assert any("sync-inject" in r for r in codex["recommendations"])
+    assert any("sync-inject" in r for r in openclaw["recommendations"])
 
 
 def test_apply_claude_block_appends_when_no_block():

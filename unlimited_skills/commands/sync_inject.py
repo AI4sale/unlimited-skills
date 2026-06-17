@@ -18,12 +18,23 @@ def _default_project_root() -> Path:
     return Path(value).expanduser() if value else Path.cwd()
 
 
+def _default_openclaw_workspace(openclaw_home: Path) -> Path:
+    value = os.environ.get("OPENCLAW_WORKSPACE") or ""
+    return Path(value).expanduser() if value else openclaw_home / "workspace"
+
+
 def cmd_sync_inject(args: argparse.Namespace) -> int:
     from ..sync_inject import refresh_injects, report_as_dict
 
     claude_home = Path(args.claude_home).expanduser() if getattr(args, "claude_home", "") else _env_home("CLAUDE_HOME", ".claude")
     codex_home = Path(args.codex_home).expanduser() if getattr(args, "codex_home", "") else _env_home("CODEX_HOME", ".codex")
     hermes_home = Path(args.hermes_home).expanduser() if getattr(args, "hermes_home", "") else _env_home("HERMES_HOME", ".hermes")
+    openclaw_home = Path(args.openclaw_home).expanduser() if getattr(args, "openclaw_home", "") else _env_home("OPENCLAW_HOME", ".openclaw")
+    openclaw_workspace = (
+        Path(args.openclaw_workspace).expanduser()
+        if getattr(args, "openclaw_workspace", "")
+        else _default_openclaw_workspace(openclaw_home)
+    )
     project_root = Path(args.project_root).expanduser() if getattr(args, "project_root", "") else _default_project_root()
     agents = set(args.agent) if getattr(args, "agent", None) else None
 
@@ -32,6 +43,8 @@ def cmd_sync_inject(args: argparse.Namespace) -> int:
         codex_home=codex_home,
         hermes_home=hermes_home,
         project_root=project_root,
+        openclaw_home=openclaw_home,
+        openclaw_workspace=openclaw_workspace,
         agents=agents,
         patch_global=not getattr(args, "no_global", False),
         patch_project=not getattr(args, "no_project", False),

@@ -957,9 +957,11 @@ def build_parser() -> argparse.ArgumentParser:
         "sync-inject",
         help="Refresh every installed agent's router inject (CLAUDE.md / AGENTS.md / Hermes SKILL.md) to the current contract. Run after a package upgrade.",
     )
-    sync_inject.add_argument("--agent", action="append", choices=["claude-code", "codex", "hermes"], help="Limit the refresh to these agents (repeatable; default: all installed).")
+    sync_inject.add_argument("--agent", action="append", choices=["claude-code", "codex", "openclaw", "hermes"], help="Limit the refresh to these agents (repeatable; default: all installed).")
     sync_inject.add_argument("--claude-home", default="", help="Claude home dir (default: $CLAUDE_HOME or ~/.claude).")
     sync_inject.add_argument("--codex-home", default="", help="Codex home dir (default: $CODEX_HOME or ~/.codex).")
+    sync_inject.add_argument("--openclaw-home", default="", help="OpenClaw home dir (default: $OPENCLAW_HOME or ~/.openclaw).")
+    sync_inject.add_argument("--openclaw-workspace", default="", help="OpenClaw workspace dir (default: $OPENCLAW_WORKSPACE or ~/.openclaw/workspace).")
     sync_inject.add_argument("--hermes-home", default="", help="Hermes home dir (default: $HERMES_HOME or ~/.hermes).")
     sync_inject.add_argument("--project-root", default="", help="Project root holding the project CLAUDE.md / AGENTS.md (default: cwd).")
     sync_inject.add_argument("--no-global", action="store_true", help="Do not refresh the global ~/.claude/CLAUDE.md block.")
