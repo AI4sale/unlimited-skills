@@ -64,6 +64,8 @@ def test_meter_v2_hermes_worked_example(clean_env):
     assert report["pricing"]["source_url"] and report["pricing"]["source_date"] == "2026-06-17"
     assert report["savings"]["skills"]["estimated_money_saved_usd"] == pytest.approx(0.53315625)
     assert report["savings"]["mcp"]["estimated_money_saved_usd"] == pytest.approx(0.4179)
+    assert report["skills_savings"] == report["savings"]["skills"]
+    assert report["mcp_savings"] == report["savings"]["mcp"]
     assert report["savings"]["total"]["tokens_saved"] == 152169
     assert report["savings"]["total"]["estimated_money_saved_usd"] == pytest.approx(0.95105625)
     assert report["claim_boundary"]["money_kind"] == "api_equivalent_estimate"
@@ -80,6 +82,7 @@ def test_meter_v2_assumption_path_still_produces_money(clean_env):
     )
     assert report["available"] is True
     assert report["model_binding"]["confidence"] == "assumed"
+    assert report["model_binding"]["assumption_profile"] == "codex"
     assert report["model_binding"]["provider"] == "openai" and report["model_binding"]["model"] == "gpt-5.5"
     assert report["pricing"]["price_per_1m_input_tokens"] == 5.0  # null cache class -> base
     assert report["savings"]["total"]["estimated_money_saved_usd"] == pytest.approx(0.5)

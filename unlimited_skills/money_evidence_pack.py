@@ -134,6 +134,9 @@ def _money_formula_rows(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             "alias": row.get("alias"),
             "provider": row.get("provider"),
             "model": row.get("model"),
+            "model_binding_source": row.get("model_binding_source"),
+            "model_confidence": row.get("model_confidence"),
+            "assumption_profile": row.get("assumption_profile"),
             "currency": row.get("currency"),
             "price_class": row.get("price_class"),
             "price_per_1m_input_tokens": row.get("price_per_1m_input_tokens"),
@@ -167,8 +170,15 @@ def build_evidence_pack_files(admin_export: dict[str, Any], *, generated_at: str
     })
     proofs["model-binding-proof.json"] = _json_text({
         "schema_version": "money-saved-model-binding-proof-v1",
-        "rows": [{"alias": r.get("alias"), "provider": r.get("provider"), "model": r.get("model")} for r in rows],
-        "note": "Money is model-bound per row; price is resolved from (provider, model, price_class).",
+        "rows": [{
+            "alias": r.get("alias"),
+            "provider": r.get("provider"),
+            "model": r.get("model"),
+            "model_binding_source": r.get("model_binding_source"),
+            "model_confidence": r.get("model_confidence"),
+            "assumption_profile": r.get("assumption_profile"),
+        } for r in rows],
+        "note": "Money is model-bound per row; assumptions are explicit and verifier-checked.",
     })
     proofs["pricing-proof.json"] = _json_text({
         "schema_version": "money-saved-pricing-proof-v1",
@@ -290,6 +300,18 @@ def verify_evidence_pack(in_dir: str | Path, *, db: dict[str, Any] | None = None
 
     # 2. Semantic recompute against the live price DB.
     recompute = {"rows_checked": 0, "rows_recomputed_ok": 0}
+    model_binding_by_alias: dict[str, dict[str, Any]] = {}
+    binding_path = directory / "model-binding-proof.json"
+    if binding_path.is_file():
+        try:
+            binding_proof = json.loads(binding_path.read_text(encoding="utf-8"))
+            for proof_row in binding_proof.get("rows", []):
+                if isinstance(proof_row, dict):
+                    model_binding_by_alias[str(proof_row.get("alias"))] = proof_row
+        except (OSError, json.JSONDecodeError):
+            tamper.append({"check": "model_binding_readable"})
+    else:
+        tamper.append({"check": "model_binding_present"})
     formula_path = directory / "money-formula-proof.json"
     if formula_path.is_file():
         try:
@@ -301,6 +323,15 @@ def verify_evidence_pack(in_dir: str | Path, *, db: dict[str, Any] | None = None
         for row in rows:
             recompute["rows_checked"] += 1
             alias = row.get("alias")
+            row_ok = True
+            binding_row = model_binding_by_alias.get(str(alias), {})
+            for field in ("provider", "model", "model_binding_source", "model_confidence", "assumption_profile"):
+                if row.get(field) != binding_row.get(field):
+                    tamper.append({"check": f"model_binding_{field}_matches", "alias": alias})
+                    row_ok = False
+            if row.get("model_binding_source") == "basic_assumption_due_hidden_runtime" and not row.get("assumption_profile"):
+                tamper.append({"check": "assumption_profile_present", "alias": alias})
+                row_ok = False
             price = resolve_model(f"{row.get('provider')}:{row.get('model')}", db)
             if price is None:
                 tamper.append({"check": "model_resolvable", "alias": alias, "model": row.get("model")})
@@ -319,13 +350,12 @@ def verify_evidence_pack(in_dir: str | Path, *, db: dict[str, Any] | None = None
                 ("mcp_estimated_money_saved_usd", "mcp_tokens_saved"),
                 ("total_estimated_money_saved_usd", "total_tokens_saved"),
             )
-            ok = True
             for money_field, token_field in checks:
                 expected_money = money_for_tokens(int(row.get(token_field, 0)), price, pc)
                 if not _money_close(expected_money, row.get(money_field, 0.0)):
                     tamper.append({"check": money_field, "alias": alias})
-                    ok = False
-            if ok:
+                    row_ok = False
+            if row_ok:
                 recompute["rows_recomputed_ok"] += 1
     else:
         tamper.append({"check": "money_formula_present"})

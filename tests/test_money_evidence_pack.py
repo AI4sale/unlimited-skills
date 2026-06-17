@@ -48,6 +48,13 @@ def _admin_export():
     return t2.build_admin_export_v2(rollup)
 
 
+def _assumed_admin_export():
+    meter = m2.build_meter_v2(agent="codex", skills_block=_block(1000, kind="skills"), mcp_block=_block(1000, kind="mcp"))
+    reg = t2.build_registered_export_v2(meter, alias="carol")
+    rollup = t2.build_team_rollup_v2([reg])
+    return t2.build_admin_export_v2(rollup)
+
+
 def _restamp(directory: Path):
     """Recompute the manifest hashes (simulates a sophisticated tamper)."""
     files = []
@@ -105,6 +112,16 @@ def test_tamper_model_with_restamped_manifest_is_caught(clean_env, tmp_path: Pat
     _restamp(tmp_path)
     report = ep.verify_evidence_pack(tmp_path)
     assert report["ok"] is False and report["exit_code"] == 1
+
+
+def test_tamper_assumption_profile_with_restamped_manifest_is_caught(clean_env, tmp_path: Path):
+    ep.write_evidence_pack(_assumed_admin_export(), tmp_path)
+    fp = tmp_path / "money-formula-proof.json"
+    _edit_json(fp, lambda d: d["rows"][0].__setitem__("assumption_profile", "claude-code"))
+    _restamp(tmp_path)
+    report = ep.verify_evidence_pack(tmp_path)
+    assert report["ok"] is False and report["exit_code"] == 1
+    assert any(t["check"] == "model_binding_assumption_profile_matches" for t in report["tamper"])
 
 
 def test_tamper_claim_boundary_is_caught(clean_env, tmp_path: Path):

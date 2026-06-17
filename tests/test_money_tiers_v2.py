@@ -115,9 +115,21 @@ def test_admin_export_csv_columns_and_compatible_flag(clean_env):
     csv = t2.admin_export_v2_csv(admin)
     header = csv.splitlines()[0]
     assert header == ",".join(t2.ADMIN_CSV_COLUMNS)
+    assert "model_binding_source" in header
+    assert "model_confidence" in header
+    assert "assumption_profile" in header
     assert admin["row_count"] == 3
     # opus group is the larger (primary) basis -> compatible True; sonnet -> False.
     by_alias = {row["alias"]: row for row in admin["rows"]}
     assert by_alias["alice"]["money_basis_compatible"] is True
     assert by_alias["carol"]["money_basis_compatible"] is False
     assert by_alias["alice"]["team"] == "core"
+
+
+def test_admin_export_carries_assumption_profile(clean_env):
+    assumed = t2.build_registered_export_v2(_meter(model=None, agent="codex"), alias="carol")
+    admin = t2.build_admin_export_v2(t2.build_team_rollup_v2([assumed]))
+    row = admin["rows"][0]
+    assert row["model_binding_source"] == "basic_assumption_due_hidden_runtime"
+    assert row["model_confidence"] == "assumed"
+    assert row["assumption_profile"] == "codex"

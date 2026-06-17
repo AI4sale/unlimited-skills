@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 def cmd_money_saved_meter(args: argparse.Namespace) -> int:
-    if getattr(args, "model", ""):  # Real Money Saved (v2) path
+    if _use_meter_v2(args):
         return _cmd_meter_v2(args)
     from .. import cli
     from ..money_saved_meter import (
@@ -49,7 +49,7 @@ def cmd_money_saved_meter(args: argparse.Namespace) -> int:
 
 
 def cmd_money_saved_registered_export(args: argparse.Namespace) -> int:
-    if getattr(args, "model", ""):  # Real Money Saved (v2) path
+    if _use_registered_export_v2(args):
         return _cmd_registered_export_v2(args)
     from .. import cli
     from ..money_saved_meter import (
@@ -233,6 +233,43 @@ def _include_flags(args: argparse.Namespace) -> tuple[bool, bool]:
     if not inc_skills and not inc_mcp:  # neither named -> include both
         return True, True
     return inc_skills, inc_mcp
+
+
+def _use_meter_v2(args: argparse.Namespace) -> bool:
+    """Use Real Money Saved by default.
+
+    The legacy v0.6.4 proxy meter remains only for explicit before/after
+    compatibility options. The normal product path must work without user model
+    configuration: exact runtime binding when visible, supported-agent assumption
+    profile when hidden.
+    """
+    if getattr(args, "fixture_100_call", False):
+        return False
+    if getattr(args, "mcp_savings_json", "") or getattr(args, "compare", "") or getattr(args, "audit_log", ""):
+        return False
+    if getattr(args, "mode", "current") != "current":
+        return False
+    if int(getattr(args, "target_calls", 100) or 100) != 100:
+        return False
+    return True
+
+
+def _use_registered_export_v2(args: argparse.Namespace) -> bool:
+    if getattr(args, "mcp_savings_json", "") or getattr(args, "audit_log", ""):
+        return False
+    if getattr(args, "mode", "current") != "current":
+        return False
+    if int(getattr(args, "target_calls", 100) or 100) != 100:
+        return False
+    return bool(
+        getattr(args, "model", "")
+        or getattr(args, "alias", "")
+        or getattr(args, "include_skills", False)
+        or getattr(args, "include_mcp", False)
+        or getattr(args, "price_class", "")
+        or int(getattr(args, "event_count", 1) or 1) != 1
+        or getattr(args, "token_counter", "anthropic") != "anthropic"
+    )
 
 
 def cmd_money_saved_model_detect(args: argparse.Namespace) -> int:

@@ -152,6 +152,10 @@ def build_meter_v2(
         "savings": savings,
         "claim_boundary": claim_boundary(),
     }
+    if "skills" in savings:
+        report["skills_savings"] = savings["skills"]
+    if "mcp" in savings:
+        report["mcp_savings"] = savings["mcp"]
     if privacy is not None:
         report["token_count_privacy"] = privacy
     return report

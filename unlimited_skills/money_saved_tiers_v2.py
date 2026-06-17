@@ -76,6 +76,9 @@ def _member_summary(alias: str, meter: dict[str, Any]) -> dict[str, Any]:
         "agent_class": str(binding.get("agent", "")),
         "provider": basis["provider"],
         "model": basis["model"],
+        "model_binding_source": str(binding.get("source", "")),
+        "model_confidence": str(binding.get("confidence", "")),
+        "assumption_profile": str(binding.get("assumption_profile", "")),
         "model_source": basis["model_source"],
         "currency": basis["currency"],
         "price_class": basis["price_class"],
@@ -203,6 +206,7 @@ def build_team_rollup_v2(exports: list[dict[str, Any]], *, generated_at: str | N
 
 ADMIN_CSV_COLUMNS = (
     "alias", "team", "workspace", "agent_class", "project", "provider", "model",
+    "model_binding_source", "model_confidence", "assumption_profile",
     "currency", "price_class", "price_per_1m_input_tokens",
     "skills_tokens_saved", "mcp_tokens_saved", "total_tokens_saved",
     "skills_estimated_money_saved_usd", "mcp_estimated_money_saved_usd",
@@ -239,6 +243,9 @@ def build_admin_export_v2(team_rollup: dict[str, Any], *, labels: dict[str, Any]
                 "project": _label(labels, alias, "project"),
                 "provider": member["provider"],
                 "model": member["model"],
+                "model_binding_source": member["model_binding_source"],
+                "model_confidence": member["model_confidence"],
+                "assumption_profile": member["assumption_profile"],
                 "currency": member["currency"],
                 "price_class": member["price_class"],
                 "price_per_1m_input_tokens": member["price_per_1m_input_tokens"],

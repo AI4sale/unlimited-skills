@@ -56,6 +56,7 @@ class ModelBinding:
     agent: str
     price: ModelPrice | None = None
     note: str = ""
+    assumption_profile: str = ""
 
     @property
     def available(self) -> bool:
@@ -71,6 +72,8 @@ class ModelBinding:
         }
         if self.note:
             block["note"] = self.note
+        if self.assumption_profile:
+            block["assumption_profile"] = self.assumption_profile
         return block
 
 
@@ -161,6 +164,7 @@ def bind_model(
                     price.provider, price.model,
                     "basic_assumption_due_hidden_runtime", "assumed", resolved_agent, price,
                     note=f"Runtime model was hidden by the host; used the default {resolved_agent} baseline profile.",
+                    assumption_profile=resolved_agent,
                 )
 
     # 5. unknown / unsupported
