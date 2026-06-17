@@ -170,7 +170,9 @@ elif [[ -x "$venv_python" ]]; then
   cli_python="$venv_python"
 fi
 
-export PYTHONPATH="$repo_root:${PYTHONPATH:-}"
+if ! "$cli_python" -I -c "import unlimited_skills" >/dev/null 2>&1; then
+  export PYTHONPATH="$repo_root:${PYTHONPATH:-}"
+fi
 args=(
   -m unlimited_skills.installers.hermes install
   --repo-root "$repo_root"

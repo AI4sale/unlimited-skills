@@ -3,7 +3,6 @@ from __future__ import annotations
 import argparse
 import json
 import os
-import shlex
 import shutil
 import subprocess
 import sys
@@ -20,6 +19,7 @@ from unlimited_skills.agents_patch import (
 from unlimited_skills.adapters import adapt_library
 from unlimited_skills.cli import index_path, save_index, vector_meta_path, vector_sidecar_path
 from unlimited_skills.hub import remote_config_path
+from unlimited_skills.launchers import write_launchers
 
 from .common import InstallTransaction, MigrationResult, migrate_source, rollback_install
 from .remote import RemoteHubInstallOptions, configure_remote_if_enabled, remote_messages, remote_report_lines, render_remote_router_block
@@ -180,37 +180,16 @@ def _router_source(repo_root: Path) -> Path:
 
 
 def _write_launchers(sh_launcher: Path, ps_launcher: Path, repo_root: Path, library_root: Path, project_root: Path, python_executable: str) -> None:
-    sh_launcher.parent.mkdir(parents=True, exist_ok=True)
-    sh_repo_root = shlex.quote(str(repo_root).replace("\\", "/"))
-    sh_library_root = shlex.quote(str(library_root).replace("\\", "/"))
-    sh_project_root = shlex.quote(str(project_root).replace("\\", "/"))
-    sh_python = shlex.quote(str(python_executable).replace("\\", "/"))
-    sh_launcher.write_text(
-        "#!/usr/bin/env bash\n"
-        "set -euo pipefail\n"
-        f"if [[ -n \"${{PYTHONPATH:-}}\" ]]; then\n"
-        f"  export PYTHONPATH={sh_repo_root}:\"$PYTHONPATH\"\n"
-        "else\n"
-        f"  export PYTHONPATH={sh_repo_root}\n"
-        "fi\n"
-        f"export UNLIMITED_SKILLS_CLAUDE_PROJECT_ROOT={sh_project_root}\n"
-        f"exec {sh_python} -m unlimited_skills --root {sh_library_root} \"$@\"\n",
-        encoding="utf-8",
-    )
-    try:
-        sh_launcher.chmod(0o755)
-    except OSError:
-        pass
-    ps_launcher.write_text(
-        "param(\n"
-        "  [Parameter(ValueFromRemainingArguments = $true)]\n"
-        "  [string[]]$Args\n"
-        ")\n\n"
-        "$ErrorActionPreference = \"Stop\"\n"
-        f"$env:PYTHONPATH = {json.dumps(str(repo_root))} + [System.IO.Path]::PathSeparator + $env:PYTHONPATH\n"
-        f"$env:UNLIMITED_SKILLS_CLAUDE_PROJECT_ROOT = {json.dumps(str(project_root))}\n"
-        f"& {json.dumps(python_executable)} -m unlimited_skills --root {json.dumps(str(library_root))} @Args\n",
-        encoding="utf-8",
+    # Render from the shared launcher templates so the launcher runs the INSTALLED
+    # package (no shadowing PYTHONPATH=<repo>) and carries a version/contract stamp
+    # that `doctor` and `sync-inject --heal-launchers` can detect. See launchers.py.
+    write_launchers(
+        sh_launcher=sh_launcher,
+        ps_launcher=ps_launcher,
+        python_executable=python_executable,
+        library_root=library_root,
+        project_root=project_root,
+        repo_root=repo_root,
     )
 
 

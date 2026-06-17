@@ -10,12 +10,27 @@ bodies, prompts, or private data are emitted.
 """
 from __future__ import annotations
 
+import os
+import re
+import subprocess
 import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from _cli_resolve import display_command, resolve_cli_command  # noqa: E402
+
+# Source-of-truth contract versions live in the package
+# (unlimited_skills.launchers.LAUNCHER_CONTRACT_VERSION and
+# unlimited_skills.agents_patch.CONTRACT_VERSION). They are inlined here so the
+# drift check stays a couple of file reads with no package import on the hot path;
+# tests/test_plugin_hooks.py asserts these stay in lock-step with the package.
+LAUNCHER_CONTRACT_VERSION = 1
+INJECT_CONTRACT_VERSION = 2
+_LAUNCHER_STAMP_RE = re.compile(r"unlimited-skills-launcher:\s*(\d+)")
+_INJECT_STAMP_RE = re.compile(r"unlimited-skills-contract:\s*(\d+)")
+_UNLIMITED_BLOCK_MARKER = "<!-- BEGIN UNLIMITED SKILLS -->"
+_HEAL_TIMEOUT_SECONDS = 25.0
 
 CONTRACT_TEMPLATE = """## Unlimited Skills Library (plugin)
 
@@ -61,12 +76,84 @@ project README install instructions) so the router can query the library.
 """
 
 
+def _claude_home() -> Path:
+    return Path(os.environ.get("CLAUDE_HOME") or Path.home() / ".claude")
+
+
+def _stamp_version(text: str, pattern: "re.Pattern[str]") -> int | None:
+    match = pattern.search(text)
+    return int(match.group(1)) if match else None
+
+
+def _launcher_is_stale(scripts_dir: Path) -> bool:
+    try:
+        text = (scripts_dir / "unlimited-skills.sh").read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+    if "unlimited_skills" not in text:
+        return False
+    return (_stamp_version(text, _LAUNCHER_STAMP_RE) or 0) < LAUNCHER_CONTRACT_VERSION
+
+
+def _inject_is_stale(claude_md: Path) -> bool:
+    try:
+        text = claude_md.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return False
+    if _UNLIMITED_BLOCK_MARKER not in text:
+        return False
+    # An UNLIMITED block with no contract stamp is the legacy v1 contract.
+    return (_stamp_version(text, _INJECT_STAMP_RE) or 1) < INJECT_CONTRACT_VERSION
+
+
+def _resolved_is_rendered_launcher(command: list[str]) -> bool:
+    """True when the resolved CLI is one of our rendered launcher scripts.
+
+    A stale launcher might itself pin a pre-`sync-inject` package, so we never try
+    to heal *through* it — auto-heal only runs when a clean entry point (PATH / venv
+    console script / explicit override) is available.
+    """
+    if not command:
+        return True
+    return any(str(arg).lower().endswith((".ps1", ".sh")) for arg in command)
+
+
+def _maybe_autoheal(command: list[str]) -> None:
+    """Regenerate a stale launcher / inject once, during session start.
+
+    Cheap by design: two file reads detect drift, and the heal subprocess runs only
+    when something is actually stale (the steady state spawns nothing). Never raises
+    and never blocks the session beyond a short timeout. Opt out by setting
+    ``UNLIMITED_SKILLS_NO_AUTOHEAL``.
+    """
+    if os.environ.get("UNLIMITED_SKILLS_NO_AUTOHEAL"):
+        return
+    if not command or _resolved_is_rendered_launcher(command):
+        return
+    home = _claude_home()
+    scripts_dir = home / "skills" / "unlimited-skills" / "scripts"
+    if not (_launcher_is_stale(scripts_dir) or _inject_is_stale(home / "CLAUDE.md")):
+        return
+    try:
+        subprocess.run(
+            [*command, "sync-inject", "--heal-launchers", "--agent", "claude-code", "--json"],
+            capture_output=True,
+            timeout=_HEAL_TIMEOUT_SECONDS,
+        )
+    except Exception:
+        return
+
+
 def main() -> int:
     try:
         command = resolve_cli_command()
     except Exception:
         command = None
     if command:
+        try:
+            _maybe_autoheal(command)
+        except Exception:
+            pass
         sys.stdout.write(CONTRACT_TEMPLATE.format(cli=display_command(command)))
     else:
         sys.stdout.write(MISSING_CLI)

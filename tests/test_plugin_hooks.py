@@ -289,3 +289,76 @@ def test_hook_manifest_registers_both_hooks(event: str, script: str) -> None:
     assert script in command
     assert "${CLAUDE_PLUGIN_ROOT}" in command
     assert (HOOKS_DIR / script).is_file()
+
+
+# --- SessionStart auto-heal of a stale launcher / inject -----------------------
+
+def _load_session_start_module():
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("uls_session_start_under_test", SESSION_START)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_session_start_constants_match_package() -> None:
+    # The hook inlines the contract versions for a zero-import drift check; they
+    # must never drift from the package source of truth.
+    from unlimited_skills.agents_patch import CONTRACT_VERSION
+    from unlimited_skills.launchers import LAUNCHER_CONTRACT_VERSION
+
+    module = _load_session_start_module()
+    assert module.LAUNCHER_CONTRACT_VERSION == LAUNCHER_CONTRACT_VERSION
+    assert module.INJECT_CONTRACT_VERSION == CONTRACT_VERSION
+
+
+_LEGACY_LAUNCHER_SH = (
+    "#!/usr/bin/env bash\nset -euo pipefail\nexport PYTHONPATH=/old/repo\n"
+    'exec /old/py -m unlimited_skills --root /old/lib "$@"\n'
+)
+
+
+def _install_stale_claude_launcher(tmp_path: Path) -> Path:
+    scripts = tmp_path / "claude-home" / "skills" / "unlimited-skills" / "scripts"
+    scripts.mkdir(parents=True)
+    (tmp_path / "claude-home" / "skills" / "unlimited-skills" / "SKILL.md").write_text(
+        "---\nname: unlimited-skills\n---\nrouter\n", encoding="utf-8"
+    )
+    (scripts / "unlimited-skills.sh").write_text(_LEGACY_LAUNCHER_SH, encoding="utf-8")
+    return scripts / "unlimited-skills.sh"
+
+
+def _autoheal_env(tmp_path: Path, library: Path) -> dict[str, str]:
+    env = hook_env(tmp_path, UNLIMITED_SKILLS_CLI=repo_cli_override(library))
+    # Keep the heal hermetic: library root + project root under tmp, not the dev machine.
+    env["UNLIMITED_SKILLS_HOME"] = str(tmp_path / "install-root")
+    env["UNLIMITED_SKILLS_CLAUDE_PROJECT_ROOT"] = str(tmp_path / "proj")
+    env["CLAUDE_HOME"] = str(tmp_path / "claude-home")
+    return env
+
+
+def test_session_start_autoheals_stale_launcher(tmp_path: Path) -> None:
+    from unlimited_skills.launchers import LAUNCHER_CONTRACT_VERSION, parse_launcher_contract
+
+    launcher = _install_stale_claude_launcher(tmp_path)
+    assert parse_launcher_contract(launcher.read_text(encoding="utf-8")) == 0
+    library = make_library(tmp_path)
+    result = run_hook(SESSION_START, "", _autoheal_env(tmp_path, library))
+    assert result.returncode == 0
+    assert "TRIGGERS" in result.stdout  # contract still emitted
+    assert parse_launcher_contract(launcher.read_text(encoding="utf-8")) == LAUNCHER_CONTRACT_VERSION
+    assert "export PYTHONPATH=" not in launcher.read_text(encoding="utf-8")
+
+
+def test_session_start_autoheal_kill_switch(tmp_path: Path) -> None:
+    from unlimited_skills.launchers import parse_launcher_contract
+
+    launcher = _install_stale_claude_launcher(tmp_path)
+    library = make_library(tmp_path)
+    env = _autoheal_env(tmp_path, library)
+    env["UNLIMITED_SKILLS_NO_AUTOHEAL"] = "1"
+    result = run_hook(SESSION_START, "", env)
+    assert result.returncode == 0
+    assert "TRIGGERS" in result.stdout
+    assert parse_launcher_contract(launcher.read_text(encoding="utf-8")) == 0  # left stale

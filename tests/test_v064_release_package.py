@@ -61,26 +61,25 @@ def test_v064_release_package_manifest_and_claim_boundaries() -> None:
         assert required in text
 
 
-def test_v064_release_execution_verifier_lightweight(monkeypatch, capsys) -> None:
-    verifier_path = REPO_ROOT / "scripts" / "verify-v064-alpha-release-execution.py"
-    spec = importlib.util.spec_from_file_location("verify_v064_alpha_release_execution_test", verifier_path)
+def test_v064post1_updater_release_verifier_lightweight(monkeypatch, capsys) -> None:
+    verifier_path = REPO_ROOT / "scripts" / "verify-v064post1-updater-release.py"
+    spec = importlib.util.spec_from_file_location("verify_v064post1_updater_release_test", verifier_path)
     assert spec is not None
     assert spec.loader is not None
     verifier = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(verifier)
 
-    monkeypatch.setattr(verifier, "run_frozen_contracts", lambda: {"ok": True, "status_counts": {"pass": 11}})
-    monkeypatch.setattr(verifier, "run_tier_smoke", lambda: {"ok": True})
+    monkeypatch.setattr(verifier, "run_json", lambda args, label: {"ok": True})
 
     rc = verifier.main(["--allow-dirty", "--json"])
 
     assert rc == 0
     payload = json.loads(capsys.readouterr().out)
-    assert payload["release"] == "v0.6.4-alpha"
-    assert payload["version"] == "0.6.4"
-    assert payload["manifest_status"] == "release_execution_ready"
-    assert payload["release_execution"]["package_ready"] is True
-    assert payload["tier_smoke"]["ok"] is True
+    assert payload["release"] == "v0.6.4.post1"
+    assert payload["version"] == "0.6.4.post1"
+    assert payload["package_smoke"]["ok"] is True
+    assert payload["updater_smoke"]["ok"] is True
+    assert payload["frozen_contracts"]["ok"] is True
 
 
 def test_v064_package_smoke_report_validation() -> None:
@@ -106,6 +105,6 @@ def test_v064_package_smoke_report_validation() -> None:
         },
     }
 
-    assert verify_report(report) == []
+    assert verify_report(report, "0.6.4") == []
     report["clean_install_money_saved_tiers"]["enterprise_tamper_ok"] = True
-    assert any("tamper check" in error for error in verify_report(report))
+    assert any("tamper check" in error for error in verify_report(report, "0.6.4"))

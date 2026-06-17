@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import sys
 from pathlib import Path
 
 
@@ -37,6 +38,8 @@ def cmd_sync_inject(args: argparse.Namespace) -> int:
     )
     project_root = Path(args.project_root).expanduser() if getattr(args, "project_root", "") else _default_project_root()
     agents = set(args.agent) if getattr(args, "agent", None) else None
+    library_root = Path(args.library_root).expanduser() if getattr(args, "library_root", "") else None
+    repo_root = Path(args.repo_root).expanduser() if getattr(args, "repo_root", "") else None
 
     report = refresh_injects(
         claude_home=claude_home,
@@ -49,6 +52,10 @@ def cmd_sync_inject(args: argparse.Namespace) -> int:
         patch_global=not getattr(args, "no_global", False),
         patch_project=not getattr(args, "no_project", False),
         backup=not getattr(args, "no_backup", False),
+        heal_launchers=getattr(args, "heal_launchers", False),
+        python_executable=sys.executable,
+        library_root=library_root,
+        repo_root=repo_root,
     )
     if getattr(args, "json", False):
         print(json.dumps(report_as_dict(report), ensure_ascii=False, indent=2))

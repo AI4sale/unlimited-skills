@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
 from unlimited_skills.agents_patch import (
@@ -19,6 +20,7 @@ from unlimited_skills.agents_patch import (
     parse_contract_version,
 )
 from unlimited_skills.installers.claude_code import apply_claude_block, router_block_lines
+from unlimited_skills.launchers import LAUNCHER_CONTRACT_VERSION, parse_launcher_contract
 from unlimited_skills.sync_inject import refresh_injects
 from unlimited_skills.commands.sync_inject import cmd_sync_inject
 
@@ -247,3 +249,113 @@ def test_doctor_flags_stale_injects(tmp_path, monkeypatch):
 def test_apply_claude_block_appends_when_no_block():
     out = apply_claude_block("# Existing\n\nnotes\n", "<!-- BEGIN UNLIMITED SKILLS -->\nX\n<!-- END UNLIMITED SKILLS -->")
     assert out.count("<!-- BEGIN UNLIMITED SKILLS -->") == 1 and "# Existing" in out
+
+
+# --- launcher healing (--heal-launchers) ---------------------------------------
+
+_LEGACY_SH = (
+    "#!/usr/bin/env bash\nset -euo pipefail\nexport PYTHONPATH=/old/repo\n"
+    'exec /old/py -m unlimited_skills --root /old/lib "$@"\n'
+)
+_LEGACY_PS = "param()\n$env:PYTHONPATH='/old/repo'\n& /old/py -m unlimited_skills --root /old/lib @Args\n"
+
+
+def _install_legacy_launchers(home: Path) -> Path:
+    _install_router(home)
+    scripts = home / "skills" / "unlimited-skills" / "scripts"
+    (scripts / "unlimited-skills.sh").write_text(_LEGACY_SH, encoding="utf-8")
+    (scripts / "unlimited-skills.ps1").write_text(_LEGACY_PS, encoding="utf-8")
+    return scripts
+
+
+def _heal_kwargs(tmp_path: Path):
+    return dict(
+        heal_launchers=True,
+        python_executable=sys.executable,
+        library_root=tmp_path / "lib",
+        repo_root=None,
+        timestamp="20260617_000000",
+    )
+
+
+def test_heal_launchers_rewrites_stale_launcher(tmp_path):
+    h = _homes(tmp_path)
+    scripts = _install_legacy_launchers(h["claude_home"])
+    assert parse_launcher_contract((scripts / "unlimited-skills.sh").read_text(encoding="utf-8")) == 0
+
+    report = refresh_injects(**h, agents={"claude-code"}, patch_project=False, **_heal_kwargs(tmp_path))
+    kinds = {l.kind: l for l in report.launchers}
+    assert set(kinds) == {"sh", "ps"}
+    assert kinds["sh"].from_contract == 0 and kinds["sh"].to_contract == LAUNCHER_CONTRACT_VERSION
+    assert kinds["sh"].changed and kinds["sh"].backup  # legacy launcher backed up before rewrite
+    new_sh = (scripts / "unlimited-skills.sh").read_text(encoding="utf-8")
+    assert "export PYTHONPATH=" not in new_sh  # no more shadowing source path
+    assert parse_launcher_contract(new_sh) == LAUNCHER_CONTRACT_VERSION
+    assert sys.executable.replace("\\", "/") in new_sh  # runs the recorded interpreter
+
+
+def test_heal_launchers_idempotent_second_run(tmp_path):
+    h = _homes(tmp_path)
+    _install_legacy_launchers(h["claude_home"])
+    refresh_injects(**h, agents={"claude-code"}, patch_project=False, **_heal_kwargs(tmp_path))
+    kwargs = _heal_kwargs(tmp_path)
+    kwargs["timestamp"] = "20260617_000001"
+    second = refresh_injects(**h, agents={"claude-code"}, patch_project=False, **kwargs)
+    for launcher in second.launchers:
+        assert launcher.changed is False and launcher.backup == ""
+
+
+def test_heal_launchers_does_not_fabricate_missing_ps(tmp_path):
+    # Codex/OpenClaw write only the .sh; heal must not create a .ps1 the installer never made.
+    h = _homes(tmp_path)
+    scripts = _install_legacy_launchers(h["codex_home"])
+    (scripts / "unlimited-skills.ps1").unlink()
+    report = refresh_injects(**h, agents={"codex"}, **_heal_kwargs(tmp_path))
+    assert {l.kind for l in report.launchers} == {"sh"}
+    assert not (scripts / "unlimited-skills.ps1").exists()
+
+
+def test_heal_launchers_off_by_default(tmp_path):
+    h = _homes(tmp_path)
+    _install_legacy_launchers(h["claude_home"])
+    report = refresh_injects(**h, agents={"claude-code"}, patch_project=False, timestamp="20260617_000000")
+    assert report.launchers == []  # inject-only refresh leaves launchers untouched
+
+
+def test_heal_all_agents(tmp_path):
+    h = _homes(tmp_path)
+    for key in ("claude_home", "codex_home", "hermes_home"):
+        _install_legacy_launchers(h[key])
+    _install_legacy_launchers(h["openclaw_workspace"])
+    report = refresh_injects(**h, patch_project=True, **_heal_kwargs(tmp_path))
+    healed_agents = {l.agent for l in report.launchers}
+    assert healed_agents == {"claude-code", "codex", "openclaw", "hermes"}
+    assert all(l.to_contract == LAUNCHER_CONTRACT_VERSION for l in report.launchers)
+
+
+def test_doctor_flags_stale_launcher(tmp_path, monkeypatch):
+    from unlimited_skills import doctor
+
+    h = _homes(tmp_path)
+    _install_legacy_launchers(h["claude_home"])
+    monkeypatch.setenv("CLAUDE_HOME", str(h["claude_home"]))
+    summary = doctor._claude_summary(h["project_root"])
+    assert summary["launcher_stale"] is True and summary["status"] == "warn"
+    assert summary["launcher_contract_version"] == 0
+    assert any("heal-launchers" in r for r in summary["recommendations"])
+
+
+def test_cli_heal_launchers_flag(tmp_path, capsys):
+    h = _homes(tmp_path)
+    _install_legacy_launchers(h["claude_home"])
+    args = _cli_args(
+        h,
+        agent=["claude-code"],
+        heal_launchers=True,
+        library_root=str(tmp_path / "lib"),
+        repo_root="",
+    )
+    assert cmd_sync_inject(args) == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["launcher_contract_version"] == LAUNCHER_CONTRACT_VERSION
+    assert any(item["kind"] == "sh" and item["changed"] for item in payload["launchers"])

@@ -1,4 +1,4 @@
-"""Build and clean-install smoke for the v0.6.4 Money Saved Meter alpha package."""
+"""Build and clean-install smoke for the v0.6.4 Money Saved Meter package line."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.6.4"
+DEFAULT_VERSION = "0.6.4"
 FIXTURE_DIR = ROOT / "tests" / "fixtures" / "money_saved_meter"
 
 
@@ -132,16 +132,17 @@ def clean_install_money_saved_tier_smoke(wheel: Path, work: Path) -> dict[str, A
     }
 
 
-def verify_report(report: dict[str, Any]) -> list[str]:
+def verify_report(report: dict[str, Any], expected_version: str = DEFAULT_VERSION) -> list[str]:
     errors: list[str] = []
-    if report.get("version") != VERSION:
+    if report.get("version") != expected_version:
         errors.append("version mismatch")
     dist = report.get("dist") if isinstance(report.get("dist"), dict) else {}
-    if f"-{VERSION}-" not in str(dist.get("wheel", "")):
-        errors.append("wheel filename must include 0.6.4")
+    normalized = expected_version.replace("-", "_")
+    if f"-{normalized}-" not in str(dist.get("wheel", "")):
+        errors.append(f"wheel filename must include {expected_version}")
     tier = report.get("clean_install_money_saved_tiers") or {}
-    if tier.get("version_output") != f"unlimited-skills {VERSION}":
-        errors.append("installed CLI version output mismatch for v0.6.4")
+    if tier.get("version_output") != f"unlimited-skills {expected_version}":
+        errors.append(f"installed CLI version output mismatch for {expected_version}")
     for key in (
         "free_report_written",
         "registered_export_written",
@@ -164,6 +165,7 @@ def verify_report(report: dict[str, Any]) -> list[str]:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--expected-version", default=DEFAULT_VERSION)
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--keep-temp", action="store_true")
     args = parser.parse_args(argv)
@@ -175,16 +177,16 @@ def main(argv: list[str] | None = None) -> int:
         wheel, sdist = build_dist(dist_dir)
         report = {
             "schema_version": 1,
-            "version": VERSION,
+            "version": args.expected_version,
             "dist": {"wheel": wheel.name, "sdist": sdist.name},
             "clean_install_money_saved_tiers": clean_install_money_saved_tier_smoke(wheel, tmp / "money-saved"),
         }
-        report["errors"] = verify_report(report)
+        report["errors"] = verify_report(report, args.expected_version)
         report["ok"] = not report["errors"]
         if args.json:
             print(json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True))
         else:
-            print("v0.6.4-alpha package smoke: " + ("PASS" if report["ok"] else "FAIL"))
+            print(f"v0.6.4 package smoke ({args.expected_version}): " + ("PASS" if report["ok"] else "FAIL"))
             for error in report["errors"]:
                 print(f"- {error}")
         return 0 if report["ok"] else 1
