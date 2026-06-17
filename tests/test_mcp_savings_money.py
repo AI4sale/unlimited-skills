@@ -100,3 +100,51 @@ def test_mcp_savings_discovers_and_measures_via_injected_fns():
     assert block["baseline_server_count"] == 2
     assert block["measured_server_count"] == 2
     assert block["tokens_saved_per_event"] > 0
+
+
+# --- gateway gating: no gateway -> no MCP claim (O064-R2 follow-up) ------------
+
+class _FakeServer:
+    def __init__(self, name="", command="", args=None):
+        self.name = name
+        self.command = command
+        self.args = args or []
+
+
+def test_gateway_is_configured_detects_our_gateway():
+    servers = [_FakeServer(name="unlimited-tools", command="unlimited-skills",
+                           args=["mcp", "gateway", "--config", "x"])]
+    assert ms.gateway_is_configured(servers=servers) is True
+
+
+def test_gateway_is_configured_false_for_plain_servers():
+    servers = [_FakeServer(name="codex", command="codex.exe", args=["mcp"]),
+               _FakeServer(name="github", command="npx", args=["-y", "github-mcp"])]
+    assert ms.gateway_is_configured(servers=servers) is False
+
+
+def test_meter_omits_mcp_when_gateway_not_configured():
+    from unlimited_skills import money_saved_meter_v2 as m2
+    report = m2.build_meter_v2(
+        model="anthropic:claude-opus-4.8", agent="claude-code",
+        skills_block={"total_tokens_saved": 18050, "token_count_privacy": {}},
+        mcp_block={"total_tokens_saved": 999999},  # supplied, but must be ignored
+        gateway_fronting=False,
+    )
+    assert "mcp" not in report["savings"]
+    assert "mcp_savings" not in report
+    assert report["mcp_status"]["reason"] == "gateway_not_configured"
+    assert report["savings"]["total"]["tokens_saved"] == 18050  # skills only
+
+
+def test_meter_includes_mcp_when_gateway_fronting():
+    from unlimited_skills import money_saved_meter_v2 as m2
+    report = m2.build_meter_v2(
+        model="anthropic:claude-opus-4.8", agent="claude-code",
+        skills_block={"total_tokens_saved": 18050, "token_count_privacy": {}},
+        mcp_block={"total_tokens_saved": 2000, "token_count_privacy": {}},
+        gateway_fronting=True,
+    )
+    assert "mcp" in report["savings"]
+    assert "mcp_status" not in report
+    assert report["savings"]["total"]["tokens_saved"] == 18050 + 2000

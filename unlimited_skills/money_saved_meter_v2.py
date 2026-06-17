@@ -24,7 +24,7 @@ import re
 from pathlib import Path
 from typing import Any, Callable
 
-from .mcp_savings import build_mcp_savings
+from .mcp_savings import build_mcp_savings, gateway_is_configured
 from .model_detect import bind_model, binding_error
 from .money_events import MONEY_MODEL_VERSION, default_price_class
 from .money_pricing import ModelPrice, money_for_tokens, price_per_1m, pricing_basis
@@ -75,6 +75,7 @@ def build_meter_v2(
     servers: list | None = None,
     server_payloads: list[dict] | None = None,
     gateway_payload_text: str | None = None,
+    gateway_fronting: bool | None = None,
     exact_counter: Callable[[str], int] | None = None,
     events: dict[str, Any] | None = None,
     db: dict[str, Any] | None = None,
@@ -114,8 +115,16 @@ def build_meter_v2(
             provider=provider, model_api_id=None, root=root,
             descriptors=skills_descriptors, exact_counter=counter, event_count=event_count,
         )
+    # MCP money is honest ONLY when our Unlimited Tools gateway actually fronts the
+    # servers. If the caller supplied MCP data explicitly (tests / gateway path) we
+    # trust it; otherwise we auto-detect. When the gateway is NOT configured we do
+    # NOT report MCP at all — no number, no claim (owner: "если гейтвей не включен —
+    # не пишем о нём"). Skills are always realized by the router regardless.
+    if gateway_fronting is None:
+        gateway_fronting = mcp_block is not None or server_payloads is not None or gateway_is_configured()
+    mcp_gated_off = bool(include_mcp) and not gateway_fronting
     mcp = None
-    if include_mcp:
+    if include_mcp and gateway_fronting:
         mcp = mcp_block or build_mcp_savings(
             provider=provider, model_api_id=None, server_payloads=server_payloads,
             servers=servers, gateway_payload_text=gateway_payload_text,
@@ -156,6 +165,17 @@ def build_meter_v2(
         report["skills_savings"] = savings["skills"]
     if "mcp" in savings:
         report["mcp_savings"] = savings["mcp"]
+    if mcp_gated_off:
+        # Gateway not in the loop -> we make no MCP claim at all.
+        report["mcp_status"] = {
+            "available": False,
+            "reason": "gateway_not_configured",
+            "note": (
+                "MCP savings are reported only when your MCP servers are routed "
+                "through the Unlimited Tools gateway. The gateway is not configured "
+                "as an MCP server here, so no MCP saving is claimed."
+            ),
+        }
     if privacy is not None:
         report["token_count_privacy"] = privacy
     return report

@@ -40,6 +40,33 @@ BASELINE_MATERIAL = "full_upstream_tools_list_for_all_configured_servers"
 ACTUAL_MATERIAL = "gateway_meta_tools_list"
 
 
+def gateway_is_configured(
+    *,
+    home: Path | None = None,
+    claude_json_path: Path | None = None,
+    servers: list | None = None,
+) -> bool:
+    """True only if the Unlimited Tools gateway actually fronts the MCP servers.
+
+    MCP money is honest ONLY when our gateway is the configured MCP front — then
+    we proxy every upstream and the baseline/savings are both real and measured.
+    Otherwise the host talks to its servers directly (we are not in the loop), so
+    we must not report any MCP saving. Detected by scanning the host's configured
+    MCP servers for our gateway entrypoint.
+    """
+    discovered = servers if servers is not None else discover_mcp_servers(claude_json_path, home=home)
+    for server in discovered:
+        name = (getattr(server, "name", "") or "").lower()
+        cmd = (getattr(server, "command", "") or "").lower()
+        args = " ".join(str(a) for a in getattr(server, "args", []) or []).lower()
+        blob = f"{name} {cmd} {args}"
+        if ("unlimited-skills" in blob or "unlimited_skills" in blob) and "gateway" in blob:
+            return True
+        if name in {"unlimited-tools", "unlimited-tools-gateway", "unlimited-skills-gateway"}:
+            return True
+    return False
+
+
 def inventory_server_payloads(
     *,
     servers: list | None = None,
