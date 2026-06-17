@@ -60,6 +60,30 @@ def _library_summary(root: Path) -> dict[str, Any]:
     }
 
 
+def _runtime_deps_summary() -> dict[str, Any]:
+    """Are the optional extras needed for native-language search installed?
+
+    ``[server]`` (fastapi/uvicorn) runs the warm daemon (``unlimited-skills serve``);
+    ``[vector]`` (fastembed/chromadb) is the multilingual embedding sidecar. Without
+    BOTH, non-English prompts return nothing. Pure ``find_spec`` — imports nothing.
+    """
+    import importlib.util
+
+    def present(mod: str) -> bool:
+        try:
+            return importlib.util.find_spec(mod) is not None
+        except (ImportError, ValueError):
+            return False
+
+    server = present("fastapi") and present("uvicorn")
+    vector = present("fastembed") and present("chromadb")
+    return {
+        "server_extra_present": server,
+        "vector_extra_present": vector,
+        "multilingual_ready": server and vector,
+    }
+
+
 def _registration_summary() -> dict[str, Any]:
     try:
         state = load_registration()
@@ -346,6 +370,19 @@ def build_doctor_report(root: Path, *, agent: str = "all", project_root: Path | 
         recommendations.append("Lexical index is missing. Run `unlimited-skills reindex`.")
     for info in agents.values():
         recommendations.extend(info.get("recommendations") or [])
+    runtime_deps = _runtime_deps_summary()
+    if not runtime_deps["vector_extra_present"]:
+        recommendations.append(
+            "Multilingual search deps are MISSING ([vector]: fastembed/chromadb) — non-English "
+            "prompts return nothing. Install with `pip install \"unlimited-skills[all]\"`, then "
+            "rebuild the sidecar: `unlimited-skills vector-reindex`."
+        )
+    if not runtime_deps["server_extra_present"]:
+        recommendations.append(
+            "Warm search daemon deps are MISSING ([server]: fastapi/uvicorn) — `unlimited-skills "
+            "serve` cannot run, so native-language search stays slow (~14-20s cold). Install with "
+            "`pip install \"unlimited-skills[all]\"`."
+        )
     from .search_core import read_router_metrics
 
     router_metrics = read_router_metrics(root)
@@ -354,6 +391,7 @@ def build_doctor_report(root: Path, *, agent: str = "all", project_root: Path | 
         "root": str(root),
         "registration": _registration_summary(),
         "library": library,
+        "runtime_deps": runtime_deps,
         "private_packs": private_pack_local_summary(root),
         "router": {
             "total_invocations": router_metrics.get("total_invocations", 0),
@@ -380,6 +418,11 @@ def format_doctor_text(report: dict[str, Any]) -> str:
         f"Private packs: {report.get('private_packs', {}).get('installed_count', 0)}",
         "Lexical index: " + ("present" if library["index_present"] else "missing"),
         "Vector index: " + ("present" if library["vector_index_present"] else "missing"),
+        "Multilingual ready: " + (
+            "yes"
+            if report.get("runtime_deps", {}).get("multilingual_ready")
+            else "NO — non-English search is dead; run `pip install \"unlimited-skills[all]\"` + `unlimited-skills vector-reindex`"
+        ),
     ]
     router = report.get("router", {})
     last_call = router.get("last_call", {})
