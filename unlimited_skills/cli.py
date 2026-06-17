@@ -443,6 +443,7 @@ def build_parser() -> argparse.ArgumentParser:
     from .commands import library as library_cmds
     from .commands import money_saved as money_saved_cmds
     from .commands import router_health as router_health_cmds
+    from .commands import sync_inject as sync_inject_cmds
     from .commands import mcp as mcp_cmds
     from .commands import policy as policy_cmds
     from .commands import private_packs as private_packs_cmds
@@ -951,6 +952,21 @@ def build_parser() -> argparse.ArgumentParser:
     doctor.add_argument("--json", action="store_true", help="Print machine-readable diagnostics.")
     doctor.add_argument("--agent", choices=["codex", "claude-code", "hermes", "openclaw", "all"], default="all", help="Limit agent diagnostics.")
     doctor.set_defaults(func=library_cmds.cmd_doctor)
+
+    sync_inject = sub.add_parser(
+        "sync-inject",
+        help="Refresh every installed agent's router inject (CLAUDE.md / AGENTS.md / Hermes SKILL.md) to the current contract. Run after a package upgrade.",
+    )
+    sync_inject.add_argument("--agent", action="append", choices=["claude-code", "codex", "hermes"], help="Limit the refresh to these agents (repeatable; default: all installed).")
+    sync_inject.add_argument("--claude-home", default="", help="Claude home dir (default: $CLAUDE_HOME or ~/.claude).")
+    sync_inject.add_argument("--codex-home", default="", help="Codex home dir (default: $CODEX_HOME or ~/.codex).")
+    sync_inject.add_argument("--hermes-home", default="", help="Hermes home dir (default: $HERMES_HOME or ~/.hermes).")
+    sync_inject.add_argument("--project-root", default="", help="Project root holding the project CLAUDE.md / AGENTS.md (default: cwd).")
+    sync_inject.add_argument("--no-global", action="store_true", help="Do not refresh the global ~/.claude/CLAUDE.md block.")
+    sync_inject.add_argument("--no-project", action="store_true", help="Do not refresh the project CLAUDE.md / AGENTS.md block.")
+    sync_inject.add_argument("--no-backup", action="store_true", help="Do not back up a file before refreshing its block.")
+    sync_inject.add_argument("--json", action="store_true", help="Print a machine-readable refresh report.")
+    sync_inject.set_defaults(func=sync_inject_cmds.cmd_sync_inject)
 
     setup = sub.add_parser("setup", help="Guided first-run onboarding wizard.")
     setup_modes = setup.add_mutually_exclusive_group()

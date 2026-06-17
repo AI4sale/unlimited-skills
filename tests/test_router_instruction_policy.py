@@ -59,7 +59,9 @@ def test_installed_router_blocks_carry_the_suggest_contract() -> None:
         REPO_ROOT / "scripts" / "install-codex.ps1",
         REPO_ROOT / "scripts" / "install-codex.sh",
         REPO_ROOT / "unlimited_skills" / "installers" / "claude_code.py",
-        REPO_ROOT / "unlimited_skills" / "installers" / "openclaw.py",
+        # The AGENTS.md block (Codex / OpenClaw) now lives in the shared
+        # agents_patch module; openclaw.py renders it via agents_block().
+        REPO_ROOT / "unlimited_skills" / "agents_patch.py",
     ]:
         text = path.read_text(encoding="utf-8")
         assert RI2_SUGGEST in text.replace("\\\"", '"'), path

@@ -194,6 +194,8 @@ def _write_launchers(sh_launcher: Path, ps_launcher: Path, repo_root: Path, libr
 
 
 def _render_router_skill(router_skill: Path, sh_launcher: Path, ps_launcher: Path, library_root: Path, remote: RemoteHubInstallOptions) -> None:
+    from unlimited_skills.installers.claude_code import apply_claude_block, router_block_lines
+
     text = router_skill.read_text(encoding="utf-8", errors="replace")
     replacements = {
         "{{HERMES_SH_LAUNCHER}}": sh_launcher.as_posix(),
@@ -203,7 +205,10 @@ def _render_router_skill(router_skill: Path, sh_launcher: Path, ps_launcher: Pat
     }
     for needle, value in replacements.items():
         text = text.replace(needle, value)
-    router_skill.write_text(text, encoding="utf-8")
+    # Embed the version-stamped managed contract block so `sync-inject` can detect
+    # a stale Hermes inject after a package upgrade and refresh it in place.
+    block = "\n".join(router_block_lines(sh_launcher.as_posix(), ps_launcher.as_posix()))
+    router_skill.write_text(apply_claude_block(text, block), encoding="utf-8")
 
 
 def _visible_skill_names(visible_root: Path) -> list[str]:

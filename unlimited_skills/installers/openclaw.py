@@ -11,7 +11,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from unlimited_skills.adapters import adapt_library
-from unlimited_skills.agents_patch import patch_agents_file
+from unlimited_skills.agents_patch import agents_block, patch_agents_file
 from unlimited_skills.cli import index_path, save_index, vector_meta_path, vector_sidecar_path
 from unlimited_skills.hub import remote_config_path
 
@@ -157,42 +157,7 @@ def _render_router_skill(router_skill: Path, launcher: Path, library_root: Path,
 
 def _patch_agents_file(agents_file: Path, launcher: Path) -> None:
     agents_file.parent.mkdir(parents=True, exist_ok=True)
-    launcher_text = launcher.as_posix()
-    block = "\n".join(
-        [
-            "<!-- BEGIN UNLIMITED SKILLS -->",
-            "## Unlimited Skills Library",
-            "",
-            "A generated inventory of proven skills (checklists, workflows, regression recipes) that is deliberately NOT in the always-loaded skill list. A 1-second lookup often replaces 20 minutes of rediscovery because the library has shipped-and-tested procedures for recurring tasks.",
-            "",
-            "RUN this single command BEFORE starting every substantive work phase that matches a trigger below. It costs ~1 second and returns at most one compact card, one name hint, or nothing:",
-            "",
-            "```bash",
-            f"\"{launcher_text}\" suggest \"<3-8 keyword phase summary>\" --json --card --limit 1",
-            "```",
-            "",
-            "TRIGGERS (any one suffices):",
-            "",
-            "- writing or reviewing code in a named language/framework (React, Python, Go, n8n, ...)",
-            "- review, audit, or security check of any artifact",
-            "- writing tests, fixing a bug, or debugging a failure",
-            "- git/GitHub workflows: branches, PRs, releases, changelogs",
-            "- writing prose: docs, posts, outreach, marketing, research reports",
-            "- planning, refactoring, migrations, deployments, ops procedures",
-            "- the user names a skill, workflow, or asks \"what can you do\"",
-            "",
-            "PHASE FRESHNESS: a `suggest` result is fresh only for the current substantive phase. Re-query at phase boundaries such as planning -> implementation, backend/API -> frontend/UI, implementation -> testing, testing -> debugging, implementation -> security review, code -> docs, or docs -> release/git workflow. A no-hit result is also scoped only to the current phase.",
-            "",
-            "ACT on the result: if a suggestion looks relevant, run `view <skill-name>` with the same launcher and follow it. If `suggest` returns nothing, proceed with the current phase; do not search again with synonyms for that same phase. Anti-spam: at most one `suggest` probe per phase unless the user explicitly asks for a broader search. For deeper retrieval use `search \"<query>\" --mode hybrid --limit 8`; for inventory questions use `list --limit 80`.",
-            "",
-            "TIER BEHAVIOR: silence means no confident match; a name hint means inspect that skill if it looks relevant; a compact card means a high-confidence match for this phase.",
-            "",
-            "SKIP only when a relevant skill is already active in the current context.",
-            "<!-- END UNLIMITED SKILLS -->",
-            "",
-        ]
-    )
-    patch_agents_file(agents_file, block)
+    patch_agents_file(agents_file, agents_block(launcher.as_posix()))
 
 
 def _openclaw_sources(openclaw_home: Path, workspace_root: Path, include_builtin: bool, include_plugin_skills: bool) -> list[tuple[str, Path]]:
