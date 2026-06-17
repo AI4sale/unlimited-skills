@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import json
 import os
+import socket
 import subprocess
 import sys
 from pathlib import Path
@@ -55,6 +56,15 @@ MIN_PROMPT_CHARS = 12
 MAX_PROMPT_CHARS = 300
 DEFAULT_TIMEOUT_SECONDS = 2.0
 KILL_SWITCH_ENV = "UNLIMITED_SKILLS_NO_INJECT"
+
+# Warm multilingual search daemon (`unlimited-skills serve`). A non-English prompt
+# IS the signal that this user needs native-language search, so the hook starts the
+# daemon in the background — for everyone — so the NEXT native-language lookups are
+# fast (~0.3s) instead of a ~14-20s cold load. Idempotent (skips if the port already
+# listens), detached, best-effort. Escape hatch for restricted envs: NO_AUTOSERVE.
+DAEMON_HOST = "127.0.0.1"
+DAEMON_PORT = 8765
+NO_AUTOSERVE_ENV = "UNLIMITED_SKILLS_NO_AUTOSERVE"
 
 # Tier-3 fallback (non-English rescue). The lexical engine scores a non-English
 # prompt at zero, and a cold multilingual embedding load can exceed the probe
@@ -100,6 +110,41 @@ def _looks_non_english(text: str) -> bool:
     return (ascii_letters / len(letters)) < 0.6
 
 
+def _daemon_listening(host: str = DAEMON_HOST, port: int = DAEMON_PORT) -> bool:
+    try:
+        with socket.create_connection((host, port), timeout=0.2):
+            return True
+    except OSError:
+        return False
+
+
+def _start_daemon_warming(command: list[str]) -> None:
+    """Start the warm search daemon in the background for non-English users.
+
+    Fire-and-forget: detached, idempotent (no-op if the port already listens),
+    best-effort (a missing server extra just dies silently). NEVER blocks or
+    raises — the hook returns immediately and the daemon warms for the NEXT prompt.
+    """
+    if os.environ.get(NO_AUTOSERVE_ENV):
+        return
+    if _daemon_listening():
+        return
+    try:
+        kwargs: dict = {
+            "stdin": subprocess.DEVNULL,
+            "stdout": subprocess.DEVNULL,
+            "stderr": subprocess.DEVNULL,
+        }
+        if os.name == "nt":
+            # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP — survives the hook exit.
+            kwargs["creationflags"] = 0x00000008 | 0x00000200
+        else:
+            kwargs["start_new_session"] = True
+        subprocess.Popen([*command, "serve"], **kwargs)
+    except Exception:
+        return
+
+
 def _emit(context: str) -> None:
     print(
         json.dumps(
@@ -125,6 +170,10 @@ def main() -> int:
         command = resolve_cli_command()
         if not command:
             return 0
+        # A non-English prompt means this user needs native-language search — warm
+        # the daemon in the background now (for everyone) so the NEXT lookups are fast.
+        if non_english:
+            _start_daemon_warming(command)
         inject_cards = not _kill_switch_active()
         cmd = [*command, "suggest", prompt[:MAX_PROMPT_CHARS], "--json", "--limit", "1"]
         if inject_cards:
