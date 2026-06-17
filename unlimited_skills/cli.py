@@ -991,6 +991,8 @@ def build_parser() -> argparse.ArgumentParser:
     doctor = sub.add_parser("doctor", help="Inspect local Unlimited Skills setup without hosted calls or registration.")
     doctor.add_argument("--json", action="store_true", help="Print machine-readable diagnostics.")
     doctor.add_argument("--agent", choices=["codex", "claude-code", "hermes", "openclaw", "all"], default="all", help="Limit agent diagnostics.")
+    doctor.add_argument("--fix", action="store_true", help="Repair: pip-install the missing native-language search extras ([server]+[vector]) into this venv. Best-effort; never fails.")
+    doctor.add_argument("--dry-run", action="store_true", help="With --fix: print the pip command that would run, without executing it.")
     doctor.set_defaults(func=library_cmds.cmd_doctor)
 
     sync_inject = sub.add_parser(

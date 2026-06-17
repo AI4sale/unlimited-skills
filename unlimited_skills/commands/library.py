@@ -623,7 +623,15 @@ def cmd_serve(args: argparse.Namespace) -> int:
 
 def cmd_doctor(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
+    repair = None
+    if getattr(args, "fix", False):
+        from ..doctor import repair_runtime_deps
+
+        repair = repair_runtime_deps(dry_run=getattr(args, "dry_run", False))
+    # Build the report AFTER any repair so runtime_deps reflects the new state.
     report = build_doctor_report(root, agent=args.agent)
+    if repair is not None:
+        report["repair"] = repair
     print(doctor_json(report) if args.json else format_doctor_text(report))
     return 0
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 from pathlib import Path
 from typing import Any
 
@@ -81,6 +82,43 @@ def _runtime_deps_summary() -> dict[str, Any]:
         "server_extra_present": server,
         "vector_extra_present": vector,
         "multilingual_ready": server and vector,
+    }
+
+
+# Concrete contents of the [all] extra (mirror pyproject.toml [project.optional-dependencies]).
+# We install the dep packages directly so repair works regardless of how
+# unlimited-skills itself was installed (pip / editable / git) and never touches
+# or downgrades the core package.
+RUNTIME_EXTRA_PACKAGES = ("fastapi>=0.115", "uvicorn>=0.30", "fastembed>=0.4", "chromadb>=1.0,<2")
+
+
+def repair_runtime_deps(*, dry_run: bool = False, python_executable: str | None = None, timeout: float = 600.0) -> dict[str, Any]:
+    """Deliver the optional native-language search extras ([server]+[vector]).
+
+    Best-effort and idempotent: a no-op when already present, otherwise it
+    ``pip install``s the concrete extra packages into the current venv. NEVER
+    raises — a pip failure is reported, not propagated — so callers (upgrade,
+    ``doctor --fix``) can run it unconditionally without risking the flow.
+    """
+    import sys
+
+    before = _runtime_deps_summary()
+    if before["multilingual_ready"]:
+        return {"action": "noop", "reason": "already_present", "multilingual_ready": True}
+    command = [python_executable or sys.executable, "-m", "pip", "install", *RUNTIME_EXTRA_PACKAGES]
+    if dry_run:
+        return {"action": "dry_run", "command": command, "multilingual_ready": False}
+    try:
+        proc = subprocess.run(command, capture_output=True, text=True, timeout=timeout)
+        ok = proc.returncode == 0
+    except Exception as exc:  # never propagate — repair must not break the caller
+        return {"action": "failed", "error": exc.__class__.__name__, "multilingual_ready": False}
+    after = _runtime_deps_summary()
+    return {
+        "action": "installed" if ok else "failed",
+        "returncode": proc.returncode,
+        "multilingual_ready": after["multilingual_ready"],
+        "stderr_tail": (proc.stderr or "")[-400:] if not ok else "",
     }
 
 

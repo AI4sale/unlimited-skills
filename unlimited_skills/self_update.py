@@ -4,6 +4,7 @@ import json
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import urllib.error
 import urllib.request
@@ -260,6 +261,24 @@ def check_public_repo_update(
     )
 
 
+def _post_upgrade_repair() -> None:
+    """First thing after an upgrade: deliver/repair the runtime extras via doctor.
+
+    Runs the freshly-updated CLI (`doctor --fix`) in a subprocess so the new
+    repair logic applies and the native-language search extras ([server]+[vector])
+    are present. Best-effort and fully guarded — a repair failure must NEVER turn
+    a successful upgrade into an error.
+    """
+    try:
+        subprocess.run(
+            [sys.executable, "-m", "unlimited_skills", "doctor", "--fix", "--json"],
+            capture_output=True,
+            timeout=600,
+        )
+    except Exception:
+        return
+
+
 def apply_public_repo_update(
     status: SelfUpdateStatus,
     *,
@@ -284,6 +303,7 @@ def apply_public_repo_update(
         raise SelfUpdateError("Install root has uncommitted git changes. Commit/stash them or pass --allow-dirty.")
     if method in {"auto", "git"} and status.is_git_checkout:
         apply_git_release(root, status.latest_tag)
+        _post_upgrade_repair()
         return SelfUpdateResult(
             repo=status.repo,
             install_root=str(root),
@@ -295,6 +315,7 @@ def apply_public_repo_update(
     if method == "git":
         raise SelfUpdateError("Install root is not a git checkout; use --method archive or reinstall from the public repo.")
     digest = apply_archive_release(root, status.zipball_url, timeout=timeout)
+    _post_upgrade_repair()
     return SelfUpdateResult(
         repo=status.repo,
         install_root=str(root),
