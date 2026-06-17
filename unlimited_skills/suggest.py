@@ -18,8 +18,9 @@ Design contract (A0 invocation rescue, F1 + Hermes privacy hardening):
   ``recommended_next_action`` (a command by skill NAME only), and
   ``latency_ms``. The task/query text, local filesystem paths, and skill
   bodies must never appear in the output;
-- ``--card`` (F3b ambient injection, opt-in, JSON mode only) adds
-  ``delivery_tier`` (1 silence / 2 hint / 3 card) and, ONLY at tier 3,
+- ``--card`` (F3b ambient injection, opt-in, JSON mode only) adds visible
+  candidate-family source metadata plus ``delivery_tier`` (1 silence / 2
+  hint / 3 card) and, ONLY at tier 3,
   a ``skill_card`` object whose ``card`` text intentionally carries the head
   of the matched skill's own SKILL.md body (hard-capped, see
   :func:`build_skill_card`). The card channel is the single sanctioned
@@ -48,6 +49,7 @@ from pathlib import Path
 from .search_core import (
     DEFAULT_ROOT,
     SkillHit,
+    candidate_debug_payload,
     lexical_search,
     load_records,
     log_event,
@@ -55,6 +57,7 @@ from .search_core import (
     read_text,
     record_router_call,
     score_bucket,
+    shared_candidate_family,
     split_frontmatter,
 )
 
@@ -284,12 +287,15 @@ def recommended_next_action(hits: list[SkillHit], reason_code: str) -> str:
     return "no skill clears the score floor; proceed with the task"
 
 
-def candidate_payload(hits: list[SkillHit]) -> list[dict]:
-    """JSON candidates: name, source (collection/pack), score. Nothing else."""
-    return [
-        {"name": hit.name, "source": hit.collection, "score": round(float(hit.score), 1)}
-        for hit in hits
-    ]
+def candidate_payload(hits: list[SkillHit], *, include_sources: bool = False) -> list[dict]:
+    """JSON candidates: name/source/score; card mode also exposes family sources."""
+    rows = []
+    for hit in hits:
+        row = {"name": hit.name, "source": hit.collection, "score": round(float(hit.score), 1)}
+        if include_sources:
+            row.update(candidate_debug_payload(hit))
+        rows.append(row)
+    return rows
 
 
 def format_suggestion(hit: SkillHit) -> str:
@@ -317,10 +323,10 @@ def build_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _print_json(query: str, hits: list[SkillHit], reason_code: str, elapsed_ms: float, extra: dict | None = None) -> None:
+def _print_json(query: str, hits: list[SkillHit], reason_code: str, elapsed_ms: float, extra: dict | None = None, *, include_candidate_sources: bool = False) -> None:
     payload = {
         "task_summary_hash": task_summary_hash(query),
-        "top_3_skill_candidates": candidate_payload(hits),
+        "top_3_skill_candidates": candidate_payload(hits, include_sources=include_candidate_sources),
         "reason_code": reason_code,
         "recommended_next_action": recommended_next_action(hits, reason_code),
         "latency_ms": round(elapsed_ms, 1),
@@ -352,20 +358,37 @@ def main(argv: list[str] | None = None) -> int:
             pass
         return 0
 
-    # Non-English / lexical-empty rescue: try the local multilingual embedding
-    # sidecar; if none is installed (or disabled), flag needs_english_query so
-    # the caller re-queries with English keywords instead of getting silence.
+    # Card/hook mode uses the shared candidate family across lexical + vector
+    # when a sidecar is present. Without a sidecar, it records an explicit
+    # vector_status and keeps lexical delivery alive.
     retrieval_path = "lexical" if hits else "none"
+    vector_status = "not_requested"
     needs_english = False
-    if not hits and not looks_english(args.query):
-        if not _vector_fallback_disabled() and sidecar_installed(root):
+    if args.card:
+        if _vector_fallback_disabled():
+            vector_status = "disabled"
+        elif sidecar_installed(root):
+            vector_status = "available_no_hits"
             vector_hits = vector_probe(root, args.query, fetch_limit, args.collection)
             if vector_hits:
-                hits = vector_hits
-                reason_code = REASON_MATCH_FOUND
-                retrieval_path = "vector"
-        if not hits:
-            needs_english = True
+                hits = shared_candidate_family(
+                    root,
+                    args.query,
+                    fetch_limit,
+                    collection=args.collection,
+                    vector_hits=vector_hits,
+                )
+                reason_code = REASON_MATCH_FOUND if hits and hits[0].score >= args.floor else REASON_LOW_CONFIDENCE
+                retrieval_path = "hybrid" if any("lexical" in candidate_debug_payload(hit).get("candidate_sources", []) for hit in hits) else "vector"
+                vector_status = "available_used"
+        else:
+            vector_status = "unavailable_missing_sidecar"
+
+    # Non-English / no-result rescue: if no candidate survived the shared
+    # family and there is no usable vector path, flag needs_english_query so
+    # the caller re-queries with English keywords instead of getting silence.
+    if not hits and not looks_english(args.query):
+        needs_english = True
 
     # The new routing fields ride only on the --card channel (the hook's mode);
     # the plain --json contract stays byte-identical for existing consumers.
@@ -374,6 +397,7 @@ def main(argv: list[str] | None = None) -> int:
     injected = False
     if args.card:
         extra["retrieval_path"] = retrieval_path
+        extra["vector_status"] = vector_status
         if needs_english:
             extra["needs_english_query"] = True
         tier = select_tier(hits, floor=args.floor, high_threshold=args.high_threshold, margin=args.high_margin)
@@ -392,7 +416,7 @@ def main(argv: list[str] | None = None) -> int:
     elapsed_ms = (time.perf_counter() - started) * 1000.0
 
     if args.json:
-        _print_json(args.query, display_hits, reason_code, elapsed_ms, extra)
+        _print_json(args.query, display_hits, reason_code, elapsed_ms, extra, include_candidate_sources=bool(args.card))
     else:
         for hit in display_hits:
             print(format_suggestion(hit))
