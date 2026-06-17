@@ -136,8 +136,15 @@ def _start_daemon_warming(command: list[str]) -> None:
             "stderr": subprocess.DEVNULL,
         }
         if os.name == "nt":
-            # DETACHED_PROCESS | CREATE_NEW_PROCESS_GROUP — survives the hook exit.
+            # DETACHED_PROCESS (no console at all) | CREATE_NEW_PROCESS_GROUP — survives
+            # the hook exit and shows NO window (the scary blank window comes from
+            # CREATE_NEW_CONSOLE, which we never use). STARTUPINFO + SW_HIDE is
+            # belt-and-suspenders so nothing flashes even via a powershell launcher.
             kwargs["creationflags"] = 0x00000008 | 0x00000200
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = 0  # SW_HIDE
+            kwargs["startupinfo"] = startupinfo
         else:
             kwargs["start_new_session"] = True
         subprocess.Popen([*command, "serve"], **kwargs)
