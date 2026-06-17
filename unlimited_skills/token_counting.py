@@ -29,11 +29,8 @@ from typing import Any, Callable
 
 ANTHROPIC_COUNTER = "anthropic_count_tokens"
 PROVIDER_COUNTER = "provider_count_tokens"
-OPENAI_COUNTER = "openai_tiktoken"
 FALLBACK_NAME = "bytes_divided_by_4"
 APPROX_BYTES_PER_TOKEN = 4
-# o200k_base is the GPT-5/4o-family encoding; used for codex/openclaw/hermes.
-_OPENAI_ENCODING = "o200k_base"
 
 
 @dataclass(frozen=True)
@@ -91,28 +88,6 @@ def make_anthropic_counter(model_api_id: str, *, api_key: str | None = None) -> 
     return _count
 
 
-def make_openai_counter(model_api_id: str | None = None, *, encoding: str = _OPENAI_ENCODING) -> Callable[[str], int] | None:
-    """Exact OpenAI-family token counter via tiktoken (local + offline).
-
-    Returns ``None`` if ``tiktoken`` (or the encoding) is unavailable, so callers
-    fall back to the byte heuristic. Unlike the Anthropic path this needs no API
-    key and no network at call time, so it is safe to run inside a hook.
-    """
-    try:
-        import tiktoken  # type: ignore
-    except ImportError:
-        return None
-    try:
-        enc = tiktoken.get_encoding(encoding)
-    except Exception:
-        return None
-
-    def _count(text: str) -> int:
-        return len(enc.encode(text or ""))
-
-    return _count
-
-
 def count_tokens(
     text: str,
     *,
@@ -140,13 +115,6 @@ def count_tokens(
             if counter is not None:
                 try:
                     return TokenCount(int(counter(text)), provider, ANTHROPIC_COUNTER, True, True, model_api_id)
-                except Exception:
-                    pass
-        elif provider == "openai":
-            counter = make_openai_counter(model_api_id)
-            if counter is not None:
-                try:
-                    return TokenCount(int(counter(text)), provider, OPENAI_COUNTER, True, True, model_api_id)
                 except Exception:
                     pass
     return TokenCount(bytes_divided_by_4(text), provider, FALLBACK_NAME, False, False, model_api_id)
