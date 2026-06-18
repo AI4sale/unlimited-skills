@@ -50,7 +50,19 @@ def test_long_run_verifier_passes_fixture(tmp_path: Path) -> None:
 def test_long_run_negative_controls_are_detected() -> None:
     controls = long_run._negative_controls_detected()
     assert controls
-    assert all(controls.values())
+    assert {
+        "zero_candidate_regression",
+        "no_phase_boundary_requery",
+        "accepted_feedback_does_not_improve_rank",
+        "wrong_feedback_does_not_demote",
+        "use_without_query_does_not_correlate",
+        "raw_query_leak",
+        "manual_skill_directory_walk",
+    } <= set(controls)
+    for name, result in controls.items():
+        assert result["failure_count"] > 0, result
+        assert result["matched_reasons"], result
+        assert result["detected"] is True, f"{name}: {json.dumps(result, indent=2)}"
 
 
 def test_long_run_privacy_scan_rejects_raw_query(tmp_path: Path) -> None:

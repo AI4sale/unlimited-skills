@@ -13,6 +13,7 @@ import importlib.util
 import json
 import sys
 import tempfile
+from collections.abc import Callable
 from contextlib import redirect_stdout
 from dataclasses import asdict
 from io import StringIO
@@ -34,6 +35,7 @@ from unlimited_skills.search_core import (  # noqa: E402
 
 FIXTURE_PATH = REPO_ROOT / "tests" / "fixtures" / "retrieval" / "long_run_phases.v1.json"
 ZERO_GATE_SCRIPT = REPO_ROOT / "scripts" / "verify-v065-zero-candidate-gates.py"
+_NEGATIVE_CONTROLS_CACHE: dict[str, dict[str, Any]] | None = None
 
 
 def _load_zero_gate_module():
@@ -204,19 +206,136 @@ def _scan_privacy(root: Path, fixture: dict[str, Any], *, extra_text: str = "") 
     }
 
 
-def _negative_controls_detected() -> dict[str, bool]:
-    return {
-        "zero_candidate_regression": bool({"search_candidate_count": 3, "hook_candidate_count": 0}),
-        "no_phase_boundary_requery": 0 < 9,
-        "accepted_feedback_does_not_improve_rank": not (2 and 2 and 2 < 2),
-        "wrong_feedback_does_not_demote": not (1 and 1 and 1 > 1),
-        "use_without_query_does_not_correlate": "learning_boost" not in ["lexical", "description"],
-        "raw_query_leak": bool("write linkedin launch article"),
-        "manual_skill_directory_walk": "filesystem_walk" in {"filesystem_walk"},
+def _step_by_number(fixture: dict[str, Any], step_number: int) -> dict[str, Any]:
+    for _phase, step in _all_steps(fixture):
+        if int(step.get("step") or 0) == step_number:
+            return step
+    raise KeyError(f"step {step_number} not found")
+
+
+def _failure_reasons(report: dict[str, Any]) -> set[str]:
+    return {str(row.get("reason") or "") for row in report.get("failures") or [] if isinstance(row, dict)}
+
+
+def _negative_controls_detected() -> dict[str, dict[str, Any]]:
+    global _NEGATIVE_CONTROLS_CACHE
+    if _NEGATIVE_CONTROLS_CACHE is not None:
+        return _NEGATIVE_CONTROLS_CACHE
+
+    def run_control(
+        name: str,
+        mutate: Callable[[dict[str, Any]], None],
+        expected_reasons: set[str],
+        *,
+        post_run_mutation: Callable[[Path], None] | None = None,
+    ) -> dict[str, Any]:
+        fixture = load_fixture()
+        mutate(fixture)
+        with tempfile.TemporaryDirectory(
+            prefix=f"uls-v065-long-run-negative-{name}-",
+            ignore_cleanup_errors=True,
+        ) as tmp:
+            report = build_report(
+                Path(tmp) / "library",
+                fixture,
+                run_negative_controls=False,
+                post_run_mutation=post_run_mutation,
+            )
+        reasons = _failure_reasons(report)
+        matched = sorted(expected_reasons & reasons)
+        return {
+            "detected": not report["ok"] and bool(matched),
+            "expected_reasons": sorted(expected_reasons),
+            "matched_reasons": matched,
+            "actual_reasons": sorted(reasons),
+            "failure_count": len(report.get("failures") or []),
+        }
+
+    def zero_candidate_regression(fixture: dict[str, Any]) -> None:
+        step = _step_by_number(fixture, 1)
+        step["query"] = "xqzv unmatched zero candidate regression 918273"
+        step["expected_family"] = ["marketing-campaign"]
+
+    def no_phase_boundary_requery(fixture: dict[str, Any]) -> None:
+        for _phase, step in _all_steps(fixture):
+            step.pop("phase_boundary", None)
+
+    def accepted_feedback_does_not_improve_rank(fixture: dict[str, Any]) -> None:
+        _step_by_number(fixture, 6)["verdict"] = "wrong"
+
+    def wrong_feedback_does_not_demote(fixture: dict[str, Any]) -> None:
+        _step_by_number(fixture, 8)["verdict"] = "accepted"
+
+    def use_without_query_does_not_correlate(fixture: dict[str, Any]) -> None:
+        for step_number in (31, 32, 33):
+            step = _step_by_number(fixture, step_number)
+            step["query"] = "watering schedule balcony plants"
+            step["expected_family"] = ["gardening-basics"]
+
+    def raw_query_leak(_fixture: dict[str, Any]) -> None:
+        return None
+
+    def inject_raw_query(root: Path) -> None:
+        learning_dir = root / ".learning"
+        learning_dir.mkdir(parents=True, exist_ok=True)
+        (learning_dir / "negative-control.jsonl").write_text(
+            json.dumps({"raw_query": "write linkedin launch article"}) + "\n",
+            encoding="utf-8",
+        )
+
+    def manual_skill_directory_walk(fixture: dict[str, Any]) -> None:
+        step = _step_by_number(fixture, 40)
+        step["action"] = "filesystem_walk"
+
+    controls = {
+        "zero_candidate_regression": run_control(
+            "zero-candidate-regression",
+            zero_candidate_regression,
+            {"retrieval_zero_candidates", "suggest_no_candidates"},
+        ),
+        "no_phase_boundary_requery": run_control(
+            "no-phase-boundary-requery",
+            no_phase_boundary_requery,
+            {"unexpected_phase_boundary_requery_count"},
+        ),
+        "accepted_feedback_does_not_improve_rank": run_control(
+            "accepted-feedback-no-lift",
+            accepted_feedback_does_not_improve_rank,
+            {"accepted_feedback_did_not_improve_rank"},
+        ),
+        "wrong_feedback_does_not_demote": run_control(
+            "wrong-feedback-no-demotion",
+            wrong_feedback_does_not_demote,
+            {"wrong_feedback_did_not_demote"},
+        ),
+        "use_without_query_does_not_correlate": run_control(
+            "use-without-query-no-correlation",
+            use_without_query_does_not_correlate,
+            {"use_without_query_did_not_correlate", "accepted_feedback_did_not_improve_rank"},
+        ),
+        "raw_query_leak": run_control(
+            "raw-query-leak",
+            raw_query_leak,
+            {"learning_log_privacy_failure"},
+            post_run_mutation=inject_raw_query,
+        ),
+        "manual_skill_directory_walk": run_control(
+            "manual-skill-directory-walk",
+            manual_skill_directory_walk,
+            {"manual_skill_folder_walk_detected"},
+        ),
     }
+    _NEGATIVE_CONTROLS_CACHE = controls
+    return controls
 
 
-def build_report(root: Path, fixture: dict[str, Any] | None = None) -> dict[str, Any]:
+def build_report(
+    root: Path,
+    fixture: dict[str, Any] | None = None,
+    *,
+    run_negative_controls: bool = True,
+    post_run_mutation: Callable[[Path], None] | None = None,
+) -> dict[str, Any]:
     fixture = fixture or load_fixture()
     build_fixture_library(root)
     steps = _all_steps(fixture)
@@ -387,6 +506,8 @@ def build_report(root: Path, fixture: dict[str, Any] | None = None) -> dict[str,
                 lift_cases[f"{case_id}:{label}"] = row
                 if not (row["rank_before"] and row["rank_after"] and row["rank_after"] < row["rank_before"]):
                     _append_failure(failures, f"step-{step.get('step')}", "accepted_feedback_did_not_improve_rank", case=row)
+                    if case_id == "manual_no_query_accept":
+                        _append_failure(failures, f"step-{step.get('step')}", "use_without_query_did_not_correlate", case=row)
                 if "learning_boost" not in sources:
                     _append_failure(failures, f"step-{step.get('step')}", "learning_boost_source_missing", case=row)
             else:
@@ -402,9 +523,12 @@ def build_report(root: Path, fixture: dict[str, Any] | None = None) -> dict[str,
             _append_failure(failures, f"step-{step.get('step')}", "unknown_action", action=action)
         trace.append(trace_row)
 
+    if post_run_mutation:
+        post_run_mutation(root)
+
     privacy = _scan_privacy(root, fixture)
-    negative_controls = _negative_controls_detected()
-    failed_controls = [name for name, detected in negative_controls.items() if not detected]
+    negative_controls = _negative_controls_detected() if run_negative_controls else {}
+    failed_controls = [name for name, result in negative_controls.items() if not result.get("detected")]
     if failed_controls:
         _append_failure(failures, "negative_controls", "failure_detector_not_triggered", controls=failed_controls)
     if not privacy["ok"] or not privacy["query_token_hashes_present"]:
