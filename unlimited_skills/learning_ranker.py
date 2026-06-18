@@ -10,6 +10,7 @@ from .search_core import (
     LEARNING_BOOST_WEIGHT,
     LEARNING_DEMOTION_WEIGHT,
     LEARNING_MAX_ADJUSTMENT,
+    expanded_query,
     skill_identity,
     task_summary_hash,
     token_summary_hash,
@@ -174,7 +175,7 @@ def _jaccard(a: frozenset[str], b: frozenset[str]) -> float:
 
 
 def query_tokens(query: str) -> frozenset[str]:
-    return frozenset(token_summary_hash(token) for token in sorted(tokens(query)))
+    return frozenset(token_summary_hash(token) for token in sorted(tokens(expanded_query(query))))
 
 
 def learning_adjustments_for_query(root: Path, query: str) -> dict[str, float]:

@@ -846,7 +846,10 @@ def event_safe_payload(root: Path, event_type: str, payload: dict) -> dict:
             safe[f"{field}_summary_hash"] = task_summary_hash(value)
             safe[f"{field}_present"] = True
             if field == "query":
-                safe["query_token_hashes"] = [token_summary_hash(token) for token in sorted(tokens(str(value)))[:40]]
+                safe["query_token_hashes"] = [
+                    token_summary_hash(token)
+                    for token in sorted(tokens(expanded_query(str(value))))[:40]
+                ]
     notes = safe.pop("notes", "")
     if notes:
         safe["notes_present"] = True
