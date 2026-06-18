@@ -157,7 +157,7 @@ def _record_money_event(command: list[str], event_type: str) -> None:
         return
     try:
         subprocess.run(
-            [*command, "money-saved", "record-event", event_type],
+            [*command, "money-saved", "record-event", event_type, "--agent", "claude-code"],
             capture_output=True,
             timeout=_MONEY_EVENT_TIMEOUT_SECONDS,
         )

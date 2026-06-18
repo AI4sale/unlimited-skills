@@ -33,7 +33,7 @@ def make_repo(root: Path) -> Path:
     write_skill(root / "packs" / "superpowers" / "skills", "systematic-debugging")
     hooks_dir = root / "plugin" / "hooks"
     hooks_dir.mkdir(parents=True)
-    for script in ("_cli_resolve.py", "session_start.py", "user_prompt_submit.py"):
+    for script in ("_cli_resolve.py", "session_start.py", "user_prompt_submit.py", "pre_compact.py"):
         (hooks_dir / script).write_text(f"# stub {script}\n", encoding="utf-8")
     return root
 
@@ -73,8 +73,12 @@ def test_claude_code_install_bundled_imports_personal_and_project_skills(tmp_pat
     ps_launcher = (router_target / "scripts" / "unlimited-skills.ps1").read_text(encoding="utf-8")
     assert "UNLIMITED_SKILLS_CLAUDE_PROJECT_ROOT" in shell_launcher
     assert project_root.as_posix() in shell_launcher
+    assert "UNLIMITED_SKILLS_HOME" in shell_launcher
+    assert install_root.as_posix() in shell_launcher
     assert "UNLIMITED_SKILLS_CLAUDE_PROJECT_ROOT" in ps_launcher
     assert json.dumps(str(project_root)) in ps_launcher
+    assert "UNLIMITED_SKILLS_HOME" in ps_launcher
+    assert json.dumps(str(install_root)) in ps_launcher
 
     router_text = (router_target / "SKILL.md").read_text(encoding="utf-8")
     assert "{{CLAUDE_SH_LAUNCHER}}" not in router_text
@@ -98,11 +102,11 @@ def test_claude_code_install_bundled_imports_personal_and_project_skills(tmp_pat
 
     settings = json.loads((claude_home / "settings.json").read_text(encoding="utf-8"))
     assert report.hooks_registered is True
-    for event, script in (("SessionStart", "session_start.py"), ("UserPromptSubmit", "user_prompt_submit.py")):
+    for event, script in (("SessionStart", "session_start.py"), ("UserPromptSubmit", "user_prompt_submit.py"), ("PreCompact", "pre_compact.py")):
         commands = [hook["command"] for entry in settings["hooks"][event] for hook in entry["hooks"]]
         assert any(script in command for command in commands), event
     hooks_dir = router_target / "hooks"
-    for script in ("_cli_resolve.py", "session_start.py", "user_prompt_submit.py"):
+    for script in ("_cli_resolve.py", "session_start.py", "user_prompt_submit.py", "pre_compact.py"):
         assert (hooks_dir / script).is_file()
 
     assert (library / "registry" / "ecc" / "skills" / "security-review" / "SKILL.md").is_file()
@@ -234,6 +238,8 @@ def test_claude_code_install_hooks_can_be_skipped_and_merge_is_idempotent(tmp_pa
     assert sum("session_start.py" in command for command in session_start_commands) == 1
     prompt_commands = [hook["command"] for entry in settings["hooks"]["UserPromptSubmit"] for hook in entry["hooks"]]
     assert sum("user_prompt_submit.py" in command for command in prompt_commands) == 1
+    precompact_commands = [hook["command"] for entry in settings["hooks"]["PreCompact"] for hook in entry["hooks"]]
+    assert sum("pre_compact.py" in command for command in precompact_commands) == 1
 
 
 def test_claude_code_install_hooks_fail_soft_on_invalid_settings(tmp_path: Path) -> None:

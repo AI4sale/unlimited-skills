@@ -262,9 +262,13 @@ def _patch_claude_file(claude_file: Path, sh_launcher: Path, ps_launcher: Path) 
     claude_file.write_text(apply_claude_block(text, block), encoding="utf-8")
 
 
-HOOK_SCRIPTS = ("_cli_resolve.py", "session_start.py", "user_prompt_submit.py")
-HOOK_EVENTS = {"SessionStart": "session_start.py", "UserPromptSubmit": "user_prompt_submit.py"}
-HOOK_TIMEOUTS = {"SessionStart": 15, "UserPromptSubmit": 10}
+HOOK_SCRIPTS = ("_cli_resolve.py", "session_start.py", "user_prompt_submit.py", "pre_compact.py")
+HOOK_EVENTS = {
+    "SessionStart": "session_start.py",
+    "UserPromptSubmit": "user_prompt_submit.py",
+    "PreCompact": "pre_compact.py",
+}
+HOOK_TIMEOUTS = {"SessionStart": 15, "UserPromptSubmit": 10, "PreCompact": 15}
 
 
 def _copy_hook_scripts(repo_root: Path, hooks_target: Path) -> bool:
@@ -288,7 +292,7 @@ def _is_unlimited_skills_hook_entry(entry: object) -> bool:
 
 
 def _register_claude_hooks(settings_file: Path, hooks_dir: Path, python_executable: str) -> tuple[bool, str]:
-    """Merge SessionStart/UserPromptSubmit hook commands into settings.json.
+    """Merge SessionStart/UserPromptSubmit/PreCompact hook commands into settings.json.
 
     Idempotent: previous unlimited-skills hook entries are replaced. Fails
     soft (returns False + reason) when the settings file is unparseable, so

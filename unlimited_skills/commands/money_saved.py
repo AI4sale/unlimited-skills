@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 
 
@@ -220,6 +221,24 @@ def _print_json(obj) -> None:
     print(json.dumps(obj, ensure_ascii=False, indent=2, sort_keys=True))
 
 
+def _event_directory_for_args(args: argparse.Namespace) -> Path:
+    """Resolve the Money Saved event store used by this CLI invocation.
+
+    ``--root`` points at the skill library, not the install home. Installed
+    launchers pass ``--root <install>/library`` and now also set
+    ``UNLIMITED_SKILLS_HOME=<install>``. This fallback keeps older launchers and
+    direct CLI calls aligned with the same sibling ``money_saved`` store.
+    """
+    from ..money_events import money_saved_dir
+
+    if os.environ.get("UNLIMITED_SKILLS_HOME"):
+        return money_saved_dir()
+    root = Path(getattr(args, "root", "") or "").expanduser()
+    if root.name == "library":
+        return root.parent / "money_saved"
+    return money_saved_dir()
+
+
 def _detect_schema(path: Path) -> str:
     try:
         return str(json.loads(path.read_text(encoding="utf-8")).get("schema_version", ""))
@@ -306,10 +325,10 @@ def cmd_money_saved_prices(args: argparse.Namespace) -> int:
 
 
 def cmd_money_saved_events(args: argparse.Namespace) -> int:
-    from ..money_events import build_event, events_inspect, money_saved_dir, record_event
+    from ..money_events import build_event, events_inspect, record_event
 
     if getattr(args, "events_action", "inspect") == "record-fixture":
-        directory = money_saved_dir()
+        directory = _event_directory_for_args(args)
         count = max(1, int(getattr(args, "event_count", 3)))
         for i in range(count):
             event_type = "session_start" if i == 0 else "compaction"
@@ -322,7 +341,20 @@ def cmd_money_saved_events(args: argparse.Namespace) -> int:
             ), directory)
         _print_json({"ok": True, "recorded": count, "dir": str(directory)})
         return 0
-    _print_json(events_inspect())
+    if getattr(args, "events_action", "inspect") == "backfill-codex-logs":
+        from ..money_backfill import backfill_codex_logs
+
+        report = backfill_codex_logs(
+            sessions_root=Path(getattr(args, "sessions_root", "")).expanduser(),
+            event_directory=_event_directory_for_args(args),
+            library_root=Path(args.root).expanduser(),
+            since=getattr(args, "since", "all"),
+            apply=bool(getattr(args, "apply", False)),
+            model=getattr(args, "model", "") or None,
+        )
+        _print_json(report)
+        return 0 if report.get("ok") else 2
+    _print_json(events_inspect(_event_directory_for_args(args)))
     return 0
 
 
@@ -357,7 +389,7 @@ def _cmd_meter_v2(args: argparse.Namespace) -> int:
             binding = bind_model(getattr(args, "model", "") or None, agent=getattr(args, "agent", "") or None)
             if binding.price is not None:
                 report["measured"] = money_from_summary(
-                    load_summary(), binding.price, provider=binding.provider, model=binding.model
+                    load_summary(_event_directory_for_args(args)), binding.price, provider=binding.provider, model=binding.model
                 )
         except Exception:
             pass
@@ -498,7 +530,7 @@ def cmd_money_saved_record_event(args: argparse.Namespace) -> int:
                     "baseline_tokens": sk["baseline_tokens"], "actual_router_tokens": sk["actual_router_tokens"]},
             mcp=mcp,
         )
-        summary = record_event(event)
+        summary = record_event(event, _event_directory_for_args(args))
         _print_json({"ok": True, "event_type": event["event_type"], "agent": binding.agent,
                      "model": price.model, "price_class": event["cache"]["price_class"],
                      "counter_genesis_at": summary.get("counter_genesis_at")})

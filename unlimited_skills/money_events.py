@@ -290,6 +290,7 @@ def events_inspect(directory: Path | None = None, *, tail: int = 50, home: Path 
     return {
         "schema_version": "money-saved-events-inspect-v1",
         "storage": "compact_summary_plus_capped_tail",
+        "dir": str(directory),
         "recent_events_cap": RECENT_EVENTS_CAP,
         "bucket_count": len(buckets),
         "total_event_count": sum(int(b.get("event_count", 0)) for b in buckets),
