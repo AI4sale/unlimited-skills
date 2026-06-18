@@ -70,6 +70,9 @@ def test_v064post1_updater_release_verifier_lightweight(monkeypatch, capsys) -> 
     spec.loader.exec_module(verifier)
 
     monkeypatch.setattr(verifier, "run_json", lambda args, label: {"ok": True})
+    monkeypatch.setattr(verifier, "assert_metadata", lambda: None)
+    monkeypatch.setattr(verifier, "assert_workflow", lambda: None)
+    monkeypatch.setattr(verifier, "assert_yanked_064_notice", lambda: None)
 
     rc = verifier.main(["--allow-dirty", "--json"])
 

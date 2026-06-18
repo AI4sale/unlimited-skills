@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "publish-pypi.yml"
-DOC = ROOT / "docs" / "releases" / "v0.6.4-alpha-pypi-publishing.md"
+DOC = ROOT / "docs" / "releases" / "v0.6.5-alpha-pypi-publishing.md"
 
 
 def read(path: Path) -> str:
@@ -27,17 +27,19 @@ def test_publish_workflow_is_manual_and_oidc_only() -> None:
     assert "password:" not in text
 
 
-def test_publish_workflow_requires_exact_v064post1_confirmation() -> None:
+def test_publish_workflow_requires_exact_v065_confirmation() -> None:
     text = read(WORKFLOW)
     assert "version" in text
     assert "expected_sha" in text
     assert "confirm_pypi_publish" in text
-    assert 'test "${{ github.event.inputs.version }}" = "0.6.4.post1"' in text
+    assert 'test "${{ github.event.inputs.version }}" = "0.6.5"' in text
     assert (
-        'test "${{ github.event.inputs.confirm_pypi_publish }}" = "publish unlimited-skills 0.6.4.post1 to PyPI"'
+        'test "${{ github.event.inputs.confirm_pypi_publish }}" = "publish unlimited-skills 0.6.5 to PyPI"'
         in text
     )
     assert 'test "$(git rev-parse HEAD)" = "${{ github.event.inputs.expected_sha }}"' in text
+    assert "python scripts/run-v065-alpha-package-smoke.py --json" in text
+    assert "python scripts/verify-v065-alpha-release-execution.py" in text
 
 
 def test_pypi_publisher_values_are_documented() -> None:
