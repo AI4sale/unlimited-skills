@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "release": "v0.6.5-alpha",
+  "package_name": "unlimited-skills",
+  "package_version": "0.6.5",
+  "distribution": "retrieval-learning-reliability",
+  "status": "release_execution_ready",
+  "git": {
+    "base_branch": "main",
+    "tag": "v0.6.5-alpha",
+    "tag_status": "blocked_until_pypi_upload_clean_install_and_post_publish_verifier",
+    "tag_target_sha_policy": "Create and push v0.6.5-alpha only after the selected release commit passes C065-REL-PACKAGE-01 verification, PyPI Trusted Publishing uploads unlimited-skills==0.6.5, clean PyPI install smoke passes, and the post-publish verifier passes."
+  },
+  "implemented_items": [
+    "C065-GATE-AUDIT-01",
+    "O065-RETRIEVAL-FIX-01",
+    "O065-RETRIEVAL-FIX-02B",
+    "O065-LEARNING-01",
+    "C065-LONGRUN-01",
+    "C065-REL-SMOKE-01",
+    "C065-REL-PACKAGE-01"
+  ],
+  "tracked_prs": [
+    {"number": 228, "role": "audit", "item_id": "C065-GATE-AUDIT-01", "merge": "2e034cad6b1199e50a89e813e6d9224b0a89cac3"},
+    {"number": 229, "role": "implementation", "item_id": "O065-RETRIEVAL-FIX-01", "merge": "61ea8d57fbd41e85b2117da4dc9e8d53cbad5f11"},
+    {"number": 230, "role": "implementation", "item_id": "O065-RETRIEVAL-FIX-02B", "merge": "d5e860ce9deec9e0c182b8a882fc6fb6f2328ae1"},
+    {"number": 231, "role": "implementation", "item_id": "O065-LEARNING-01", "merge": "242a45408c3895f0055fc491035a4b80d3429f73"},
+    {"number": 232, "role": "verification", "item_id": "C065-LONGRUN-01", "merge": "ed0dcabb7f2a80f98ad9b760284d1b1adb5e7a59"},
+    {"number": 233, "role": "release_smoke", "item_id": "C065-REL-SMOKE-01", "merge": "d3549ac301faddd6c02306477136c78175aaaba7"}
+  ],
+  "release_package_files": [
+    "docs/releases/v0.6.5-alpha.md",
+    "docs/releases/v0.6.5-alpha.release-manifest.json",
+    "docs/releases/v0.6.5-alpha-checklist.md",
+    "docs/releases/v0.6.5-alpha-upgrade-notes.md",
+    "docs/releases/v0.6.5-alpha-known-issues.md",
+    "docs/releases/v0.6.5-alpha-pypi-publishing.md",
+    "docs/releases/v0.6.5-personal-verification.md",
+    "docs/reports/v0.6.5-release-decision-package.md"
+  ],
+  "verifier_scripts": [
+    "scripts/verify-v065-zero-candidate-gates.py",
+    "scripts/verify-v065-shared-candidate-family.py",
+    "scripts/verify-v065-shared-retrieval-family.py",
+    "scripts/verify-v065-learning-loop.py",
+    "scripts/verify-v065-long-run-retrieval-learning.py",
+    "scripts/verify-v065-retrieval-learning-release-smoke.py",
+    "scripts/verify-v065-alpha-release-execution.py",
+    "scripts/verify_v065_alpha_release_execution.py",
+    "scripts/run-v065-alpha-package-smoke.py",
+    "scripts/run_v065_alpha_package_smoke.py",
+    "scripts/verify-v06-frozen-contracts.py",
+    "scripts/verify-feedback-report-boundaries.py"
+  ],
+  "tests": [
+    "tests/test_v065_release_package.py",
+    "tests/test_v065_retrieval_learning_release_smoke.py",
+    "tests/test_v065_zero_candidate_gates.py",
+    "tests/test_v065_shared_candidate_family.py",
+    "tests/test_v065_learning_loop.py",
+    "tests/test_v065_long_run_retrieval_learning.py",
+    "tests/test_v06_frozen_contracts.py",
+    "tests/test_pypi_trusted_publishing_workflow.py"
+  ],
+  "required_verification": [
+    "python scripts/verify-v065-retrieval-learning-release-smoke.py --json",
+    "python scripts/verify-v065-retrieval-learning-release-smoke.py --skip-installed-library --json",
+    "python scripts/verify-v065-alpha-release-execution.py --allow-dirty --json",
+    "python scripts/run-v065-alpha-package-smoke.py --json",
+    "python scripts/verify-v06-frozen-contracts.py --expected-version 0.6.5 --json",
+    "python scripts/verify-feedback-report-boundaries.py",
+    "uv run --with pytest python -m pytest tests/test_v065_release_package.py tests/test_v065_retrieval_learning_release_smoke.py -q",
+    "python -m py_compile scripts/verify-v065-alpha-release-execution.py scripts/verify_v065_alpha_release_execution.py scripts/run-v065-alpha-package-smoke.py scripts/run_v065_alpha_package_smoke.py scripts/verify-v065-retrieval-learning-release-smoke.py",
+    "git diff --check"
+  ],
+  "release_execution": {
+    "package_ready": true,
+    "executed_in_this_pr": false,
+    "deferred_reason": "Trusted Publishing workflow dispatch, PyPI upload, post-publish clean install, tag, and GitHub prerelease creation are external release-operator actions and are not performed inside the PR.",
+    "trusted_publishing_authorized_after": [
+      "C065-REL-PACKAGE-01 PR merged into main",
+      "selected main SHA passes the required verification list",
+      "PyPI confirms unlimited-skills==0.6.5 does not already exist",
+      "release operator dispatches publish-pypi.yml with version=0.6.5 and exact expected_sha"
+    ],
+    "post_publish_tag_policy": "Do not create v0.6.5-alpha until unlimited-skills==0.6.5 installs cleanly from PyPI and the post-publish verifier passes."
+  },
+  "safety_boundary": {
+    "alpha_only": true,
+    "technical_debt_reliability_release": true,
+    "local_first": true,
+    "automatic_telemetry": false,
+    "analytics_sdk": false,
+    "automatic_upload": false,
+    "hosted_query_forwarding": false,
+    "model_training": false,
+    "marketplace_submission": false,
+    "hosted_readiness_claim": false,
+    "team_service_rollout_claim": false,
+    "business_service_rollout_claim": false,
+    "enterprise_service_rollout_claim": false,
+    "paid_tier_feature_claim": false,
+    "exact_money_claim": false,
+    "exact_revenue_claim": false,
+    "exact_provider_token_claim": false,
+    "guaranteed_bill_reduction_claim": false,
+    "perfect_search_claim": false,
+    "top_1_guarantee_claim": false,
+    "pypi_availability": "blocked_until_trusted_publishing_and_post_publish_verifier"
+  },
+  "held_prs": [
+    195
+  ],
+  "excluded_prs": [
+    119
+  ]
+}

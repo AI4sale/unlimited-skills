@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Added (0.6.5-alpha - Retrieval & Learning Reliability)
+
+- v0.6.5 retrieval and learning reliability release package: package/runtime
+  version moves to `0.6.5`; release notes, manifest, checklist, upgrade notes,
+  known issues, PyPI publishing gate, and personal verification procedure are
+  prepared for `v0.6.5-alpha`.
+- `scripts/verify-v065-alpha-release-execution.py` verifies package metadata,
+  release docs, manifest, workflow guardrails, combined release smoke, and
+  frozen-contract version for `0.6.5`.
+- `scripts/run-v065-alpha-package-smoke.py` builds the `0.6.5` wheel/sdist,
+  clean-installs the wheel, checks the installed CLI version, and runs installed
+  retrieval smoke for the Russian LinkedIn case.
+
+### Changed (0.6.5-alpha)
+
+- PyPI Trusted Publishing guardrails now require `version=0.6.5` and
+  `confirm_pypi_publish=publish unlimited-skills 0.6.5 to PyPI`.
+- The v0.6 frozen-contract harness now expects `0.6.5` on current main.
+
 ### Added (0.6.4.post1 — Real Money Saved)
 
 - Real Money Saved value model: model-bound, cache-aware, event-counted

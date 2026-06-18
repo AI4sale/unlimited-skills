@@ -4,11 +4,11 @@ Unlimited Skills is a local-first skill memory and retrieval layer for coding
 agents. It keeps large skill libraries out of the agent context and retrieves
 the small, relevant skill context only when it is useful.
 
-This is `v0.6.4-alpha`: a public alpha of the free MIT local core. There is no
+This is `v0.6.5-alpha`: a public alpha of the free MIT local core. There is no
 telemetry, no hosted dependency for local use, and nothing for sale in this
 release. APIs and JSON output may change before `1.0`.
 
-Use `unlimited-skills==0.6.4` or newer after this release is published. The
+Use `unlimited-skills==0.6.5` or newer after this release is published. The
 `0.6.0` package was uploaded to PyPI but was not tagged or released because the
 published verifier caught a CLI contract issue after upload.
 
@@ -23,7 +23,7 @@ To avoid earlier uploaded-but-not-current artifacts explicitly, pin the
 accepted v0.6 alpha floor:
 
 ```bash
-pip install --upgrade "unlimited-skills>=0.6.4"
+pip install --upgrade "unlimited-skills>=0.6.5"
 ```
 
 For hybrid/vector search:
@@ -48,10 +48,10 @@ unlimited-skills vector-reindex
 The package smoke for this release verifies the wheel in a fresh virtual
 environment: `unlimited-skills --version`, `quickstart`, `suggest`,
 `mcp savings`, `feedback prepare`, `learning-summary --events`, and
-`roi receipt` all run from the installed package. The v0.6.4 package smoke also
-verifies the local Money Saved Meter ladder: Free meter, Registered export, Team
-rollup, Business admin export, Enterprise evidence pack, clean verification,
-and tamper fail-closed verification.
+`roi receipt` all run from the installed package. The v0.6.5 package smoke also
+verifies retrieval and learning reliability from a clean wheel install: installed
+CLI version, Russian LinkedIn suggest/search candidates, candidate-source
+metadata, learning-summary output, and the source release-gate verifier.
 
 ## Measured, Not Promised
 
