@@ -25,6 +25,7 @@ from unlimited_skills.search_core import (  # noqa: E402
     load_records,
     save_index,
     shared_candidate_family,
+    event_safe_payload,
     write_jsonl,
 )
 
@@ -186,7 +187,10 @@ def _learning_lift_probe(root: Path) -> dict[str, Any]:
     learning_dir = root / ".learning"
     learning_dir.mkdir(parents=True, exist_ok=True)
     for _index in range(2):
-        write_jsonl(learning_dir / "feedback.jsonl", {"name": target, "verdict": "accepted"})
+        write_jsonl(
+            learning_dir / "feedback.jsonl",
+            event_safe_payload(root, "feedback", {"name": target, "query": query, "verdict": "accepted"}),
+        )
     after = shared_candidate_family(root, query, 5)
     after_names = [hit.name for hit in after]
     target_after = next((hit for hit in after if hit.name == target), None)

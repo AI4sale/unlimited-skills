@@ -6,7 +6,7 @@ from pathlib import Path
 
 from unlimited_skills import cli
 from unlimited_skills import suggest
-from unlimited_skills.search_core import candidate_sources, shared_candidate_family, write_jsonl
+from unlimited_skills.search_core import candidate_sources, event_safe_payload, shared_candidate_family, write_jsonl
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_PATH = REPO_ROOT / "scripts" / "verify-v065-shared-candidate-family.py"
@@ -85,7 +85,10 @@ def test_learning_feedback_marks_boost_without_new_search_path(tmp_path: Path) -
     before = [hit.name for hit in shared_candidate_family(root, query, 5)]
     assert "content-engine" in before
     for _index in range(2):
-        write_jsonl(root / ".learning" / "feedback.jsonl", {"name": "content-engine", "verdict": "accepted"})
+        write_jsonl(
+            root / ".learning" / "feedback.jsonl",
+            event_safe_payload(root, "feedback", {"name": "content-engine", "query": query, "verdict": "accepted"}),
+        )
     after = shared_candidate_family(root, query, 5)
     after_names = [hit.name for hit in after]
     boosted = next(hit for hit in after if hit.name == "content-engine")

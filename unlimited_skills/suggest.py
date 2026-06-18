@@ -430,6 +430,7 @@ def main(argv: list[str] | None = None) -> int:
         event = {
             # A3.1.1 privacy gate: store ONLY the short hash of the query, never
             # the raw prompt/task text. Identical queries still correlate by hash.
+            "query": args.query,
             "task_summary_hash": task_summary_hash(args.query),
             "floor": args.floor,
             "elapsed_ms": round(elapsed_ms, 1),
