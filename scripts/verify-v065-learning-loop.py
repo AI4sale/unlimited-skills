@@ -114,7 +114,7 @@ def build_report(root: Path) -> dict[str, Any]:
     before_manual_no_query = _names(root, manual_no_query_similar)
 
     accepted_target = "marketing-campaign"
-    rejected_target = "marketing-campaign"
+    rejected_target = "social-publisher"
     manual_target = "manual-target"
     manual_no_query_target = "manual-no-query-target"
 

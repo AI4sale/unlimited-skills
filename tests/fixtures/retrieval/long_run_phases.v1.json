@@ -1,0 +1,241 @@
+{
+  "schema_version": "v065-long-run-retrieval-learning-fixture-v1",
+  "expected_step_count": 100,
+  "expected_phase_count": 10,
+  "phases": [
+    {
+      "phase_id": "phase-01-social-content-en",
+      "domain": "linkedin-social-writing",
+      "expected_family": ["marketing-campaign", "social-publisher", "content-engine"],
+      "steps": [
+        {"step": 1, "action": "suggest", "query": "write linkedin launch article", "language": "en", "phase_boundary": true},
+        {"step": 2, "action": "search", "query": "write linkedin launch article", "language": "en"},
+        {"step": 3, "action": "hook", "query": "write linkedin launch article", "language": "en"},
+        {"step": 4, "action": "view", "skill": "marketing-campaign"},
+        {"step": 5, "action": "noop"},
+        {
+          "step": 6,
+          "action": "feedback",
+          "skill": "marketing-campaign",
+          "query": "write linkedin launch article",
+          "verdict": "accepted",
+          "notes": true,
+          "case_id": "social_marketing_accept",
+          "check_queries": [
+            {"label": "exact", "query": "write linkedin launch article", "kind": "exact", "min_delay": 30},
+            {"label": "similar", "query": "write linkedin launch post", "kind": "similar", "min_delay": 30},
+            {"label": "cross", "query": "напиши social post для LinkedIn", "kind": "cross_language", "min_delay": 30}
+          ]
+        },
+        {"step": 7, "action": "suggest", "query": "write LinkedIn launch post", "language": "en"},
+        {
+          "step": 8,
+          "action": "feedback",
+          "skill": "social-publisher",
+          "query": "publish social media content",
+          "verdict": "wrong",
+          "case_id": "wrong_social_publisher",
+          "check_queries": [
+            {"label": "demote", "query": "publish social media content", "kind": "demotion"}
+          ]
+        },
+        {"step": 9, "action": "search", "query": "social media content", "language": "en"},
+        {"step": 10, "action": "noop"}
+      ]
+    },
+    {
+      "phase_id": "phase-02-stale-launcher",
+      "domain": "stale-launcher-repair",
+      "expected_family": ["router-upgrade-maintenance", "inject-refresh", "launcher-health-doctor"],
+      "steps": [
+        {"step": 11, "action": "suggest", "query": "repair stale launcher after pip upgrade", "language": "en", "phase_boundary": true},
+        {"step": 12, "action": "search", "query": "repair stale launcher after pip upgrade", "language": "en"},
+        {"step": 13, "action": "hook", "query": "repair stale launcher after pip upgrade", "language": "en"},
+        {"step": 14, "action": "view", "skill": "inject-refresh"},
+        {"step": 15, "action": "noop"},
+        {
+          "step": 16,
+          "action": "feedback",
+          "skill": "inject-refresh",
+          "query": "repair stale launcher after pip upgrade",
+          "verdict": "accepted",
+          "case_id": "stale_inject_accept",
+          "check_queries": [
+            {"label": "exact", "query": "repair stale launcher after pip upgrade", "kind": "exact", "min_delay": 30},
+            {"label": "similar", "query": "stale launcher package refresh", "kind": "similar", "min_delay": 30}
+          ]
+        },
+        {"step": 17, "action": "suggest", "query": "router inject refresh", "language": "en"},
+        {"step": 18, "action": "search", "query": "router inject refresh", "language": "en"},
+        {"step": 19, "action": "hook", "query": "router inject refresh", "language": "en"},
+        {"step": 20, "action": "noop"}
+      ]
+    },
+    {
+      "phase_id": "phase-03-money-evidence",
+      "domain": "money-saved-evidence",
+      "expected_family": ["money-saved-meter", "money-evidence-pack", "money-price-audit"],
+      "steps": [
+        {"step": 21, "action": "suggest", "query": "money saved reports model dollars", "language": "en", "phase_boundary": true},
+        {"step": 22, "action": "search", "query": "money saved reports model dollars", "language": "en"},
+        {"step": 23, "action": "hook", "query": "money saved reports model dollars", "language": "en"},
+        {"step": 24, "action": "view", "skill": "money-saved-meter"},
+        {"step": 25, "action": "noop"},
+        {
+          "step": 26,
+          "action": "feedback",
+          "skill": "money-saved-meter",
+          "query": "money saved reports model dollars",
+          "verdict": "accepted",
+          "case_id": "money_evidence_accept",
+          "check_queries": [
+            {"label": "exact", "query": "money saved reports model dollars", "kind": "exact", "min_delay": 30}
+          ]
+        },
+        {"step": 27, "action": "suggest", "query": "money saved price table audit", "language": "en"},
+        {"step": 28, "action": "search", "query": "money saved price table audit", "language": "en"},
+        {"step": 29, "action": "hook", "query": "money saved price table audit", "language": "en"},
+        {"step": 30, "action": "noop"}
+      ]
+    },
+    {
+      "phase_id": "phase-04-manual-use-no-query-and-decoys",
+      "domain": "manual-use-correlation",
+      "expected_family": ["manual-no-query-target", "manual-no-query-decoy", "launcher-health-doctor"],
+      "steps": [
+        {"step": 31, "action": "suggest", "query": "repair phi chi omega stale deployment incident", "language": "en", "phase_boundary": true},
+        {"step": 32, "action": "search", "query": "repair phi chi omega stale deployment incident", "language": "en"},
+        {"step": 33, "action": "hook", "query": "repair phi chi omega stale deployment incident", "language": "en"},
+        {"step": 34, "action": "view", "skill": "manual-no-query-target"},
+        {
+          "step": 35,
+          "action": "use",
+          "skill": "manual-no-query-target",
+          "query": "repair phi chi omega stale deployment incident",
+          "query_on_use": false,
+          "case_id": "manual_no_query_accept",
+          "check_queries": [
+            {"label": "similar", "query": "repair phi chi omega deployment incident", "kind": "similar", "min_delay": 30}
+          ]
+        },
+        {"step": 36, "action": "search", "query": "oauth token login failure", "language": "en", "expected_family": ["oauth-debugger", "incident-debugger"]},
+        {
+          "step": 37,
+          "action": "feedback",
+          "skill": "oauth-debugger",
+          "query": "oauth token login failure",
+          "verdict": "wrong",
+          "case_id": "wrong_oauth_debugger",
+          "check_queries": [
+            {"label": "demote", "query": "oauth token login failure", "kind": "demotion"}
+          ]
+        },
+        {"step": 38, "action": "suggest", "query": "format spreadsheet table", "language": "en", "expected_family": ["spreadsheet-formatting"]},
+        {"step": 39, "action": "search", "query": "watering schedule balcony plants", "language": "en", "expected_family": ["gardening-basics"]},
+        {"step": 40, "action": "noop"}
+      ]
+    },
+    {
+      "phase_id": "phase-05-social-reuse-long-delay",
+      "domain": "linkedin-social-writing",
+      "expected_family": ["marketing-campaign", "social-publisher", "content-engine"],
+      "steps": [
+        {"step": 41, "action": "suggest", "query": "write linkedin launch article", "language": "en", "phase_boundary": true},
+        {"step": 42, "action": "search", "query": "write linkedin launch article", "language": "en"},
+        {"step": 43, "action": "hook", "query": "write linkedin launch article", "language": "en"},
+        {"step": 44, "action": "check_lift", "case_id": "social_marketing_accept", "label": "exact", "skill": "marketing-campaign", "query": "write linkedin launch article", "learned_at_step": 6},
+        {"step": 45, "action": "check_lift", "case_id": "social_marketing_accept", "label": "similar", "skill": "marketing-campaign", "query": "write linkedin launch post", "learned_at_step": 6},
+        {"step": 46, "action": "check_demotion", "case_id": "wrong_social_publisher", "label": "demote", "skill": "social-publisher", "query": "publish social media content", "learned_at_step": 8},
+        {"step": 47, "action": "suggest", "query": "social media content", "language": "en"},
+        {"step": 48, "action": "search", "query": "write content calendar for launch", "language": "en"},
+        {"step": 49, "action": "hook", "query": "write LinkedIn post", "language": "en"},
+        {"step": 50, "action": "noop"}
+      ]
+    },
+    {
+      "phase_id": "phase-06-stale-reuse-ru",
+      "domain": "stale-launcher-repair",
+      "expected_family": ["router-upgrade-maintenance", "inject-refresh", "launcher-health-doctor"],
+      "steps": [
+        {"step": 51, "action": "suggest", "query": "обнови stale launcher после pip upgrade", "language": "ru", "phase_boundary": true},
+        {"step": 52, "action": "search", "query": "обнови stale launcher после pip upgrade", "language": "ru"},
+        {"step": 53, "action": "hook", "query": "обнови stale launcher после pip upgrade", "language": "ru"},
+        {"step": 54, "action": "check_lift", "case_id": "stale_inject_accept", "label": "exact", "skill": "inject-refresh", "query": "repair stale launcher after pip upgrade", "learned_at_step": 16},
+        {"step": 55, "action": "check_lift", "case_id": "stale_inject_accept", "label": "similar", "skill": "inject-refresh", "query": "stale launcher package refresh", "learned_at_step": 16},
+        {"step": 56, "action": "suggest", "query": "router inject refresh", "language": "en"},
+        {"step": 57, "action": "search", "query": "repair stale launcher after package upgrade", "language": "en"},
+        {"step": 58, "action": "hook", "query": "repair stale launcher after package upgrade", "language": "en"},
+        {"step": 59, "action": "view", "skill": "launcher-health-doctor"},
+        {"step": 60, "action": "noop"}
+      ]
+    },
+    {
+      "phase_id": "phase-07-money-reuse",
+      "domain": "money-saved-evidence",
+      "expected_family": ["money-saved-meter", "money-evidence-pack", "money-price-audit"],
+      "steps": [
+        {"step": 61, "action": "suggest", "query": "money saved evidence pack investigation", "language": "en", "phase_boundary": true},
+        {"step": 62, "action": "search", "query": "money saved evidence pack investigation", "language": "en"},
+        {"step": 63, "action": "hook", "query": "money saved evidence pack investigation", "language": "en"},
+        {"step": 64, "action": "check_lift", "case_id": "money_evidence_accept", "label": "exact", "skill": "money-saved-meter", "query": "money saved reports model dollars", "learned_at_step": 26},
+        {"step": 65, "action": "search", "query": "money saved evidence pack investigation", "language": "en"},
+        {"step": 66, "action": "suggest", "query": "money saved model price table", "language": "en"},
+        {"step": 67, "action": "search", "query": "enterprise evidence pack verifier", "language": "en", "expected_family": ["money-evidence-pack"]},
+        {"step": 68, "action": "hook", "query": "money saved reports model dollars", "language": "en"},
+        {"step": 69, "action": "view", "skill": "money-price-audit"},
+        {"step": 70, "action": "noop"}
+      ]
+    },
+    {
+      "phase_id": "phase-08-cross-language-social",
+      "domain": "linkedin-social-writing",
+      "expected_family": ["marketing-campaign", "social-publisher", "content-engine"],
+      "steps": [
+        {"step": 71, "action": "suggest", "query": "напиши social post для LinkedIn", "language": "mixed", "phase_boundary": true},
+        {"step": 72, "action": "search", "query": "напиши social post для LinkedIn", "language": "mixed"},
+        {"step": 73, "action": "hook", "query": "напиши social post для LinkedIn", "language": "mixed"},
+        {"step": 74, "action": "check_lift", "case_id": "social_marketing_accept", "label": "cross", "skill": "marketing-campaign", "query": "напиши social post для LinkedIn", "learned_at_step": 6},
+        {"step": 75, "action": "suggest", "query": "пост для LinkedIn про launch", "language": "mixed"},
+        {"step": 76, "action": "check_lift", "case_id": "manual_no_query_accept", "label": "similar", "skill": "manual-no-query-target", "query": "repair phi chi omega deployment incident", "learned_at_step": 35, "expected_family": ["manual-no-query-target", "manual-no-query-decoy", "launcher-health-doctor"]},
+        {"step": 77, "action": "search", "query": "repair phi chi omega deployment incident", "language": "en", "expected_family": ["manual-no-query-target", "manual-no-query-decoy"]},
+        {"step": 78, "action": "check_demotion", "case_id": "wrong_oauth_debugger", "label": "demote", "skill": "oauth-debugger", "query": "oauth token login failure", "learned_at_step": 37, "expected_family": ["oauth-debugger", "incident-debugger"]},
+        {"step": 79, "action": "hook", "query": "напиши пост для линкедин", "language": "ru"},
+        {"step": 80, "action": "noop"}
+      ]
+    },
+    {
+      "phase_id": "phase-09-decoys-and-stability",
+      "domain": "generic-decoy-tasks",
+      "expected_family": ["incident-debugger", "oauth-debugger", "log-triage"],
+      "steps": [
+        {"step": 81, "action": "suggest", "query": "debug production incident logs", "language": "en", "phase_boundary": true},
+        {"step": 82, "action": "search", "query": "debug production incident logs", "language": "en"},
+        {"step": 83, "action": "hook", "query": "debug production incident logs", "language": "en"},
+        {"step": 84, "action": "suggest", "query": "oauth callback token exchange failure", "language": "en"},
+        {"step": 85, "action": "search", "query": "oauth callback token exchange failure", "language": "en"},
+        {"step": 86, "action": "hook", "query": "format spreadsheet table", "language": "en", "expected_family": ["spreadsheet-formatting"]},
+        {"step": 87, "action": "suggest", "query": "watering schedule balcony plants", "language": "en", "expected_family": ["gardening-basics"]},
+        {"step": 88, "action": "search", "query": "format csv report table", "language": "en", "expected_family": ["spreadsheet-formatting"]},
+        {"step": 89, "action": "view", "skill": "incident-debugger"},
+        {"step": 90, "action": "noop"}
+      ]
+    },
+    {
+      "phase_id": "phase-10-final-regression-pass",
+      "domain": "combined-regression",
+      "expected_family": ["marketing-campaign", "social-publisher", "content-engine"],
+      "steps": [
+        {"step": 91, "action": "suggest", "query": "write linkedin launch post", "language": "en", "phase_boundary": true},
+        {"step": 92, "action": "search", "query": "write linkedin launch post", "language": "en"},
+        {"step": 93, "action": "hook", "query": "write linkedin launch post", "language": "en"},
+        {"step": 94, "action": "suggest", "query": "refresh stale wrapper after pip upgrade", "language": "en", "expected_family": ["router-upgrade-maintenance", "inject-refresh", "launcher-health-doctor"]},
+        {"step": 95, "action": "search", "query": "money saved evidence pack investigation", "language": "en", "expected_family": ["money-saved-meter", "money-evidence-pack", "money-price-audit"]},
+        {"step": 96, "action": "hook", "query": "money saved evidence pack investigation", "language": "en", "expected_family": ["money-saved-meter", "money-evidence-pack", "money-price-audit"]},
+        {"step": 97, "action": "suggest", "query": "repair phi chi omega deployment incident", "language": "en", "expected_family": ["manual-no-query-target", "manual-no-query-decoy"]},
+        {"step": 98, "action": "search", "query": "publish social media content", "language": "en"},
+        {"step": 99, "action": "hook", "query": "router inject refresh", "language": "en", "expected_family": ["router-upgrade-maintenance", "inject-refresh", "launcher-health-doctor"]},
+        {"step": 100, "action": "noop"}
+      ]
+    }
+  ]
+}
