@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from .learning_ranker import learning_diagnostics
 from .search_core import EVENT_LOG, ROUTER_METRICS, read_router_metrics
 
 FEEDBACK_LOG = "feedback.jsonl"
@@ -173,6 +174,7 @@ def learning_doctor(root: Path) -> dict[str, Any]:
         outcome = _outcome(row) or "unknown"
         outcomes[outcome] = outcomes.get(outcome, 0) + 1
     candidates = build_improvement_candidates(root)
+    diagnostics = learning_diagnostics(root)
     return {
         "schema_version": 1,
         "status": "ok",
@@ -187,6 +189,7 @@ def learning_doctor(root: Path) -> dict[str, Any]:
         "router_total_invocations": int(router_metrics.get("total_invocations") or 0),
         "candidate_count": len(candidates),
         "candidate_ids": [candidate.candidate_id for candidate in candidates],
+        **diagnostics,
         "privacy": _privacy_flags(),
         "message": "No learning feedback found yet." if not feedback and not events else "Learning state inspected.",
     }

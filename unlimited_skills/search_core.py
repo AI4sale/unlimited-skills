@@ -186,8 +186,8 @@ class SkillHit:
 
 
 VECTOR_SCORE_WEIGHT = 20.0
-LEARNING_BOOST_WEIGHT = 2.0
-LEARNING_DEMOTION_WEIGHT = 2.0
+LEARNING_BOOST_WEIGHT = 6.0
+LEARNING_DEMOTION_WEIGHT = 6.0
 LEARNING_MAX_ADJUSTMENT = 6.0
 
 
@@ -204,6 +204,12 @@ def write_jsonl(path: Path, row: dict) -> None:
 def task_summary_hash(query: object) -> str:
     """Short sha256 of normalized task/query text; never store the raw text."""
     normalized = " ".join(str(query or "").split()).lower()
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:12]
+
+
+def token_summary_hash(token: object) -> str:
+    """Short sha256 for one normalized query token; never store the token."""
+    normalized = str(token or "").strip().lower()
     return hashlib.sha256(normalized.encode("utf-8")).hexdigest()[:12]
 
 
@@ -494,35 +500,10 @@ def _source_markers(query: str, hit: SkillHit, body: str) -> set[str]:
     return markers
 
 
-def _read_learning_adjustments(root: Path) -> dict[str, float]:
-    path = root / ".learning" / "feedback.jsonl"
-    if not path.is_file():
-        return {}
-    adjustments: dict[str, float] = {}
-    try:
-        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
-    except OSError:
-        return {}
-    for line in lines[-1000:]:
-        try:
-            row = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if not isinstance(row, dict):
-            continue
-        name = skill_identity(str(row.get("name") or row.get("skill_name") or ""))
-        if not name:
-            continue
-        verdict = str(row.get("verdict") or row.get("outcome") or "").strip().lower()
-        if verdict == "accepted":
-            adjustments[name] = adjustments.get(name, 0.0) + LEARNING_BOOST_WEIGHT
-        elif verdict in {"rejected", "wrong"}:
-            adjustments[name] = adjustments.get(name, 0.0) - LEARNING_DEMOTION_WEIGHT
-    return {
-        key: max(-LEARNING_MAX_ADJUSTMENT, min(LEARNING_MAX_ADJUSTMENT, value))
-        for key, value in adjustments.items()
-        if value
-    }
+def _read_learning_adjustments(root: Path, query: str) -> dict[str, float]:
+    from .learning_ranker import learning_adjustments_for_query
+
+    return learning_adjustments_for_query(root, query)
 
 
 def shared_candidate_family(
@@ -547,7 +528,7 @@ def shared_candidate_family(
         return []
     requested = max(int(limit or 1), 1)
     scan_limit = max(requested * 3, 12)
-    adjustments = _read_learning_adjustments(root)
+    adjustments = _read_learning_adjustments(root, query)
     merged: dict[str, SkillHit] = {}
     meta: dict[str, dict[str, object]] = {}
     lexical_order: list[str] = []
@@ -864,6 +845,8 @@ def event_safe_payload(root: Path, event_type: str, payload: dict) -> dict:
         if value:
             safe[f"{field}_summary_hash"] = task_summary_hash(value)
             safe[f"{field}_present"] = True
+            if field == "query":
+                safe["query_token_hashes"] = [token_summary_hash(token) for token in sorted(tokens(str(value)))[:40]]
     notes = safe.pop("notes", "")
     if notes:
         safe["notes_present"] = True

@@ -79,9 +79,28 @@ def test_cli_events_and_feedback_rows_redact_query_task_notes_paths(tmp_path: Pa
 
     feedback = read_jsonl(root / ".learning" / "feedback.jsonl")[-1]
     assert feedback["query_summary_hash"] == task_summary_hash(raw_query)
+    assert feedback["query_token_hashes"]
     assert feedback["notes_present"] is True
     assert feedback["notes_length_bucket"] in {"short", "medium", "long"}
     assert "query" not in feedback and "notes" not in feedback
+    assert "secret" not in json.dumps(feedback, ensure_ascii=False)
+
+
+def test_suggest_event_has_safe_query_fingerprint(tmp_path: Path, capsys) -> None:
+    root = tmp_path / "library"
+    write_skill(root)
+    raw_query = "private suggest query qq-needle"
+
+    assert _cli.main(["--root", str(root), "suggest", raw_query, "--json"]) == 0
+    capsys.readouterr()
+
+    event_text = (root / ".learning" / EVENT_LOG).read_text(encoding="utf-8")
+    assert raw_query not in event_text
+    rows = read_jsonl(root / ".learning" / EVENT_LOG)
+    suggest = next(row for row in rows if row["type"] == "suggest")["payload"]
+    assert suggest["query_summary_hash"] == task_summary_hash(raw_query)
+    assert suggest["query_token_hashes"]
+    assert "query" not in suggest
 
 
 def test_daemon_events_redact_query_task_notes_paths(tmp_path: Path) -> None:
