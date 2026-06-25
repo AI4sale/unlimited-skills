@@ -80,6 +80,9 @@ def test_v065_release_execution_verifier_lightweight(monkeypatch, capsys) -> Non
     spec.loader.exec_module(verifier)
 
     monkeypatch.setattr(verifier, "run_json", lambda args, label, **kwargs: {"ok": True, "status_counts": {"pass": 11}, "installed_library": {"mutated": False}})
+    monkeypatch.setattr(verifier, "package_version", lambda: "0.6.5")
+    monkeypatch.setattr(verifier, "init_version", lambda: "0.6.5")
+    monkeypatch.setattr(verifier, "assert_workflow", lambda: None)
 
     rc = verifier.main(["--allow-dirty", "--json"])
 
