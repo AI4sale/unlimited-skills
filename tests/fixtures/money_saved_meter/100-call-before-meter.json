@@ -196,7 +196,7 @@
       "status": "available"
     }
   },
-  "unlimited_skills_version": "0.6.5",
+  "unlimited_skills_version": "0.6.5.post1",
   "window": {
     "cadence_not_billing_math": true,
     "counted_call_kinds": [
