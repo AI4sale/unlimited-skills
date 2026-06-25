@@ -123,28 +123,31 @@ def _iter_markers(sessions_root: Path, *, since_at: datetime | None) -> list[dic
     for path in _jsonl_files(sessions_root):
         try:
             file_time = datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc)
-            lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
         except OSError:
             continue
-        for idx, line in enumerate(lines, start=1):
-            try:
-                row = json.loads(line)
-            except json.JSONDecodeError:
-                continue
-            if not isinstance(row, dict) or not _is_compaction_marker(row):
-                continue
-            when = _row_time(row, file_time)
-            if since_at is not None and when is not None and when < since_at:
-                continue
-            iso = (when or datetime.now(timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ")
-            key = _marker_key(path, idx, iso)
-            markers.append({
-                "key": key,
-                "file": str(path),
-                "line": idx,
-                "generated_at": iso,
-                "marker_type": str(row.get("type") or ""),
-            })
+        try:
+            with path.open("r", encoding="utf-8", errors="replace") as handle:
+                for idx, line in enumerate(handle, start=1):
+                    try:
+                        row = json.loads(line)
+                    except json.JSONDecodeError:
+                        continue
+                    if not isinstance(row, dict) or not _is_compaction_marker(row):
+                        continue
+                    when = _row_time(row, file_time)
+                    if since_at is not None and when is not None and when < since_at:
+                        continue
+                    iso = (when or datetime.now(timezone.utc)).strftime("%Y-%m-%dT%H:%M:%SZ")
+                    key = _marker_key(path, idx, iso)
+                    markers.append({
+                        "key": key,
+                        "file": str(path),
+                        "line": idx,
+                        "generated_at": iso,
+                        "marker_type": str(row.get("type") or ""),
+                    })
+        except OSError:
+            continue
     return markers
 
 

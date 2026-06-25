@@ -92,3 +92,29 @@ def test_codex_log_backfill_dry_run_apply_and_dedupe(tmp_path: Path, monkeypatch
     assert second["recorded"] == 0
     assert second["already_recorded"] == 2
     assert sum(bucket["event_count"] for bucket in load_summary(install_root / "money_saved")["buckets"].values()) == 2
+
+
+def test_codex_log_backfill_streams_session_logs(tmp_path: Path, monkeypatch, capsys) -> None:
+    monkeypatch.delenv("UNLIMITED_SKILLS_HOME", raising=False)
+    install_root = tmp_path / ".unlimited-skills"
+    library = install_root / "library"
+    sessions = tmp_path / "sessions"
+    _write_skill(library)
+    session_log = _session_log(sessions)
+
+    original_read_text = Path.read_text
+
+    def fail_session_log_read_text(self: Path, *args, **kwargs):
+        if self == session_log:
+            raise AssertionError("Codex session backfill must stream logs instead of read_text()")
+        return original_read_text(self, *args, **kwargs)
+
+    monkeypatch.setattr(Path, "read_text", fail_session_log_read_text)
+
+    base = ["--root", str(library), "money-saved", "events", "backfill-codex-logs", "--sessions-root", str(sessions)]
+    assert main([*base, "--since", "all"]) == 0
+    dry = _json_objects(capsys.readouterr().out)[0]
+
+    assert dry["mode"] == "dry_run"
+    assert dry["markers_found"] == 2
+    assert dry["eligible_new_markers"] == 2
