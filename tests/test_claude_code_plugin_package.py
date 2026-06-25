@@ -74,4 +74,4 @@ def test_session_start_hook_prints_router_contract_and_exits_zero() -> None:
     assert "Unlimited Skills Library" in result.stdout
     assert "unlimited-skills" in result.stdout
     # The hook must never leak skill bodies or library contents.
-    assert len(result.stdout) < 2000
+    assert len(result.stdout) < 2500

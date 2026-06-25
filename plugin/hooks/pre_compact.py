@@ -3,7 +3,7 @@
 On every compaction the standing skill/MCP context is re-written to the model's
 cache, so each compaction is a Money Saved event (priced at cache_write_5m).
 Resolves the CLI via the shared fallback chain and fires
-``money-saved record-event compaction``. Fast (bytes//4, no API), short timeout,
+``money-saved record-event compaction --agent claude-code``. Fast (bytes//4, no API), short timeout,
 fully guarded — it must NEVER block or fail the session. Opt out with
 ``UNLIMITED_SKILLS_NO_MONEY_EVENTS``.
 """
@@ -31,7 +31,7 @@ def main() -> int:
     if command:
         try:
             subprocess.run(
-                [*command, "money-saved", "record-event", "compaction"],
+                [*command, "money-saved", "record-event", "compaction", "--agent", "claude-code"],
                 capture_output=True,
                 timeout=_MONEY_EVENT_TIMEOUT_SECONDS,
             )

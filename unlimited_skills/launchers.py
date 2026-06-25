@@ -116,6 +116,7 @@ def render_sh_launcher(
 ) -> str:
     py = _sh_posix(python_executable)
     lib = _sh_posix(library_root)
+    home = _sh_posix(Path(library_root).parent)
     lines = [
         "#!/usr/bin/env bash",
         "set -euo pipefail",
@@ -138,6 +139,7 @@ def render_sh_launcher(
         ]
     if project_root is not None:
         lines.append(f"export UNLIMITED_SKILLS_CLAUDE_PROJECT_ROOT={_sh_posix(project_root)}")
+    lines.append(f"export UNLIMITED_SKILLS_HOME={home}")
     lines.append(f'exec {py} -m unlimited_skills --root {lib} "$@"')
     return "\n".join(lines) + "\n"
 
@@ -149,6 +151,7 @@ def render_ps_launcher(
     project_root: str | Path | None = None,
     pythonpath_fallback: str | None = None,
 ) -> str:
+    home = Path(library_root).parent
     lines = [
         "param(",
         "  [Parameter(ValueFromRemainingArguments = $true)]",
@@ -169,6 +172,7 @@ def render_ps_launcher(
         )
     if project_root is not None:
         lines.append(f"$env:UNLIMITED_SKILLS_CLAUDE_PROJECT_ROOT = {json.dumps(str(project_root))}")
+    lines.append(f"$env:UNLIMITED_SKILLS_HOME = {json.dumps(str(home))}")
     lines.append(
         f"& {json.dumps(str(python_executable))} -m unlimited_skills "
         f"--root {json.dumps(str(library_root))} @Args"

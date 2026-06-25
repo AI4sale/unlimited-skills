@@ -14,6 +14,7 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 HOOKS_DIR = REPO_ROOT / "plugin" / "hooks"
 SESSION_START = HOOKS_DIR / "session_start.py"
 USER_PROMPT_SUBMIT = HOOKS_DIR / "user_prompt_submit.py"
+PRE_COMPACT = HOOKS_DIR / "pre_compact.py"
 
 
 def make_library(tmp_path: Path) -> Path:
@@ -121,6 +122,28 @@ def test_session_start_resolves_rendered_launcher(tmp_path: Path) -> None:
     assert result.returncode == 0
     assert "unlimited-skills" in result.stdout
     assert 'suggest "<3-8 keyword phase summary>" --json --card --limit 1' in result.stdout
+
+
+def test_pre_compact_hook_records_claude_compaction_event(tmp_path: Path) -> None:
+    from unlimited_skills.money_events import load_summary
+
+    library = make_library(tmp_path)
+    home = tmp_path / "install-root"
+    env = hook_env(
+        tmp_path,
+        UNLIMITED_SKILLS_CLI=repo_cli_override(library),
+        UNLIMITED_SKILLS_HOME=str(home),
+    )
+
+    result = run_hook(PRE_COMPACT, "", env)
+    assert result.returncode == 0
+
+    summary = load_summary(home / "money_saved")
+    assert sum(bucket["event_count"] for bucket in summary["buckets"].values()) == 1
+    bucket = next(iter(summary["buckets"].values()))
+    assert bucket["basis"]["agent"] == "claude-code"
+    assert bucket["basis"]["price_class"] == "cache_write_5m"
+    assert bucket["event_types"] == {"compaction": 1}
 
 
 def test_user_prompt_submit_emits_hint_for_relevant_prompt(tmp_path: Path) -> None:
@@ -282,7 +305,10 @@ def test_user_prompt_submit_instructs_english_requery_on_non_english_timeout(tmp
     assert "English" in context and "unlimited-skills suggest" in context
 
 
-@pytest.mark.parametrize("event,script", [("SessionStart", "session_start.py"), ("UserPromptSubmit", "user_prompt_submit.py")])
+@pytest.mark.parametrize(
+    "event,script",
+    [("SessionStart", "session_start.py"), ("UserPromptSubmit", "user_prompt_submit.py"), ("PreCompact", "pre_compact.py")],
+)
 def test_hook_manifest_registers_both_hooks(event: str, script: str) -> None:
     payload = json.loads((HOOKS_DIR / "hooks.json").read_text(encoding="utf-8"))
     entries = payload["hooks"][event]

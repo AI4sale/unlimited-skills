@@ -689,9 +689,12 @@ def build_parser() -> argparse.ArgumentParser:
         "events",
         help="Real Money Saved (v2): inspect the compact event store, or record a deterministic fixture.",
     )
-    money_saved_events.add_argument("events_action", choices=["inspect", "record-fixture"], help="inspect the rolling aggregate + capped tail, or record N fixture events.")
+    money_saved_events.add_argument("events_action", choices=["inspect", "record-fixture", "backfill-codex-logs"], help="inspect the rolling aggregate + capped tail, record N fixture events, or recover compaction events from Codex session logs.")
     money_saved_events.add_argument("--event-count", type=int, default=3, help="With 'record-fixture': number of events to record.")
-    money_saved_events.add_argument("--model", default="", help="With 'record-fixture': model for the basis (default claude-opus-4.8).")
+    money_saved_events.add_argument("--model", default="", help="With 'record-fixture' or 'backfill-codex-logs': model for the basis (default detected/assumed).")
+    money_saved_events.add_argument("--sessions-root", default=str(Path.home() / ".codex" / "sessions"), help="With 'backfill-codex-logs': Codex sessions root to scan.")
+    money_saved_events.add_argument("--since", default="all", help="With 'backfill-codex-logs': all, <hours>h, or <days>d.")
+    money_saved_events.add_argument("--apply", action="store_true", help="With 'backfill-codex-logs': write deduped synthetic compaction events. Default is dry-run.")
     money_saved_events.add_argument("--json", action="store_true", help="Output is JSON regardless.")
     money_saved_events.set_defaults(func=money_saved_cmds.cmd_money_saved_events)
 

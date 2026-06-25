@@ -7,8 +7,9 @@ contract. This module resolves the CLI through a fallback chain:
 
 1. ``UNLIMITED_SKILLS_CLI`` env var (explicit operator override);
 2. ``unlimited-skills`` on PATH;
-3. the standard install venv (``~/.unlimited-skills/.venv``);
-4. the rendered launchers under ``<claude home>/skills/unlimited-skills/scripts/``.
+3. the rendered launchers under ``<claude home>/skills/unlimited-skills/scripts/``;
+4. the standard install venv (``~/.unlimited-skills/.venv``);
+5. ``unlimited-skills`` on PATH.
 
 Each candidate is returned as an argv prefix (a list), because launchers need
 an interpreter (`powershell -File` / `bash`). Pure stdlib; never raises.
@@ -42,22 +43,6 @@ def resolve_cli_command() -> list[str] | None:
             parts = [override]
         return parts or None
 
-    on_path = shutil.which("unlimited-skills")
-    if on_path:
-        return [on_path]
-
-    venv = _install_root() / ".venv"
-    for candidate in (
-        venv / "Scripts" / "unlimited-skills.exe",
-        venv / "Scripts" / "unlimited-skills",
-        venv / "bin" / "unlimited-skills",
-    ):
-        try:
-            if candidate.is_file():
-                return [str(candidate)]
-        except OSError:
-            continue
-
     scripts_dir = _claude_home() / "skills" / "unlimited-skills" / "scripts"
     ps_launcher = scripts_dir / "unlimited-skills.ps1"
     sh_launcher = scripts_dir / "unlimited-skills.sh"
@@ -74,6 +59,22 @@ def resolve_cli_command() -> list[str] | None:
                 return [pwsh, "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", str(ps_launcher)]
     except OSError:
         pass
+
+    venv = _install_root() / ".venv"
+    for candidate in (
+        venv / "Scripts" / "unlimited-skills.exe",
+        venv / "Scripts" / "unlimited-skills",
+        venv / "bin" / "unlimited-skills",
+    ):
+        try:
+            if candidate.is_file():
+                return [str(candidate)]
+        except OSError:
+            continue
+
+    on_path = shutil.which("unlimited-skills")
+    if on_path:
+        return [on_path]
     return None
 
 
