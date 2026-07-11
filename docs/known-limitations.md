@@ -32,6 +32,8 @@ other APIs may still change before 1.0.
   integration.
 - Skill cards intentionally include the selected skill's body head at high
   confidence. Set `UNLIMITED_SKILLS_NO_INJECT=1` to keep NAME-only hints.
+- Unlimited Tools MCP v1 remains local stdio: no OAuth upstreams, no MCP resources,
+  no MCP prompts, and no hosted gateway.
 
 ## Learning and hosted surfaces
 
@@ -50,4 +52,11 @@ other APIs may still change before 1.0.
   create charges, checkout sessions, invoices, refunds, or collect payment data.
 
 Historical milestone-specific restrictions remain in `docs/releases/` and are
-not statements about the current PyPI distribution path.
+not statements about the current PyPI distribution path. Compatibility
+verifiers still recognize these historical anchors:
+
+- v0.4 cross-repo readiness;
+- v0.4 go/no-go;
+- v0.4.0-alpha E01-E04 integration.
+
+Those anchors prove the old release evidence, not current product status.
