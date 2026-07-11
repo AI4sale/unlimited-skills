@@ -71,15 +71,24 @@ def verify_static_surface() -> dict[str, Any]:
     for marker in (
         "raw retrieval, recall-safe hints, and card/body eligibility are separate surfaces",
         "Body-only overlap never qualifies",
-        "hooks never create persistent services",
+        "the hook keeps one compatible local daemon running by default",
         "tag/release creation follows verified public-wheel smoke",
         "No deletion, replacement, or migration of `library/local`",
     ):
         require(marker in plan, f"release plan missing invariant: {marker}")
 
     hook = read(ROOT / "plugin" / "hooks" / "user_prompt_submit.py")
-    require("_start_daemon_warming" not in hook, "UserPromptSubmit must not auto-start the daemon")
-    require("this hook never starts background services" in hook, "hook must state the service-start boundary")
+    for marker in (
+        "_ensure_warm_daemon",
+        "_daemon_identity_matches",
+        "_claim_daemon_launch",
+        "UNLIMITED_SKILLS_NO_AUTOSERVE",
+        "subprocess.Popen",
+        "subprocess.DETACHED_PROCESS",
+    ):
+        require(marker in hook, f"hook missing autoserve invariant: {marker}")
+    require("shell=True" not in hook, "daemon autoserve must never invoke a shell")
+    require("127.0.0.1" in hook and "localhost" in hook and "::1" in hook, "autoserve must remain loopback-only")
 
     workflow = read(ROOT / ".github" / "workflows" / "publish-pypi.yml")
     require('test "${{ github.event.inputs.version }}" = "0.6.6"' in workflow, "workflow version guard mismatch")

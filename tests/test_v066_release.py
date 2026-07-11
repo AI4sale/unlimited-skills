@@ -27,6 +27,7 @@ def test_v066_versions_and_release_plan_are_aligned() -> None:
     assert plugin["version"] == "0.6.6"
     assert "raw retrieval, recall-safe hints, and card/body eligibility are separate surfaces" in plan
     assert "Body-only overlap never qualifies" in plan
+    assert "the hook keeps one compatible local daemon running by default" in plan
     assert "No deletion, replacement, or migration of `library/local`" in plan
 
 
