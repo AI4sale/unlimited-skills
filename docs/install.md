@@ -1,17 +1,27 @@
 # Install
 
-Status: `v0.3.1-alpha` stabilization train. Published baseline: `v0.3.0-alpha`.
+Status: `v0.6.6` release train.
 
-Use a GitHub clone for this alpha:
+Install the free local core from PyPI:
 
 ```bash
-git clone https://github.com/AI4sale/unlimited-skills.git
-cd unlimited-skills
-python -m pip install -e ".[all]"
+python -m pip install --upgrade "unlimited-skills>=0.6.6"
 unlimited-skills --version
+unlimited-skills quickstart
 ```
 
-PyPI is not the supported `v0.3.1-alpha` distribution path because the alpha still depends on repo assets: router skills, installers, schemas, docs, and migration scripts.
+The base install provides the fast lexical router. Install the local
+multilingual vector sidecar and warm daemon dependencies with:
+
+```bash
+python -m pip install --upgrade "unlimited-skills[all]>=0.6.6"
+unlimited-skills vector-reindex
+```
+
+For repository development, clone GitHub and use
+`python -m pip install -e ".[all]"`. The v0.6 wheel already includes the
+bundled packs needed by `quickstart`; repository-only contributor scripts and
+the complete documentation tree remain in the checkout.
 
 See [install-upgrade-uninstall.md](install-upgrade-uninstall.md) for agent-specific installer commands.
 

@@ -3,10 +3,10 @@
 The sequence (every step is idempotent -- rerunning on a configured system
 only reports status and changes nothing):
 
-1. **Library**: when the library root has zero skills, import the bundled
-   packs shipped in the repo's ``packs/`` directory (the same
-   ``migrate_source`` path the installers' ``bundled`` mode uses) and rebuild
-   the lexical index. A non-empty library is left untouched.
+1. **Library**: non-destructively import missing bundled collections from the
+   repo's ``packs/`` directory (the same ``migrate_source`` path the
+   installers' ``bundled`` mode uses) and rebuild the lexical index. Existing
+   local skills and existing managed collections are left untouched.
 2. **First search**: run one lexical search (the user's query or a demo
    query) and show the top 3 hits, proving retrieval works.
 3. **MCP context savings**: measure the user's real standing MCP schema cost
@@ -25,6 +25,8 @@ from pathlib import Path
 
 DEFAULT_QUERY = "code review checklist"
 BUNDLED_PACKS = ("ecc", "superpowers")
+QUICKSTART_DOC_URL = "https://github.com/AI4sale/unlimited-skills/blob/main/docs/quickstart.md"
+MCP_DOC_URL = "https://github.com/AI4sale/unlimited-skills/blob/main/docs/unlimited-tools.md"
 
 
 def find_repo_root(start: Path | None = None) -> Path | None:
@@ -54,13 +56,12 @@ def library_skill_count(root: Path) -> int:
 
 
 def ensure_bundled_library(root: Path, repo_root: Path | None = None) -> dict:
-    """Import bundled packs when (and only when) the library is empty."""
+    """Import missing bundled collections without modifying existing content."""
     from . import cli
     from .installers.common import migrate_source
+    from .search_core import index_is_current
 
     count = library_skill_count(root)
-    if count:
-        return {"status": "ready", "skill_count": count, "imported": {}}
     repo_root = repo_root or find_repo_root()
     with ExitStack() as stack:
         if repo_root:
@@ -80,23 +81,55 @@ def ensure_bundled_library(root: Path, repo_root: Path | None = None) -> dict:
             else []
         )
         sources = [(pack, path) for pack, path in sources if path.is_dir()]
-        if not sources:
-            return {"status": "empty_no_packs", "skill_count": 0, "imported": {}}
         imported: dict[str, int] = {}
         for pack, source in sources:
+            # ``migrate_source`` intentionally permits replacing entries in its
+            # own target collection. Quickstart is additive, so explicitly
+            # exclude every name already present there before copying.
+            target = root / "registry" / pack / "skills"
+            existing_target_names = {
+                skill_file.parent.name for skill_file in target.rglob("SKILL.md")
+            } if target.is_dir() else set()
             result = migrate_source(
                 source,
                 root,
                 pack,
-                skip_existing_names=False,
+                exclude_names=existing_target_names,
+                skip_existing_names=True,
                 registry_collection=True,
             )
-            imported[pack] = result.migrated_count
-    cli.save_index(root)
+            if result.migrated_count:
+                imported[pack] = result.migrated_count
+
+    missing_packs = [
+        pack
+        for pack in BUNDLED_PACKS
+        if not any((root / "registry" / pack / "skills").rglob("SKILL.md"))
+    ]
+    if imported:
+        cli.save_index(root)
+        return {
+            "status": "imported" if count == 0 else "augmented",
+            "skill_count": library_skill_count(root),
+            "imported": imported,
+            "index_refreshed": True,
+        }
+
+    index_refreshed = bool(count and not index_is_current(root))
+    if index_refreshed:
+        cli.save_index(root)
     return {
-        "status": "imported",
-        "skill_count": library_skill_count(root),
-        "imported": imported,
+        "status": (
+            "empty_no_packs"
+            if count == 0
+            else "ready_missing_bundled_packs"
+            if missing_packs
+            else "ready"
+        ),
+        "skill_count": count,
+        "imported": {},
+        "missing_packs": missing_packs,
+        "index_refreshed": index_refreshed,
     }
 
 
@@ -104,19 +137,22 @@ def first_search(root: Path, query: str, limit: int = 3) -> dict:
     """One lexical search; falls back to the demo query when the user's
     query has no hits, so the first-run experience always shows results
     (when the library has any skills at all)."""
-    from . import cli
+    from .suggest import DEFAULT_FLOOR, suggest_hits
 
     used_query = query or DEFAULT_QUERY
-    hits = cli.lexical_search(root, used_query, limit)
+    requested_query = used_query
+    hits = suggest_hits(root, used_query, limit=limit, floor=DEFAULT_FLOOR)
     fallback = False
     if not hits and used_query != DEFAULT_QUERY:
-        hits = cli.lexical_search(root, DEFAULT_QUERY, limit)
+        hits = suggest_hits(root, DEFAULT_QUERY, limit=limit, floor=DEFAULT_FLOOR)
         if hits:
             used_query = DEFAULT_QUERY
             fallback = True
     return {
+        "requested_query": requested_query,
         "query": used_query,
         "fallback_to_demo_query": fallback,
+        "minimum_score": DEFAULT_FLOOR,
         "hits": [
             {
                 "name": hit.name,
@@ -166,7 +202,7 @@ def run_quickstart(
         "savings": savings,
         "savings_error": savings_error,
         "next_steps": [
-            "unlimited-skills mcp gateway --config ~/.unlimited-skills/gateway-config.json",
+            "unlimited-skills mcp install --claude-code --dry-run",
             "unlimited-skills setup --local-only",
         ],
     }
@@ -192,12 +228,18 @@ def format_quickstart_text(report: dict) -> str:
     lines = ["Unlimited Skills quickstart", ""]
 
     lines.append("[1/4] Library")
-    if library["status"] == "imported":
+    if library["status"] in {"imported", "augmented"}:
         packs = ", ".join(f"{pack} ({count})" for pack, count in sorted(library["imported"].items()))
-        lines.append(f"  Imported bundled packs: {packs}.")
+        verb = "Imported" if library["status"] == "imported" else "Added missing"
+        lines.append(f"  {verb} bundled packs: {packs}.")
         lines.append(f"  Library ready: {library['skill_count']} skills indexed.")
     elif library["status"] == "ready":
         lines.append(f"  Library already populated: {library['skill_count']} skills (import skipped).")
+        if library.get("index_refreshed"):
+            lines.append("  Refreshed the stale/incompatible lexical index in place.")
+    elif library["status"] == "ready_missing_bundled_packs":
+        missing = ", ".join(library.get("missing_packs") or ())
+        lines.append(f"  Library has {library['skill_count']} skills; bundled packs unavailable: {missing}.")
     else:
         lines.append("  Library is empty and the bundled packs/ directory was not found.")
         lines.append("  Install packs with: unlimited-skills install-pack ecc")
@@ -228,12 +270,12 @@ def format_quickstart_text(report: dict) -> str:
     lines.extend(
         [
             "[4/4] Next steps",
-            "  - Front your MCP servers with the gateway (3 meta-tools instead of every schema):",
-            "      unlimited-skills mcp gateway --config ~/.unlimited-skills/gateway-config.json",
-            "    Claude Code registration example: docs/unlimited-tools.md",
+            "  - Preview the safe Claude Code gateway change before writing it:",
+            "      unlimited-skills mcp install --claude-code --dry-run",
+            f"    Gateway guide: {MCP_DOC_URL}",
             "  - Guided setup (router skill, agents, diagnostics):",
             "      unlimited-skills setup --local-only",
-            "  - Docs: docs/quickstart.md",
+            f"  - Docs: {QUICKSTART_DOC_URL}",
         ]
     )
     return "\n".join(lines)

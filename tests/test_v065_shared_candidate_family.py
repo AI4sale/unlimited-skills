@@ -6,7 +6,7 @@ from pathlib import Path
 
 from unlimited_skills import cli
 from unlimited_skills import suggest
-from unlimited_skills.search_core import candidate_sources, event_safe_payload, shared_candidate_family, write_jsonl
+from unlimited_skills.search_core import SkillHit, candidate_debug_payload, candidate_sources, event_safe_payload, shared_candidate_family, write_jsonl
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT_PATH = REPO_ROOT / "scripts" / "verify-v065-shared-candidate-family.py"
@@ -39,7 +39,7 @@ def test_suggest_card_candidates_expose_shared_sources(tmp_path: Path, capsys) -
     }
     assert all("candidate_rank" in candidate for candidate in candidates)
     assert all("confidence" in candidate for candidate in candidates)
-    assert payload["vector_status"] == "unavailable_missing_sidecar"
+    assert payload["vector_status"] == "not_requested"
 
 
 def test_search_json_exposes_comparable_candidate_sources(tmp_path: Path, capsys) -> None:
@@ -94,3 +94,30 @@ def test_learning_feedback_marks_boost_without_new_search_path(tmp_path: Path) -
     boosted = next(hit for hit in after if hit.name == "content-engine")
     assert "learning_boost" in candidate_sources(boosted)
     assert after_names.index("content-engine") < before.index("content-engine")
+
+
+def test_rrf_uses_ranks_not_raw_vector_score_scale(tmp_path: Path) -> None:
+    root = shared_family.zero_gate.build_fixture_library(tmp_path / "library")
+    query = "write LinkedIn post"
+    paths = {hit.name: hit.path for hit in shared_candidate_family(root, query, 10)}
+
+    def vectors(scale: float) -> list[SkillHit]:
+        return [
+            SkillHit("content-engine", "fixture", "ecc", paths["content-engine"], 0.9 * scale),
+            SkillHit("social-publisher", "fixture", "ecc", paths["social-publisher"], 0.6 * scale),
+        ]
+
+    normal = shared_candidate_family(root, query, 5, vector_hits=vectors(1.0))
+    rescaled = shared_candidate_family(root, query, 5, vector_hits=vectors(100.0))
+    assert [hit.name for hit in normal] == [hit.name for hit in rescaled]
+    assert [round(hit.score, 6) for hit in normal] == [round(hit.score, 6) for hit in rescaled]
+    assert all(candidate_debug_payload(hit)["fusion_method"] == "rrf" for hit in normal)
+
+
+def test_query_expansion_never_claims_exact_skill_identity(tmp_path: Path) -> None:
+    root = shared_family.zero_gate.build_fixture_library(tmp_path / "library")
+    hits = shared_candidate_family(root, "create social media content", 5)
+    marketing = next(hit for hit in hits if hit.name == "marketing-campaign")
+    evidence = candidate_debug_payload(marketing)
+    assert "query_expansion" in evidence["candidate_sources"]
+    assert evidence["exact_match"] is False

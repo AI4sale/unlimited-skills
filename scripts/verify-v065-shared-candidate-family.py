@@ -89,11 +89,13 @@ def _candidate_names(rows: list[dict[str, Any]]) -> list[str]:
     return [str(row.get("name") or "") for row in rows if isinstance(row, dict) and row.get("name")]
 
 
-def _payload_candidates(result: dict[str, Any]) -> list[dict[str, Any]]:
+def _payload_candidates(
+    result: dict[str, Any], key: str = "top_3_skill_candidates"
+) -> list[dict[str, Any]]:
     payload = result.get("payload")
     if not isinstance(payload, dict):
         return []
-    return [row for row in payload.get("top_3_skill_candidates") or [] if isinstance(row, dict)]
+    return [row for row in payload.get(key) or [] if isinstance(row, dict)]
 
 
 def _search_payload_rows(result: dict[str, Any]) -> list[dict[str, Any]]:
@@ -124,29 +126,47 @@ def _rank_row(root: Path, query_def: dict[str, Any], *, read_only_root: bool) ->
     hybrid_hits = cli.hybrid_search(root, query, 10, cli.DEFAULT_EMBED_MODEL, None, False, False)
     hybrid_rows = [_hit_payload(hit) for hit in hybrid_hits]
     hybrid_names = [hit.name for hit in hybrid_hits]
+    deliverable_hybrid_names = [hit.name for hit in suggest.recall_safe_hint_hits(hybrid_hits, query)]
     hybrid_sources = {hit.name: list(candidate_sources(hit)) for hit in hybrid_hits}
     search_json = _run_search_json(root, query, limit=10)
     search_rows = _search_payload_rows(search_json)
     search_names = _candidate_names(search_rows)
     suggest_card = _run_suggest(root, query, limit=5)
     suggest_candidates = _payload_candidates(suggest_card)
+    suggest_retrieval_candidates = _payload_candidates(suggest_card, "retrieval_candidates")
     suggest_names = _candidate_names(suggest_candidates)
-    missing_suggest_sources = [row.get("name") for row in suggest_candidates if not row.get("candidate_sources")]
+    suggest_retrieval_names = _candidate_names(suggest_retrieval_candidates)
+    missing_suggest_sources = [
+        row.get("name")
+        for row in suggest_candidates + suggest_retrieval_candidates
+        if not row.get("candidate_sources")
+    ]
     missing_search_sources = [row.get("name") for row in search_rows if row.get("name") and not row.get("candidate_sources")]
 
     hook_report = zero_gate.build_report(root, [query_def], Path(tempfile.mkdtemp(prefix="uls-v065-shared-hook-")))
     hook_row = hook_report["rows"][0]
     hook_names = list(hook_row["user_prompt_submit"]["hook_candidates"])
 
-    required = _required_family(expected, hybrid_names, min_hook_candidates, read_only_root=read_only_root)
+    deliverable_expected = [name for name in expected if name in set(deliverable_hybrid_names)]
+    required = _required_family(
+        deliverable_expected,
+        deliverable_hybrid_names,
+        min_hook_candidates,
+        read_only_root=read_only_root,
+    )
     expected_hits = [name for name in expected if name in hybrid_names]
     shared_family_missing = [name for name in expected if name not in set(hybrid_names)]
     suggest_divergence = [name for name in suggest_names if name not in set(hybrid_names)]
+    suggest_retrieval_divergence = [
+        name for name in suggest_retrieval_names if name not in set(hybrid_names)
+    ]
     search_json_divergence = [name for name in search_names if name not in set(hybrid_names)]
-    hook_zero_with_family = bool(hybrid_names) and not hook_names
+    hook_zero_with_family = bool(deliverable_hybrid_names) and not hook_names
     hook_missing = [name for name in required if name not in set(hook_names)]
-    hybrid_suggest_overlap = bool(set(hybrid_names) & set(suggest_names))
-    hybrid_hook_overlap = bool(set(hybrid_names) & set(hook_names))
+    hybrid_suggest_overlap = bool(set(hybrid_names) & set(suggest_retrieval_names))
+    hybrid_hook_overlap = not deliverable_hybrid_names or bool(
+        set(deliverable_hybrid_names) & set(hook_names)
+    )
     vector_status = None
     payload = suggest_card.get("payload")
     if isinstance(payload, dict):
@@ -158,14 +178,17 @@ def _rank_row(root: Path, query_def: dict[str, Any], *, read_only_root: bool) ->
         "expected_family": expected,
         "required_hook_family": required,
         "hybrid_top_10": hybrid_names,
+        "deliverable_hybrid_top_10": deliverable_hybrid_names,
         "hybrid_rows": hybrid_rows,
         "hybrid_sources": hybrid_sources,
         "search_json_top_10": search_names,
+        "suggest_retrieval_top": suggest_retrieval_names,
         "suggest_top": suggest_names,
         "suggest_vector_status": vector_status,
         "hook_candidates": hook_names,
         "shared_family_missing": shared_family_missing,
         "suggest_divergence": suggest_divergence,
+        "suggest_retrieval_divergence": suggest_retrieval_divergence,
         "search_json_divergence": search_json_divergence,
         "suggest_missing_candidate_sources": missing_suggest_sources,
         "search_missing_candidate_sources": missing_search_sources,
@@ -219,8 +242,12 @@ def _write_vector_sidecar(root: Path, query: str, embeddings: dict[str, list[flo
             }
         )
     payload = {
-        "schema_version": 1,
+        "schema_version": 2,
         "model": cli.DEFAULT_EMBED_MODEL,
+        "count": len(records),
+        "embedding_dimensions": 2,
+        "library_generation_hash": cli.library_generation_hash(root),
+        "complete": True,
         "query_embeddings": {
             suggest.task_summary_hash(query): [1.0, 0.0],
             " ".join(query.split()).lower(): [1.0, 0.0],
@@ -228,6 +255,21 @@ def _write_vector_sidecar(root: Path, query: str, embeddings: dict[str, list[flo
         "records": records,
     }
     cli.vector_sidecar_path(root).write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    cli.vector_meta_path(root).write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "model": cli.DEFAULT_EMBED_MODEL,
+                "count": len(records),
+                "embedding_dimensions": 2,
+                "library_generation_hash": cli.library_generation_hash(root),
+                "complete": True,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
 
 
 def _build_vector_only_fixture(root: Path) -> tuple[Path, str, str]:
@@ -299,6 +341,8 @@ def build_report(root: Path, *, read_only_root: bool) -> dict[str, Any]:
             failures.append({"id": row["id"], "reason": "shared_family_missing", "items": row["shared_family_missing"]})
         if row["suggest_divergence"]:
             failures.append({"id": row["id"], "reason": "suggest_not_from_hybrid_family", "items": row["suggest_divergence"]})
+        if row["suggest_retrieval_divergence"]:
+            failures.append({"id": row["id"], "reason": "suggest_retrieval_not_from_hybrid_family", "items": row["suggest_retrieval_divergence"]})
         if row["search_json_divergence"]:
             failures.append({"id": row["id"], "reason": "search_json_not_from_hybrid_family", "items": row["search_json_divergence"]})
         if row["suggest_missing_candidate_sources"]:
@@ -307,7 +351,7 @@ def build_report(root: Path, *, read_only_root: bool) -> dict[str, Any]:
             failures.append({"id": row["id"], "reason": "search_candidate_sources_missing", "items": row["search_missing_candidate_sources"]})
         if row["hybrid_top_10"] and not row["hybrid_suggest_overlap"]:
             failures.append({"id": row["id"], "reason": "hybrid_suggest_divergence"})
-        if row["hybrid_top_10"] and not row["hybrid_hook_overlap"]:
+        if row["deliverable_hybrid_top_10"] and not row["hybrid_hook_overlap"]:
             failures.append({"id": row["id"], "reason": "hybrid_hook_divergence"})
         if row["hook_zero_with_family"]:
             failures.append({"id": row["id"], "reason": "hook_zero_with_family"})

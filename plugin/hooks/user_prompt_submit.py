@@ -15,14 +15,17 @@ skill TO the model instead of hinting the model to fetch it):
 
 Hard guarantees:
 
-- never blocks: the probe runs with a hard timeout (default 2 s,
+- never blocks: the probe runs with a hard timeout (default 3 s,
   ``UNLIMITED_SKILLS_SUGGEST_TIMEOUT`` overrides for tests);
 - fail-open: ANY error (missing CLI, bad stdin, timeout, bad JSON,
   unreadable SKILL.md) exits 0 with no output or degrades to the hint;
 - no below-floor noise: when `suggest` returns nothing, the hook prints
   nothing;
 - kill switch: ``UNLIMITED_SKILLS_NO_INJECT=1`` downgrades tier 3 to the
-  tier-2 hint (``--card`` is never requested);
+  tier-2 hint while retaining card-mode delivery metadata for floor checks;
+- warm-runtime guarantee: the hook starts the local warm daemon when no
+  compatible instance is listening; ``UNLIMITED_SKILLS_NO_AUTOSERVE=1`` is the
+  emergency escape hatch for restricted runtimes;
 - privacy: the prompt text goes only to the local CLI; nothing is logged
   here, the injected context never echoes the prompt text, and it carries no
   local filesystem paths (skills are referenced by NAME only; the tier-3
@@ -31,11 +34,17 @@ Hard guarantees:
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import re
 import socket
 import subprocess
 import sys
+import tempfile
+import time
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
@@ -56,35 +65,31 @@ MIN_PROMPT_CHARS = 12
 MAX_PROMPT_CHARS = 300
 HOOK_CANDIDATE_LIMIT = 5
 HOOK_CANDIDATE_DISPLAY_LIMIT = 5
-DEFAULT_TIMEOUT_SECONDS = 2.0
+DEFAULT_TIMEOUT_SECONDS = 3.0
 KILL_SWITCH_ENV = "UNLIMITED_SKILLS_NO_INJECT"
-
-# Warm multilingual search daemon (`unlimited-skills serve`). A non-English prompt
-# IS the signal that this user needs native-language search, so the hook starts the
-# daemon in the background — for everyone — so the NEXT native-language lookups are
-# fast (~0.3s) instead of a ~14-20s cold load. Idempotent (skips if the port already
-# listens), detached, best-effort. Escape hatch for restricted envs: NO_AUTOSERVE.
-DAEMON_HOST = "127.0.0.1"
-DAEMON_PORT = 8765
 NO_AUTOSERVE_ENV = "UNLIMITED_SKILLS_NO_AUTOSERVE"
+WARM_DAEMON_URL_ENV = "UNLIMITED_SKILLS_WARM_DAEMON_URL"
+DEFAULT_WARM_DAEMON_URL = "http://127.0.0.1:8765"
+WARM_DAEMON_PROTOCOL = "warm-search-v1"
+DEFAULT_EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+HASHED_PORT_BASE = 18000
+HASHED_PORT_SPAN = 1000
+FALLBACK_PORT_BASE = 20000
+FALLBACK_PORT_SPAN = 1000
+RUNTIME_CONTRACT_VERSION = 2
+AUTOSERVE_RETRY_SECONDS = 30.0
 
 # Tier-3 fallback (non-English rescue). The lexical engine scores a non-English
 # prompt at zero, and a cold multilingual embedding load can exceed the probe
 # timeout. In both cases, instead of returning silence, ask the model to do the
 # one thing it is uniquely good at across 1000 languages: restate the task as
 # English keywords and re-query the router with THAT. No prompt text is echoed.
-NON_ENGLISH_INSTRUCTION = (
+NON_ENGLISH_INSTRUCTION_PREFIX = (
     "Unlimited Skills — NON-ENGLISH PROMPT, NO IN-BUDGET RESULT. Lexical search "
-    "scores non-English at ~0, and without a WARM multilingual daemon every "
-    "non-English lookup returns NOTHING inside the hook's short time budget — "
-    "that is exactly why no skill was suggested here. DO THIS NOW, do not skip: "
+    "did not produce a result above the delivery threshold. DO THIS NOW: "
     "restate the user's request as 3-8 English retrieval keywords and run "
     '`unlimited-skills suggest "<English keywords>"` (the English query, not the '
-    "raw prompt). Expect ~14-20 seconds the first time (cold embedding-model "
-    "load) — that delay is EXPECTED, wait for it — then use the top skill it "
-    "returns. The hook has already triggered best-effort background daemon "
-    "warming (`unlimited-skills serve`) for future native-language searches; "
-    "set UNLIMITED_SKILLS_NO_AUTOSERVE=1 to disable that behavior."
+    "raw prompt), then use the top skill it returns. "
 )
 
 
@@ -99,6 +104,295 @@ def _kill_switch_active() -> bool:
     return os.environ.get(KILL_SWITCH_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
 
 
+def _autoserve_disabled() -> bool:
+    return os.environ.get(NO_AUTOSERVE_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _daemon_endpoint(command: list[str]) -> tuple[str, int, str] | None:
+    explicit = os.environ.get(WARM_DAEMON_URL_ENV, "").strip()
+    if explicit:
+        raw_url = explicit.rstrip("/")
+    else:
+        root = _expected_library_root(command)
+        default_root = (Path.home() / ".unlimited-skills" / "library").resolve()
+        if root is None or root == default_root:
+            raw_url = DEFAULT_WARM_DAEMON_URL
+        else:
+            identity = f"{os.path.normcase(str(root))}\0{os.environ.get('UNLIMITED_SKILLS_EMBED_MODEL', DEFAULT_EMBED_MODEL)}"
+            port_value = HASHED_PORT_BASE + (
+                int(hashlib.sha256(identity.encode("utf-8")).hexdigest()[:8], 16) % HASHED_PORT_SPAN
+            )
+            raw_url = f"http://127.0.0.1:{port_value}"
+    try:
+        parsed = urllib.parse.urlparse(raw_url)
+        host = str(parsed.hostname or "")
+        port = int(parsed.port or (443 if parsed.scheme == "https" else 80))
+    except (TypeError, ValueError):
+        return None
+    if (
+        parsed.scheme != "http"
+        or host not in {"127.0.0.1", "localhost", "::1"}
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.path not in {"", "/"}
+        or parsed.params
+        or parsed.query
+        or parsed.fragment
+    ):
+        # Autoserve is deliberately local-only. A configured remote/insecurely
+        # shaped endpoint can still be diagnosed by the CLI, but the hook never
+        # tries to create it.
+        return None
+    return host, port, raw_url
+
+
+def _daemon_endpoints(command: list[str]) -> list[tuple[str, int, str]]:
+    preferred = _daemon_endpoint(command)
+    if preferred is None:
+        return []
+    root = _expected_library_root(command)
+    if root is None:
+        return [preferred]
+    model = os.environ.get("UNLIMITED_SKILLS_EMBED_MODEL", DEFAULT_EMBED_MODEL)
+    identity = f"{os.path.normcase(str(root))}\0{model}\0runtime-contract-{RUNTIME_CONTRACT_VERSION}"
+    fallback_port = FALLBACK_PORT_BASE + (
+        int(hashlib.sha256(identity.encode("utf-8")).hexdigest()[:8], 16) % FALLBACK_PORT_SPAN
+    )
+    fallback = ("127.0.0.1", fallback_port, f"http://127.0.0.1:{fallback_port}")
+    return [preferred] if preferred[2] == fallback[2] else [preferred, fallback]
+
+
+def _expected_library_root(command: list[str]) -> Path | None:
+    for index, part in enumerate(command):
+        if part == "--root" and index + 1 < len(command):
+            raw = command[index + 1]
+            break
+        if part.startswith("--root="):
+            raw = part.split("=", 1)[1]
+            break
+    else:
+        raw = os.environ.get("UNLIMITED_SKILLS_ROOT", "").strip()
+        if not raw:
+            for part in command:
+                launcher = Path(str(part))
+                if not str(part).lower().endswith((".ps1", ".sh")):
+                    continue
+                try:
+                    text = launcher.read_text(encoding="utf-8", errors="replace")[:65536]
+                except OSError:
+                    continue
+                matches = list(re.finditer(r'--root\s+(?:"([^"]+)"|\'([^\']+)\'|([^\s]+))', text))
+                if matches:
+                    raw = next(group for group in matches[-1].groups() if group is not None)
+                    break
+            if not raw and any(str(part).lower().endswith((".ps1", ".sh")) for part in command):
+                return None
+        if not raw:
+            raw = str(Path.home() / ".unlimited-skills" / "library")
+    try:
+        return Path(raw).expanduser().resolve()
+    except (OSError, RuntimeError):
+        return None
+
+
+def _daemon_identity_matches(payload: dict, command: list[str]) -> bool:
+    if not (
+        payload.get("ok") is True
+        and payload.get("service") == "unlimited-skills"
+        and payload.get("protocol") == WARM_DAEMON_PROTOCOL
+        and payload.get("runtime_contract_version") == RUNTIME_CONTRACT_VERSION
+        and str(payload.get("model") or "")
+        == os.environ.get("UNLIMITED_SKILLS_EMBED_MODEL", DEFAULT_EMBED_MODEL)
+    ):
+        return False
+    expected_root = _expected_library_root(command)
+    if expected_root is None:
+        return bool(str(payload.get("root") or "").strip())
+    try:
+        actual_root = Path(str(payload.get("root") or "")).expanduser().resolve()
+    except (OSError, RuntimeError):
+        return False
+    return actual_root == expected_root
+
+
+def _daemon_state(command: list[str], endpoint: tuple[str, int, str] | None = None) -> str:
+    endpoint = endpoint or _daemon_endpoint(command)
+    if endpoint is None:
+        return "external_or_invalid"
+    host, port, raw_url = endpoint
+    try:
+        with urllib.request.urlopen(f"{raw_url}/health", timeout=0.2) as response:
+            payload = json.loads(response.read().decode("utf-8", errors="replace"))
+        if isinstance(payload, dict) and _daemon_identity_matches(payload, command):
+            return "ready"
+        return "incompatible"
+    except Exception:
+        try:
+            with socket.create_connection((host, port), timeout=0.15):
+                return "incompatible"
+        except OSError:
+            return "missing"
+
+
+def _launch_marker(command: list[str], raw_url: str) -> Path:
+    digest = hashlib.sha256(
+        json.dumps([*command, raw_url], ensure_ascii=True, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()[:16]
+    root = _expected_library_root(command)
+    home = os.environ.get("UNLIMITED_SKILLS_HOME", "").strip()
+    runtime_dir = Path(home).expanduser() / "runtime" if home else (
+        root.parent / "runtime" if root is not None else Path(tempfile.gettempdir()) / "unlimited-skills-autoserve"
+    )
+    return runtime_dir / f"daemon-{digest}.launch"
+
+
+def _write_daemon_state(command: list[str], raw_url: str, status: str, pid: int | None = None) -> None:
+    path = _launch_marker(command, raw_url).with_suffix(".json")
+    if pid is None:
+        try:
+            previous = json.loads(path.read_text(encoding="utf-8"))
+            previous_pid = previous.get("pid") if isinstance(previous, dict) else None
+            pid = int(previous_pid) if previous_pid else None
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            pid = None
+    payload = {
+        "schema_version": 1,
+        "status": status,
+        "pid": pid,
+        "endpoint": raw_url,
+        "updated_at": time.time(),
+    }
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_suffix(".tmp")
+        temporary.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+        os.replace(temporary, path)
+    except OSError:
+        pass
+
+
+def _claim_daemon_launch(command: list[str], raw_url: str) -> tuple[bool, Path | None]:
+    """Cross-process cooldown against prompt-hook spawn storms."""
+
+    marker = _launch_marker(command, raw_url)
+    try:
+        marker.parent.mkdir(parents=True, exist_ok=True)
+        if marker.exists():
+            age = max(0.0, time.time() - marker.stat().st_mtime)
+            if age < AUTOSERVE_RETRY_SECONDS:
+                return False, marker
+            marker.unlink(missing_ok=True)
+        fd = os.open(marker, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        try:
+            os.write(fd, str(time.time()).encode("ascii"))
+        finally:
+            os.close(fd)
+        return True, marker
+    except FileExistsError:
+        return False, marker
+    except OSError:
+        # A read-only temp directory must not disable the owner-required daemon
+        # launch. We lose the cooldown but retain best-effort availability.
+        return True, None
+
+
+def _ensure_warm_daemon(command: list[str]) -> str:
+    """Start the local daemon when absent; never block the prompt on warming."""
+
+    if _autoserve_disabled():
+        return "disabled"
+    endpoints = _daemon_endpoints(command)
+    if not endpoints:
+        return "external_or_invalid"
+    saw_incompatible = False
+    for endpoint in endpoints:
+        state = _daemon_state(command, endpoint)
+        if state == "ready":
+            try:
+                _launch_marker(command, endpoint[2]).unlink(missing_ok=True)
+            except OSError:
+                pass
+            _write_daemon_state(command, endpoint[2], "running")
+            return state
+        if state == "incompatible":
+            saw_incompatible = True
+            continue
+        if state == "external_or_invalid":
+            return state
+        if state != "missing":
+            continue
+        break
+    else:
+        return "incompatible" if saw_incompatible else "failed"
+    host, port, raw_url = endpoint
+    claimed, marker = _claim_daemon_launch(command, raw_url)
+    if not claimed:
+        return "warming"
+    try:
+        kwargs: dict = {
+            "stdin": subprocess.DEVNULL,
+            "stdout": subprocess.DEVNULL,
+            "stderr": subprocess.DEVNULL,
+        }
+        if os.name == "nt":
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = 0
+            kwargs["startupinfo"] = startupinfo
+            kwargs["creationflags"] = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+        else:
+            kwargs["start_new_session"] = True
+        process = subprocess.Popen(
+            [*command, "serve", "--host", host, "--port", str(port), "--log-level", "warning"],
+            **kwargs,
+        )
+        _write_daemon_state(command, raw_url, "starting", getattr(process, "pid", None))
+        return "starting"
+    except Exception:
+        if marker is not None:
+            try:
+                marker.unlink(missing_ok=True)
+            except OSError:
+                pass
+        _write_daemon_state(command, raw_url, "failed")
+        return "failed"
+
+
+def _non_english_instruction(daemon_state: str) -> str:
+    """Return truthful, path-free daemon guidance for the current prompt."""
+
+    if daemon_state == "ready":
+        runtime = "The local warm daemon is running and compatible."
+    elif daemon_state in {"starting", "warming"}:
+        runtime = (
+            "The hook has requested the local warm daemon start; this request may still use "
+            "lexical fallback while the embedding runtime warms."
+        )
+    elif daemon_state == "disabled":
+        runtime = (
+            "Automatic daemon startup is disabled by UNLIMITED_SKILLS_NO_AUTOSERVE; "
+            "remove that emergency override to restore warm retrieval."
+        )
+    elif daemon_state == "incompatible":
+        runtime = (
+            "The configured local port is occupied by an incompatible service; run "
+            "`unlimited-skills doctor` before retrying."
+        )
+    elif daemon_state == "external_or_invalid":
+        runtime = (
+            "Automatic startup refused a non-local or malformed daemon endpoint; run "
+            "`unlimited-skills doctor` to restore the local endpoint."
+        )
+    elif daemon_state == "failed":
+        runtime = (
+            "The automatic daemon launch failed; run `unlimited-skills doctor --fix` "
+            "to repair the optional server/vector runtime."
+        )
+    else:
+        runtime = "The hook will retry the local warm daemon on the next eligible prompt."
+    return NON_ENGLISH_INSTRUCTION_PREFIX + runtime
+
+
 def _looks_non_english(text: str) -> bool:
     """Latin-letters heuristic, inlined (the hook is standalone, no package import).
 
@@ -110,48 +404,6 @@ def _looks_non_english(text: str) -> bool:
         return False
     ascii_letters = sum(1 for c in letters if c.isascii())
     return (ascii_letters / len(letters)) < 0.6
-
-
-def _daemon_listening(host: str = DAEMON_HOST, port: int = DAEMON_PORT) -> bool:
-    try:
-        with socket.create_connection((host, port), timeout=0.2):
-            return True
-    except OSError:
-        return False
-
-
-def _start_daemon_warming(command: list[str]) -> None:
-    """Start the warm search daemon in the background for non-English users.
-
-    Fire-and-forget: detached, idempotent (no-op if the port already listens),
-    best-effort (a missing server extra just dies silently). NEVER blocks or
-    raises — the hook returns immediately and the daemon warms for the NEXT prompt.
-    """
-    if os.environ.get(NO_AUTOSERVE_ENV):
-        return
-    if _daemon_listening():
-        return
-    try:
-        kwargs: dict = {
-            "stdin": subprocess.DEVNULL,
-            "stdout": subprocess.DEVNULL,
-            "stderr": subprocess.DEVNULL,
-        }
-        if os.name == "nt":
-            # DETACHED_PROCESS (no console at all) | CREATE_NEW_PROCESS_GROUP — survives
-            # the hook exit and shows NO window (the scary blank window comes from
-            # CREATE_NEW_CONSOLE, which we never use). STARTUPINFO + SW_HIDE is
-            # belt-and-suspenders so nothing flashes even via a powershell launcher.
-            kwargs["creationflags"] = 0x00000008 | 0x00000200
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            startupinfo.wShowWindow = 0  # SW_HIDE
-            kwargs["startupinfo"] = startupinfo
-        else:
-            kwargs["start_new_session"] = True
-        subprocess.Popen([*command, "serve"], **kwargs)
-    except Exception:
-        return
 
 
 def _emit(context: str) -> None:
@@ -205,14 +457,12 @@ def main() -> int:
         command = resolve_cli_command()
         if not command:
             return 0
-        # A non-English prompt means this user needs native-language search — warm
-        # the daemon in the background now (for everyone) so the NEXT lookups are fast.
-        if non_english:
-            _start_daemon_warming(command)
+        daemon_state = _ensure_warm_daemon(command)
         inject_cards = not _kill_switch_active()
         cmd = [*command, "suggest", prompt[:MAX_PROMPT_CHARS], "--json", "--limit", str(HOOK_CANDIDATE_LIMIT)]
-        if inject_cards:
-            cmd.append("--card")
+        # Always request tier metadata. The CLI's kill switch suppresses the
+        # body-bearing card while preserving floor enforcement.
+        cmd.append("--card")
         try:
             proc = subprocess.run(
                 cmd,
@@ -226,12 +476,16 @@ def main() -> int:
             # prompt; ask for an English re-query rather than block or fall silent.
             # English prompts that time out stay silent (fail-open, no false nag).
             if non_english:
-                _emit(NON_ENGLISH_INSTRUCTION)
+                _emit(_non_english_instruction(daemon_state))
             return 0
         if proc.returncode != 0 or not proc.stdout.strip():
             return 0
         payload_out = json.loads(proc.stdout)
         if not isinstance(payload_out, dict):
+            return 0
+        if payload_out.get("delivery_tier") == 1:
+            if non_english or payload_out.get("needs_english_query") is True:
+                _emit(_non_english_instruction(daemon_state))
             return 0
         # Tier 3: the CLI decided high confidence + margin and built the card.
         card = payload_out.get("skill_card")
@@ -239,12 +493,12 @@ def main() -> int:
             card_text = str(card.get("card") or "").strip()
             card_name = str(card.get("name") or "").strip()
             if card_text and card_name:
-                candidates = payload_out.get("top_3_skill_candidates")
+                candidates = payload_out.get("delivery_candidates")
                 hint = _candidate_hint(candidates) if isinstance(candidates, list) and len(candidates) > 1 else ""
                 _emit(card_text + ("\n\n" + hint if hint else ""))
                 return 0
         # Tier 2: one-line, NAME-only hint. Tier 1: silence.
-        candidates = payload_out.get("top_3_skill_candidates")
+        candidates = payload_out.get("delivery_candidates")
         if not isinstance(candidates, list) or not candidates:
             # No in-budget result. For a NON-ENGLISH prompt this is the expected
             # outcome without a warm multilingual daemon (lexical scores it ~0), so
@@ -252,11 +506,12 @@ def main() -> int:
             # silently — regardless of whether the CLI set needs_english_query.
             # English no-match stays silent (no false nag).
             if non_english or payload_out.get("needs_english_query") is True:
-                _emit(NON_ENGLISH_INSTRUCTION)
+                _emit(_non_english_instruction(daemon_state))
             return 0
         hint = _candidate_hint(candidates)
         if hint:
-            _emit(hint)
+            rescue = _non_english_instruction(daemon_state) if payload_out.get("needs_english_query") is True else ""
+            _emit(hint + ("\n\n" + rescue if rescue else ""))
             return 0
         top = candidates[0]
         if not isinstance(top, dict):

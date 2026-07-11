@@ -6,16 +6,18 @@ unlimited-skills quickstart
 ```
 
 `unlimited-skills quickstart` walks a fresh install through the whole value
-loop in one command. Every step is idempotent: rerunning it on a configured
-system reports status and changes nothing. Everything is local — no
+loop in one command. It is convergent and idempotent: a steady-state rerun is
+read-only apart from local diagnostics, while an upgrade may add missing
+bundled skills and rebuild an obsolete index in place. Everything is local — no
 registration, no hosted calls, no uploads.
 
 ## What it does
 
-1. **Library** — when the library root (`~/.unlimited-skills/library` by
-   default) has zero skills, the bundled `ecc` and `superpowers` packs from
-   the installed package or repo checkout are imported and the lexical index
-   is rebuilt. A non-empty library is left untouched.
+1. **Library** — missing skills from the bundled `ecc` and `superpowers`
+   collections are added to the library root (`~/.unlimited-skills/library` by
+   default) from the installed package or repo checkout, and an obsolete
+   lexical index is rebuilt. Existing local skills and existing managed skill
+   files are never replaced.
 2. **First search** — one lexical search (your query or a demo query) with
    the top 3 hits, proving retrieval works end to end. Pass your own query:
    `unlimited-skills quickstart "postgres migration locks"`.

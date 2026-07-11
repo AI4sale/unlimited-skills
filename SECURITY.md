@@ -2,7 +2,8 @@
 
 ## Supported Version
 
-`v0.4.9-alpha` is a developer preview. Security fixes should target the current `main` branch first.
+`v0.6.x` is the supported pre-1.0 line. Security fixes should target the
+current `main` branch first.
 
 The older `v0.3.7-alpha` security boundary remains documented for compatibility with the v0.2.x smoke claims that protect release-history wording.
 
@@ -19,6 +20,21 @@ Do not send live credentials, private keys, customer data, tokens, secrets, full
 
 The MIT Community Core is designed to work offline. Local commands such as `search`, `list`, `view`, `where`, `use`, `feedback`, `reindex`, `vector-reindex`, `serve`, `adapt`, installers, migration scripts, local learning logs, native sync, and public self-update do not require registration.
 
+Since v0.6.6, the Claude Code `UserPromptSubmit` hook keeps the optional warm
+search daemon running by default. Autoserve is restricted to an exact loopback
+HTTP endpoint, validates service/protocol/root/model identity before reuse,
+never uses a shell, never replaces an occupied port, coalesces concurrent
+launches, and remains fail-open. It does not install an operating-system
+service or bind LAN/remote. Restricted runtimes can set
+`UNLIMITED_SKILLS_NO_AUTOSERVE=1`.
+
+Default-root compatibility keeps port 8765. Non-default libraries derive a
+deterministic loopback port from normalized root + embedding model; a health
+identity mismatch is refused rather than reused. Launch/PID status contains no
+prompt or skill data and stays under the local Unlimited Skills runtime root.
+Legacy or wrong-contract listeners are never killed unless ownership is proven;
+the current runtime uses a deterministic versioned fallback loopback endpoint.
+
 Registration is required only for official AI4sale-hosted services: hosted adapted catalog, community catalog/submissions, adapted collection updates, registered local enhancement scripts, hosted archives, team sync, dashboard/cloud/business/enterprise features, and future hosted services.
 
 The hosted clients must not upload:
@@ -34,12 +50,13 @@ The hosted clients must not upload:
 
 ## Hosted Archives And Enhancers
 
-Current `v0.4.8-alpha` behavior:
+Current `v0.6.x` behavior:
 
 - hosted remote manifests must include valid signed manifest envelopes;
 - signatures verify hosted manifest authenticity;
 - trusted manifest keys are scoped, can be pinned to registry origins, and can be revoked locally;
-- hosted collection archives are SHA256-verified before extraction;
+- SHA256 verification is still enforced for hosted collection archives before
+  extraction;
 - zip extraction rejects path traversal;
 - local enhancement scripts are SHA256-verified before execution;
 - hosted features require a registered installation token and signed device proof;

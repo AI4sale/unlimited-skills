@@ -38,6 +38,7 @@ from .search_core import (  # noqa: F401 - re-exported for backwards compatibili
     QUERY_EXPANSIONS,
     WORD_RE,
     SkillHit,
+    atomic_write_text,
     build_index,
     candidate_debug_payload,
     collection_for,
@@ -50,6 +51,7 @@ from .search_core import (  # noqa: F401 - re-exported for backwards compatibili
     index_path,
     iter_skills,
     lexical_search,
+    library_generation_hash,
     load_records,
     log_event,
     read_text,
@@ -62,6 +64,7 @@ from .search_core import (  # noqa: F401 - re-exported for backwards compatibili
     split_frontmatter,
     task_summary_hash,
     tokens,
+    vector_sidecar_status,
     write_jsonl,
 )
 from .hub import (
@@ -205,6 +208,19 @@ def chroma_client(root: Path):
     return chromadb.PersistentClient(path=str(root / CHROMA_DIR_NAME))
 
 
+def close_chroma_client(client) -> None:
+    """Release a Chroma client when the installed version supports it.
+
+    Chroma keeps a process-global system cache. On Windows, dropping the last
+    Python reference is not enough to release ``chroma.sqlite3``; temporary
+    libraries therefore need an explicit close.
+    """
+
+    close = getattr(client, "close", None)
+    if callable(close):
+        close()
+
+
 def embed_texts(texts: list[str], model_name: str) -> list[list[float]]:
     model = embedding_model(model_name)
     return [vec.tolist() if hasattr(vec, "tolist") else list(vec) for vec in model.embed(texts)]
@@ -256,6 +272,16 @@ def load_vector_sidecar_payload(root: Path, model: str) -> dict | None:
     path = vector_sidecar_path(root)
     if not path.is_file():
         return None
+    status = vector_sidecar_status(root, path, model)
+    if not status.get("ready"):
+        reason = str(status.get("reason") or "incompatible")
+        if reason == "model_mismatch":
+            manifest = json.loads(read_text(vector_meta_path(root)))
+            raise _model_mismatch_error(str(manifest.get("model") or "<unknown>"), model, path)
+        raise RuntimeError(
+            f"Vector sidecar is not compatible ({reason}): {path}. "
+            "Run `unlimited-skills vector-reindex`."
+        )
     try:
         payload = json.loads(read_text(path))
     except json.JSONDecodeError as exc:
@@ -268,6 +294,20 @@ def load_vector_sidecar_payload(root: Path, model: str) -> dict | None:
     records = payload.get("records")
     if not isinstance(records, list):
         raise RuntimeError(f"Vector sidecar has no records list: {path}")
+    try:
+        dimensions = int(payload.get("embedding_dimensions") or 0)
+        schema_version = int(payload.get("schema_version") or 0)
+        declared_count = int(payload.get("count") or -1)
+    except (TypeError, ValueError) as exc:
+        raise RuntimeError(f"Vector sidecar metadata is invalid: {path}") from exc
+    if schema_version < 2 or payload.get("complete") is not True:
+        raise RuntimeError(f"Vector sidecar schema is stale or incomplete: {path}")
+    if declared_count != len(records) or dimensions <= 0:
+        raise RuntimeError(f"Vector sidecar metadata is inconsistent: {path}")
+    for record in records:
+        embedding = record.get("embedding") if isinstance(record, dict) else None
+        if not isinstance(embedding, list) or len(embedding) != dimensions:
+            raise RuntimeError(f"Vector sidecar embedding dimensions are inconsistent: {path}")
     return payload
 
 
@@ -336,14 +376,21 @@ def vector_search(root: Path, query: str, limit: int, model: str, collection_nam
         built_with = str(meta.get("model") or "")
         if built_with and built_with != model:
             raise _model_mismatch_error(built_with, model, meta_path)
+    client = None
     try:
-        collection = chroma_client(root).get_collection(CHROMA_COLLECTION)
+        client = chroma_client(root)
+        collection = client.get_collection(CHROMA_COLLECTION)
     except Exception as exc:
+        if client is not None:
+            close_chroma_client(client)
         raise RuntimeError(
             "Vector index is not ready. Run `unlimited-skills vector-reindex` to build the fast local vector sidecar."
         ) from exc
-    embedding = embed_texts([query], model)[0]
-    result = collection.query(query_embeddings=[embedding], n_results=limit)
+    try:
+        embedding = embed_texts([query], model)[0]
+        result = collection.query(query_embeddings=[embedding], n_results=limit)
+    finally:
+        close_chroma_client(client)
     metas = (result.get("metadatas") or [[]])[0]
     distances = (result.get("distances") or [[]])[0]
     hits = []

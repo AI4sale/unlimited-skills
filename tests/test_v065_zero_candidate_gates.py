@@ -34,7 +34,12 @@ def test_zero_candidate_report_shape(tmp_path: Path) -> None:
     assert row["library_skill_count"] >= 5
     assert row["english_hybrid_search_top_10"]["hits"]
     assert len(row["suggest_json"]["payload"]["top_3_skill_candidates"]) >= 3
-    assert row["hook_candidate_count"] >= 3
+    assert row["delivery_candidate_count"] == 0
+    assert row["hook_candidate_count"] == 0
+    assert row["suggest_card_json"]["payload"]["needs_english_query"] is True
+    assert row["suggest_card_json"]["payload"]["delivery"]["mode"] == "rescue"
+    assert row["user_prompt_submit"]["context_present"] is True
+    assert "English retrieval keywords" in row["user_prompt_submit"]["context_preview"]
     assert row["zero_candidate_loss"] is False
     assert row["insufficient_candidate_delivery"] is False
 

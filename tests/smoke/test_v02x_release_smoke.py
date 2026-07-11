@@ -165,22 +165,31 @@ def test_registry_local_layout_dedupe_and_doctor_hermes_risk(isolated_env: dict[
 def test_vector_sidecar_fast_path_uses_sidecar_without_chroma(isolated_env: dict[str, Path], monkeypatch: pytest.MonkeyPatch) -> None:
     root = isolated_env["root"]
     root.mkdir(parents=True)
+    skill_path = write_skill(root, "registry/ecc/skills/security-review", "security-review", "Review auth and secrets.")
+    generation = cli.library_generation_hash(root)
     sidecar = {
-        "schema_version": 1,
+        "schema_version": 2,
         "collection": cli.CHROMA_COLLECTION,
         "model": "smoke-model",
         "count": 1,
+        "embedding_dimensions": 2,
+        "library_generation_hash": generation,
+        "complete": True,
         "records": [
             {
                 "name": "security-review",
                 "description": "Review auth and secrets.",
                 "collection": "ecc",
-                "path": str(root / "registry" / "ecc" / "skills" / "security-review" / "SKILL.md"),
+                "path": str(skill_path),
                 "embedding": [1.0, 0.0],
             }
         ],
     }
     (root / cli.VECTOR_SIDECAR_NAME).write_text(json.dumps(sidecar), encoding="utf-8")
+    (root / cli.VECTOR_META_NAME).write_text(
+        json.dumps({key: sidecar[key] for key in ("schema_version", "collection", "model", "count", "embedding_dimensions", "library_generation_hash", "complete")}),
+        encoding="utf-8",
+    )
     monkeypatch.setattr(cli, "embed_texts", lambda texts, model: [[0.99, 0.01]])
     monkeypatch.setattr(cli, "chroma_client", lambda _root: (_ for _ in ()).throw(AssertionError("Chroma should not load")))
 

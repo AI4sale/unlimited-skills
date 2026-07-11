@@ -13,10 +13,12 @@ from __future__ import annotations
 
 import hashlib
 import json
+import math
 import os
 import re
 import secrets
 import time
+from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -25,6 +27,12 @@ from .frontmatter import split_frontmatter as _shared_split_frontmatter
 
 DEFAULT_ROOT = Path(os.environ.get("UNLIMITED_SKILLS_ROOT", Path.home() / ".unlimited-skills" / "library"))
 INDEX_NAME = ".unlimited-skills-index.json"
+INDEX_MANIFEST_NAME = ".unlimited-skills-index.meta.json"
+INDEX_SCHEMA_VERSION = 4
+VECTOR_MANIFEST_NAME = ".unlimited-skills-vector.json"
+TOKENIZER_REVISION = "word-re-stopwords-en-singular-v3"
+STOPWORD_REVISION = "multilingual-stopwords-v3"
+EXPANSION_REVISION = "query-expansions-v2"
 EVENT_LOG = "events.jsonl"
 # Internal router-invocation counter (separate from the verbose event log): a
 # tiny, always-current JSON meter answering "how many times has the router been
@@ -67,7 +75,7 @@ IGNORED_SKILL_PATH_PARTS = {
 # prompts). Filtered symmetrically from queries and skill text.
 STOPWORDS = frozenset(
     """
-    a an the and or but if then else nor of to in on at by with from into onto
+    a an the and or but if then else nor of to in on at by with from for into onto
     over under is are was were be been being am do does did done doing have has
     had having can could should would will shall may might must this that these
     those it its as not no yes you your yours me my mine we us our ours they
@@ -170,6 +178,14 @@ ECOSYSTEM_TOKEN_GROUPS: dict[str, frozenset[str]] = {
     "healthcare": frozenset({"healthcare", "emr", "hipaa", "phi", "cdss"}),
     "blockchain": frozenset({"defi", "evm", "solidity", "blockchain", "crypto", "trading", "wallet"}),
 }
+NAME_ANCHOR_TOKENS = frozenset(
+    {
+        "api", "auth", "browser", "csharp", "css", "database", "debug", "docker",
+        "figma", "git", "github", "go", "golang", "java", "javascript", "kubernetes",
+        "mcp", "mysql", "n8n", "oauth", "postgres", "postgresql", "python", "react",
+        "rust", "security", "sql", "terraform", "test", "testing", "typescript", "vue",
+    }
+)
 # Mild demotion for ecosystem-specific skills on ecosystem-neutral queries:
 # a generic "code review checklist" query should rank generic review skills
 # above `flutter-dart-code-review`, without hiding the specific skill.
@@ -186,6 +202,8 @@ class SkillHit:
 
 
 VECTOR_SCORE_WEIGHT = 20.0
+RRF_K = 60
+RRF_SCORE_SCALE = 1000.0
 LEARNING_BOOST_WEIGHT = 6.0
 LEARNING_DEMOTION_WEIGHT = 6.0
 LEARNING_MAX_ADJUSTMENT = 6.0
@@ -227,13 +245,22 @@ def first_body_line(body: str) -> str:
 
 def tokens(text: str) -> set[str]:
     result: set[str] = set()
+    def add_token(value: str) -> None:
+        if len(value) <= 1 or value in STOPWORDS:
+            return
+        # Cheap, deterministic English singular rescue for the hot hook path.
+        # Canonicalize (rather than retaining both forms) so a plural does not
+        # count as two independent pieces of evidence.
+        if len(value) > 3 and value.endswith("s") and not value.endswith(("ss", "us", "is")):
+            value = value[:-1]
+        if len(value) > 1 and value not in STOPWORDS:
+            result.add(value)
+
     for match in WORD_RE.finditer(text or ""):
         raw = match.group(0).lower().strip("-_/")
-        if len(raw) > 1 and raw not in STOPWORDS:
-            result.add(raw)
+        add_token(raw)
         for part in re.split(r"[-_/]+", raw):
-            if len(part) > 1 and part not in STOPWORDS:
-                result.add(part)
+            add_token(part)
     return result
 
 
@@ -304,16 +331,138 @@ def index_path(root: Path) -> Path:
     return root / INDEX_NAME
 
 
+def index_manifest_path(root: Path) -> Path:
+    return root / INDEX_MANIFEST_NAME
+
+
+def library_inventory_snapshot(root: Path) -> tuple[str, int]:
+    """Hash/count the skill inventory without reading private skill bodies."""
+    rows: list[str] = []
+    if root.exists():
+        for skill_file in root.rglob("SKILL.md"):
+            rel = skill_file.relative_to(root)
+            if any(part in IGNORED_SKILL_PATH_PARTS for part in rel.parts):
+                continue
+            try:
+                stat = skill_file.stat()
+            except OSError:
+                continue
+            rows.append(f"{rel.as_posix()}\0{stat.st_size}\0{stat.st_mtime_ns}")
+    return hashlib.sha256("\n".join(sorted(rows)).encode("utf-8")).hexdigest(), len(rows)
+
+
+def library_generation_hash(root: Path) -> str:
+    return library_inventory_snapshot(root)[0]
+
+
+def vector_sidecar_status(root: Path, path: Path, model: str) -> dict[str, object]:
+    """Cheap compatibility/freshness check for the vector fast-path artifact."""
+    if not path.is_file():
+        return {"ready": False, "reason": "missing"}
+    manifest_path = root / VECTOR_MANIFEST_NAME
+    if not manifest_path.is_file():
+        return {"ready": False, "reason": "manifest_missing"}
+    try:
+        payload = json.loads(read_text(manifest_path))
+    except (OSError, json.JSONDecodeError):
+        return {"ready": False, "reason": "invalid_json"}
+    if not isinstance(payload, dict):
+        return {"ready": False, "reason": "invalid_shape"}
+    try:
+        schema_version = int(payload.get("schema_version") or 0)
+        declared_count = int(payload.get("count") or -1)
+        dimensions = int(payload.get("embedding_dimensions") or 0)
+    except (TypeError, ValueError):
+        return {"ready": False, "reason": "invalid_metadata"}
+    if schema_version < 2:
+        return {"ready": False, "reason": "legacy_schema"}
+    if payload.get("complete") is not True:
+        return {"ready": False, "reason": "incomplete"}
+    if str(payload.get("model") or "") != model:
+        return {"ready": False, "reason": "model_mismatch"}
+    generation, skill_count = library_inventory_snapshot(root)
+    if payload.get("library_generation_hash") != generation:
+        return {"ready": False, "reason": "stale_library"}
+    if declared_count != skill_count:
+        return {"ready": False, "reason": "count_mismatch"}
+    if dimensions <= 0:
+        return {"ready": False, "reason": "dimensions_missing"}
+    return {
+        "ready": True,
+        "reason": "ready",
+        "schema_version": schema_version,
+        "model": model,
+        "embedding_dimensions": dimensions,
+        "count": skill_count,
+        "library_generation_hash": generation,
+    }
+
+
+def atomic_write_text(path: Path, text: str) -> None:
+    token = secrets.token_hex(6)
+    temp = path.with_name(f".{path.name}.{os.getpid()}.{token}.tmp")
+    try:
+        temp.write_text(text, encoding="utf-8")
+        os.replace(temp, path)
+    finally:
+        try:
+            temp.unlink(missing_ok=True)
+        except OSError:
+            pass
+
+
+def index_manifest(root: Path, index_text: str, record_count: int) -> dict[str, object]:
+    return {
+        "schema_version": INDEX_SCHEMA_VERSION,
+        "tokenizer_revision": TOKENIZER_REVISION,
+        "stopword_revision": STOPWORD_REVISION,
+        "expansion_revision": EXPANSION_REVISION,
+        "library_generation_hash": library_generation_hash(root),
+        "record_count": record_count,
+        "index_sha256": hashlib.sha256(index_text.encode("utf-8")).hexdigest(),
+        "complete": True,
+    }
+
+
+def index_is_current(root: Path, index_text: str | None = None) -> bool:
+    path = index_path(root)
+    manifest_path = index_manifest_path(root)
+    if not path.is_file() or not manifest_path.is_file():
+        return False
+    try:
+        text = index_text if index_text is not None else read_text(path)
+        manifest = json.loads(read_text(manifest_path))
+    except (OSError, json.JSONDecodeError):
+        return False
+    expected = {
+        "schema_version": INDEX_SCHEMA_VERSION,
+        "tokenizer_revision": TOKENIZER_REVISION,
+        "stopword_revision": STOPWORD_REVISION,
+        "expansion_revision": EXPANSION_REVISION,
+        "complete": True,
+    }
+    if any(manifest.get(key) != value for key, value in expected.items()):
+        return False
+    if manifest.get("index_sha256") != hashlib.sha256(text.encode("utf-8")).hexdigest():
+        return False
+    if manifest.get("library_generation_hash") != library_generation_hash(root):
+        return False
+    return True
+
+
 def build_index(root: Path) -> list[dict]:
     records = []
     for hit, body in iter_skills(root):
+        search_text = body[:12000]
         records.append(
             {
                 "name": hit.name,
                 "description": hit.description,
                 "collection": hit.collection,
                 "path": hit.path,
-                "search_text": body[:12000],
+                "name_tokens": sorted(tokens(hit.name)),
+                "description_tokens": sorted(tokens(hit.description)),
+                "body_tokens": sorted(tokens(search_text)),
             }
         )
     return sorted(records, key=lambda row: (row["collection"], row["name"]))
@@ -322,30 +471,52 @@ def build_index(root: Path) -> list[dict]:
 def save_index(root: Path) -> Path:
     root.mkdir(parents=True, exist_ok=True)
     path = index_path(root)
-    path.write_text(json.dumps(build_index(root), ensure_ascii=False, indent=2), encoding="utf-8")
+    records = build_index(root)
+    index_text = json.dumps(records, ensure_ascii=False, separators=(",", ":"))
+    manifest_text = json.dumps(index_manifest(root, index_text, len(records)), ensure_ascii=False, indent=2)
+    # Replace data first and the matching manifest last. Any interrupted or
+    # interleaved write leaves a detectable mismatch and readers fail open to
+    # a fresh filesystem scan instead of trusting a partial index.
+    atomic_write_text(path, index_text)
+    atomic_write_text(index_manifest_path(root), manifest_text)
     return path
 
 
-def load_records(root: Path, fresh: bool = False) -> list[tuple[SkillHit, str]]:
+def load_records(
+    root: Path, fresh: bool = False, *, include_body: bool = True
+) -> list[tuple[SkillHit, str]]:
     path = index_path(root)
     if not fresh and path.is_file():
         try:
-            raw = json.loads(read_text(path))
+            index_text = read_text(path)
+            if not index_is_current(root, index_text):
+                return list(iter_skills(root))
+            raw = json.loads(index_text)
             records = []
             for row in raw if isinstance(raw, list) else []:
                 if not isinstance(row, dict):
                     continue
-                records.append(
-                    (
-                        SkillHit(
-                            name=str(row.get("name") or ""),
-                            description=str(row.get("description") or ""),
-                            collection=str(row.get("collection") or "default"),
-                            path=str(row.get("path") or ""),
-                        ),
-                        str(row.get("search_text") or ""),
-                    )
+                hit = SkillHit(
+                    name=str(row.get("name") or ""),
+                    description=str(row.get("description") or ""),
+                    collection=str(row.get("collection") or "default"),
+                    path=str(row.get("path") or ""),
                 )
+                for attr, key in (
+                    ("_name_tokens", "name_tokens"),
+                    ("_description_tokens", "description_tokens"),
+                    ("_body_tokens", "body_tokens"),
+                ):
+                    values = row.get(key)
+                    if isinstance(values, list):
+                        setattr(hit, attr, frozenset(str(value) for value in values if str(value)))
+                body = ""
+                if include_body:
+                    try:
+                        _meta, body = split_frontmatter(read_text(Path(hit.path)))
+                    except OSError:
+                        body = ""
+                records.append((hit, body))
             return records
         except (OSError, json.JSONDecodeError):
             pass
@@ -356,9 +527,19 @@ def _ecosystems(token_set: set[str]) -> set[str]:
     return {eco for eco, eco_tokens in ECOSYSTEM_TOKEN_GROUPS.items() if eco_tokens & token_set}
 
 
+def _skill_tokens(hit: SkillHit, attr: str, text: str) -> set[str] | frozenset[str]:
+    indexed = getattr(hit, attr, None)
+    if isinstance(indexed, (set, frozenset)):
+        return indexed
+    return tokens(text)
+
+
 def ecosystem_factor(query_tokens: set[str], hit: SkillHit) -> float:
     """Return the ecosystem-mismatch score multiplier (1.0 = no penalty)."""
-    skill_ecos = _ecosystems(tokens(hit.name) | tokens(hit.description))
+    skill_ecos = _ecosystems(
+        set(_skill_tokens(hit, "_name_tokens", hit.name))
+        | set(_skill_tokens(hit, "_description_tokens", hit.description))
+    )
     if not skill_ecos:
         return 1.0
     query_ecos = _ecosystems(query_tokens)
@@ -369,15 +550,20 @@ def ecosystem_factor(query_tokens: set[str], hit: SkillHit) -> float:
     return ECOSYSTEM_PENALTY
 
 
-def score_skill(query: str, hit: SkillHit, body: str) -> float:
-    expanded = expanded_query(query)
-    query_tokens = tokens(expanded)
+def _score_skill_prepared(
+    query: str,
+    expanded: str,
+    query_tokens: set[str],
+    base_query_tokens: set[str],
+    hit: SkillHit,
+    body: str,
+) -> float:
     if not query_tokens:
         return 0.0
 
-    name_tokens = tokens(hit.name)
-    desc_tokens = tokens(hit.description)
-    body_tokens = tokens(body[:12000])
+    name_tokens = _skill_tokens(hit, "_name_tokens", hit.name)
+    desc_tokens = _skill_tokens(hit, "_description_tokens", hit.description)
+    body_tokens = _skill_tokens(hit, "_body_tokens", body[:12000])
 
     score = 0.0
     score += 6.0 * len(query_tokens & name_tokens)
@@ -395,7 +581,12 @@ def score_skill(query: str, hit: SkillHit, body: str) -> float:
         score += 8.0
     if "n8n" in query_tokens and hit.name.lower().startswith("n8n-"):
         score += 8.0
-    return score * ecosystem_factor(tokens(query), hit)
+    return score * ecosystem_factor(base_query_tokens, hit)
+
+
+def score_skill(query: str, hit: SkillHit, body: str) -> float:
+    expanded = expanded_query(query)
+    return _score_skill_prepared(query, expanded, tokens(expanded), tokens(query), hit, body)
 
 
 def _clone_hit(hit: SkillHit, *, score: float | None = None) -> SkillHit:
@@ -431,7 +622,7 @@ def _set_candidate_metadata(
     setattr(hit, "lexical_score", round(float(lexical_score), 3))
     setattr(hit, "vector_score", round(float(vector_score), 3))
     setattr(hit, "learning_adjustment", round(float(learning_adjustment), 3))
-    setattr(hit, "exact_match", "exact_name" in clean_sources or "name" in clean_sources)
+    setattr(hit, "exact_match", "exact_name" in clean_sources)
     setattr(hit, "learning_boost", float(learning_adjustment) > 0.0)
     setattr(hit, "learning_demotion", float(learning_adjustment) < 0.0)
     if lexical_rank is not None:
@@ -457,8 +648,21 @@ def candidate_debug_payload(hit: SkillHit) -> dict[str, object]:
         "exact_match": bool(getattr(hit, "exact_match", False)),
         "lexical_score": round(float(getattr(hit, "lexical_score", 0.0) or 0.0), 3),
         "vector_score": round(float(getattr(hit, "vector_score", 0.0) or 0.0), 3),
+        "fusion_method": str(getattr(hit, "fusion_method", "lexical") or "lexical"),
+        "fusion_score": round(float(getattr(hit, "fusion_score", 0.0) or 0.0), 3),
         "learning_boost": bool(getattr(hit, "learning_boost", False)),
         "learning_demotion": bool(getattr(hit, "learning_demotion", False)),
+        "name_overlap_count": int(getattr(hit, "name_overlap_count", 0) or 0),
+        "name_overlap_idf": round(float(getattr(hit, "name_overlap_idf", 0.0) or 0.0), 3),
+        "name_overlap_ecosystem": bool(getattr(hit, "name_overlap_ecosystem", False)),
+        "name_overlap_anchor": bool(getattr(hit, "name_overlap_anchor", False)),
+        "name_overlap_idf_ratio": round(float(getattr(hit, "name_overlap_idf_ratio", 0.0) or 0.0), 3),
+        "description_overlap_count": int(getattr(hit, "description_overlap_count", 0) or 0),
+        "description_overlap_idf": round(float(getattr(hit, "description_overlap_idf", 0.0) or 0.0), 3),
+        "description_overlap_idf_ratio": round(float(getattr(hit, "description_overlap_idf_ratio", 0.0) or 0.0), 3),
+        "phrase_overlap_count": int(getattr(hit, "phrase_overlap_count", 0) or 0),
+        "phrase_overlap_idf": round(float(getattr(hit, "phrase_overlap_idf", 0.0) or 0.0), 3),
+        "phrase_overlap_idf_ratio": round(float(getattr(hit, "phrase_overlap_idf_ratio", 0.0) or 0.0), 3),
         "confidence": score_bucket(float(getattr(hit, "score", 0.0) or 0.0)),
     }
     for source_attr, output_key in (
@@ -474,13 +678,21 @@ def candidate_debug_payload(hit: SkillHit) -> dict[str, object]:
     return payload
 
 
-def _source_markers(query: str, hit: SkillHit, body: str) -> set[str]:
-    expanded = expanded_query(query)
-    base_tokens = tokens(query)
-    expanded_tokens = tokens(expanded)
-    skill_name_tokens = tokens(hit.name)
-    description_tokens = tokens(hit.description)
-    body_tokens = tokens(body[:12000])
+def _source_markers(
+    query: str,
+    hit: SkillHit,
+    body: str,
+    *,
+    expanded: str | None = None,
+    base_tokens: set[str] | None = None,
+    expanded_tokens: set[str] | None = None,
+) -> set[str]:
+    expanded = expanded if expanded is not None else expanded_query(query)
+    base_tokens = base_tokens if base_tokens is not None else tokens(query)
+    expanded_tokens = expanded_tokens if expanded_tokens is not None else tokens(expanded)
+    skill_name_tokens = _skill_tokens(hit, "_name_tokens", hit.name)
+    description_tokens = _skill_tokens(hit, "_description_tokens", hit.description)
+    body_tokens = _skill_tokens(hit, "_body_tokens", body[:12000])
     markers: set[str] = set()
     if base_tokens & skill_name_tokens:
         markers.add("name")
@@ -490,10 +702,17 @@ def _source_markers(query: str, hit: SkillHit, body: str) -> set[str]:
         markers.add("body")
     if (expanded_tokens - base_tokens) & (skill_name_tokens | description_tokens | body_tokens):
         markers.add("query_expansion")
-    q_lower = (query or "").lower()
-    expanded_lower = expanded.lower()
-    name_lower = (hit.name or "").lower()
-    if name_lower and (name_lower in q_lower or skill_identity(hit.name).replace("-", " ") in expanded_lower):
+    query_identity_tokens = [
+        token for token in re.split(r"[^a-z0-9+.#]+", (query or "").lower()) if token
+    ]
+    name_identity_tokens = [
+        token for token in re.split(r"[^a-z0-9+.#]+", (hit.name or "").lower()) if token
+    ]
+    if name_identity_tokens and any(
+        query_identity_tokens[index : index + len(name_identity_tokens)]
+        == name_identity_tokens
+        for index in range(len(query_identity_tokens) - len(name_identity_tokens) + 1)
+    ):
         markers.add("exact_name")
     if not markers:
         markers.add("lexical")
@@ -529,23 +748,102 @@ def shared_candidate_family(
     requested = max(int(limit or 1), 1)
     scan_limit = max(requested * 3, 12)
     adjustments = _read_learning_adjustments(root, query)
+    expanded = expanded_query(query)
+    base_query_tokens = tokens(query)
+    expanded_query_tokens = tokens(expanded)
+    query_lower = query.lower()
+    phrase_anchor_tokens: set[str] = set()
+    for phrase, expansion_text in PHRASE_EXPANSIONS.items():
+        if phrase in query_lower:
+            phrase_anchor_tokens.update(tokens(expansion_text))
+    records = load_records(root, fresh=fresh, include_body=False)
+    document_frequency: Counter[str] = Counter()
+    for indexed_hit, _indexed_body in records:
+        document_frequency.update(
+            set(_skill_tokens(indexed_hit, "_name_tokens", indexed_hit.name))
+            | set(_skill_tokens(indexed_hit, "_description_tokens", indexed_hit.description))
+        )
+    document_count = max(len(records), 1)
+    maximum_token_idf = math.log(document_count + 1) + 1
+
+    def overlap_idf(values: set[str] | frozenset[str]) -> float:
+        # Keep the 2.0 discriminative threshold meaningful in small/private
+        # catalogs. The previous +1 denominator made the theoretical maximum
+        # lower than 2 in a four-skill catalog, so no name could qualify.
+        return sum(
+            math.log((document_count + 1) / max(document_frequency.get(token, 0), 1)) + 1
+            for token in values
+        )
+
     merged: dict[str, SkillHit] = {}
     meta: dict[str, dict[str, object]] = {}
     lexical_order: list[str] = []
     vector_order: list[str] = []
+    _ = vector_weight  # retained only for call compatibility; RRF ignores raw-score scaling
 
-    for hit, body in load_records(root, fresh=fresh):
+    for hit, body in records:
         if collection and hit.collection != collection:
             continue
-        lexical_score = score_skill(query, hit, body)
+        lexical_score = _score_skill_prepared(
+            query,
+            expanded,
+            expanded_query_tokens,
+            base_query_tokens,
+            hit,
+            body,
+        )
         if lexical_score <= 0.0:
             continue
         item = _clone_hit(hit, score=lexical_score)
         key = _candidate_key(item)
         learning_adjustment = adjustments.get(skill_identity(item.name), 0.0)
         item.score = max(0.0, lexical_score + learning_adjustment)
-        sources = _source_markers(query, item, body)
+        sources = _source_markers(
+            query,
+            hit,
+            body,
+            expanded=expanded,
+            base_tokens=base_query_tokens,
+            expanded_tokens=expanded_query_tokens,
+        )
         sources.add("lexical")
+        name_overlap = base_query_tokens & set(_skill_tokens(hit, "_name_tokens", hit.name))
+        description_overlap = base_query_tokens & set(
+            _skill_tokens(hit, "_description_tokens", hit.description)
+        )
+        phrase_overlap = phrase_anchor_tokens & (
+            set(_skill_tokens(hit, "_name_tokens", hit.name))
+            | set(_skill_tokens(hit, "_description_tokens", hit.description))
+        )
+        setattr(item, "name_overlap_count", len(name_overlap))
+        setattr(item, "name_overlap_idf", overlap_idf(name_overlap))
+        setattr(item, "name_overlap_ecosystem", bool(_ecosystems(set(name_overlap))))
+        setattr(item, "name_overlap_anchor", bool(set(name_overlap) & NAME_ANCHOR_TOKENS))
+        setattr(
+            item,
+            "name_overlap_idf_ratio",
+            overlap_idf(name_overlap) / (len(name_overlap) * maximum_token_idf)
+            if name_overlap
+            else 0.0,
+        )
+        setattr(item, "description_overlap_count", len(description_overlap))
+        setattr(item, "description_overlap_idf", overlap_idf(description_overlap))
+        setattr(
+            item,
+            "description_overlap_idf_ratio",
+            overlap_idf(description_overlap) / (len(description_overlap) * maximum_token_idf)
+            if description_overlap
+            else 0.0,
+        )
+        setattr(item, "phrase_overlap_count", len(phrase_overlap))
+        setattr(item, "phrase_overlap_idf", overlap_idf(phrase_overlap))
+        setattr(
+            item,
+            "phrase_overlap_idf_ratio",
+            overlap_idf(phrase_overlap) / (len(phrase_overlap) * maximum_token_idf)
+            if phrase_overlap
+            else 0.0,
+        )
         if learning_adjustment > 0:
             sources.add("learning_boost")
         elif learning_adjustment < 0:
@@ -567,16 +865,14 @@ def shared_candidate_family(
         if vector_score <= 0.0:
             continue
         learning_adjustment = adjustments.get(skill_identity(raw_vector_hit.name), 0.0)
-        weighted = vector_score * vector_weight
         if key in merged:
-            merged[key].score = max(0.0, float(merged[key].score) + weighted)
             row = meta[key]
             row["vector_score"] = vector_score
             sources = set(row.get("sources") or ())
             sources.add("vector")
             row["sources"] = sources
         else:
-            item = _clone_hit(raw_vector_hit, score=max(0.0, weighted + learning_adjustment))
+            item = _clone_hit(raw_vector_hit, score=max(0.0, learning_adjustment))
             merged[key] = item
             sources = {"vector"}
             if learning_adjustment > 0:
@@ -591,8 +887,6 @@ def shared_candidate_family(
             }
         vector_order.append(key)
 
-    hits = list(merged.values())
-    hits.sort(key=lambda item: (-item.score, item.collection, item.name))
     lexical_ranks = {
         key: rank
         for rank, key in enumerate(
@@ -621,6 +915,25 @@ def shared_candidate_family(
             start=1,
         )
     }
+    if vector_order:
+        for key, item in merged.items():
+            fusion_score = 0.0
+            if key in lexical_ranks:
+                fusion_score += 1.0 / (RRF_K + lexical_ranks[key])
+            if key in vector_ranks:
+                fusion_score += 1.0 / (RRF_K + vector_ranks[key])
+            fusion_score *= RRF_SCORE_SCALE
+            learning_adjustment = float(meta[key].get("learning_adjustment") or 0.0)
+            item.score = max(0.0, fusion_score + learning_adjustment)
+            setattr(item, "fusion_method", "rrf")
+            setattr(item, "fusion_score", fusion_score)
+    else:
+        for item in merged.values():
+            setattr(item, "fusion_method", "lexical")
+            setattr(item, "fusion_score", float(item.score))
+
+    hits = list(merged.values())
+    hits.sort(key=lambda item: (-item.score, item.collection, item.name))
     for rank, hit in enumerate(hits[:scan_limit], start=1):
         key = _candidate_key(hit)
         row = meta.get(key, {})

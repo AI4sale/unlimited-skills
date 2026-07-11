@@ -162,27 +162,35 @@ def cmd_vector_reindex(args: argparse.Namespace) -> int:
         total += len(batch)
         if args.verbose:
             print(f"Indexed {total}/{len(records)}")
-    cli.vector_sidecar_path(root).write_text(
+    cli.atomic_write_text(
+        cli.vector_sidecar_path(root),
         json.dumps(
             {
-                "schema_version": 1,
+                "schema_version": 2,
                 "collection": cli.CHROMA_COLLECTION,
                 "model": args.model,
                 "count": total,
+                "embedding_dimensions": len(sidecar_records[0]["embedding"]) if sidecar_records else 0,
+                "library_generation_hash": cli.library_generation_hash(root),
                 "generated_at": time.time(),
+                "complete": True,
                 "records": sidecar_records,
             },
             ensure_ascii=False,
             separators=(",", ":"),
         ),
-        encoding="utf-8",
     )
-    cli.vector_meta_path(root).write_text(
+    cli.atomic_write_text(
+        cli.vector_meta_path(root),
         json.dumps(
             {
+                "schema_version": 2,
                 "collection": cli.CHROMA_COLLECTION,
                 "model": args.model,
                 "count": total,
+                "embedding_dimensions": len(sidecar_records[0]["embedding"]) if sidecar_records else 0,
+                "library_generation_hash": cli.library_generation_hash(root),
+                "complete": True,
                 "chroma_path": str(root / cli.CHROMA_DIR_NAME),
                 "sidecar_path": str(cli.vector_sidecar_path(root)),
                 "query_fast_path": "sidecar",
@@ -190,7 +198,6 @@ def cmd_vector_reindex(args: argparse.Namespace) -> int:
             ensure_ascii=False,
             indent=2,
         ),
-        encoding="utf-8",
     )
     print(f"Vector-indexed {total} skills with {args.model}: {cli.vector_sidecar_path(root)}")
     print(f"Chroma compatibility index: {root / cli.CHROMA_DIR_NAME}")

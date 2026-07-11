@@ -142,6 +142,13 @@ def _suggest_candidates(result: dict[str, Any]) -> list[dict[str, Any]]:
     return [row for row in payload.get("top_3_skill_candidates") or [] if isinstance(row, dict)]
 
 
+def _suggest_retrieval_candidates(result: dict[str, Any]) -> list[dict[str, Any]]:
+    payload = result.get("payload")
+    if not isinstance(payload, dict):
+        return []
+    return [row for row in payload.get("retrieval_candidates") or [] if isinstance(row, dict)]
+
+
 def _phase_language_counts(fixture: dict[str, Any]) -> dict[str, int]:
     counts: dict[str, int] = {}
     for _phase, step in _all_steps(fixture):
@@ -405,12 +412,23 @@ def build_report(
         if action == "suggest":
             result = _run_suggest(root, query, limit=5)
             candidates = _suggest_candidates(result)
+            retrieval_candidates = _suggest_retrieval_candidates(result)
             names = [str(row.get("name") or "") for row in candidates]
-            if result["returncode"] != 0 or not candidates:
+            retrieval_names = [str(row.get("name") or "") for row in retrieval_candidates]
+            payload = result.get("payload") if isinstance(result.get("payload"), dict) else {}
+            rescue_only = bool(
+                not candidates
+                and retrieval_candidates
+                and payload.get("needs_english_query") is True
+                and str(step.get("language") or "") in {"ru", "mixed"}
+            )
+            if result["returncode"] != 0 or (not candidates and not rescue_only):
                 _append_failure(failures, f"step-{step.get('step')}", "suggest_no_candidates")
-            if names and not set(names) & set(expected_family):
-                _append_failure(failures, f"step-{step.get('step')}", "suggest_family_mismatch", names=names)
+            if retrieval_names and not set(retrieval_names) & set(expected_family):
+                _append_failure(failures, f"step-{step.get('step')}", "suggest_family_mismatch", names=retrieval_names)
             trace_row["candidates"] = names
+            trace_row["retrieval_candidates"] = retrieval_names
+            trace_row["rescue_only"] = rescue_only
             trace_row["sources"] = sorted(set().union(*(set(row.get("candidate_sources") or []) for row in candidates))) if candidates else []
         elif action == "search":
             rc, payload, _text = _run_cli(["--root", str(root), "search", query, "--mode", "hybrid", "--json", "--limit", "5", "--no-native-sync"])
@@ -422,13 +440,18 @@ def build_report(
         elif action == "hook":
             diag["hook_actions"] += 1
             hook = zero_gate._run_hook(root, query, tmp_home)
-            known_names = {hit.name for hit in shared_candidate_family(root, query, 10)}
+            deliverable_hits = suggest.recall_safe_hint_hits(
+                shared_candidate_family(root, query, 10),
+                query,
+            )
+            known_names = {hit.name for hit in deliverable_hits}
             context = str(hook.get("context") or "")
             hook_candidates = sorted(name for name in known_names if name in context)
             if known_names and not hook_candidates:
                 zero_candidate_losses += 1
                 _append_failure(failures, f"step-{step.get('step')}", "hook_zero_with_family")
-            if expected_family and len(hook_candidates) < min(3, len(expected_family)):
+            deliverable_expected = [name for name in expected_family if name in known_names]
+            if deliverable_expected and len(hook_candidates) < min(3, len(deliverable_expected)):
                 _append_failure(
                     failures,
                     f"step-{step.get('step')}",

@@ -2,6 +2,58 @@
 
 ## Unreleased
 
+### Fixed (0.6.6 — Product Precision & Release Truth)
+
+- Split raw retrieval diagnostics, recall-safe NAME hints, and card/body
+  eligibility. Plain text keeps its strict floor; body-only weak matches never
+  reach ambient hints, while discriminative below-card-floor matches can be
+  shown by name without injecting their instructions.
+- Add IDF-normalized name/description evidence, technical identity anchors,
+  exact phrase-expansion evidence, and a stricter lexical-only card qualifier;
+  the frozen 42-scenario run now records 0 false-positive hints and 1.000 card
+  precision while retaining 0.933 top-3 recall.
+- Treat mixed-language weak matches as a rescue path: deliver safe names plus a
+  compact English-keyword instruction, or the instruction alone when no safe
+  hint qualifies.
+- Add versioned lexical-index and vector-manifest freshness checks, atomic
+  artifact replacement, and RRF lexical/vector fusion without raw-score magic.
+- Keep the local warm daemon required for native semantic retrieval running
+  from `UserPromptSubmit`: the hook
+  probes the service identity, starts one hidden detached process only when the
+  local port is absent, coalesces concurrent launch attempts, refuses remote or
+  incompatible endpoints, and remains fail-open. Restricted runtimes can set
+  `UNLIMITED_SKILLS_NO_AUTOSERVE=1` as an emergency override.
+- Start the same daemon proactively from `SessionStart`, retain the per-prompt
+  watchdog for crash recovery, store local PID/status evidence beside the
+  install root, and derive a deterministic loopback port from library root +
+  embedding model so multiple libraries cannot silently share the wrong daemon.
+- Split the 250 ms daemon health budget from the 1.5 s already-warm semantic
+  request budget. The old shared timeout discarded valid non-English results
+  even after health was ready.
+- Add runtime-contract/package identity to daemon health and a deterministic
+  versioned fallback endpoint. A live pre-0.6.6 daemon or old-model daemon can
+  keep its occupied port while SessionStart safely rolls the current runtime
+  forward without killing an unowned PID.
+- Gate publication on a live official `0.6.4.post1[all]` upgrade with the legacy
+  daemon kept running, current fallback recovery, and Russian semantic delivery.
+- Let the already-running compatible daemon answer semantic rescue even when a
+  legacy/missing sidecar manifest cannot serve an in-process cached query. The
+  sidecar is an optimization, not a prerequisite for the mandatory warm runtime.
+- Make `quickstart` add missing bundled skills even inside partially populated
+  collections, migrate legacy indexes in place without deleting or replacing
+  existing/local skills, apply the production floor to its proof search, and
+  print wheel-safe documentation URLs.
+- Make `doctor` distinguish English-keyword fallback, vector-index readiness,
+  and optional warm-daemon readiness instead of calling native-language search
+  "dead" when fallback is working.
+
+### Release (0.6.6)
+
+- Add a PyPI-first publication gate: the workflow publishes `0.6.6`, waits for
+  the exact project/version JSON, installs the public wheel into a clean venv,
+  runs retrieval/onboarding smoke, and only then creates `v0.6.6` on GitHub.
+  This closes the GitHub-release/PyPI-version drift seen after 0.6.5.
+
 ### Added (0.6.5-alpha - Retrieval & Learning Reliability)
 
 - v0.6.5 retrieval and learning reliability release package: package/runtime

@@ -138,10 +138,17 @@ The fast `suggest` probe is lexical-only, so a prompt that is not written in Eng
 
 ```powershell
 unlimited-skills vector-reindex   # build the multilingual embedding sidecar
-unlimited-skills serve            # keep the embedding model warm (daemon)
 ```
 
-With the sidecar present, a non-English prompt is routed to multilingual vector search automatically. Without it (or before the model warms up), the router never fails silently — it asks the model to restate the task as a few English keywords and re-query. See [docs/context-reduction-model.md](docs/context-reduction-model.md).
+The Claude Code prompt hook starts the local warm daemon automatically when it
+is absent. It only targets loopback, never replaces an occupied/incompatible
+port, and coalesces concurrent launch attempts. Set
+`UNLIMITED_SKILLS_NO_AUTOSERVE=1` only as an emergency override in a restricted
+runtime. With the sidecar present, a non-English prompt is routed to
+multilingual vector search automatically. Without the optional runtime (or
+before the model warms up), the router never fails silently — it asks the model
+to restate the task as a few English keywords and re-query. See
+[docs/context-reduction-model.md](docs/context-reduction-model.md).
 
 Run the first-run wizard:
 
@@ -544,7 +551,8 @@ unlimited-skills draft-skill "postgres-online-migration" --description "Online P
 
 CLI vector search has a cold start because the embedding model is loaded for each process. The vector sidecar removes Chroma startup from normal queries, but the first query in a new process still has to load the embedding model. The daemon keeps the process alive and caches the model after warm start.
 
-Run:
+The Claude Code `UserPromptSubmit` hook keeps this local daemon running by
+default. For manual operation or another host, run:
 
 ```powershell
 unlimited-skills serve --host 127.0.0.1 --port 8765
@@ -933,7 +941,7 @@ In development:
 - v0.4 cross-repo readiness suite that verifies public client and private registry readiness contracts in fixture mode or against a local private registry checkout without production hosted calls, production signing keys, live billing, PyPI publication, full catalog distribution, automatic install/update/remove, automatic skill rewriting, or auto-publish;
 - v0.4 go/no-go decision package that recommends GO for the first four implementation epics after review and merge while keeping production rollout behind per-epic review gates;
 - v0.4.9-alpha MCP profile rollout simulator is the active release gate for the MCP profile distribution milestone;
-- persistent warm daemon as the default agent retrieval path;
+- broader host adapters for the default local warm-daemon lifecycle;
 - richer learning loop for accepted/rejected matches;
 - automatic skill drafting from repeated task patterns;
 - stronger per-agent installers and config adapters;

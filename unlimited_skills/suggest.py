@@ -7,9 +7,9 @@ Design contract (A0 invocation rescue, F1 + Hermes privacy hardening):
 - import-cheap: depends only on :mod:`unlimited_skills.search_core`, so the
   dominant cost is the Python interpreter spawn itself;
 - top-3 one-liners: ``name [source] — description`` (no filesystem paths);
-- score floor: hits below the floor are suppressed entirely. Text mode
-  prints NOTHING and exits 0 — silence beats noise, and an empty answer is
-  an explicit "no relevant skill, proceed with the task";
+- score floor: plain text suppresses hits below the configured floor. Card mode
+  separately exposes raw diagnostics, recall-safe NAME hints, and a stricter
+  card/body candidate; body-only evidence can never create a hint;
 - ``--json`` prints a privacy-hardened object containing ONLY
   ``task_summary_hash`` (short sha256 of the normalized query),
   ``top_3_skill_candidates`` (name, source, score — never paths or bodies),
@@ -18,9 +18,9 @@ Design contract (A0 invocation rescue, F1 + Hermes privacy hardening):
   ``recommended_next_action`` (a command by skill NAME only), and
   ``latency_ms``. The task/query text, local filesystem paths, and skill
   bodies must never appear in the output;
-- ``--card`` (F3b ambient injection, opt-in, JSON mode only) adds visible
-  candidate-family source metadata plus ``delivery_tier`` (1 silence / 2
-  hint / 3 card) and, ONLY at tier 3,
+- ``--card`` (F3b ambient injection, opt-in, JSON mode only) adds schema-v2
+  retrieval/delivery fields plus ``delivery_tier`` (1 silence / 2 hint / 3
+  card) and, ONLY at tier 3,
   a ``skill_card`` object whose ``card`` text intentionally carries the head
   of the matched skill's own SKILL.md body (hard-capped, see
   :func:`build_skill_card`). The card channel is the single sanctioned
@@ -42,14 +42,18 @@ import argparse
 import hashlib
 import json
 import os
+import re
 import sys
 import time
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 from .search_core import (
     DEFAULT_ROOT,
     SkillHit,
     candidate_debug_payload,
+    library_generation_hash,
     lexical_search,
     load_records,
     log_event,
@@ -59,7 +63,9 @@ from .search_core import (
     score_bucket,
     shared_candidate_family,
     split_frontmatter,
+    vector_sidecar_status,
 )
+from .daemon_endpoint import RUNTIME_CONTRACT_VERSION, warm_daemon_urls
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -71,6 +77,13 @@ if hasattr(sys.stderr, "reconfigure"):
 # docs/adoption/skill-effectiveness-standard.md for the measured numbers):
 # the strongest no-skill scenario scores 11, the weakest true positives 12.
 DEFAULT_FLOOR = 12.0
+HINT_FLOOR = 6.0
+NAME_HINT_IDF_MIN = 2.0
+NAME_HINT_IDF_RATIO_MIN = 0.80
+NAME_STRONG_LEXICAL_MIN = 18.0
+NAME_STRONG_IDF_MIN = 4.0
+DESCRIPTION_HINT_IDF_MIN = 4.0
+VECTOR_HINT_MIN = 0.50
 DEFAULT_LIMIT = 3
 MAX_QUERY_CHARS = 300
 
@@ -137,7 +150,7 @@ def probe(
             return hits, REASON_MATCH_FOUND
         return hits, REASON_LOW_CONFIDENCE
     # Only the empty path pays for the second (cheap, cached-on-disk) load.
-    if not load_records(root):
+    if not load_records(root, include_body=False):
         return [], REASON_EMPTY_LIBRARY
     return [], REASON_BELOW_FLOOR
 
@@ -155,6 +168,14 @@ def kill_switch_active() -> bool:
 # the caller can re-query with English keywords instead of getting silence.
 VECTOR_FLOOR = 0.35  # cosine; good cross-lingual matches measured at 0.55-0.65
 NO_VECTOR_FALLBACK_ENV = "UNLIMITED_SKILLS_NO_VECTOR_FALLBACK"
+VECTOR_SIDECAR_NAME = ".unlimited-skills-vectors.json"
+DEFAULT_EMBED_MODEL = os.environ.get(
+    "UNLIMITED_SKILLS_EMBED_MODEL",
+    "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+)
+WARM_DAEMON_TIMEOUT_SECONDS = 0.25
+WARM_DAEMON_SEARCH_TIMEOUT_SECONDS = 1.5
+WARM_DAEMON_PROTOCOL = "warm-search-v1"
 
 
 def looks_english(query: str) -> bool:
@@ -177,31 +198,125 @@ def _vector_fallback_disabled() -> bool:
 def sidecar_installed(root: Path) -> bool:
     """True when a local multilingual embedding sidecar is present.
 
-    Imports the heavy CLI module lazily — only the non-English branch ever
-    calls this, so the English lexical fast path stays import-cheap.
+    This is a direct filesystem check. Confident lexical queries never call
+    the vector engine; low-confidence queries may use an installed sidecar to
+    preserve semantic-only matches without importing the full CLI up front.
     """
     try:
-        from unlimited_skills import cli
-
-        return cli.vector_sidecar_path(root).exists()
-    except Exception:
+        return bool(
+            vector_sidecar_status(
+                root,
+                root / VECTOR_SIDECAR_NAME,
+                DEFAULT_EMBED_MODEL,
+            ).get("ready")
+        )
+    except OSError:
         return False
 
 
-def vector_probe(root: Path, query: str, limit: int, collection: str | None = None) -> list[SkillHit]:
-    """Best-effort multilingual vector retrieval at/above ``VECTOR_FLOOR``.
+def _warm_daemon_vector_probe(
+    root: Path, query: str, limit: int, collection: str | None = None
+) -> list[SkillHit]:
+    for daemon_url in warm_daemon_urls(root, DEFAULT_EMBED_MODEL):
+        try:
+            with urllib.request.urlopen(f"{daemon_url}/health", timeout=WARM_DAEMON_TIMEOUT_SECONDS) as response:
+                health = json.loads(response.read().decode("utf-8"))
+            daemon_root_raw = str(health.get("root") or "").strip()
+            if not (
+                health.get("ok") is True
+                and health.get("service") == "unlimited-skills"
+                and health.get("protocol") == WARM_DAEMON_PROTOCOL
+                and health.get("runtime_contract_version") == RUNTIME_CONTRACT_VERSION
+                and daemon_root_raw
+                and Path(daemon_root_raw).expanduser().resolve() == root.expanduser().resolve()
+                and str(health.get("model") or "") == DEFAULT_EMBED_MODEL
+            ):
+                continue
+            request = urllib.request.Request(
+                f"{daemon_url}/search",
+                data=json.dumps(
+                    {"query": query, "mode": "vector", "limit": max(limit, 1), "collection": collection, "require_vector": True}
+                ).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=WARM_DAEMON_SEARCH_TIMEOUT_SECONDS) as response:
+                result = json.loads(response.read().decode("utf-8"))
+            return [
+                SkillHit(
+                    name=str(row.get("name") or ""),
+                    description=str(row.get("description") or ""),
+                    collection=str(row.get("collection") or ""),
+                    path=str(row.get("path") or ""),
+                    score=float(row.get("score") or 0.0),
+                )
+                for row in result.get("hits") or []
+                if isinstance(row, dict) and float(row.get("score") or 0.0) >= VECTOR_FLOOR
+            ]
+        except Exception:
+            continue
+    return []
 
-    Heavy deps (embedding model, sidecar) are lazy-imported. Any failure
-    returns ``[]`` so the probe degrades to the English-keywords signal rather
-    than blocking or raising.
+
+def vector_probe(root: Path, query: str, limit: int, collection: str | None = None) -> list[SkillHit]:
+    """Best-effort vector rescue without cold-loading an embedding model.
+
+    Exact cached fixture/query embeddings can be evaluated from the sidecar.
+    Arbitrary queries use only an already-running, root-matched warm daemon.
+    Any failure returns ``[]``; this function never starts a service.
     """
     query = (query or "").strip()[:MAX_QUERY_CHARS]
     if not query:
         return []
+    if not sidecar_installed(root):
+        return _warm_daemon_vector_probe(root, query, limit, collection)
     try:
-        from unlimited_skills import cli
+        payload = json.loads(read_text(root / VECTOR_SIDECAR_NAME))
+        records = payload.get("records") if isinstance(payload, dict) else None
+        dimensions = int(payload.get("embedding_dimensions") or 0) if isinstance(payload, dict) else 0
+        if not (
+            isinstance(payload, dict)
+            and int(payload.get("schema_version") or 0) >= 2
+            and payload.get("complete") is True
+            and str(payload.get("model") or "") == DEFAULT_EMBED_MODEL
+            and payload.get("library_generation_hash") == library_generation_hash(root)
+            and isinstance(records, list)
+            and int(payload.get("count") or -1) == len(records)
+            and dimensions > 0
+        ):
+            return []
+        query_embeddings = payload.get("query_embeddings") if isinstance(payload, dict) else None
+        query_vector = None
+        if isinstance(query_embeddings, dict):
+            for key in (task_summary_hash(query), " ".join(query.split()).lower(), query):
+                if isinstance(query_embeddings.get(key), list) and len(query_embeddings[key]) == dimensions:
+                    query_vector = [float(value) for value in query_embeddings[key]]
+                    break
+        if query_vector is not None:
+            scored: list[SkillHit] = []
+            for row in records:
+                if not isinstance(row, dict) or (collection and row.get("collection") != collection):
+                    continue
+                embedding = row.get("embedding")
+                if not isinstance(embedding, list) or len(embedding) != dimensions:
+                    continue
+                dot = sum(left * float(right) for left, right in zip(query_vector, embedding))
+                q_norm = sum(value * value for value in query_vector) ** 0.5
+                e_norm = sum(float(value) * float(value) for value in embedding) ** 0.5
+                score = dot / (q_norm * e_norm) if q_norm and e_norm else 0.0
+                if score >= VECTOR_FLOOR:
+                    scored.append(
+                        SkillHit(
+                            name=str(row.get("name") or ""),
+                            description=str(row.get("description") or ""),
+                            collection=str(row.get("collection") or ""),
+                            path=str(row.get("path") or ""),
+                            score=score,
+                        )
+                    )
+            return sorted(scored, key=lambda hit: (-hit.score, hit.collection, hit.name))[: max(limit, 1)]
 
-        hits = cli.vector_search(root, query, max(limit, 1), cli.DEFAULT_EMBED_MODEL, collection)
+        hits = _warm_daemon_vector_probe(root, query, limit, collection)
     except Exception:
         return []
     return [hit for hit in hits if getattr(hit, "score", 0.0) >= VECTOR_FLOOR]
@@ -228,6 +343,113 @@ def select_tier(
         return TIER_HINT
     runner_up = hits[1] if len(hits) > 1 else None
     if runner_up is not None and runner_up.score >= floor and top.score < margin * runner_up.score:
+        return TIER_HINT
+    return TIER_CARD
+
+
+def exact_identity_match(query: str, hit: SkillHit) -> bool:
+    query_tokens = [token for token in re.split(r"[^a-z0-9+.#]+", query.lower()) if token]
+    identity_tokens = [token for token in re.split(r"[^a-z0-9+.#]+", hit.name.lower()) if token]
+    if not identity_tokens or len(identity_tokens) > len(query_tokens):
+        return False
+    return any(
+        query_tokens[index : index + len(identity_tokens)] == identity_tokens
+        for index in range(len(query_tokens) - len(identity_tokens) + 1)
+    )
+
+
+def recall_safe_hint_hits(hits: list[SkillHit], query: str = "") -> list[SkillHit]:
+    """Return low-risk NAME/description hints, excluding generic body-only noise."""
+    safe: list[SkillHit] = []
+    for hit in hits:
+        evidence = candidate_debug_payload(hit)
+        exact_ok = exact_identity_match(query, hit) if query else bool(evidence.get("exact_match"))
+        name_idf_ok = (
+            float(evidence.get("name_overlap_idf") or 0.0) >= NAME_HINT_IDF_MIN
+            or float(evidence.get("name_overlap_idf_ratio") or 0.0) >= NAME_HINT_IDF_RATIO_MIN
+        )
+        description_idf_ok = (
+            float(evidence.get("description_overlap_idf") or 0.0) >= DESCRIPTION_HINT_IDF_MIN
+            or float(evidence.get("description_overlap_idf_ratio") or 0.0) >= NAME_HINT_IDF_RATIO_MIN
+        )
+        phrase_idf_ok = (
+            float(evidence.get("phrase_overlap_idf") or 0.0) >= NAME_HINT_IDF_MIN
+            or float(evidence.get("phrase_overlap_idf_ratio") or 0.0) >= NAME_HINT_IDF_RATIO_MIN
+        )
+        name_ok = (
+            float(evidence.get("lexical_score") or 0.0) >= HINT_FLOOR
+            and int(evidence.get("name_overlap_count") or 0) >= 1
+            and name_idf_ok
+            and (
+                int(evidence.get("name_overlap_count") or 0) >= 2
+                or bool(evidence.get("name_overlap_anchor"))
+                or (
+                    float(evidence.get("lexical_score") or 0.0) >= NAME_STRONG_LEXICAL_MIN
+                    and float(evidence.get("name_overlap_idf") or 0.0) >= NAME_STRONG_IDF_MIN
+                )
+            )
+        )
+        description_ok = (
+            float(evidence.get("lexical_score") or 0.0) >= HINT_FLOOR
+            and int(evidence.get("description_overlap_count") or 0) >= 2
+            and description_idf_ok
+        )
+        phrase_ok = (
+            float(evidence.get("lexical_score") or 0.0) >= HINT_FLOOR
+            and int(evidence.get("phrase_overlap_count") or 0) >= 1
+            and phrase_idf_ok
+        )
+        vector_ok = (
+            float(evidence.get("vector_score") or 0.0) >= VECTOR_HINT_MIN
+            and 0 < int(evidence.get("vector_rank") or 0) <= 3
+        )
+        if exact_ok or name_ok or description_ok or phrase_ok or vector_ok:
+            safe.append(hit)
+    return safe
+
+
+def card_safe_hits(
+    hints: list[SkillHit],
+    *,
+    query: str,
+    floor: float,
+    mixed_language_uncertain: bool,
+) -> list[SkillHit]:
+    """Card/body injection requires strong lexical identity, never vector-only."""
+    if mixed_language_uncertain:
+        return []
+    cards: list[SkillHit] = []
+    for hit in hints:
+        evidence = candidate_debug_payload(hit)
+        lexical_score = float(evidence.get("lexical_score") or 0.0)
+        lexical_identity = exact_identity_match(query, hit) or int(
+            evidence.get("name_overlap_count") or 0
+        ) >= 1
+        # RRF can promote a weak lexical row, but ranking is not qualification:
+        # a card must independently clear the lexical evidence floor.
+        if lexical_score >= floor and lexical_identity:
+            cards.append(hit)
+    return cards
+
+
+def select_card_tier(
+    hits: list[SkillHit],
+    floor: float = DEFAULT_FLOOR,
+    high_threshold: float = HIGH_CONFIDENCE_THRESHOLD,
+    margin: float = HIGH_CONFIDENCE_MARGIN,
+) -> int:
+    """Select card delivery from lexical evidence, never an RRF score."""
+    if not hits:
+        return TIER_SILENCE
+
+    def lexical_score(hit: SkillHit) -> float:
+        return float(candidate_debug_payload(hit).get("lexical_score") or 0.0)
+
+    top_score = lexical_score(hits[0])
+    if top_score < high_threshold:
+        return TIER_HINT
+    runner_up_score = max((lexical_score(hit) for hit in hits[1:]), default=0.0)
+    if runner_up_score >= floor and top_score < margin * runner_up_score:
         return TIER_HINT
     return TIER_CARD
 
@@ -358,17 +580,35 @@ def main(argv: list[str] | None = None) -> int:
             pass
         return 0
 
-    # Card/hook mode uses the shared candidate family across lexical + vector
-    # when a sidecar is present. Without a sidecar, it records an explicit
-    # vector_status and keeps lexical delivery alive.
+    # Card/hook mode skips vector only for exact identity or a discriminative,
+    # non-mixed lexical winner with a clear margin. Every rescue stays bounded:
+    # cached query vectors or an already-warm, root-matched daemon only.
     retrieval_path = "lexical" if hits else "none"
     vector_status = "not_requested"
     needs_english = False
-    if args.card:
+    non_english = not looks_english(args.query)
+    lexical_hint_hits = recall_safe_hint_hits(hits, args.query)
+    runner_up = hits[1] if len(hits) > 1 else None
+    margin_clear = bool(
+        hits
+        and (
+            runner_up is None
+            or runner_up.score <= 0
+            or hits[0].score >= args.high_margin * runner_up.score
+        )
+    )
+    top_exact_identity = bool(hits and exact_identity_match(args.query, hits[0]))
+    lexical_decisive = top_exact_identity or bool(
+        not non_english
+        and lexical_hint_hits
+        and reason_code == REASON_MATCH_FOUND
+        and margin_clear
+    )
+    if args.card and not lexical_decisive:
         if _vector_fallback_disabled():
             vector_status = "disabled"
-        elif sidecar_installed(root):
-            vector_status = "available_no_hits"
+        elif non_english or sidecar_installed(root):
+            vector_status = "compatible_no_in_budget_hits"
             vector_hits = vector_probe(root, args.query, fetch_limit, args.collection)
             if vector_hits:
                 hits = shared_candidate_family(
@@ -381,44 +621,97 @@ def main(argv: list[str] | None = None) -> int:
                 reason_code = REASON_MATCH_FOUND if hits and hits[0].score >= args.floor else REASON_LOW_CONFIDENCE
                 retrieval_path = "hybrid" if any("lexical" in candidate_debug_payload(hit).get("candidate_sources", []) for hit in hits) else "vector"
                 vector_status = "available_used"
-        else:
-            vector_status = "unavailable_missing_sidecar"
+            elif non_english and reason_code != REASON_MATCH_FOUND:
+                vector_status = "unavailable_or_warming"
 
-    # Non-English / no-result rescue: if no candidate survived the shared
-    # family and there is no usable vector path, flag needs_english_query so
-    # the caller re-queries with English keywords instead of getting silence.
-    if not hits and not looks_english(args.query):
+    # Mixed-language prompts need an explicit recovery action unless exact
+    # identity or a strong semantic hint actually resolved them.
+    semantic_rescue_succeeded = any(
+        float(candidate_debug_payload(hit).get("vector_score") or 0.0) >= VECTOR_HINT_MIN
+        for hit in hits
+    )
+    if non_english and not (top_exact_identity or semantic_rescue_succeeded):
         needs_english = True
+
+    hint_hits = recall_safe_hint_hits(hits, args.query)
+    card_hits = card_safe_hits(
+        hint_hits,
+        query=args.query,
+        floor=args.floor,
+        mixed_language_uncertain=non_english and reason_code != REASON_MATCH_FOUND,
+    )
 
     # The new routing fields ride only on the --card channel (the hook's mode);
     # the plain --json contract stays byte-identical for existing consumers.
     extra: dict = {}
     tier = None
     injected = False
+    card_obj = None
     if args.card:
         extra["retrieval_path"] = retrieval_path
         extra["vector_status"] = vector_status
+        # Keep the existing candidate family as diagnostics, but expose the
+        # exact floor-filtered delivery surface separately so hook consumers
+        # never have to infer it from scores or accidentally forward noise.
+        extra["schema_version"] = 2
+        extra["minimum_score"] = args.floor
+        extra["hint_policy_revision"] = "hint-policy-v1"
+        extra["hint_minimum_score"] = HINT_FLOOR
+        extra["retrieval_candidates"] = candidate_payload(
+            hits[: args.limit], include_sources=True
+        )
+        extra["delivery_candidates"] = candidate_payload(
+            hint_hits[: args.limit], include_sources=True
+        )
+        extra["card_candidates"] = candidate_payload(card_hits[:1], include_sources=True)
         if needs_english:
             extra["needs_english_query"] = True
-        tier = select_tier(hits, floor=args.floor, high_threshold=args.high_threshold, margin=args.high_margin)
-        card_obj = None
+        tier = TIER_SILENCE
+        if hint_hits:
+            tier = TIER_HINT
+        if card_hits:
+            tier = select_card_tier(
+                card_hits,
+                floor=args.floor,
+                high_threshold=args.high_threshold,
+                margin=args.high_margin,
+            )
         if tier == TIER_CARD and not kill_switch_active():
-            card_text = build_skill_card(hits[0], max_chars=args.card_max_chars)
+            card_text = build_skill_card(card_hits[0], max_chars=args.card_max_chars)
             if card_text:
-                card_obj = {"name": hits[0].name, "source": hits[0].collection, "card": card_text}
+                card_obj = {
+                    "name": card_hits[0].name,
+                    "source": card_hits[0].collection,
+                    "card": card_text,
+                }
         if tier == TIER_CARD and card_obj is None:
             tier = TIER_HINT  # kill switch or unreadable SKILL.md: degrade, never block
         injected = card_obj is not None
         extra["delivery_tier"] = tier  # update, never reassign: keep retrieval_path/needs_english_query
+        extra["delivery"] = {
+            "mode": "card" if tier == TIER_CARD else ("hint" if tier == TIER_HINT else ("rescue" if needs_english else "silence")),
+            "hint_candidates": candidate_payload(hint_hits[: args.limit], include_sources=True),
+            "card_candidate": candidate_payload(card_hits[:1], include_sources=True)[0]
+            if tier == TIER_CARD and card_hits
+            else None,
+        }
         if card_obj is not None:
             extra["skill_card"] = card_obj
     display_hits = hits[: args.limit]
+    json_hits = hint_hits[: args.limit] if args.card else display_hits
+    # Explicit plain-text suggest remains the score-floor CLI contract. The
+    # stricter safe-hint/card filter belongs only to the ambient --card path.
+    text_hits = (
+        card_hits[: args.limit]
+        if args.card
+        else [hit for hit in display_hits if hit.score >= args.floor]
+    )
     elapsed_ms = (time.perf_counter() - started) * 1000.0
 
     if args.json:
-        _print_json(args.query, display_hits, reason_code, elapsed_ms, extra, include_candidate_sources=bool(args.card))
+        _print_json(args.query, json_hits, reason_code, elapsed_ms, extra, include_candidate_sources=bool(args.card))
     else:
-        for hit in display_hits:
+        for hit in text_hits:
             print(format_suggestion(hit))
 
     try:
@@ -440,6 +733,9 @@ def main(argv: list[str] | None = None) -> int:
             "score_bucket": score_bucket(top_score),
             "margin_bucket": margin_bucket(top_score, runner_up_score),
             "hits": [{"name": hit.name, "score": hit.score} for hit in display_hits],
+            "retrieved_candidates": [hit.name for hit in display_hits],
+            "shown_candidates": [hit.name for hit in hint_hits[: args.limit]] if args.card else [hit.name for hit in text_hits],
+            "card_injected_candidate": card_obj.get("name") if isinstance(card_obj, dict) else None,
         }
         if tier is not None:
             event["delivery_tier"] = tier

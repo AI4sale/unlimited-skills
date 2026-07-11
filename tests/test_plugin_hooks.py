@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import subprocess
 import sys
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -48,9 +50,30 @@ def hook_env(tmp_path: Path, **overrides: str) -> dict[str, str]:
     # Isolate the fallback chain from the developer machine's real installs.
     env["CLAUDE_HOME"] = str(tmp_path / "claude-home")
     env["UNLIMITED_SKILLS_INSTALL_ROOT"] = str(tmp_path / "install-root")
+    # Generic hook tests exercise retrieval, not process lifecycle. Autoserve
+    # has focused unit tests below so the suite never starts real daemons.
+    env["UNLIMITED_SKILLS_NO_AUTOSERVE"] = "1"
     env.pop("UNLIMITED_SKILLS_CLI", None)
     env.update(overrides)
     return env
+
+
+def load_user_prompt_module() -> ModuleType:
+    name = f"_unlimited_skills_user_prompt_submit_{os.urandom(6).hex()}"
+    spec = importlib.util.spec_from_file_location(name, USER_PROMPT_SUBMIT)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def load_session_start_module() -> ModuleType:
+    name = f"_unlimited_skills_session_start_{os.urandom(6).hex()}"
+    spec = importlib.util.spec_from_file_location(name, SESSION_START)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def repo_cli_override(root: Path) -> str:
@@ -216,16 +239,14 @@ def test_user_prompt_submit_kill_switch_downgrades_card_to_hint(tmp_path: Path) 
     assert "Step 1:" not in context
 
 
-def test_user_prompt_submit_falls_back_to_hint_on_unreadable_skill_file(tmp_path: Path) -> None:
+def test_user_prompt_submit_drops_stale_index_entry_when_skill_file_disappears(tmp_path: Path) -> None:
     library = make_card_library(tmp_path)
     (library / "local" / "skills" / "python-patterns" / "SKILL.md").unlink()
     env = hook_env(tmp_path, UNLIMITED_SKILLS_CLI=repo_cli_override(library))
     prompt = "review my python module for pep8 issues and idioms"
     result = run_hook(USER_PROMPT_SUBMIT, json.dumps({"prompt": prompt}), env)
     assert result.returncode == 0, result.stderr
-    context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
-    assert "Relevant skill available: python-patterns" in context
-    assert "Skill card:" not in context
+    assert result.stdout.strip() == ""
 
 
 def test_user_prompt_submit_is_silent_below_floor(tmp_path: Path) -> None:
@@ -235,6 +256,27 @@ def test_user_prompt_submit_is_silent_below_floor(tmp_path: Path) -> None:
     result = run_hook(USER_PROMPT_SUBMIT, payload, env)
     assert result.returncode == 0
     assert result.stdout.strip() == ""
+
+
+def test_user_prompt_submit_never_hints_below_floor_diagnostics(tmp_path: Path) -> None:
+    library = make_library(tmp_path)
+    gardening = library / "local" / "skills" / "gardening-basics"
+    gardening.mkdir(parents=True)
+    (gardening / "SKILL.md").write_text(
+        "---\nname: gardening-basics\ndescription: Watering schedules for houseplants.\n---\n",
+        encoding="utf-8",
+    )
+    save_index(library)
+    env = hook_env(tmp_path, UNLIMITED_SKILLS_CLI=repo_cli_override(library))
+    result = run_hook(
+        USER_PROMPT_SUBMIT,
+        json.dumps({"prompt": "python code review watering"}),
+        env,
+    )
+    assert result.returncode == 0, result.stderr
+    context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert "python-patterns" in context
+    assert "gardening-basics" not in context
 
 
 def test_user_prompt_submit_skips_short_prompts(tmp_path: Path) -> None:
@@ -286,11 +328,221 @@ def test_user_prompt_submit_instructs_english_requery_for_non_english(tmp_path: 
     assert result.returncode == 0, result.stderr
     context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
     assert "English" in context and "unlimited-skills suggest" in context
-    # Warns about the cold-load cost and states that daemon warming was triggered.
-    assert "serve" in context and "background daemon" in context
-    assert "approv" not in context.lower()
-    assert "14" in context
+    assert "UNLIMITED_SKILLS_NO_AUTOSERVE" in context
     assert prompt not in context  # privacy: no raw prompt echo
+
+
+def test_user_prompt_submit_autoserve_starts_missing_local_daemon(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_user_prompt_module()
+    calls: list[tuple[list[str], dict]] = []
+    monkeypatch.delenv("UNLIMITED_SKILLS_NO_AUTOSERVE", raising=False)
+    endpoint = ("127.0.0.1", 8765, "http://127.0.0.1:8765")
+    monkeypatch.setattr(module, "_daemon_state", lambda command, endpoint=None: "missing")
+    monkeypatch.setattr(module, "_daemon_endpoints", lambda command: [endpoint])
+    monkeypatch.setattr(module, "_claim_daemon_launch", lambda command, url: (True, None))
+    monkeypatch.setattr(module, "_write_daemon_state", lambda *args, **kwargs: None)
+    monkeypatch.setattr(module.subprocess, "Popen", lambda command, **kwargs: calls.append((command, kwargs)))
+
+    state = module._ensure_warm_daemon(["unlimited-skills"])
+
+    assert state == "starting"
+    assert len(calls) == 1
+    assert calls[0][0] == [
+        "unlimited-skills", "serve", "--host", "127.0.0.1", "--port", "8765", "--log-level", "warning"
+    ]
+    assert calls[0][1]["stdin"] is subprocess.DEVNULL
+    assert calls[0][1]["stdout"] is subprocess.DEVNULL
+    assert calls[0][1]["stderr"] is subprocess.DEVNULL
+    assert calls[0][1].get("start_new_session") is True or calls[0][1].get("creationflags", 0) != 0
+
+
+@pytest.mark.parametrize("state", ["ready", "incompatible", "external_or_invalid"])
+def test_user_prompt_submit_autoserve_never_replaces_running_or_refused_endpoint(
+    monkeypatch: pytest.MonkeyPatch, state: str
+) -> None:
+    module = load_user_prompt_module()
+    monkeypatch.delenv("UNLIMITED_SKILLS_NO_AUTOSERVE", raising=False)
+    monkeypatch.setattr(module, "_daemon_state", lambda command, endpoint=None: state)
+    monkeypatch.setattr(module, "_daemon_endpoints", lambda command: [("127.0.0.1", 8765, "http://127.0.0.1:8765")])
+    monkeypatch.setattr(
+        module.subprocess,
+        "Popen",
+        lambda *args, **kwargs: pytest.fail(f"unexpected daemon launch for {state}"),
+    )
+
+    assert module._ensure_warm_daemon(["unlimited-skills"]) == state
+
+
+def test_user_prompt_submit_autoserve_cooldown_prevents_spawn_storm(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_user_prompt_module()
+    monkeypatch.delenv("UNLIMITED_SKILLS_NO_AUTOSERVE", raising=False)
+    endpoint = ("127.0.0.1", 8765, "http://127.0.0.1:8765")
+    monkeypatch.setattr(module, "_daemon_state", lambda command, endpoint=None: "missing")
+    monkeypatch.setattr(module, "_daemon_endpoints", lambda command: [endpoint])
+    monkeypatch.setattr(module, "_claim_daemon_launch", lambda command, url: (False, Path("launch")))
+    monkeypatch.setattr(
+        module.subprocess,
+        "Popen",
+        lambda *args, **kwargs: pytest.fail("cooldown must suppress duplicate daemon launch"),
+    )
+
+    assert module._ensure_warm_daemon(["unlimited-skills"]) == "warming"
+
+
+def test_user_prompt_submit_autoserve_emergency_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_user_prompt_module()
+    monkeypatch.setenv("UNLIMITED_SKILLS_NO_AUTOSERVE", "1")
+    monkeypatch.setattr(module, "_daemon_state", lambda *args: pytest.fail("disabled autoserve must not probe the port"))
+    monkeypatch.setattr(module.subprocess, "Popen", lambda *args, **kwargs: pytest.fail("autoserve is disabled"))
+
+    assert module._ensure_warm_daemon(["unlimited-skills"]) == "disabled"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://127.0.0.1:8765",
+        "http://example.com:8765",
+        "http://user:pass@127.0.0.1:8765",
+        "http://127.0.0.1:8765/nested",
+        "http://127.0.0.1:8765?next=remote",
+    ],
+)
+def test_user_prompt_submit_autoserve_rejects_non_local_or_malformed_endpoint(
+    monkeypatch: pytest.MonkeyPatch, url: str
+) -> None:
+    module = load_user_prompt_module()
+    monkeypatch.setenv("UNLIMITED_SKILLS_WARM_DAEMON_URL", url)
+    assert module._daemon_endpoint(["unlimited-skills"]) is None
+
+
+def test_user_prompt_submit_autoserve_requires_matching_root_and_model(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    module = load_user_prompt_module()
+    root = tmp_path / "library"
+    command = ["unlimited-skills", "--root", str(root)]
+    payload = {
+        "ok": True,
+        "service": "unlimited-skills",
+        "protocol": "warm-search-v1",
+        "runtime_contract_version": module.RUNTIME_CONTRACT_VERSION,
+        "root": str(root),
+        "model": module.DEFAULT_EMBED_MODEL,
+    }
+
+    assert module._daemon_identity_matches(payload, command) is True
+    assert module._daemon_identity_matches({**payload, "root": str(tmp_path / "other")}, command) is False
+    assert module._daemon_identity_matches({**payload, "model": "wrong-model"}, command) is False
+
+
+def test_autoserve_rolls_over_from_legacy_listener_to_versioned_fallback(
+    monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = load_user_prompt_module()
+    preferred = ("127.0.0.1", 8765, "http://127.0.0.1:8765")
+    fallback = ("127.0.0.1", 20555, "http://127.0.0.1:20555")
+    launched: list[list[str]] = []
+    monkeypatch.delenv("UNLIMITED_SKILLS_NO_AUTOSERVE", raising=False)
+    monkeypatch.setattr(module, "_daemon_endpoints", lambda command: [preferred, fallback])
+    monkeypatch.setattr(
+        module,
+        "_daemon_state",
+        lambda command, endpoint=None: "incompatible" if endpoint == preferred else "missing",
+    )
+    monkeypatch.setattr(module, "_claim_daemon_launch", lambda command, url: (True, None))
+    monkeypatch.setattr(module, "_write_daemon_state", lambda *args, **kwargs: None)
+    monkeypatch.setattr(module.subprocess, "Popen", lambda command, **kwargs: launched.append(command))
+
+    assert module._ensure_warm_daemon(["unlimited-skills"]) == "starting"
+    assert launched[0][-6:] == ["--host", "127.0.0.1", "--port", "20555", "--log-level", "warning"]
+
+
+def test_user_prompt_submit_derives_distinct_ports_for_distinct_roots(tmp_path: Path) -> None:
+    from unlimited_skills.daemon_endpoint import warm_daemon_url
+
+    module = load_user_prompt_module()
+    first = tmp_path / "first" / "library"
+    second = tmp_path / "second" / "library"
+    first_url = module._daemon_endpoint(["unlimited-skills", "--root", str(first)])[2]
+    second_url = module._daemon_endpoint(["unlimited-skills", "--root", str(second)])[2]
+
+    assert first_url == warm_daemon_url(first)
+    assert second_url == warm_daemon_url(second)
+    assert first_url != second_url
+
+
+def test_session_start_primary_daemon_ensure_runs_before_contract(
+    monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
+    module = load_session_start_module()
+    calls: list[list[str]] = []
+    command = ["unlimited-skills"]
+    monkeypatch.setattr(module, "resolve_cli_command", lambda: command)
+    monkeypatch.setattr(module, "_ensure_warm_daemon", lambda value: calls.append(value) or "starting")
+    monkeypatch.setattr(module, "_maybe_autoheal", lambda value: None)
+    monkeypatch.setattr(module, "_record_money_event", lambda *args: None)
+
+    assert module.main() == 0
+    assert calls == [command]
+    assert "Unlimited Skills Library" in capsys.readouterr().out
+
+
+def test_autoserve_launch_claim_is_cross_process_idempotent(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    module = load_user_prompt_module()
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(tmp_path / "home"))
+    command = ["unlimited-skills", "--root", str(tmp_path / "library")]
+    url = module._daemon_endpoint(command)[2]
+
+    first, marker = module._claim_daemon_launch(command, url)
+    second, same_marker = module._claim_daemon_launch(command, url)
+
+    assert first is True
+    assert second is False
+    assert marker == same_marker
+    assert marker is not None and marker.is_file()
+
+
+def test_daemon_running_state_preserves_started_pid(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    module = load_user_prompt_module()
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(tmp_path / "home"))
+    command = ["unlimited-skills", "--root", str(tmp_path / "library")]
+    url = module._daemon_endpoint(command)[2]
+
+    module._write_daemon_state(command, url, "starting", 4321)
+    module._write_daemon_state(command, url, "running")
+
+    state_path = module._launch_marker(command, url).with_suffix(".json")
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert state["status"] == "running"
+    assert state["pid"] == 4321
+
+
+def test_user_prompt_submit_rescues_mixed_language_weak_match(tmp_path: Path) -> None:
+    library = make_library(tmp_path)
+    for index in range(8):
+        decoy = library / "local" / "skills" / f"decoy-{index}" / "SKILL.md"
+        decoy.parent.mkdir(parents=True)
+        decoy.write_text(
+            f"---\nname: decoy-{index}\ndescription: Unrelated fixture topic {index}.\n---\n",
+            encoding="utf-8",
+        )
+    save_index(library)
+    env = hook_env(
+        tmp_path,
+        UNLIMITED_SKILLS_CLI=repo_cli_override(library),
+        UNLIMITED_SKILLS_NO_VECTOR_FALLBACK="1",
+    )
+    prompt = "проверить python api"
+    result = run_hook(USER_PROMPT_SUBMIT, json.dumps({"prompt": prompt}), env)
+    assert result.returncode == 0, result.stderr
+    context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert "English" in context and "unlimited-skills suggest" in context
+    assert "Relevant skill available: python-patterns" in context
 
 
 def test_user_prompt_submit_instructs_english_requery_on_non_english_timeout(tmp_path: Path) -> None:
