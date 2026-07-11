@@ -136,6 +136,18 @@ def _payload_candidates(result: dict[str, Any]) -> set[str]:
     }
 
 
+def _payload_deliverable_candidates(result: dict[str, Any]) -> set[str]:
+    payload = result.get("payload")
+    if not isinstance(payload, dict) or payload.get("delivery_tier") == suggest.TIER_SILENCE:
+        return set()
+    return {
+        str(candidate.get("name") or "")
+        for candidate in payload.get("delivery_candidates") or []
+        if isinstance(candidate, dict)
+        and candidate.get("name")
+    }
+
+
 def _looks_non_english(query: str) -> bool:
     letters = [char for char in query if char.isalpha()]
     if not letters:
@@ -206,7 +218,7 @@ def build_report(root: Path, queries: list[dict[str, Any]], tmp_home: Path) -> d
             False,
         )
         suggest_json = _run_suggest(root, query, card=False, limit=3)
-        suggest_card = _run_suggest(root, query, card=True, limit=1)
+        suggest_card = _run_suggest(root, query, card=True, limit=5)
         hook = _run_hook(root, query, tmp_home)
         hook_candidates = _context_candidates(hook["context"], known_names)
 
@@ -218,8 +230,10 @@ def build_report(root: Path, queries: list[dict[str, Any]], tmp_home: Path) -> d
             | _payload_candidates(suggest_json)
             | _payload_candidates(suggest_card)
         )
-        zero_candidate_loss = bool(search_names) and not hook_candidates
-        insufficient_candidate_delivery = bool(search_names) and len(hook_candidates) < min_hook_candidates
+        delivery_names = _payload_deliverable_candidates(suggest_card)
+        required_delivery_count = min(min_hook_candidates, len(delivery_names))
+        zero_candidate_loss = bool(delivery_names) and not hook_candidates
+        insufficient_candidate_delivery = len(hook_candidates) < required_delivery_count
         row = {
             "id": query_def.get("id"),
             "query": query,
@@ -240,6 +254,7 @@ def build_report(root: Path, queries: list[dict[str, Any]], tmp_home: Path) -> d
             "expected_family": query_def.get("expected_family") or [],
             "min_hook_candidates": min_hook_candidates,
             "search_candidate_count": len(search_names),
+            "delivery_candidate_count": len(delivery_names),
             "hook_candidate_count": len(hook_candidates),
             "zero_candidate_loss": zero_candidate_loss,
             "insufficient_candidate_delivery": insufficient_candidate_delivery,

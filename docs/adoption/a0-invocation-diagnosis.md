@@ -143,7 +143,7 @@ Replace the vague "before substantive work, check" with: (a) a concrete trigger 
 ### F3. Ship the hook path for the live install (Effort: M, Risk: medium) — IMPACT: HIGH (determinism) — **SHIPPED**
 Two layers:
 - **SessionStart** (existed in plugin, broken live): `session_start.py` now resolves the CLI via a fallback chain — env override → PATH → `~/.unlimited-skills/.venv` → rendered launchers — instead of `shutil.which` only. The legacy installer ALSO registers the hooks in `~/.claude/settings.json` (idempotent, fail-soft, `--no-hooks` to opt out), so both install paths converge on deterministic injection.
-- **UserPromptSubmit** (new, the big lever): a hook that runs `suggest` on the user's prompt text and, only when a hit clears the score floor, injects one line: `Relevant skill available: <name> — <description> View it with: ...`. This converts invocation from model-initiative (unreliable) to ambient retrieval (deterministic). Hard 2 s timeout, fail-open silent on any error.
+- **UserPromptSubmit** (new, the big lever): a hook that runs `suggest` on the user's prompt text and, only when a hit clears the score floor, injects one line: `Relevant skill available: <name> — <description> View it with: ...`. This converts invocation from model-initiative (unreliable) to ambient retrieval (deterministic). Hard 3 s timeout, fail-open silent on any error.
 
 ### F4. Collapse the protocol: drop mandatory `use`/`feedback` steps (Effort: S, Risk: low) — IMPACT: MEDIUM — **PARTIAL**
 The rewritten router workflow marks `use`/`feedback` as optional enrichment ("helpful, never required"). Auto-logging `view` as presumptive usage remains future work.

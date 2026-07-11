@@ -3,19 +3,36 @@ from __future__ import annotations
 import json
 import os
 import subprocess
+import urllib.request
 from pathlib import Path
 from typing import Any
 
 from . import __version__
 from .private_pack_diagnostics import private_pack_local_summary
 from .registration import DEFAULT_SERVICE_URL, RegistrationError, load_registration, unlimited_skills_home
+from .search_core import (
+    EXPANSION_REVISION,
+    INDEX_MANIFEST_NAME,
+    INDEX_SCHEMA_VERSION,
+    STOPWORD_REVISION,
+    TOKENIZER_REVISION,
+    index_is_current,
+    vector_sidecar_status,
+)
 
 
 MANAGED_BLOCK_MARKER = "<!-- BEGIN UNLIMITED SKILLS -->"
 ROUTER_NAME = "unlimited-skills"
 INDEX_NAME = ".unlimited-skills-index.json"
 VECTOR_META_NAME = ".unlimited-skills-vector.json"
+VECTOR_SIDECAR_NAME = ".unlimited-skills-vectors.json"
 CHROMA_DIR_NAME = ".chroma-skills"
+DEFAULT_EMBED_MODEL = os.environ.get(
+    "UNLIMITED_SKILLS_EMBED_MODEL",
+    "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+)
+WARM_DAEMON_URL = os.environ.get("UNLIMITED_SKILLS_WARM_DAEMON_URL", "http://127.0.0.1:8765").rstrip("/")
+WARM_DAEMON_PROTOCOL = "warm-search-v1"
 SUPPORTED_AGENTS = ("codex", "claude-code", "hermes", "openclaw")
 
 
@@ -52,21 +69,33 @@ def _library_summary(root: Path) -> dict[str, Any]:
             count = _skill_count(child)
             if count:
                 collections[child.name] = count
+    index_present = (root / INDEX_NAME).is_file()
+    index_current = index_is_current(root) if index_present else False
+    vector_status = vector_sidecar_status(root, root / VECTOR_SIDECAR_NAME, DEFAULT_EMBED_MODEL)
     return {
         "exists": root.is_dir(),
         "collections": collections,
         "total_skills": sum(collections.values()),
-        "index_present": (root / INDEX_NAME).is_file(),
+        "index_present": index_present,
+        "index_current": index_current,
+        "index_schema_version": INDEX_SCHEMA_VERSION if index_current else None,
+        "index_manifest": str(root / INDEX_MANIFEST_NAME),
+        "tokenizer_revision": TOKENIZER_REVISION,
+        "stopword_revision": STOPWORD_REVISION,
+        "expansion_revision": EXPANSION_REVISION,
         "vector_index_present": (root / CHROMA_DIR_NAME).is_dir() or (root / VECTOR_META_NAME).is_file(),
+        "vector_index_ready": bool(vector_status.get("ready")),
+        "vector_status": vector_status,
     }
 
 
 def _runtime_deps_summary() -> dict[str, Any]:
     """Are the optional extras needed for native-language search installed?
 
-    ``[server]`` (fastapi/uvicorn) runs the warm daemon (``unlimited-skills serve``);
-    ``[vector]`` (fastembed/chromadb) is the multilingual embedding sidecar. Without
-    BOTH, non-English prompts return nothing. Pure ``find_spec`` — imports nothing.
+    ``[server]`` (fastapi/uvicorn) runs the optional warm daemon
+    (``unlimited-skills serve``); ``[vector]`` (fastembed/chromadb) provides
+    native-language embedding retrieval. Without it, the router falls back to
+    an explicit English-keyword re-query instruction. Pure ``find_spec`` — imports nothing.
     """
     import importlib.util
 
@@ -83,6 +112,34 @@ def _runtime_deps_summary() -> dict[str, Any]:
         "vector_extra_present": vector,
         "multilingual_ready": server and vector,
     }
+
+
+def _warm_daemon_summary(root: Path) -> dict[str, Any]:
+    try:
+        with urllib.request.urlopen(f"{WARM_DAEMON_URL}/health", timeout=0.2) as response:
+            payload = json.loads(response.read().decode("utf-8"))
+        root_value = str(payload.get("root") or "").strip()
+        protocol_matches = (
+            payload.get("service") == "unlimited-skills"
+            and payload.get("protocol") == WARM_DAEMON_PROTOCOL
+        )
+        root_matches = bool(root_value) and Path(root_value).expanduser().resolve() == root.expanduser().resolve()
+        model_matches = str(payload.get("model") or "") == DEFAULT_EMBED_MODEL
+        return {
+            "running": bool(payload.get("ok")),
+            "protocol_matches": protocol_matches,
+            "root_matches": root_matches,
+            "model_matches": model_matches,
+            "ready": bool(payload.get("ok")) and protocol_matches and root_matches and model_matches,
+        }
+    except Exception:
+        return {
+            "running": False,
+            "protocol_matches": False,
+            "root_matches": False,
+            "model_matches": False,
+            "ready": False,
+        }
 
 
 # Concrete contents of the [all] extra (mirror pyproject.toml [project.optional-dependencies]).
@@ -403,23 +460,42 @@ def build_doctor_report(root: Path, *, agent: str = "all", project_root: Path | 
     recommendations = []
     library = _library_summary(root)
     if not library["exists"]:
-        recommendations.append("Local library root is missing. Run an installer, migration script, or `unlimited-skills reindex` after adding skills.")
+        recommendations.append(
+            "Local library root is missing. Run `unlimited-skills quickstart --skip-mcp-check` "
+            "to import bundled skills and build the lexical index."
+        )
     elif not library["index_present"]:
         recommendations.append("Lexical index is missing. Run `unlimited-skills reindex`.")
+    elif not library["index_current"]:
+        recommendations.append("Lexical index is stale or incompatible. Run `unlimited-skills reindex`.")
     for info in agents.values():
         recommendations.extend(info.get("recommendations") or [])
     runtime_deps = _runtime_deps_summary()
+    runtime_deps["native_language_search_ready"] = bool(
+        runtime_deps["vector_extra_present"] and library["vector_index_ready"]
+    )
+    runtime_deps["warm_daemon"] = _warm_daemon_summary(root)
+    runtime_deps["warm_daemon_ready"] = bool(
+        runtime_deps["native_language_search_ready"]
+        and runtime_deps["server_extra_present"]
+        and runtime_deps["warm_daemon"]["ready"]
+    )
     if not runtime_deps["vector_extra_present"]:
         recommendations.append(
-            "Multilingual search deps are MISSING ([vector]: fastembed/chromadb) — non-English "
-            "prompts return nothing. Install with `pip install \"unlimited-skills[all]\"`, then "
-            "rebuild the sidecar: `unlimited-skills vector-reindex`."
+            "Native-language vector retrieval is not installed; the safe English-keyword fallback "
+            "remains active. For direct native-language matches, install `pip install "
+            "\"unlimited-skills[vector]\"`, then run `unlimited-skills vector-reindex`."
+        )
+    elif not library["vector_index_ready"]:
+        recommendations.append(
+            "Vector dependencies are installed but the local sidecar is missing, stale, or incompatible. Run "
+            "`unlimited-skills vector-reindex` to enable native-language retrieval."
         )
     if not runtime_deps["server_extra_present"]:
         recommendations.append(
-            "Warm search daemon deps are MISSING ([server]: fastapi/uvicorn) — `unlimited-skills "
-            "serve` cannot run, so native-language search stays slow (~14-20s cold). Install with "
-            "`pip install \"unlimited-skills[all]\"`."
+            "The optional warm daemon is unavailable ([server]: fastapi/uvicorn). Direct vector "
+            "search can still run cold; install `pip install \"unlimited-skills[server]\"` only "
+            "if you want to start `unlimited-skills serve` explicitly."
         )
     from .search_core import read_router_metrics
 
@@ -454,12 +530,17 @@ def format_doctor_text(report: dict[str, Any]) -> str:
         f"Hosted token: {registration['hosted_token']}",
         f"Local skills: {library['total_skills']}",
         f"Private packs: {report.get('private_packs', {}).get('installed_count', 0)}",
-        "Lexical index: " + ("present" if library["index_present"] else "missing"),
-        "Vector index: " + ("present" if library["vector_index_present"] else "missing"),
-        "Multilingual ready: " + (
-            "yes"
-            if report.get("runtime_deps", {}).get("multilingual_ready")
-            else "NO — non-English search is dead; run `pip install \"unlimited-skills[all]\"` + `unlimited-skills vector-reindex`"
+        "Lexical index: " + ("current" if library["index_current"] else ("stale/incompatible" if library["index_present"] else "missing")),
+        "Vector index: " + ("ready" if library["vector_index_ready"] else str(library.get("vector_status", {}).get("reason") or "missing")),
+        "Native-language search: " + (
+            "ready"
+            if report.get("runtime_deps", {}).get("native_language_search_ready")
+            else "English-keyword fallback active; add `unlimited-skills[vector]` + run `unlimited-skills vector-reindex` for direct matches"
+        ),
+        "Warm daemon: " + (
+            "ready"
+            if report.get("runtime_deps", {}).get("warm_daemon_ready")
+            else "optional/not ready"
         ),
     ]
     router = report.get("router", {})

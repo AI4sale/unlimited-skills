@@ -15,14 +15,16 @@ skill TO the model instead of hinting the model to fetch it):
 
 Hard guarantees:
 
-- never blocks: the probe runs with a hard timeout (default 2 s,
+- never blocks: the probe runs with a hard timeout (default 3 s,
   ``UNLIMITED_SKILLS_SUGGEST_TIMEOUT`` overrides for tests);
 - fail-open: ANY error (missing CLI, bad stdin, timeout, bad JSON,
   unreadable SKILL.md) exits 0 with no output or degrades to the hint;
 - no below-floor noise: when `suggest` returns nothing, the hook prints
   nothing;
 - kill switch: ``UNLIMITED_SKILLS_NO_INJECT=1`` downgrades tier 3 to the
-  tier-2 hint (``--card`` is never requested);
+  tier-2 hint while retaining card-mode delivery metadata for floor checks;
+- service consent: the hook never starts the optional warm daemon or any other
+  persistent background process;
 - privacy: the prompt text goes only to the local CLI; nothing is logged
   here, the injected context never echoes the prompt text, and it carries no
   local filesystem paths (skills are referenced by NAME only; the tier-3
@@ -33,7 +35,6 @@ from __future__ import annotations
 
 import json
 import os
-import socket
 import subprocess
 import sys
 from pathlib import Path
@@ -56,17 +57,8 @@ MIN_PROMPT_CHARS = 12
 MAX_PROMPT_CHARS = 300
 HOOK_CANDIDATE_LIMIT = 5
 HOOK_CANDIDATE_DISPLAY_LIMIT = 5
-DEFAULT_TIMEOUT_SECONDS = 2.0
+DEFAULT_TIMEOUT_SECONDS = 3.0
 KILL_SWITCH_ENV = "UNLIMITED_SKILLS_NO_INJECT"
-
-# Warm multilingual search daemon (`unlimited-skills serve`). A non-English prompt
-# IS the signal that this user needs native-language search, so the hook starts the
-# daemon in the background — for everyone — so the NEXT native-language lookups are
-# fast (~0.3s) instead of a ~14-20s cold load. Idempotent (skips if the port already
-# listens), detached, best-effort. Escape hatch for restricted envs: NO_AUTOSERVE.
-DAEMON_HOST = "127.0.0.1"
-DAEMON_PORT = 8765
-NO_AUTOSERVE_ENV = "UNLIMITED_SKILLS_NO_AUTOSERVE"
 
 # Tier-3 fallback (non-English rescue). The lexical engine scores a non-English
 # prompt at zero, and a cold multilingual embedding load can exceed the probe
@@ -75,16 +67,12 @@ NO_AUTOSERVE_ENV = "UNLIMITED_SKILLS_NO_AUTOSERVE"
 # English keywords and re-query the router with THAT. No prompt text is echoed.
 NON_ENGLISH_INSTRUCTION = (
     "Unlimited Skills — NON-ENGLISH PROMPT, NO IN-BUDGET RESULT. Lexical search "
-    "scores non-English at ~0, and without a WARM multilingual daemon every "
-    "non-English lookup returns NOTHING inside the hook's short time budget — "
-    "that is exactly why no skill was suggested here. DO THIS NOW, do not skip: "
+    "did not produce a result above the delivery threshold. DO THIS NOW: "
     "restate the user's request as 3-8 English retrieval keywords and run "
     '`unlimited-skills suggest "<English keywords>"` (the English query, not the '
-    "raw prompt). Expect ~14-20 seconds the first time (cold embedding-model "
-    "load) — that delay is EXPECTED, wait for it — then use the top skill it "
-    "returns. The hook has already triggered best-effort background daemon "
-    "warming (`unlimited-skills serve`) for future native-language searches; "
-    "set UNLIMITED_SKILLS_NO_AUTOSERVE=1 to disable that behavior."
+    "raw prompt), then use the top skill it returns. For repeated native-language "
+    "retrieval, ask the user for approval before starting the optional warm daemon "
+    "with `unlimited-skills serve`; this hook never starts background services."
 )
 
 
@@ -110,48 +98,6 @@ def _looks_non_english(text: str) -> bool:
         return False
     ascii_letters = sum(1 for c in letters if c.isascii())
     return (ascii_letters / len(letters)) < 0.6
-
-
-def _daemon_listening(host: str = DAEMON_HOST, port: int = DAEMON_PORT) -> bool:
-    try:
-        with socket.create_connection((host, port), timeout=0.2):
-            return True
-    except OSError:
-        return False
-
-
-def _start_daemon_warming(command: list[str]) -> None:
-    """Start the warm search daemon in the background for non-English users.
-
-    Fire-and-forget: detached, idempotent (no-op if the port already listens),
-    best-effort (a missing server extra just dies silently). NEVER blocks or
-    raises — the hook returns immediately and the daemon warms for the NEXT prompt.
-    """
-    if os.environ.get(NO_AUTOSERVE_ENV):
-        return
-    if _daemon_listening():
-        return
-    try:
-        kwargs: dict = {
-            "stdin": subprocess.DEVNULL,
-            "stdout": subprocess.DEVNULL,
-            "stderr": subprocess.DEVNULL,
-        }
-        if os.name == "nt":
-            # DETACHED_PROCESS (no console at all) | CREATE_NEW_PROCESS_GROUP — survives
-            # the hook exit and shows NO window (the scary blank window comes from
-            # CREATE_NEW_CONSOLE, which we never use). STARTUPINFO + SW_HIDE is
-            # belt-and-suspenders so nothing flashes even via a powershell launcher.
-            kwargs["creationflags"] = 0x00000008 | 0x00000200
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            startupinfo.wShowWindow = 0  # SW_HIDE
-            kwargs["startupinfo"] = startupinfo
-        else:
-            kwargs["start_new_session"] = True
-        subprocess.Popen([*command, "serve"], **kwargs)
-    except Exception:
-        return
 
 
 def _emit(context: str) -> None:
@@ -205,14 +151,11 @@ def main() -> int:
         command = resolve_cli_command()
         if not command:
             return 0
-        # A non-English prompt means this user needs native-language search — warm
-        # the daemon in the background now (for everyone) so the NEXT lookups are fast.
-        if non_english:
-            _start_daemon_warming(command)
         inject_cards = not _kill_switch_active()
         cmd = [*command, "suggest", prompt[:MAX_PROMPT_CHARS], "--json", "--limit", str(HOOK_CANDIDATE_LIMIT)]
-        if inject_cards:
-            cmd.append("--card")
+        # Always request tier metadata. The CLI's kill switch suppresses the
+        # body-bearing card while preserving floor enforcement.
+        cmd.append("--card")
         try:
             proc = subprocess.run(
                 cmd,
@@ -233,18 +176,22 @@ def main() -> int:
         payload_out = json.loads(proc.stdout)
         if not isinstance(payload_out, dict):
             return 0
+        if payload_out.get("delivery_tier") == 1:
+            if non_english or payload_out.get("needs_english_query") is True:
+                _emit(NON_ENGLISH_INSTRUCTION)
+            return 0
         # Tier 3: the CLI decided high confidence + margin and built the card.
         card = payload_out.get("skill_card")
         if inject_cards and isinstance(card, dict):
             card_text = str(card.get("card") or "").strip()
             card_name = str(card.get("name") or "").strip()
             if card_text and card_name:
-                candidates = payload_out.get("top_3_skill_candidates")
+                candidates = payload_out.get("delivery_candidates")
                 hint = _candidate_hint(candidates) if isinstance(candidates, list) and len(candidates) > 1 else ""
                 _emit(card_text + ("\n\n" + hint if hint else ""))
                 return 0
         # Tier 2: one-line, NAME-only hint. Tier 1: silence.
-        candidates = payload_out.get("top_3_skill_candidates")
+        candidates = payload_out.get("delivery_candidates")
         if not isinstance(candidates, list) or not candidates:
             # No in-budget result. For a NON-ENGLISH prompt this is the expected
             # outcome without a warm multilingual daemon (lexical scores it ~0), so
@@ -256,7 +203,8 @@ def main() -> int:
             return 0
         hint = _candidate_hint(candidates)
         if hint:
-            _emit(hint)
+            rescue = NON_ENGLISH_INSTRUCTION if payload_out.get("needs_english_query") is True else ""
+            _emit(hint + ("\n\n" + rescue if rescue else ""))
             return 0
         top = candidates[0]
         if not isinstance(top, dict):

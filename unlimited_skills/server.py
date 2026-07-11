@@ -57,7 +57,13 @@ def warm_start() -> None:
 
 @app.get("/health")
 def health() -> dict:
-    return {"ok": True, "root": str(ROOT), "model": MODEL}
+    return {
+        "ok": True,
+        "service": "unlimited-skills",
+        "protocol": "warm-search-v1",
+        "root": str(ROOT),
+        "model": MODEL,
+    }
 
 
 @app.post("/search")

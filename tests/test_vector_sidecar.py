@@ -10,13 +10,21 @@ from unlimited_skills import cli
 
 def write_sidecar(root: Path) -> None:
     root.mkdir(parents=True, exist_ok=True)
+    for name in ("security-review", "design-review"):
+        skill = root / "local" / "skills" / name / "SKILL.md"
+        skill.parent.mkdir(parents=True, exist_ok=True)
+        skill.write_text(f"---\nname: {name}\ndescription: fixture\n---\n", encoding="utf-8")
+    generation = cli.library_generation_hash(root)
     (root / cli.VECTOR_SIDECAR_NAME).write_text(
         json.dumps(
             {
-                "schema_version": 1,
+                "schema_version": 2,
                 "collection": cli.CHROMA_COLLECTION,
                 "model": "test-model",
                 "count": 2,
+                "embedding_dimensions": 3,
+                "library_generation_hash": generation,
+                "complete": True,
                 "records": [
                     {
                         "name": "security-review",
@@ -33,6 +41,20 @@ def write_sidecar(root: Path) -> None:
                         "embedding": [0.0, 1.0, 0.0],
                     },
                 ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (root / cli.VECTOR_META_NAME).write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "collection": cli.CHROMA_COLLECTION,
+                "model": "test-model",
+                "count": 2,
+                "embedding_dimensions": 3,
+                "library_generation_hash": generation,
+                "complete": True,
             }
         ),
         encoding="utf-8",
@@ -71,6 +93,16 @@ def test_vector_search_sidecar_model_mismatch_raises(tmp_path: Path, monkeypatch
 
     with pytest.raises(cli.VectorModelMismatch, match="'test-model'.*'other-model'"):
         cli.vector_search(tmp_path, "security auth", 1, "other-model")
+
+
+def test_vector_search_rejects_non_numeric_sidecar_metadata(tmp_path: Path) -> None:
+    write_sidecar(tmp_path)
+    sidecar = json.loads((tmp_path / cli.VECTOR_SIDECAR_NAME).read_text(encoding="utf-8"))
+    sidecar["embedding_dimensions"] = "not-a-number"
+    (tmp_path / cli.VECTOR_SIDECAR_NAME).write_text(json.dumps(sidecar), encoding="utf-8")
+
+    with pytest.raises(RuntimeError, match="metadata is invalid"):
+        cli.vector_search(tmp_path, "security auth", 1, "test-model")
 
 
 def test_vector_search_chroma_meta_model_mismatch_raises(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -123,3 +155,79 @@ def test_embed_texts_reuses_model_instance(monkeypatch: pytest.MonkeyPatch) -> N
     assert cli.embed_texts(["two"], "fake-model") == [[1.0, 0.0]]
     assert created == ["fake-model"]
     cli.embedding_model.cache_clear()
+
+
+@pytest.mark.parametrize(
+    ("mutation", "reason"),
+    [
+        (lambda root: (root / cli.VECTOR_META_NAME).write_text("{bad json", encoding="utf-8"), "invalid_json"),
+        (
+            lambda root: (root / cli.VECTOR_META_NAME).write_text(
+                json.dumps({"schema_version": 2, "model": "wrong", "count": 2, "embedding_dimensions": 3, "library_generation_hash": cli.library_generation_hash(root), "complete": True}),
+                encoding="utf-8",
+            ),
+            "model_mismatch",
+        ),
+        (
+            lambda root: (root / "local" / "skills" / "new-skill" / "SKILL.md").parent.mkdir(parents=True)
+            or (root / "local" / "skills" / "new-skill" / "SKILL.md").write_text("---\nname: new-skill\n---\n", encoding="utf-8"),
+            "stale_library",
+        ),
+    ],
+)
+def test_vector_sidecar_status_rejects_corrupt_wrong_model_and_stale_library(
+    tmp_path: Path, mutation, reason: str
+) -> None:
+    write_sidecar(tmp_path)
+    mutation(tmp_path)
+    status = cli.vector_sidecar_status(tmp_path, cli.vector_sidecar_path(tmp_path), "test-model")
+    assert status["ready"] is False
+    assert status["reason"] == reason
+
+
+def test_chroma_fallback_closes_client_when_collection_is_missing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    class MissingCollectionClient:
+        closed = False
+
+        def get_collection(self, _name: str):
+            raise RuntimeError("missing")
+
+        def close(self) -> None:
+            self.closed = True
+
+    client = MissingCollectionClient()
+    monkeypatch.setattr(cli, "chroma_client", lambda _root: client)
+
+    with pytest.raises(RuntimeError, match="Vector index is not ready"):
+        cli.vector_search(tmp_path, "security auth", 1, "test-model")
+
+    assert client.closed is True
+
+
+def test_chroma_fallback_closes_client_after_query(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    class Collection:
+        def query(self, **_kwargs):
+            return {
+                "metadatas": [[{"name": "security-review", "description": "", "collection": "ecc", "path": ""}]],
+                "distances": [[0.2]],
+            }
+
+    class Client:
+        closed = False
+
+        def get_collection(self, _name: str):
+            return Collection()
+
+        def close(self) -> None:
+            self.closed = True
+
+    client = Client()
+    monkeypatch.setattr(cli, "chroma_client", lambda _root: client)
+    monkeypatch.setattr(cli, "embed_texts", lambda _texts, _model: [[0.1, 0.2]])
+
+    hits = cli.vector_search(tmp_path, "security auth", 1, "test-model")
+
+    assert [hit.name for hit in hits] == ["security-review"]
+    assert client.closed is True

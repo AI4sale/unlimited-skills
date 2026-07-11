@@ -1,6 +1,6 @@
 {
   "name": "skill-invocation-scenarios",
-  "version": 2,
+  "version": 3,
   "frozen_date": "2026-06-12",
   "source": "A0 invocation-rescue diagnosis (docs/adoption/a0-invocation-diagnosis.md, section 4)",
   "notes": [
@@ -12,7 +12,7 @@
     "N1-N5 are added negative scenarios (the report's frozen set had only library-gap negatives).",
     "S31-S32 are added A0 positive scenarios so the frozen set contains 30 positive skill-eligible scenarios plus the 12 no-skill negatives.",
     "N6-N10 are the Hermes A0 merge-gate negatives: pure conversation, factual question, opinion ask, trivial one-off command, wording request. With S18/S28 the no-skill pool is 12; the FP gate (<= 0.10) is measured over all of them.",
-    "expected_tier (F3b ambient injection, version 2): scenarios marked expected_tier=3 are unambiguous positives whose top hit clears the HIGH threshold (18.0) with a >=1.5x margin over the runner-up on the bundled library, so the checker asserts a tier-3 skill card is injected AND names an expected skill. Scenarios without the field carry no tier assertion. Negative scenarios must NEVER reach tier 3 (negatives_injected = 0 is a hard gate); their queries stay frozen."
+    "expected_tier (F3b ambient injection, version 3): scenarios marked expected_tier=3 are unambiguous positives whose recall-safe card candidate independently clears the lexical HIGH threshold (18.0) with a >=1.5x lexical margin over every runner-up. RRF rank never qualifies a card. S29 is intentionally no longer pinned to tier 3 because the current lexical runner-up is contested (23.0 vs 17.6); it remains a correct tier-2 hint. Scenarios without the field carry no tier assertion. Negative scenarios must NEVER reach tier 3 (negatives_injected = 0 is a hard gate); all queries remain frozen."
   ],
   "scenarios": [
     {"id": "S1", "category": "debugging", "prompt": "Debug an intermittently failing test", "query": "debug intermittent failing test root cause", "expected_skills": ["systematic-debugging", "test-driven-development", "e2e-testing", "ai-regression-testing"]},
@@ -43,7 +43,7 @@
     {"id": "S26", "category": "testing", "prompt": "Fix a bug with a regression test first", "query": "fix bug regression test first", "expected_skills": ["ai-regression-testing", "test-driven-development", "tdd-workflow", "systematic-debugging"]},
     {"id": "S27", "category": "git-pr", "prompt": "Write release notes / changelog", "query": "release notes changelog versioning", "expected_skills": ["opensource-pipeline", "github-ops"]},
     {"id": "S28", "category": "none", "prompt": "Clean a messy CSV/spreadsheet (Claude Code native xlsx covers it)", "query": "spreadsheet csv data cleaning", "expected_skills": [], "expect_no_skill": true},
-    {"id": "S29", "category": "planning", "prompt": "Improve an agent prompt", "query": "prompt engineering LLM agent instructions", "expected_skills": ["prompt-optimizer"], "forbidden_top1": ["llm-trading-agent-security"], "expected_tier": 3},
+    {"id": "S29", "category": "planning", "prompt": "Improve an agent prompt", "query": "prompt engineering LLM agent instructions", "expected_skills": ["prompt-optimizer"], "forbidden_top1": ["llm-trading-agent-security"]},
     {"id": "S30", "category": "deploy-ops", "prompt": "Build an n8n automation", "query": "n8n workflow automation webhook", "expected_skills": ["automation-audit-ops", "api-connector-builder"]},
     {"id": "S31", "category": "mcp", "prompt": "Build an MCP stdio server", "query": "MCP server tool schema stdio protocol", "expected_skills": ["mcp-server-patterns"], "expected_tier": 3},
     {"id": "S32", "category": "browser-qa", "prompt": "Verify a browser flow with screenshots", "query": "browser automation QA screenshot click flow", "expected_skills": ["browser-qa"], "expected_tier": 3},

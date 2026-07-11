@@ -7,7 +7,18 @@ import pytest
 
 from unlimited_skills import suggest
 from unlimited_skills.__main__ import _fast_suggest_argv
-from unlimited_skills.search_core import save_index, score_skill, SkillHit
+from unlimited_skills.search_core import (
+    EXPANSION_REVISION,
+    INDEX_MANIFEST_NAME,
+    INDEX_SCHEMA_VERSION,
+    STOPWORD_REVISION,
+    TOKENIZER_REVISION,
+    SkillHit,
+    index_is_current,
+    load_records,
+    save_index,
+    score_skill,
+)
 
 
 def write_skill(root: Path, name: str, description: str, body: str = "") -> None:
@@ -39,6 +50,35 @@ def test_suggest_hits_respects_floor_and_limit(library: Path) -> None:
     assert not suggest.suggest_hits(library, "", limit=3, floor=0.0)
 
 
+def test_lexical_index_carries_precomputed_token_sets_for_fast_probe(library: Path) -> None:
+    rows = json.loads((library / ".unlimited-skills-index.json").read_text(encoding="utf-8"))
+    assert rows
+    for key in ("name_tokens", "description_tokens", "body_tokens"):
+        assert isinstance(rows[0][key], list)
+    assert "search_text" not in rows[0]
+    hit, _body = load_records(library)[0]
+    assert getattr(hit, "_name_tokens")
+    assert isinstance(getattr(hit, "_body_tokens"), frozenset)
+
+
+def test_lexical_index_manifest_detects_stale_or_corrupt_indexes(library: Path) -> None:
+    manifest = json.loads((library / INDEX_MANIFEST_NAME).read_text(encoding="utf-8"))
+    assert manifest["schema_version"] == INDEX_SCHEMA_VERSION
+    assert manifest["tokenizer_revision"] == TOKENIZER_REVISION
+    assert manifest["stopword_revision"] == STOPWORD_REVISION
+    assert manifest["expansion_revision"] == EXPANSION_REVISION
+    assert manifest["complete"] is True
+    assert index_is_current(library) is True
+
+    skill = library / "local" / "skills" / "python-patterns" / "SKILL.md"
+    skill.write_text(skill.read_text(encoding="utf-8") + "\nchanged inventory generation\n", encoding="utf-8")
+    assert index_is_current(library) is False
+    # Readers fail open to the current filesystem content, never stale tokens.
+    records = load_records(library)
+    body = next(body for hit, body in records if hit.name == "python-patterns")
+    assert "changed inventory generation" in body
+
+
 def test_suggest_text_output_is_one_line_per_hit(library: Path, capsys: pytest.CaptureFixture) -> None:
     rc = suggest.main(["python code review pep8", "--root", str(library), "--floor", "1"])
     captured = capsys.readouterr()
@@ -56,6 +96,180 @@ def test_suggest_prints_nothing_below_floor_and_exits_zero(library: Path, capsys
     captured = capsys.readouterr()
     assert rc == 0
     assert captured.out == ""
+
+
+def test_suggest_prints_nothing_for_weak_partial_match_below_floor(
+    library: Path, capsys: pytest.CaptureFixture
+) -> None:
+    # "watering" has a real lexical overlap with gardening-basics, but the
+    # score is intentionally below the calibrated delivery floor. The public
+    # text contract promises silence for this case, not a weak false-positive.
+    rc = suggest.main(["watering", "--root", str(library)])
+    captured = capsys.readouterr()
+    assert rc == 0
+    assert captured.out == ""
+
+
+def test_suggest_card_mode_keeps_weak_partial_match_at_tier_one(
+    library: Path, capsys: pytest.CaptureFixture
+) -> None:
+    rc = suggest.main(["watering", "--root", str(library), "--json", "--card"])
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert payload["reason_code"] == "low_confidence_candidates"
+    assert payload["top_3_skill_candidates"] == []
+    assert payload["retrieval_candidates"]
+    assert payload["delivery_tier"] == suggest.TIER_SILENCE
+    assert "skill_card" not in payload
+
+
+def test_card_mode_delivers_recall_safe_name_hint_below_card_floor(
+    library: Path, capsys: pytest.CaptureFixture
+) -> None:
+    for index in range(8):
+        write_skill(library, f"decoy-{index}", f"Unrelated fixture topic {index}.")
+    save_index(library)
+    rc = suggest.main(["python api", "--root", str(library), "--json", "--card"])
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert payload["reason_code"] == suggest.REASON_LOW_CONFIDENCE
+    assert payload["delivery_tier"] == suggest.TIER_HINT
+    assert payload["delivery_candidates"][0]["name"] == "python-patterns"
+    assert payload["card_candidates"] == []
+    assert "skill_card" not in payload
+
+
+def test_card_mode_rejects_body_only_noise_even_above_hint_floor(
+    library: Path, capsys: pytest.CaptureFixture
+) -> None:
+    write_skill(
+        library,
+        "unrelated-procedure",
+        "A deliberately generic fixture.",
+        body="quasar nebula comet galaxy orbit telescope astronomy",
+    )
+    save_index(library)
+    rc = suggest.main(
+        ["quasar nebula comet galaxy orbit telescope astronomy", "--root", str(library), "--json", "--card"]
+    )
+    payload = json.loads(capsys.readouterr().out)
+    assert rc == 0
+    assert payload["top_3_skill_candidates"] == []
+    assert payload["retrieval_candidates"]
+    assert payload["delivery_candidates"] == []
+    assert payload["delivery_tier"] == suggest.TIER_SILENCE
+
+
+def test_hint_predicate_requires_discriminative_description_evidence(
+    library: Path, capsys: pytest.CaptureFixture
+) -> None:
+    write_skill(library, "single-description-hit", "Quasar workflow guidance.")
+    write_skill(library, "double-description-hit", "Quasar nebula workflow guidance.")
+    for index in range(8):
+        write_skill(library, f"generic-decoy-{index}", f"Generic fixture {index}.")
+    save_index(library)
+
+    suggest.main(["quasar nebula", "--root", str(library), "--json", "--card"])
+    payload = json.loads(capsys.readouterr().out)
+    delivered = {row["name"] for row in payload["delivery_candidates"]}
+    assert "double-description-hit" in delivered
+    assert "single-description-hit" not in delivered
+
+
+def test_single_generic_name_overlap_does_not_create_ambient_false_positive(
+    library: Path, capsys: pytest.CaptureFixture
+) -> None:
+    write_skill(
+        library,
+        "plan-orchestrate",
+        "Read an implementation plan and orchestrate technical execution.",
+    )
+    save_index(library)
+    suggest.main(
+        ["plan a birthday dinner menu for eight guests", "--root", str(library), "--json", "--card"]
+    )
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["retrieval_candidates"]
+    assert all(row["name"] != "plan-orchestrate" for row in payload["delivery_candidates"])
+
+
+def test_description_only_candidate_can_hint_but_never_inject_a_card(
+    library: Path, capsys: pytest.CaptureFixture
+) -> None:
+    write_skill(
+        library,
+        "workflow-coordinator",
+        "Create pull request descriptions and coordinate repository work.",
+    )
+    save_index(library)
+    suggest.main(
+        ["create pull request description", "--root", str(library), "--json", "--card", "--high-threshold", "10"]
+    )
+    payload = json.loads(capsys.readouterr().out)
+    assert any(row["name"] == "workflow-coordinator" for row in payload["delivery_candidates"])
+    assert payload["delivery_tier"] == suggest.TIER_HINT
+    assert "skill_card" not in payload
+
+
+def test_exact_phrase_expansion_can_qualify_a_safe_name_hint(
+    library: Path, capsys: pytest.CaptureFixture
+) -> None:
+    write_skill(
+        library,
+        "github-ops",
+        "GitHub repository operations and PR management.",
+    )
+    save_index(library)
+    suggest.main(
+        ["create pull request description", "--root", str(library), "--json", "--card"]
+    )
+    payload = json.loads(capsys.readouterr().out)
+    github = next(row for row in payload["delivery_candidates"] if row["name"] == "github-ops")
+    assert github["phrase_overlap_count"] >= 1
+    assert "query_expansion" in github["candidate_sources"]
+    assert payload["delivery_tier"] == suggest.TIER_HINT
+
+
+def test_vector_rank_can_hint_but_never_qualifies_a_card() -> None:
+    strong = SkillHit("semantic-strong", "fixture", "local", "unused", score=32.0)
+    setattr(strong, "lexical_score", 3.0)
+    setattr(strong, "vector_score", 0.56)
+    setattr(strong, "vector_rank", 1)
+    weak = SkillHit("semantic-weak", "fixture", "local", "unused", score=31.0)
+    setattr(weak, "lexical_score", 3.0)
+    setattr(weak, "vector_score", 0.36)
+    setattr(weak, "vector_rank", 2)
+
+    hints = suggest.recall_safe_hint_hits([strong, weak], "unrelated task")
+    assert [hit.name for hit in hints] == ["semantic-strong"]
+    assert suggest.card_safe_hits(
+        hints, query="semantic strong task", floor=12.0, mixed_language_uncertain=False
+    ) == []
+
+
+def test_card_schema_v2_logs_retrieved_shown_and_card_surfaces_separately(
+    library: Path, capsys: pytest.CaptureFixture
+) -> None:
+    write_skill(
+        library,
+        "body-only-diagnostic",
+        "Generic fixture.",
+        body="python pep8 review idioms module",
+    )
+    save_index(library)
+    suggest.main(
+        ["python code review pep8", "--root", str(library), "--json", "--card", "--high-threshold", "10"]
+    )
+    payload = json.loads(capsys.readouterr().out)
+    event = json.loads((library / ".learning" / "events.jsonl").read_text(encoding="utf-8").splitlines()[-1])
+    event_payload = event["payload"]
+
+    assert payload["schema_version"] == 2
+    assert payload["top_3_skill_candidates"] == payload["delivery_candidates"]
+    assert event_payload["retrieved_candidates"]
+    assert event_payload["shown_candidates"]
+    assert set(event_payload["shown_candidates"]) <= set(event_payload["retrieved_candidates"])
+    assert event_payload["card_injected_candidate"] in event_payload["shown_candidates"]
 
 
 def test_suggest_json_contract_is_privacy_hardened(library: Path, capsys: pytest.CaptureFixture) -> None:
@@ -237,9 +451,15 @@ def test_suggest_json_card_mode_injects_at_high_confidence(library: Path, capsys
     assert ":\\" not in card["card"] and ":/" not in card["card"]
     # The base contract keys are unchanged alongside the card fields
     # (retrieval_path/vector_status are added on the --card channel; see language-routing tests).
-    assert set(payload) == {"task_summary_hash", "top_3_skill_candidates", "reason_code", "recommended_next_action", "latency_ms", "delivery_tier", "skill_card", "retrieval_path", "vector_status"}
+    assert set(payload) == {"task_summary_hash", "top_3_skill_candidates", "reason_code", "recommended_next_action", "latency_ms", "schema_version", "delivery_tier", "skill_card", "retrieval_path", "vector_status", "minimum_score", "hint_policy_revision", "hint_minimum_score", "retrieval_candidates", "delivery_candidates", "card_candidates", "delivery"}
     assert payload["retrieval_path"] == "lexical"
-    assert payload["vector_status"] == "unavailable_missing_sidecar"
+    assert payload["vector_status"] == "not_requested"
+    assert payload["minimum_score"] == 1
+    assert payload["hint_minimum_score"] == suggest.HINT_FLOOR
+    assert payload["delivery_candidates"]
+    assert payload["card_candidates"]
+    assert payload["top_3_skill_candidates"] == payload["delivery_candidates"]
+    assert payload["delivery"]["mode"] == "card"
 
 
 def test_suggest_card_mode_degrades_to_hint_without_confidence_or_margin(library: Path, capsys: pytest.CaptureFixture) -> None:
@@ -264,6 +484,7 @@ def test_suggest_card_margin_uses_runner_up_even_with_limit_one(library: Path, c
     payload = json.loads(capsys.readouterr().out)
     assert rc == 0
     assert len(payload["top_3_skill_candidates"]) == 1
+    assert len(payload["delivery_candidates"]) == 1
     assert payload["delivery_tier"] == 2  # blocked by the runner-up margin
     assert "skill_card" not in payload
 
@@ -277,15 +498,15 @@ def test_suggest_card_kill_switch_downgrades_to_tier_two(library: Path, capsys: 
     assert "skill_card" not in payload
 
 
-def test_suggest_card_degrades_on_unreadable_skill_file(library: Path, capsys: pytest.CaptureFixture) -> None:
-    # The index still scores the skill, but its SKILL.md is gone: fail open to tier 2.
+def test_suggest_card_invalidates_index_when_skill_file_disappears(library: Path, capsys: pytest.CaptureFixture) -> None:
     (library / "local" / "skills" / "python-patterns" / "SKILL.md").unlink()
     rc = suggest.main(["python code review pep8", "--root", str(library), "--floor", "1", "--json", "--card", "--high-threshold", "10"])
     payload = json.loads(capsys.readouterr().out)
     assert rc == 0
-    assert payload["delivery_tier"] == 2
+    assert payload["delivery_tier"] in {suggest.TIER_SILENCE, suggest.TIER_HINT}
     assert "skill_card" not in payload
-    assert payload["top_3_skill_candidates"][0]["name"] == "python-patterns"
+    assert all(candidate["name"] != "python-patterns" for candidate in payload["top_3_skill_candidates"])
+    assert all(candidate["name"] != "python-patterns" for candidate in payload["delivery_candidates"])
 
 
 def test_suggest_default_json_has_no_card_fields(library: Path, capsys: pytest.CaptureFixture) -> None:

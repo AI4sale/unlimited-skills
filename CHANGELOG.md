@@ -2,6 +2,38 @@
 
 ## Unreleased
 
+### Fixed (0.6.6 — Product Precision & Release Truth)
+
+- Split raw retrieval diagnostics, recall-safe NAME hints, and card/body
+  eligibility. Plain text keeps its strict floor; body-only weak matches never
+  reach ambient hints, while discriminative below-card-floor matches can be
+  shown by name without injecting their instructions.
+- Add IDF-normalized name/description evidence, technical identity anchors,
+  exact phrase-expansion evidence, and a stricter lexical-only card qualifier;
+  the frozen 42-scenario run now records 0 false-positive hints and 1.000 card
+  precision while retaining 0.933 top-3 recall.
+- Treat mixed-language weak matches as a rescue path: deliver safe names plus a
+  compact English-keyword instruction, or the instruction alone when no safe
+  hint qualifies.
+- Add versioned lexical-index and vector-manifest freshness checks, atomic
+  artifact replacement, and RRF lexical/vector fusion without raw-score magic.
+- Remove automatic background daemon startup from `UserPromptSubmit`; starting
+  `unlimited-skills serve` now requires an explicit operator/user decision.
+- Make `quickstart` add missing bundled skills even inside partially populated
+  collections, migrate legacy indexes in place without deleting or replacing
+  existing/local skills, apply the production floor to its proof search, and
+  print wheel-safe documentation URLs.
+- Make `doctor` distinguish English-keyword fallback, vector-index readiness,
+  and optional warm-daemon readiness instead of calling native-language search
+  "dead" when fallback is working.
+
+### Release (0.6.6)
+
+- Add a PyPI-first publication gate: the workflow publishes `0.6.6`, waits for
+  the exact project/version JSON, installs the public wheel into a clean venv,
+  runs retrieval/onboarding smoke, and only then creates `v0.6.6` on GitHub.
+  This closes the GitHub-release/PyPI-version drift seen after 0.6.5.
+
 ### Added (0.6.5-alpha - Retrieval & Learning Reliability)
 
 - v0.6.5 retrieval and learning reliability release package: package/runtime

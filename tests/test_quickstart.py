@@ -1,6 +1,7 @@
 """Tests for `unlimited-skills quickstart` (A1 golden path).
 
-Covers: bundled-pack import when the library is empty, skip when populated,
+ Covers: bundled-pack import when the library is empty, non-destructive completion
+of a partially populated library,
 idempotency across reruns, the first-search step (including the demo-query
 fallback), the savings step wiring, and the CLI `--json` report.
 """
@@ -75,15 +76,38 @@ def test_empty_library_imports_packaged_bundled_packs(
     assert (root / "registry" / "superpowers" / "skills" / "debugging-loop" / "SKILL.md").is_file()
 
 
-def test_populated_library_skips_import(fixture_repo: Path, tmp_path: Path) -> None:
+def test_populated_library_imports_missing_bundled_collections_without_touching_local(
+    fixture_repo: Path, tmp_path: Path
+) -> None:
     root = tmp_path / "library"
     make_skill(root / "local" / "skills", "existing-skill", "Already here")
     result = ensure_bundled_library(root, repo_root=fixture_repo)
-    assert result["status"] == "ready"
-    assert result["imported"] == {}
-    assert result["skill_count"] == 1
-    # The bundled packs were NOT imported over a populated library.
-    assert not (root / "registry" / "ecc").exists()
+    assert result["status"] == "augmented"
+    assert result["imported"] == {"ecc": 1, "superpowers": 1}
+    assert result["skill_count"] == 3
+    assert (root / "local" / "skills" / "existing-skill" / "SKILL.md").is_file()
+    assert (root / "registry" / "ecc" / "skills" / "code-review" / "SKILL.md").is_file()
+
+
+def test_partially_populated_collection_adds_only_missing_skills(
+    fixture_repo: Path, tmp_path: Path
+) -> None:
+    make_skill(
+        fixture_repo / "packs" / "ecc" / "skills",
+        "security-review",
+        "Security review checklist",
+    )
+    root = tmp_path / "library"
+    existing = root / "registry" / "ecc" / "skills" / "code-review" / "SKILL.md"
+    existing.parent.mkdir(parents=True)
+    existing.write_text("private existing content", encoding="utf-8")
+
+    result = ensure_bundled_library(root, repo_root=fixture_repo)
+
+    assert result["status"] == "augmented"
+    assert result["imported"] == {"ecc": 1, "superpowers": 1}
+    assert existing.read_text(encoding="utf-8") == "private existing content"
+    assert (root / "registry" / "ecc" / "skills" / "security-review" / "SKILL.md").is_file()
 
 
 def test_empty_library_without_packs_reports_hint(tmp_path: Path) -> None:
@@ -112,6 +136,19 @@ def test_first_search_falls_back_to_demo_query(fixture_repo: Path, tmp_path: Pat
     assert result["hits"], "demo query must hit the bundled fixture skills"
 
 
+def test_first_search_does_not_present_below_floor_overlap_as_proof(
+    fixture_repo: Path, tmp_path: Path
+) -> None:
+    root = tmp_path / "library"
+    ensure_bundled_library(root, repo_root=fixture_repo)
+    result = first_search(root, "pull")
+    assert result["requested_query"] == "pull"
+    assert result["fallback_to_demo_query"] is True
+    assert result["query"] == DEFAULT_QUERY
+    assert result["hits"]
+    assert all(hit["score"] >= 12.0 for hit in result["hits"])
+
+
 def test_run_quickstart_is_idempotent(fixture_repo: Path, tmp_path: Path) -> None:
     root = tmp_path / "library"
     missing_config = tmp_path / "no-claude.json"
@@ -125,6 +162,7 @@ def test_run_quickstart_is_idempotent(fixture_repo: Path, tmp_path: Path) -> Non
 
     second = run_quickstart(root, repo_root=fixture_repo, claude_config=missing_config)
     assert second["library"]["status"] == "ready"
+    assert second["library"]["index_refreshed"] is False
     assert second["library"]["imported"] == {}
     assert second["library"]["skill_count"] == first["library"]["skill_count"]
     assert second["search"]["hits"] == first["search"]["hits"]
@@ -132,6 +170,22 @@ def test_run_quickstart_is_idempotent(fixture_repo: Path, tmp_path: Path) -> Non
     events = (root / ".learning" / "events.jsonl").read_text(encoding="utf-8").splitlines()
     rows = [json.loads(line) for line in events if line.strip()]
     assert sum(1 for row in rows if row.get("type") == "quickstart") == 2
+
+
+def test_quickstart_migrates_legacy_index_without_touching_local_skills(
+    fixture_repo: Path, tmp_path: Path
+) -> None:
+    root = tmp_path / "library"
+    ensure_bundled_library(root, repo_root=fixture_repo)
+    (root / ".unlimited-skills-index.meta.json").unlink()
+    make_skill(root / "local" / "skills", "private-sentinel", "Must survive migration")
+
+    result = ensure_bundled_library(root, repo_root=fixture_repo)
+
+    assert result["status"] == "ready"
+    assert result["index_refreshed"] is True
+    assert (root / ".unlimited-skills-index.meta.json").is_file()
+    assert (root / "local" / "skills" / "private-sentinel" / "SKILL.md").is_file()
 
 
 def test_quickstart_cli_json(
@@ -171,5 +225,9 @@ def test_quickstart_text_renders_all_steps(fixture_repo: Path, tmp_path: Path) -
     assert "[2/4] First search" in text
     assert "[3/4] MCP context savings" in text
     assert "[4/4] Next steps" in text
-    assert "unlimited-skills mcp gateway" in text
+    assert "unlimited-skills mcp install --claude-code --dry-run" in text
     assert "unlimited-skills setup --local-only" in text
+    assert "https://github.com/AI4sale/unlimited-skills/blob/main/docs/quickstart.md" in text
+    assert "docs/quickstart.md" not in text.replace(
+        "https://github.com/AI4sale/unlimited-skills/blob/main/docs/quickstart.md", ""
+    )

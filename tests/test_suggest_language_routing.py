@@ -28,6 +28,13 @@ def _english_library(tmp_path: Path) -> Path:
         "vulnerabilities, authentication, injection, and secrets.\n---\n\n# security-review\n",
         encoding="utf-8",
     )
+    for index in range(8):
+        decoy = root / "local" / "skills" / f"decoy-{index}" / "SKILL.md"
+        decoy.parent.mkdir(parents=True)
+        decoy.write_text(
+            f"---\nname: decoy-{index}\ndescription: Unrelated fixture topic {index}.\n---\n",
+            encoding="utf-8",
+        )
     save_index(root)
     return root
 
@@ -38,6 +45,48 @@ def _run(argv: list[str], capsys) -> dict | None:
     assert rc == 0
     out = capsys.readouterr().out.strip()
     return json.loads(out) if out else None
+
+
+def _mark_sidecar_ready(root: Path) -> None:
+    from unlimited_skills import cli
+
+    records = [
+        {
+            "name": hit.name,
+            "description": hit.description,
+            "collection": hit.collection,
+            "path": hit.path,
+            "embedding": [0.0, 1.0],
+        }
+        for hit, _body in cli.load_records(root)
+    ]
+    cli.vector_sidecar_path(root).write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "model": cli.DEFAULT_EMBED_MODEL,
+                "count": len(records),
+                "embedding_dimensions": 2,
+                "library_generation_hash": cli.library_generation_hash(root),
+                "complete": True,
+                "records": records,
+            }
+        ),
+        encoding="utf-8",
+    )
+    cli.vector_meta_path(root).write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "model": cli.DEFAULT_EMBED_MODEL,
+                "count": sum(1 for _ in root.rglob("SKILL.md")),
+                "embedding_dimensions": 2,
+                "library_generation_hash": cli.library_generation_hash(root),
+                "complete": True,
+            }
+        ),
+        encoding="utf-8",
+    )
 
 
 RU = "проверь безопасность кода и найди уязвимости в аутентификации"
@@ -69,11 +118,25 @@ def test_non_english_without_sidecar_flags_needs_english(tmp_path: Path, capsys,
     assert payload["top_3_skill_candidates"] == []
 
 
+def test_mixed_language_weak_lexical_hit_still_requests_english_rescue(
+    tmp_path: Path, capsys, monkeypatch
+) -> None:
+    root = _english_library(tmp_path)
+    monkeypatch.setenv("UNLIMITED_SKILLS_NO_VECTOR_FALLBACK", "1")
+    query = "проверить security api"
+    payload = _run([query, "--root", str(root), "--json"], capsys)
+    assert payload["reason_code"] == "low_confidence_candidates"
+    assert payload["top_3_skill_candidates"]
+    assert payload["needs_english_query"] is True
+    assert payload["delivery_tier"] == suggest_mod.TIER_HINT
+    assert payload["delivery"]["mode"] == "hint"
+
+
 def test_non_english_routes_to_vector_when_sidecar_present(tmp_path: Path, capsys, monkeypatch) -> None:
     root = _english_library(tmp_path)
     from unlimited_skills import cli
 
-    cli.vector_sidecar_path(root).write_text("{}", encoding="utf-8")  # mark sidecar "installed"
+    _mark_sidecar_ready(root)
     hit = SkillHit(
         name="security-review",
         description="Review code for security issues.",
@@ -83,12 +146,11 @@ def test_non_english_routes_to_vector_when_sidecar_present(tmp_path: Path, capsy
     )
     called: dict = {}
 
-    def fake_vector(r, q, limit, model, collection_name=None):  # no model load in tests
+    def fake_vector(r, q, limit, collection_name=None):
         called["q"] = q
-        called["model"] = model
         return [hit]
 
-    monkeypatch.setattr(cli, "vector_search", fake_vector)
+    monkeypatch.setattr(suggest_mod, "vector_probe", fake_vector)
     payload = _run([RU, "--root", str(root), "--json"], capsys)
     assert called.get("q"), "vector_search must run for a non-English prompt when a sidecar exists"
     assert payload["retrieval_path"] == "vector"
@@ -98,14 +160,121 @@ def test_non_english_routes_to_vector_when_sidecar_present(tmp_path: Path, capsy
 
 def test_english_query_never_calls_vector(tmp_path: Path, capsys, monkeypatch) -> None:
     root = _english_library(tmp_path)
-    from unlimited_skills import cli
-
-    cli.vector_sidecar_path(root).write_text("{}", encoding="utf-8")
+    _mark_sidecar_ready(root)
 
     def boom(*args, **kwargs):
         raise AssertionError("vector_search must not run for an English prompt")
 
-    monkeypatch.setattr(cli, "vector_search", boom)
+    monkeypatch.setattr(suggest_mod, "vector_probe", boom)
     payload = _run([EN, "--root", str(root), "--json"], capsys)
     assert payload["retrieval_path"] == "lexical"
     assert payload["top_3_skill_candidates"][0]["name"] == "security-review"
+
+
+def test_above_floor_hint_query_never_calls_vector(tmp_path: Path, capsys, monkeypatch) -> None:
+    root = _english_library(tmp_path)
+    _mark_sidecar_ready(root)
+
+    def boom(*args, **kwargs):
+        raise AssertionError("above-floor lexical hints must stay on the fast path")
+
+    monkeypatch.setattr(suggest_mod, "vector_probe", boom)
+    payload = _run(
+        [
+            "security review",
+            "--root",
+            str(root),
+            "--json",
+            "--high-threshold",
+            "100",
+        ],
+        capsys,
+    )
+    assert payload["reason_code"] == suggest_mod.REASON_MATCH_FOUND
+    assert payload["delivery_tier"] == suggest_mod.TIER_HINT
+    assert payload["vector_status"] == "not_requested"
+
+
+def test_exact_skill_identity_skips_vector_even_when_sidecar_is_ready(
+    tmp_path: Path, capsys, monkeypatch
+) -> None:
+    root = _english_library(tmp_path)
+    _mark_sidecar_ready(root)
+
+    def boom(*args, **kwargs):
+        raise AssertionError("exact identity must not spend the vector budget")
+
+    monkeypatch.setattr(suggest_mod, "vector_probe", boom)
+    payload = _run(
+        ["use security review for this module", "--root", str(root), "--json"], capsys
+    )
+    assert payload["delivery_candidates"][0]["name"] == "security-review"
+    assert payload["vector_status"] == "not_requested"
+
+
+def test_vector_probe_rejects_an_incompatible_local_daemon(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = _english_library(tmp_path)
+    _mark_sidecar_ready(root)
+    calls: list[str] = []
+
+    class Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *args):
+            return False
+
+        def read(self) -> bytes:
+            return json.dumps(
+                {
+                    "ok": True,
+                    "service": "not-unlimited-skills",
+                    "protocol": "warm-search-v1",
+                    "root": str(root),
+                    "model": suggest_mod.DEFAULT_EMBED_MODEL,
+                }
+            ).encode("utf-8")
+
+    def fake_urlopen(request, timeout):
+        calls.append(str(request))
+        return Response()
+
+    monkeypatch.setattr(suggest_mod.urllib.request, "urlopen", fake_urlopen)
+    assert suggest_mod.vector_probe(root, "semantic query", 3) == []
+    assert len(calls) == 1  # health only: the prompt never reaches /search
+
+
+def test_vector_probe_rejects_sidecar_payload_that_disagrees_with_manifest(
+    tmp_path: Path, monkeypatch
+) -> None:
+    root = _english_library(tmp_path)
+    from unlimited_skills import cli
+
+    _mark_sidecar_ready(root)
+    payload = {
+        "schema_version": 2,
+        "model": "wrong-model",
+        "count": 1,
+        "embedding_dimensions": 2,
+        "library_generation_hash": cli.library_generation_hash(root),
+        "complete": True,
+        "query_embeddings": {suggest_mod.task_summary_hash("semantic query"): [1.0, 0.0]},
+        "records": [
+            {
+                "name": "security-review",
+                "description": "fixture",
+                "collection": "local",
+                "path": "unused",
+                "embedding": [1.0, 0.0],
+            }
+        ],
+    }
+    cli.vector_sidecar_path(root).write_text(json.dumps(payload), encoding="utf-8")
+
+    def boom(*args, **kwargs):
+        raise AssertionError("incompatible sidecar must be rejected before daemon I/O")
+
+    monkeypatch.setattr(suggest_mod.urllib.request, "urlopen", boom)
+    assert suggest_mod.vector_probe(root, "semantic query", 3) == []

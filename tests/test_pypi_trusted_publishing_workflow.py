@@ -6,7 +6,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKFLOW = ROOT / ".github" / "workflows" / "publish-pypi.yml"
-DOC = ROOT / "docs" / "releases" / "v0.6.5-alpha-pypi-publishing.md"
+DOC = ROOT / "docs" / "releases" / "v0.6.6-pypi-publishing.md"
 
 
 def read(path: Path) -> str:
@@ -22,24 +22,38 @@ def test_publish_workflow_is_manual_and_oidc_only() -> None:
     assert "environment:" in text
     assert "name: pypi" in text
     assert "pypa/gh-action-pypi-publish@release/v1" in text
+    assert "skip-existing: true" in text
     assert "PYPI_TOKEN" not in text
     assert "TWINE_PASSWORD" not in text
     assert "password:" not in text
 
 
-def test_publish_workflow_requires_exact_v065post1_confirmation() -> None:
+def test_publish_workflow_requires_exact_v066_confirmation() -> None:
     text = read(WORKFLOW)
     assert "version" in text
     assert "expected_sha" in text
     assert "confirm_pypi_publish" in text
-    assert 'test "${{ github.event.inputs.version }}" = "0.6.5.post1"' in text
+    assert 'test "${{ github.event.inputs.version }}" = "0.6.6"' in text
     assert (
-        'test "${{ github.event.inputs.confirm_pypi_publish }}" = "publish unlimited-skills 0.6.5.post1 to PyPI"'
+        'test "${{ github.event.inputs.confirm_pypi_publish }}" = "publish unlimited-skills 0.6.6 to PyPI"'
         in text
     )
     assert 'test "$(git rev-parse HEAD)" = "${{ github.event.inputs.expected_sha }}"' in text
-    assert "python scripts/run-v065-alpha-package-smoke.py --expected-version 0.6.5.post1 --json" in text
-    assert "python scripts/verify-v065post1-registry-signing-hotfix.py" in text
+    assert 'test "$(git rev-parse origin/main)" = "${{ github.event.inputs.expected_sha }}"' in text
+    smoke = "python scripts/run-v065-alpha-package-smoke.py --expected-version 0.6.6 --dist-dir dist --json"
+    assert smoke in text
+    assert "python scripts/verify-v066-product-polish.py" in text
+    assert text.index("python -m build") < text.index(smoke)
+    assert text.index(smoke) < text.index("pypa/gh-action-pypi-publish@release/v1")
+
+
+def test_publish_workflow_verifies_public_wheel_before_github_release() -> None:
+    text = read(WORKFLOW)
+    public_verify = "python scripts/verify-pypi-publication.py --version 0.6.6"
+    github_release = 'gh release create "v0.6.6"'
+    assert public_verify in text
+    assert github_release in text
+    assert text.index(public_verify) < text.index(github_release)
 
 
 def test_pypi_publisher_values_are_documented() -> None:

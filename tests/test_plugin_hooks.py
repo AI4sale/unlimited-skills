@@ -216,16 +216,14 @@ def test_user_prompt_submit_kill_switch_downgrades_card_to_hint(tmp_path: Path) 
     assert "Step 1:" not in context
 
 
-def test_user_prompt_submit_falls_back_to_hint_on_unreadable_skill_file(tmp_path: Path) -> None:
+def test_user_prompt_submit_drops_stale_index_entry_when_skill_file_disappears(tmp_path: Path) -> None:
     library = make_card_library(tmp_path)
     (library / "local" / "skills" / "python-patterns" / "SKILL.md").unlink()
     env = hook_env(tmp_path, UNLIMITED_SKILLS_CLI=repo_cli_override(library))
     prompt = "review my python module for pep8 issues and idioms"
     result = run_hook(USER_PROMPT_SUBMIT, json.dumps({"prompt": prompt}), env)
     assert result.returncode == 0, result.stderr
-    context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
-    assert "Relevant skill available: python-patterns" in context
-    assert "Skill card:" not in context
+    assert result.stdout.strip() == ""
 
 
 def test_user_prompt_submit_is_silent_below_floor(tmp_path: Path) -> None:
@@ -235,6 +233,27 @@ def test_user_prompt_submit_is_silent_below_floor(tmp_path: Path) -> None:
     result = run_hook(USER_PROMPT_SUBMIT, payload, env)
     assert result.returncode == 0
     assert result.stdout.strip() == ""
+
+
+def test_user_prompt_submit_never_hints_below_floor_diagnostics(tmp_path: Path) -> None:
+    library = make_library(tmp_path)
+    gardening = library / "local" / "skills" / "gardening-basics"
+    gardening.mkdir(parents=True)
+    (gardening / "SKILL.md").write_text(
+        "---\nname: gardening-basics\ndescription: Watering schedules for houseplants.\n---\n",
+        encoding="utf-8",
+    )
+    save_index(library)
+    env = hook_env(tmp_path, UNLIMITED_SKILLS_CLI=repo_cli_override(library))
+    result = run_hook(
+        USER_PROMPT_SUBMIT,
+        json.dumps({"prompt": "python code review watering"}),
+        env,
+    )
+    assert result.returncode == 0, result.stderr
+    context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert "python-patterns" in context
+    assert "gardening-basics" not in context
 
 
 def test_user_prompt_submit_skips_short_prompts(tmp_path: Path) -> None:
@@ -286,11 +305,34 @@ def test_user_prompt_submit_instructs_english_requery_for_non_english(tmp_path: 
     assert result.returncode == 0, result.stderr
     context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
     assert "English" in context and "unlimited-skills suggest" in context
-    # Warns about the cold-load cost and states that daemon warming was triggered.
-    assert "serve" in context and "background daemon" in context
-    assert "approv" not in context.lower()
-    assert "14" in context
+    # A hook must never create a background service without operator consent.
+    assert "serve" in context and "approv" in context.lower()
+    assert "already" not in context.lower()
     assert prompt not in context  # privacy: no raw prompt echo
+    assert "subprocess.Popen" not in USER_PROMPT_SUBMIT.read_text(encoding="utf-8")
+
+
+def test_user_prompt_submit_rescues_mixed_language_weak_match(tmp_path: Path) -> None:
+    library = make_library(tmp_path)
+    for index in range(8):
+        decoy = library / "local" / "skills" / f"decoy-{index}" / "SKILL.md"
+        decoy.parent.mkdir(parents=True)
+        decoy.write_text(
+            f"---\nname: decoy-{index}\ndescription: Unrelated fixture topic {index}.\n---\n",
+            encoding="utf-8",
+        )
+    save_index(library)
+    env = hook_env(
+        tmp_path,
+        UNLIMITED_SKILLS_CLI=repo_cli_override(library),
+        UNLIMITED_SKILLS_NO_VECTOR_FALLBACK="1",
+    )
+    prompt = "проверить python api"
+    result = run_hook(USER_PROMPT_SUBMIT, json.dumps({"prompt": prompt}), env)
+    assert result.returncode == 0, result.stderr
+    context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert "English" in context and "unlimited-skills suggest" in context
+    assert "Relevant skill available: python-patterns" in context
 
 
 def test_user_prompt_submit_instructs_english_requery_on_non_english_timeout(tmp_path: Path) -> None:
