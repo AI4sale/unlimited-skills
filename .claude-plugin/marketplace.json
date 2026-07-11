@@ -10,7 +10,7 @@
     {
       "name": "unlimited-skills",
       "source": "./plugin",
-      "description": "Local capability router with skill retrieval, optional owner-governed business context, and safe completion candidates for Claude Code. Requires the unlimited-skills CLI: pip install unlimited-skills.",
+      "description": "Local capability router with skill retrieval and optional owner-governed, cited business context for Claude Code. Requires the unlimited-skills CLI: pip install unlimited-skills.",
       "version": "0.6.7",
       "author": {
         "name": "AI4sale"

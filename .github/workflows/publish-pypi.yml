@@ -76,6 +76,9 @@ jobs:
       - name: Test the exact release artifacts and PyPI upgrade path
         run: python scripts/run-v065-alpha-package-smoke.py --expected-version 0.6.7 --dist-dir dist --json
 
+      - name: Prove business-context retrieval from the exact wheel
+        run: python scripts/verify-v067-business-context-wheel.py --wheel dist/*.whl --expected-version 0.6.7 --json
+
       - name: Prove live legacy-daemon rollover on upgrade
         run: python scripts/verify-v066-daemon-rollover.py --wheel dist/*.whl --json
 
@@ -97,6 +100,6 @@ jobs:
           else
             gh release create "v0.6.7" \
               --target "${{ github.event.inputs.expected_sha }}" \
-              --title "v0.6.7 — Business Context & Safe Learning" \
+              --title "v0.6.7 — Business Context Retrieval" \
               --notes-file docs/releases/v0.6.7-plan.md
           fi

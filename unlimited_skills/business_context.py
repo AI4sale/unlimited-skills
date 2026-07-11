@@ -13,6 +13,7 @@ slow, or malformed providers always fail open.
 from __future__ import annotations
 
 import hashlib
+import html
 import json
 import os
 import re
@@ -38,7 +39,7 @@ MAX_PROVIDER_OUTPUT_BYTES = 262_144
 MAX_ITEMS = 8
 MAX_ITEM_EXCERPT_CHARS = 1800
 ALLOWED_CAPABILITIES = frozenset({"retrieve", "completion_candidate", "doctor"})
-DEFAULT_ALLOWED_SENSITIVITIES = frozenset({"public", "internal", "internal-sanitized"})
+DEFAULT_ALLOWED_SENSITIVITIES = frozenset({"public", "internal-sanitized"})
 _ID_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$")
 _ENV_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _SAFE_BASE_ENV = (
@@ -254,7 +255,7 @@ def _normalized_items(config: ProviderConfig, response: dict[str, Any]) -> list[
     if not isinstance(raw_items, list):
         raise BusinessContextError("provider items must be an array")
     items: list[dict[str, str]] = []
-    for raw in raw_items[:MAX_ITEMS]:
+    for raw in raw_items:
         if not isinstance(raw, dict):
             continue
         sensitivity = str(raw.get("sensitivity") or "internal").strip()
@@ -275,6 +276,8 @@ def _normalized_items(config: ProviderConfig, response: dict[str, Any]) -> list[
                 "sensitivity": sensitivity,
             }
         )
+        if len(items) >= MAX_ITEMS:
+            break
     return items
 
 
@@ -306,11 +309,20 @@ def format_context(provider_id: str, items: list[dict[str, str]], max_chars: int
         "Do not copy internal context into external material without a separate disclosure decision.",
     ]
     for item in items:
-        excerpt = item["excerpt"].replace("\r\n", "\n").replace("\r", "\n")
+        # Provider text is untrusted data. Escape delimiter characters so a
+        # retrieved record cannot close the company_memory boundary and turn
+        # its remaining text into apparent agent instructions.
+        source_ref = html.escape(item["source_ref"], quote=False)
+        sensitivity = html.escape(item["sensitivity"], quote=False)
+        title = html.escape(item["title"], quote=False)
+        excerpt = html.escape(
+            item["excerpt"].replace("\r\n", "\n").replace("\r", "\n"),
+            quote=False,
+        )
         lines.extend(
             (
-                f"[source: {item['source_ref']} sensitivity={item['sensitivity']}]",
-                f"{item['title']}",
+                f"[source: {source_ref} sensitivity={sensitivity}]",
+                title,
                 excerpt,
             )
         )

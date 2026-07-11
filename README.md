@@ -12,7 +12,7 @@
 
 **Unlimited Skills** is a local-first capability router for coding agents. It keeps skills, procedures, and tool schemas out of standing context, searches by task intent, and loads only the one capability needed for the current job.
 
-**v0.6.7 / pre-1.0 local-first core.** The MIT core runs offline today. An opt-in local provider can add owner-governed business context and completion learning without putting company code or data in this public repository. There is nothing for sale on this page; gated surfaces are described under [Enterprise & trust layer](#enterprise--trust-layer).
+**v0.6.7 / pre-1.0 local-first core.** The MIT core runs offline today. An opt-in local provider can add owner-governed, cited business context without putting company code or data in this public repository. Automatic completion write-back remains disabled until structured acceptance receipts ship in a later release. There is nothing for sale on this page; gated surfaces are described under [Enterprise & trust layer](#enterprise--trust-layer).
 
 [Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
 
@@ -93,7 +93,7 @@ Working now in the local core:
 - hybrid lexical + vector search;
 - privacy-safe `suggest` probe and deterministic skill effectiveness gate for A0/v0.5 adoption readiness;
 - opt-in local business-context provider: one `suggest --card` response can carry both the selected skill and bounded reference data;
-- provider-governed completion candidates from the Claude Code Stop hook, detached and silent unless a local provider is configured;
+- a reserved, no-write Stop hook: model-written prose is never promoted to memory;
 - full skill view by name;
 - Codex router skill;
 - agent-driven one-skill adaptation workflow;

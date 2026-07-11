@@ -279,7 +279,7 @@ print(json.dumps({
         "title": "Approved offer",
         "excerpt": "Use the source-backed business offer.",
         "source_ref": "business/offers/approved.md",
-        "sensitivity": "internal"
+        "sensitivity": "internal-sanitized"
     }]
 }))
 """,
@@ -722,7 +722,7 @@ def test_hook_manifest_registers_both_hooks(event: str, script: str) -> None:
     assert (HOOKS_DIR / script).is_file()
 
 
-def test_stop_hook_submits_one_bounded_completion_candidate(tmp_path: Path) -> None:
+def test_stop_hook_never_promotes_model_written_prose_to_memory(tmp_path: Path) -> None:
     captured = tmp_path / "candidate.json"
     stub = tmp_path / "stub_cli.py"
     stub.write_text(
@@ -752,17 +752,7 @@ def test_stop_hook_submits_one_bounded_completion_candidate(tmp_path: Path) -> N
     }
     result = run_hook(STOP, json.dumps(payload), env)
     assert result.returncode == 0
-    deadline = time.monotonic() + 5
-    while not captured.exists() and time.monotonic() < deadline:
-        time.sleep(0.05)
-    assert captured.is_file()
-    candidate = json.loads(captured.read_text(encoding="utf-8"))
-    assert candidate["summary"] == final
-    assert candidate["completion_key"]
-    assert "raw-session-must-not-leak" not in json.dumps(candidate)
-    assert "#240" in candidate["evidence_refs"]
-    assert "6c8a2b7" in candidate["evidence_refs"]
-    assert "120 tests passed" in candidate["evidence_refs"]
+    assert not captured.exists()
 
 
 @pytest.mark.parametrize(

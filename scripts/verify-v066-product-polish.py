@@ -80,9 +80,10 @@ def verify_static_surface() -> dict[str, Any]:
         require(marker in precision_plan, f"precision plan missing invariant: {marker}")
     release_plan = read(ROOT / "docs" / "releases" / "v0.6.7-plan.md")
     for marker in (
-        "public core never names or depends on a private knowledge system",
-        'authority="retrieval_only"',
-        "provider decides whether a completion is durable knowledge",
+        "public core never names or imports a private knowledge system",
+        "provider-controlled text is escaped and adversarially tested",
+        "the Stop hook never submits prose",
+        "defaults permit only `public` and `internal-sanitized`",
         "No deletion, replacement, or migration of `library/local`",
     ):
         require(marker in release_plan, f"v0.6.7 plan missing invariant: {marker}")
@@ -113,6 +114,10 @@ def verify_static_surface() -> dict[str, Any]:
     )
     require(f"python scripts/verify-pypi-publication.py --version {VERSION}" in workflow, "workflow must verify the public PyPI wheel")
     require("verify-v066-daemon-rollover.py --wheel dist/*.whl" in workflow, "workflow must prove live legacy-daemon rollover")
+    require(
+        "verify-v067-business-context-wheel.py --wheel dist/*.whl" in workflow,
+        "workflow must prove business-context retrieval from the exact wheel",
+    )
     release_command = f'gh release create "v{VERSION}"'
     require(release_command in workflow, "workflow must create the release after PyPI verification")
     require(workflow.index("verify-pypi-publication.py") < workflow.index(release_command), "GitHub release must follow PyPI verification")

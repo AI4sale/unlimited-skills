@@ -17,10 +17,10 @@ Create `~/.unlimited-skills/business-context-provider.json` (or set
   "provider": {
     "id": "company-memory",
     "command": ["python", "/path/to/local_provider.py"],
-    "capabilities": ["retrieve", "completion_candidate", "doctor"],
+    "capabilities": ["retrieve", "doctor"],
     "timeout_seconds": 2,
     "max_context_chars": 6000,
-    "allowed_sensitivities": ["public", "internal", "internal-sanitized"],
+    "allowed_sensitivities": ["public", "internal-sanitized"],
     "env": {"COMPANY_MEMORY_ROOT": "/path/to/private/memory"},
     "scope": "default"
   }
@@ -81,30 +81,25 @@ defer company-specific or consequential claims instead of guessing.
 
 ## Completion learning
 
-The Claude Code `Stop` hook can offer a bounded final-response candidate to a
-provider with the `completion_candidate` capability. It runs only when:
+Automatic completion write-back is disabled in 0.6.7. The installed `Stop`
+hook consumes the stable hook event but never promotes assistant prose, URLs,
+PR numbers, hashes, or test-count strings to memory. The manual
+`context completion-candidate` transport remains experimental for provider
+development; do not enable it as a durable write path.
 
-- a provider config exists;
-- the Stop event is not recursive;
-- no background task or session cron is still running;
-- the final response is long enough and contains both an accepted artifact or
-  destination and an independent checker or test reference.
-
-The hook hashes raw session/prompt identifiers into an idempotency key and
-submits the candidate in a detached process, so memory work does not delay the
-agent response. The provider decides whether a completion is durable knowledge
-and must return one of `accepted`, `ignored`, `quarantined`, or
-`duplicate`. Unlimited Skills itself never promotes a completion to memory.
-
-Set `UNLIMITED_SKILLS_NO_COMPLETION_LEARNING=1` to disable the Stop path while
-keeping retrieval enabled. The broader business-context kill switch disables
-both retrieval and completion submission.
+A later release will require structured acceptance receipts containing project
+scope, canonical artifact identity and digest, accepted destination status, and
+an independently verifiable checker receipt. This split keeps retrieval useful
+without treating model-authored success prose as evidence.
 
 ## Security and privacy boundary
 
 - Configuration is absent and silent by default.
-- The task query and completion summary are sent only to the explicitly
-  configured local command; they are not uploaded by the public core.
+- The task query is sent only to the explicitly configured command; it is not
+  uploaded by the public core.
+- The default sensitivity allow-list is `public` plus `internal-sanitized`.
+  Explicitly adding raw `internal` means the selected agent model will receive
+  those excerpts; that is an owner disclosure decision.
 - Provider processes receive a minimal environment. Extra inherited variable
   names must be explicitly allow-listed; explicit static `env` values are
   owner-controlled, bounded, and should contain roots or modes rather than

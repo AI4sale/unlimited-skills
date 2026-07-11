@@ -20,11 +20,9 @@ Since v0.3.12 Unlimited Skills ships as a native Claude Code plugin. The plugin 
 - **PreCompact hook** (`plugin/hooks/pre_compact.py`): records the local
   compaction event used by the Money Saved accounting path without blocking
   compaction.
-- **Stop hook** (`plugin/hooks/stop.py`): when a provider is configured and the
-  turn has no background work, offers one evidence-bearing completion candidate
-  in a detached process. The provider owns acceptance, entity/sensitivity
-  policy, idempotency, and durable writes. Set
-  `UNLIMITED_SKILLS_NO_COMPLETION_LEARNING=1` to disable this path.
+- **Stop hook** (`plugin/hooks/stop.py`): reserved for a future structured
+  completion-receipt protocol. In 0.6.7 it never submits assistant prose or
+  triggers a durable write.
 
 At SessionStart, a configured provider also receives one detached `doctor`
 probe. This lets a private local recall daemon begin warming before the first
@@ -49,7 +47,7 @@ Restart the session after installing so the SessionStart hook runs.
 | --- | --- | --- |
 | Router presence in context | Guaranteed via SessionStart hook | Global + project `CLAUDE.md` block AND registered hooks (see below) |
 | Per-prompt skill + optional references | UserPromptSubmit hook | Same hooks registered into `~/.claude/settings.json` |
-| Completion learning candidate | Detached Stop hook when configured | Same Stop hook registration |
+| Completion learning | Disabled pending structured acceptance receipts | Same reserved Stop hook registration |
 | Updates | `/plugin` marketplace updates | Re-run installer |
 | Machine-specific launchers | Not needed (CLI resolved via fallback chain) | Generated launcher scripts |
 | Skill migration into library | Not performed | Migrates `~/.claude/skills` and project skills |
