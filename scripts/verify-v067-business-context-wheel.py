@@ -12,9 +12,11 @@ from pathlib import Path
 
 
 PROVIDER_SOURCE = r'''
-import json, os, sys, time
+import json, os, pathlib, sys, time
 request = json.load(sys.stdin)
 mode = os.environ.get("FIXTURE_MODE", "ok")
+if os.environ.get("FIXTURE_LOG"):
+    pathlib.Path(os.environ["FIXTURE_LOG"]).write_text(request["operation"], encoding="utf-8")
 if mode == "slow":
     time.sleep(2)
 if mode == "malformed":
@@ -80,6 +82,7 @@ def verify(wheel: Path, expected_version: str) -> dict:
         env_dir = work / "venv"
         library = work / "library"
         provider = work / "provider.py"
+        provider_log = work / "provider-called.log"
         provider.write_text(PROVIDER_SOURCE, encoding="utf-8")
         venv.EnvBuilder(with_pip=True).create(env_dir)
         py = venv_python(env_dir)
@@ -107,8 +110,7 @@ def verify(wheel: Path, expected_version: str) -> dict:
                             "capabilities": ["retrieve", "doctor"],
                             "timeout_seconds": timeout_seconds,
                             "max_context_chars": 4000,
-                            "allowed_sensitivities": ["public", "internal-sanitized"],
-                            "env": {"FIXTURE_MODE": mode},
+                            "env": {"FIXTURE_MODE": mode, "FIXTURE_LOG": str(provider_log)},
                         },
                     }
                 ),
@@ -133,6 +135,12 @@ def verify(wheel: Path, expected_version: str) -> dict:
         plain = require_json(
             run([str(cli), "--root", str(library), "suggest", "security code review", "--json"], cwd=work, env=base_env),
             "plain suggest",
+        )
+        provider_log.unlink(missing_ok=True)
+        plain_card = run(
+            [str(cli), "--root", str(library), "suggest", "security code review", "--card", "--limit", "1"],
+            cwd=work,
+            env=base_env,
         )
         killed = require_json(
             run(
@@ -169,6 +177,8 @@ def verify(wheel: Path, expected_version: str) -> dict:
             errors.append("installed suggest card did not include business context")
         if "business_context" in plain:
             errors.append("plain suggest JSON contract changed")
+        if plain_card.returncode != 0 or "company_memory" in plain_card.stdout or provider_log.exists():
+            errors.append("non-JSON card mode exposed company context")
         if killed.get("status") != "not_configured":
             errors.append("business-context kill switch failed")
         if mismatch.get("status") != "unavailable":
@@ -190,6 +200,7 @@ def verify(wheel: Path, expected_version: str) -> dict:
             "delimiter_preserved": context.count("</company_memory>") == 1,
             "card_context": card.get("business_context", {}).get("status"),
             "plain_contract_unchanged": "business_context" not in plain,
+            "plain_card_has_no_context": "company_memory" not in plain_card.stdout and not provider_log.exists(),
             "kill_switch": killed.get("status"),
             "mismatch": mismatch.get("status"),
             "timeout": timeout.get("status"),

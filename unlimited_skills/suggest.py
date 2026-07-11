@@ -571,7 +571,9 @@ def main(argv: list[str] | None = None) -> int:
     root = Path(args.root).expanduser()
     started = time.perf_counter()
     business_context = None
-    business_context_enabled = bool(args.card and not args.no_business_context and provider_configured())
+    business_context_enabled = bool(
+        args.json and args.card and not args.no_business_context and provider_configured()
+    )
     try:
         # Card mode needs the runner-up score for the margin check even when
         # the caller only displays one candidate.
@@ -744,8 +746,6 @@ def main(argv: list[str] | None = None) -> int:
     else:
         for hit in text_hits:
             print(format_suggestion(hit))
-        if business_context and business_context.get("context"):
-            print(str(business_context["context"]))
 
     try:
         # Local-only learning log (never printed, never uploaded).

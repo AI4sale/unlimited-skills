@@ -298,6 +298,17 @@ def test_plain_suggest_contract_is_unchanged_when_provider_is_configured(tmp_pat
     assert capsys.readouterr().out == ""
 
 
+def test_non_json_card_never_invokes_or_prints_the_provider(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
+    _, log = write_provider(tmp_path, monkeypatch)
+    library = tmp_path / "library"
+    library.mkdir()
+    save_index(library)
+
+    assert suggest.main(["prepare current offer", "--root", str(library), "--card"]) == 0
+    assert capsys.readouterr().out == ""
+    assert not log.exists()
+
+
 def test_business_context_kill_switch_skips_provider(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     _, log = write_provider(tmp_path, monkeypatch)
     monkeypatch.setenv("UNLIMITED_SKILLS_NO_BUSINESS_CONTEXT", "1")
