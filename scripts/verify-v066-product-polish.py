@@ -78,6 +78,7 @@ def verify_static_surface() -> dict[str, Any]:
         require(marker in plan, f"release plan missing invariant: {marker}")
 
     hook = read(ROOT / "plugin" / "hooks" / "user_prompt_submit.py")
+    session_hook = read(ROOT / "plugin" / "hooks" / "session_start.py")
     for marker in (
         "_ensure_warm_daemon",
         "_daemon_identity_matches",
@@ -89,6 +90,9 @@ def verify_static_surface() -> dict[str, Any]:
         require(marker in hook, f"hook missing autoserve invariant: {marker}")
     require("shell=True" not in hook, "daemon autoserve must never invoke a shell")
     require("127.0.0.1" in hook and "localhost" in hook and "::1" in hook, "autoserve must remain loopback-only")
+    require("_ensure_warm_daemon(command)" in session_hook, "SessionStart must proactively ensure the daemon")
+    endpoint = read(ROOT / "unlimited_skills" / "daemon_endpoint.py")
+    require("HASHED_PORT_BASE" in endpoint and "sha256" in endpoint, "multi-root daemon endpoint derivation missing")
 
     workflow = read(ROOT / ".github" / "workflows" / "publish-pypi.yml")
     require('test "${{ github.event.inputs.version }}" = "0.6.6"' in workflow, "workflow version guard mismatch")

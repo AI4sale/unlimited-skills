@@ -37,6 +37,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import socket
 import subprocess
 import sys
@@ -71,6 +72,8 @@ WARM_DAEMON_URL_ENV = "UNLIMITED_SKILLS_WARM_DAEMON_URL"
 DEFAULT_WARM_DAEMON_URL = "http://127.0.0.1:8765"
 WARM_DAEMON_PROTOCOL = "warm-search-v1"
 DEFAULT_EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+HASHED_PORT_BASE = 18000
+HASHED_PORT_SPAN = 1000
 AUTOSERVE_RETRY_SECONDS = 30.0
 
 # Tier-3 fallback (non-English rescue). The lexical engine scores a non-English
@@ -102,8 +105,21 @@ def _autoserve_disabled() -> bool:
     return os.environ.get(NO_AUTOSERVE_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
 
 
-def _daemon_endpoint() -> tuple[str, int, str] | None:
-    raw_url = os.environ.get(WARM_DAEMON_URL_ENV, DEFAULT_WARM_DAEMON_URL).strip().rstrip("/")
+def _daemon_endpoint(command: list[str]) -> tuple[str, int, str] | None:
+    explicit = os.environ.get(WARM_DAEMON_URL_ENV, "").strip()
+    if explicit:
+        raw_url = explicit.rstrip("/")
+    else:
+        root = _expected_library_root(command)
+        default_root = (Path.home() / ".unlimited-skills" / "library").resolve()
+        if root is None or root == default_root:
+            raw_url = DEFAULT_WARM_DAEMON_URL
+        else:
+            identity = f"{os.path.normcase(str(root))}\0{os.environ.get('UNLIMITED_SKILLS_EMBED_MODEL', DEFAULT_EMBED_MODEL)}"
+            port_value = HASHED_PORT_BASE + (
+                int(hashlib.sha256(identity.encode("utf-8")).hexdigest()[:8], 16) % HASHED_PORT_SPAN
+            )
+            raw_url = f"http://127.0.0.1:{port_value}"
     try:
         parsed = urllib.parse.urlparse(raw_url)
         host = str(parsed.hostname or "")
@@ -138,10 +154,21 @@ def _expected_library_root(command: list[str]) -> Path | None:
     else:
         raw = os.environ.get("UNLIMITED_SKILLS_ROOT", "").strip()
         if not raw:
-            # Rendered shell/PowerShell launchers carry their own root inside
-            # the script; the standalone hook cannot infer it safely.
-            if any(str(part).lower().endswith((".ps1", ".sh")) for part in command):
+            for part in command:
+                launcher = Path(str(part))
+                if not str(part).lower().endswith((".ps1", ".sh")):
+                    continue
+                try:
+                    text = launcher.read_text(encoding="utf-8", errors="replace")[:65536]
+                except OSError:
+                    continue
+                matches = list(re.finditer(r'--root\s+(?:"([^"]+)"|\'([^\']+)\'|([^\s]+))', text))
+                if matches:
+                    raw = next(group for group in matches[-1].groups() if group is not None)
+                    break
+            if not raw and any(str(part).lower().endswith((".ps1", ".sh")) for part in command):
                 return None
+        if not raw:
             raw = str(Path.home() / ".unlimited-skills" / "library")
     try:
         return Path(raw).expanduser().resolve()
@@ -169,7 +196,7 @@ def _daemon_identity_matches(payload: dict, command: list[str]) -> bool:
 
 
 def _daemon_state(command: list[str]) -> str:
-    endpoint = _daemon_endpoint()
+    endpoint = _daemon_endpoint(command)
     if endpoint is None:
         return "external_or_invalid"
     host, port, raw_url = endpoint
@@ -191,7 +218,37 @@ def _launch_marker(command: list[str], raw_url: str) -> Path:
     digest = hashlib.sha256(
         json.dumps([*command, raw_url], ensure_ascii=True, separators=(",", ":")).encode("utf-8")
     ).hexdigest()[:16]
-    return Path(tempfile.gettempdir()) / "unlimited-skills-autoserve" / f"{digest}.launch"
+    root = _expected_library_root(command)
+    home = os.environ.get("UNLIMITED_SKILLS_HOME", "").strip()
+    runtime_dir = Path(home).expanduser() / "runtime" if home else (
+        root.parent / "runtime" if root is not None else Path(tempfile.gettempdir()) / "unlimited-skills-autoserve"
+    )
+    return runtime_dir / f"daemon-{digest}.launch"
+
+
+def _write_daemon_state(command: list[str], raw_url: str, status: str, pid: int | None = None) -> None:
+    path = _launch_marker(command, raw_url).with_suffix(".json")
+    if pid is None:
+        try:
+            previous = json.loads(path.read_text(encoding="utf-8"))
+            previous_pid = previous.get("pid") if isinstance(previous, dict) else None
+            pid = int(previous_pid) if previous_pid else None
+        except (OSError, ValueError, TypeError, json.JSONDecodeError):
+            pid = None
+    payload = {
+        "schema_version": 1,
+        "status": status,
+        "pid": pid,
+        "endpoint": raw_url,
+        "updated_at": time.time(),
+    }
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        temporary = path.with_suffix(".tmp")
+        temporary.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+        os.replace(temporary, path)
+    except OSError:
+        pass
 
 
 def _claim_daemon_launch(command: list[str], raw_url: str) -> tuple[bool, Path | None]:
@@ -226,16 +283,17 @@ def _ensure_warm_daemon(command: list[str]) -> str:
         return "disabled"
     state = _daemon_state(command)
     if state == "ready":
-        endpoint = _daemon_endpoint()
+        endpoint = _daemon_endpoint(command)
         if endpoint is not None:
             try:
                 _launch_marker(command, endpoint[2]).unlink(missing_ok=True)
             except OSError:
                 pass
+            _write_daemon_state(command, endpoint[2], "running")
         return state
     if state != "missing":
         return state
-    endpoint = _daemon_endpoint()
+    endpoint = _daemon_endpoint(command)
     if endpoint is None:
         return "external_or_invalid"
     host, port, raw_url = endpoint
@@ -256,10 +314,11 @@ def _ensure_warm_daemon(command: list[str]) -> str:
             kwargs["creationflags"] = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
         else:
             kwargs["start_new_session"] = True
-        subprocess.Popen(
+        process = subprocess.Popen(
             [*command, "serve", "--host", host, "--port", str(port), "--log-level", "warning"],
             **kwargs,
         )
+        _write_daemon_state(command, raw_url, "starting", getattr(process, "pid", None))
         return "starting"
     except Exception:
         if marker is not None:
@@ -267,6 +326,7 @@ def _ensure_warm_daemon(command: list[str]) -> str:
                 marker.unlink(missing_ok=True)
             except OSError:
                 pass
+        _write_daemon_state(command, raw_url, "failed")
         return "failed"
 
 

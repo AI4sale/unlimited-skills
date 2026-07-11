@@ -67,6 +67,15 @@ def load_user_prompt_module() -> ModuleType:
     return module
 
 
+def load_session_start_module() -> ModuleType:
+    name = f"_unlimited_skills_session_start_{os.urandom(6).hex()}"
+    spec = importlib.util.spec_from_file_location(name, SESSION_START)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
 def repo_cli_override(root: Path) -> str:
     python = Path(sys.executable).as_posix()
     return f'"{python}" -m unlimited_skills --root "{root.as_posix()}"'
@@ -328,8 +337,9 @@ def test_user_prompt_submit_autoserve_starts_missing_local_daemon(monkeypatch: p
     calls: list[tuple[list[str], dict]] = []
     monkeypatch.delenv("UNLIMITED_SKILLS_NO_AUTOSERVE", raising=False)
     monkeypatch.setattr(module, "_daemon_state", lambda command: "missing")
-    monkeypatch.setattr(module, "_daemon_endpoint", lambda: ("127.0.0.1", 8765, "http://127.0.0.1:8765"))
+    monkeypatch.setattr(module, "_daemon_endpoint", lambda command: ("127.0.0.1", 8765, "http://127.0.0.1:8765"))
     monkeypatch.setattr(module, "_claim_daemon_launch", lambda command, url: (True, None))
+    monkeypatch.setattr(module, "_write_daemon_state", lambda *args, **kwargs: None)
     monkeypatch.setattr(module.subprocess, "Popen", lambda command, **kwargs: calls.append((command, kwargs)))
 
     state = module._ensure_warm_daemon(["unlimited-skills"])
@@ -365,7 +375,7 @@ def test_user_prompt_submit_autoserve_cooldown_prevents_spawn_storm(monkeypatch:
     module = load_user_prompt_module()
     monkeypatch.delenv("UNLIMITED_SKILLS_NO_AUTOSERVE", raising=False)
     monkeypatch.setattr(module, "_daemon_state", lambda command: "missing")
-    monkeypatch.setattr(module, "_daemon_endpoint", lambda: ("127.0.0.1", 8765, "http://127.0.0.1:8765"))
+    monkeypatch.setattr(module, "_daemon_endpoint", lambda command: ("127.0.0.1", 8765, "http://127.0.0.1:8765"))
     monkeypatch.setattr(module, "_claim_daemon_launch", lambda command, url: (False, Path("launch")))
     monkeypatch.setattr(
         module.subprocess,
@@ -400,7 +410,7 @@ def test_user_prompt_submit_autoserve_rejects_non_local_or_malformed_endpoint(
 ) -> None:
     module = load_user_prompt_module()
     monkeypatch.setenv("UNLIMITED_SKILLS_WARM_DAEMON_URL", url)
-    assert module._daemon_endpoint() is None
+    assert module._daemon_endpoint(["unlimited-skills"]) is None
 
 
 def test_user_prompt_submit_autoserve_requires_matching_root_and_model(
@@ -420,6 +430,70 @@ def test_user_prompt_submit_autoserve_requires_matching_root_and_model(
     assert module._daemon_identity_matches(payload, command) is True
     assert module._daemon_identity_matches({**payload, "root": str(tmp_path / "other")}, command) is False
     assert module._daemon_identity_matches({**payload, "model": "wrong-model"}, command) is False
+
+
+def test_user_prompt_submit_derives_distinct_ports_for_distinct_roots(tmp_path: Path) -> None:
+    from unlimited_skills.daemon_endpoint import warm_daemon_url
+
+    module = load_user_prompt_module()
+    first = tmp_path / "first" / "library"
+    second = tmp_path / "second" / "library"
+    first_url = module._daemon_endpoint(["unlimited-skills", "--root", str(first)])[2]
+    second_url = module._daemon_endpoint(["unlimited-skills", "--root", str(second)])[2]
+
+    assert first_url == warm_daemon_url(first)
+    assert second_url == warm_daemon_url(second)
+    assert first_url != second_url
+
+
+def test_session_start_primary_daemon_ensure_runs_before_contract(
+    monkeypatch: pytest.MonkeyPatch, capsys
+) -> None:
+    module = load_session_start_module()
+    calls: list[list[str]] = []
+    command = ["unlimited-skills"]
+    monkeypatch.setattr(module, "resolve_cli_command", lambda: command)
+    monkeypatch.setattr(module, "_ensure_warm_daemon", lambda value: calls.append(value) or "starting")
+    monkeypatch.setattr(module, "_maybe_autoheal", lambda value: None)
+    monkeypatch.setattr(module, "_record_money_event", lambda *args: None)
+
+    assert module.main() == 0
+    assert calls == [command]
+    assert "Unlimited Skills Library" in capsys.readouterr().out
+
+
+def test_autoserve_launch_claim_is_cross_process_idempotent(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    module = load_user_prompt_module()
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(tmp_path / "home"))
+    command = ["unlimited-skills", "--root", str(tmp_path / "library")]
+    url = module._daemon_endpoint(command)[2]
+
+    first, marker = module._claim_daemon_launch(command, url)
+    second, same_marker = module._claim_daemon_launch(command, url)
+
+    assert first is True
+    assert second is False
+    assert marker == same_marker
+    assert marker is not None and marker.is_file()
+
+
+def test_daemon_running_state_preserves_started_pid(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    module = load_user_prompt_module()
+    monkeypatch.setenv("UNLIMITED_SKILLS_HOME", str(tmp_path / "home"))
+    command = ["unlimited-skills", "--root", str(tmp_path / "library")]
+    url = module._daemon_endpoint(command)[2]
+
+    module._write_daemon_state(command, url, "starting", 4321)
+    module._write_daemon_state(command, url, "running")
+
+    state_path = module._launch_marker(command, url).with_suffix(".json")
+    state = json.loads(state_path.read_text(encoding="utf-8"))
+    assert state["status"] == "running"
+    assert state["pid"] == 4321
 
 
 def test_user_prompt_submit_rescues_mixed_language_weak_match(tmp_path: Path) -> None:

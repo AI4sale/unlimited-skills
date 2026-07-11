@@ -28,6 +28,11 @@ launches, and remains fail-open. It does not install an operating-system
 service or bind LAN/remote. Restricted runtimes can set
 `UNLIMITED_SKILLS_NO_AUTOSERVE=1`.
 
+Default-root compatibility keeps port 8765. Non-default libraries derive a
+deterministic loopback port from normalized root + embedding model; a health
+identity mismatch is refused rather than reused. Launch/PID status contains no
+prompt or skill data and stays under the local Unlimited Skills runtime root.
+
 Registration is required only for official AI4sale-hosted services: hosted adapted catalog, community catalog/submissions, adapted collection updates, registered local enhancement scripts, hosted archives, team sync, dashboard/cloud/business/enterprise features, and future hosted services.
 
 The hosted clients must not upload:

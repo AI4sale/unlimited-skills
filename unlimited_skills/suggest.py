@@ -65,6 +65,7 @@ from .search_core import (
     split_frontmatter,
     vector_sidecar_status,
 )
+from .daemon_endpoint import warm_daemon_url
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -172,8 +173,8 @@ DEFAULT_EMBED_MODEL = os.environ.get(
     "UNLIMITED_SKILLS_EMBED_MODEL",
     "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
 )
-WARM_DAEMON_URL = os.environ.get("UNLIMITED_SKILLS_WARM_DAEMON_URL", "http://127.0.0.1:8765").rstrip("/")
 WARM_DAEMON_TIMEOUT_SECONDS = 0.25
+WARM_DAEMON_SEARCH_TIMEOUT_SECONDS = 1.5
 WARM_DAEMON_PROTOCOL = "warm-search-v1"
 
 
@@ -269,7 +270,10 @@ def vector_probe(root: Path, query: str, limit: int, collection: str | None = No
                     )
             return sorted(scored, key=lambda hit: (-hit.score, hit.collection, hit.name))[: max(limit, 1)]
 
-        with urllib.request.urlopen(f"{WARM_DAEMON_URL}/health", timeout=WARM_DAEMON_TIMEOUT_SECONDS) as response:
+        daemon_url = warm_daemon_url(root, DEFAULT_EMBED_MODEL)
+        if not daemon_url:
+            return []
+        with urllib.request.urlopen(f"{daemon_url}/health", timeout=WARM_DAEMON_TIMEOUT_SECONDS) as response:
             health = json.loads(response.read().decode("utf-8"))
         daemon_root_raw = str(health.get("root") or "").strip()
         if not (
@@ -283,14 +287,14 @@ def vector_probe(root: Path, query: str, limit: int, collection: str | None = No
         if daemon_root != root.expanduser().resolve() or str(health.get("model") or "") != DEFAULT_EMBED_MODEL:
             return []
         request = urllib.request.Request(
-            f"{WARM_DAEMON_URL}/search",
+            f"{daemon_url}/search",
             data=json.dumps(
                 {"query": query, "mode": "vector", "limit": max(limit, 1), "collection": collection, "require_vector": True}
             ).encode("utf-8"),
             headers={"Content-Type": "application/json"},
             method="POST",
         )
-        with urllib.request.urlopen(request, timeout=WARM_DAEMON_TIMEOUT_SECONDS) as response:
+        with urllib.request.urlopen(request, timeout=WARM_DAEMON_SEARCH_TIMEOUT_SECONDS) as response:
             result = json.loads(response.read().decode("utf-8"))
         hits = [
             SkillHit(

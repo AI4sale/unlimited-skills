@@ -117,7 +117,12 @@ def test_doctor_reports_fallback_truth_instead_of_calling_multilingual_search_de
 
     assert report["runtime_deps"]["native_language_search_ready"] is False
     assert report["runtime_deps"]["warm_daemon_ready"] is False
+    daemon = report["runtime_deps"]["warm_daemon"]
+    assert daemon["required_for_native_semantic_retrieval"] is True
+    assert daemon["auto_start_enabled"] is True
+    assert daemon["endpoint"].startswith("http://127.0.0.1:")
     rendered = format_doctor_text(report)
     assert "English-keyword fallback" in rendered
     assert "search is dead" not in rendered
+    assert "required for native semantic retrieval" in rendered
     assert 'unlimited-skills[vector]' in rendered

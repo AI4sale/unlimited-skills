@@ -154,3 +154,8 @@ starts that loopback daemon when absent, with a cross-process cooldown and
 `UNLIMITED_SKILLS_NO_AUTOSERVE=1` emergency override. The current request stays
 fail-open on lexical/English-keyword rescue while a newly launched runtime
 warms.
+
+Daemon health probes keep a 250 ms ceiling; an already-warm semantic request
+gets a separate 1.5 s ceiling inside the hook's 3 s total budget. Treating both
+operations as the old 250 ms probe silently discarded valid native-language
+results even after warm-up.

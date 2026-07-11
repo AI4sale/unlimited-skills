@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
+from .daemon_endpoint import warm_daemon_url
 from .private_pack_diagnostics import private_pack_local_summary
 from .registration import DEFAULT_SERVICE_URL, RegistrationError, load_registration, unlimited_skills_home
 from .search_core import (
@@ -31,7 +32,6 @@ DEFAULT_EMBED_MODEL = os.environ.get(
     "UNLIMITED_SKILLS_EMBED_MODEL",
     "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
 )
-WARM_DAEMON_URL = os.environ.get("UNLIMITED_SKILLS_WARM_DAEMON_URL", "http://127.0.0.1:8765").rstrip("/")
 WARM_DAEMON_PROTOCOL = "warm-search-v1"
 SUPPORTED_AGENTS = ("codex", "claude-code", "hermes", "openclaw")
 
@@ -92,7 +92,8 @@ def _library_summary(root: Path) -> dict[str, Any]:
 def _runtime_deps_summary() -> dict[str, Any]:
     """Are the optional extras needed for native-language search installed?
 
-    ``[server]`` (fastapi/uvicorn) runs the optional warm daemon
+    ``[server]`` (fastapi/uvicorn) runs the warm daemon required for arbitrary
+    native-language semantic queries
     (``unlimited-skills serve``); ``[vector]`` (fastembed/chromadb) provides
     native-language embedding retrieval. Without it, the router falls back to
     an explicit English-keyword re-query instruction. Pure ``find_spec`` — imports nothing.
@@ -115,8 +116,21 @@ def _runtime_deps_summary() -> dict[str, Any]:
 
 
 def _warm_daemon_summary(root: Path) -> dict[str, Any]:
+    daemon_url = warm_daemon_url(root, DEFAULT_EMBED_MODEL)
+    if not daemon_url:
+        return {
+            "endpoint": "refused_non_local_or_invalid",
+            "required_for_native_semantic_retrieval": True,
+            "auto_start_enabled": False,
+            "running": False,
+            "warming": False,
+            "protocol_matches": False,
+            "root_matches": False,
+            "model_matches": False,
+            "ready": False,
+        }
     try:
-        with urllib.request.urlopen(f"{WARM_DAEMON_URL}/health", timeout=0.2) as response:
+        with urllib.request.urlopen(f"{daemon_url}/health", timeout=0.2) as response:
             payload = json.loads(response.read().decode("utf-8"))
         root_value = str(payload.get("root") or "").strip()
         protocol_matches = (
@@ -126,7 +140,11 @@ def _warm_daemon_summary(root: Path) -> dict[str, Any]:
         root_matches = bool(root_value) and Path(root_value).expanduser().resolve() == root.expanduser().resolve()
         model_matches = str(payload.get("model") or "") == DEFAULT_EMBED_MODEL
         return {
+            "endpoint": daemon_url,
+            "required_for_native_semantic_retrieval": True,
+            "auto_start_enabled": os.environ.get("UNLIMITED_SKILLS_NO_AUTOSERVE", "").strip().lower() not in {"1", "true", "yes", "on"},
             "running": bool(payload.get("ok")),
+            "warming": False,
             "protocol_matches": protocol_matches,
             "root_matches": root_matches,
             "model_matches": model_matches,
@@ -134,7 +152,11 @@ def _warm_daemon_summary(root: Path) -> dict[str, Any]:
         }
     except Exception:
         return {
+            "endpoint": daemon_url,
+            "required_for_native_semantic_retrieval": True,
+            "auto_start_enabled": os.environ.get("UNLIMITED_SKILLS_NO_AUTOSERVE", "").strip().lower() not in {"1", "true", "yes", "on"},
             "running": False,
+            "warming": False,
             "protocol_matches": False,
             "root_matches": False,
             "model_matches": False,
@@ -493,9 +515,9 @@ def build_doctor_report(root: Path, *, agent: str = "all", project_root: Path | 
         )
     if not runtime_deps["server_extra_present"]:
         recommendations.append(
-            "The optional warm daemon is unavailable ([server]: fastapi/uvicorn). Direct vector "
-            "search can still run cold; install `pip install \"unlimited-skills[server]\"` only "
-            "if you want to start `unlimited-skills serve` explicitly."
+            "The required warm runtime for native semantic retrieval is unavailable "
+            "([server]: fastapi/uvicorn). Install `pip install \"unlimited-skills[all]\"`; "
+            "the Claude Code hooks will then start it automatically."
         )
     from .search_core import read_router_metrics
 
@@ -540,7 +562,7 @@ def format_doctor_text(report: dict[str, Any]) -> str:
         "Warm daemon: " + (
             "ready"
             if report.get("runtime_deps", {}).get("warm_daemon_ready")
-            else "optional/not ready"
+            else "required for native semantic retrieval; auto-start enabled but not ready"
         ),
     ]
     router = report.get("router", {})

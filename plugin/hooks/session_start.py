@@ -19,6 +19,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from _cli_resolve import display_command, resolve_cli_command  # noqa: E402
+from user_prompt_submit import _ensure_warm_daemon  # noqa: E402
 
 # Source-of-truth contract versions live in the package
 # (unlimited_skills.launchers.LAUNCHER_CONTRACT_VERSION and
@@ -171,6 +172,10 @@ def main() -> int:
     except Exception:
         command = None
     if command:
+        try:
+            _ensure_warm_daemon(command)
+        except Exception:
+            pass
         try:
             _maybe_autoheal(command)
         except Exception:

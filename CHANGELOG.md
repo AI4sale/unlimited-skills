@@ -17,11 +17,19 @@
   hint qualifies.
 - Add versioned lexical-index and vector-manifest freshness checks, atomic
   artifact replacement, and RRF lexical/vector fusion without raw-score magic.
-- Keep the optional local warm daemon running from `UserPromptSubmit`: the hook
+- Keep the local warm daemon required for native semantic retrieval running
+  from `UserPromptSubmit`: the hook
   probes the service identity, starts one hidden detached process only when the
   local port is absent, coalesces concurrent launch attempts, refuses remote or
   incompatible endpoints, and remains fail-open. Restricted runtimes can set
   `UNLIMITED_SKILLS_NO_AUTOSERVE=1` as an emergency override.
+- Start the same daemon proactively from `SessionStart`, retain the per-prompt
+  watchdog for crash recovery, store local PID/status evidence beside the
+  install root, and derive a deterministic loopback port from library root +
+  embedding model so multiple libraries cannot silently share the wrong daemon.
+- Split the 250 ms daemon health budget from the 1.5 s already-warm semantic
+  request budget. The old shared timeout discarded valid non-English results
+  even after health was ready.
 - Make `quickstart` add missing bundled skills even inside partially populated
   collections, migrate legacy indexes in place without deleting or replacing
   existing/local skills, apply the production floor to its proof search, and
