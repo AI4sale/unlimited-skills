@@ -1,7 +1,7 @@
 {
   "name": "unlimited-skills",
-  "version": "0.6.6",
-  "description": "Unlimited Skills router for Claude Code: keeps thousands of skills out of context and retrieves only the one you need via lexical, vector, or hybrid search. Ships a SessionStart hook that injects the router contract into every session.",
+  "version": "0.6.7",
+  "description": "Unlimited Skills router for Claude Code: retrieves the right skill plus opt-in local business context and offers verified completions to an owner-governed learning provider.",
   "author": {
     "name": "AI4sale"
   },

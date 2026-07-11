@@ -19,7 +19,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 from _cli_resolve import display_command, resolve_cli_command  # noqa: E402
-from user_prompt_submit import _ensure_warm_daemon  # noqa: E402
+from user_prompt_submit import _ensure_lexical_index_manifest, _ensure_warm_daemon  # noqa: E402
 
 # Source-of-truth contract versions live in the package
 # (unlimited_skills.launchers.LAUNCHER_CONTRACT_VERSION and
@@ -33,6 +33,8 @@ _INJECT_STAMP_RE = re.compile(r"unlimited-skills-contract:\s*(\d+)")
 _UNLIMITED_BLOCK_MARKER = "<!-- BEGIN UNLIMITED SKILLS -->"
 _HEAL_TIMEOUT_SECONDS = 25.0
 _MONEY_EVENT_TIMEOUT_SECONDS = 10.0
+_CONTEXT_CONFIG_ENV = "UNLIMITED_SKILLS_CONTEXT_PROVIDER_CONFIG"
+_CONTEXT_DISABLE_ENV = "UNLIMITED_SKILLS_NO_BUSINESS_CONTEXT"
 
 CONTRACT_TEMPLATE = """## Unlimited Skills Library (plugin)
 
@@ -166,6 +168,38 @@ def _record_money_event(command: list[str], event_type: str) -> None:
         return
 
 
+def _business_context_configured() -> bool:
+    if os.environ.get(_CONTEXT_DISABLE_ENV, "").strip().casefold() in {"1", "true", "yes", "on"}:
+        return False
+    explicit = str(os.environ.get(_CONTEXT_CONFIG_ENV) or "").strip()
+    if explicit:
+        return Path(explicit).expanduser().is_file()
+    home = str(os.environ.get("UNLIMITED_SKILLS_HOME") or "").strip()
+    base = Path(home).expanduser() if home else Path.home() / ".unlimited-skills"
+    return (base / "business-context-provider.json").is_file()
+
+
+def _prime_business_context(command: list[str]) -> str:
+    """Run one detached doctor at session init so a private daemon can warm."""
+
+    if not _business_context_configured():
+        return "not_configured"
+    kwargs: dict = {"stdin": subprocess.DEVNULL, "stdout": subprocess.DEVNULL, "stderr": subprocess.DEVNULL}
+    if os.name == "nt":
+        startupinfo = subprocess.STARTUPINFO()
+        startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+        startupinfo.wShowWindow = 0
+        kwargs["startupinfo"] = startupinfo
+        kwargs["creationflags"] = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+    else:
+        kwargs["start_new_session"] = True
+    try:
+        subprocess.Popen([*command, "context", "doctor", "--json"], **kwargs)
+        return "starting"
+    except OSError:
+        return "failed"
+
+
 def main() -> int:
     try:
         command = resolve_cli_command()
@@ -173,7 +207,9 @@ def main() -> int:
         command = None
     if command:
         try:
+            _ensure_lexical_index_manifest(command)
             _ensure_warm_daemon(command)
+            _prime_business_context(command)
         except Exception:
             pass
         try:

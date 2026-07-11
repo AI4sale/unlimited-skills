@@ -262,13 +262,14 @@ def _patch_claude_file(claude_file: Path, sh_launcher: Path, ps_launcher: Path) 
     claude_file.write_text(apply_claude_block(text, block), encoding="utf-8")
 
 
-HOOK_SCRIPTS = ("_cli_resolve.py", "session_start.py", "user_prompt_submit.py", "pre_compact.py")
+HOOK_SCRIPTS = ("_cli_resolve.py", "session_start.py", "user_prompt_submit.py", "pre_compact.py", "stop.py")
 HOOK_EVENTS = {
     "SessionStart": "session_start.py",
     "UserPromptSubmit": "user_prompt_submit.py",
     "PreCompact": "pre_compact.py",
+    "Stop": "stop.py",
 }
-HOOK_TIMEOUTS = {"SessionStart": 15, "UserPromptSubmit": 10, "PreCompact": 15}
+HOOK_TIMEOUTS = {"SessionStart": 15, "UserPromptSubmit": 10, "PreCompact": 15, "Stop": 15}
 
 
 def _copy_hook_scripts(repo_root: Path, hooks_target: Path) -> bool:

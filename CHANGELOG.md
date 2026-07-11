@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+### Added (0.6.7 — Business Context & Safe Learning)
+
+- Add a generic, opt-in local business-context provider contract. A single
+  `suggest --card` call can return the chosen skill plus bounded business
+  references labelled as data rather than instructions.
+- Add `context retrieve`, `context doctor`, and `context completion-candidate`
+  commands with JSON-over-stdio adapters, minimal environment forwarding,
+  strict source/sensitivity validation, and fail-open time/output caps.
+- Add a Claude Code Stop hook that submits evidence-bearing completion
+  candidates in a detached process only when an owner provider is configured.
+  The provider—not the public core—decides whether to accept, ignore,
+  quarantine, or deduplicate durable knowledge.
+
+### Fixed (0.6.7)
+
+- Repair missing lexical-index manifests once in the background instead of
+  rescanning a large skill library on every prompt.
+- Cap the combined skill, hint, rescue, and business-reference payload at the
+  hook boundary.
+- Make PyPI verification retry the known JSON/simple-index propagation race
+  while failing immediately on real wheel or smoke defects.
+- Align current package, plugin, install, security, and release documentation
+  on the actual release version.
+
 ### Fixed (0.6.6 — Product Precision & Release Truth)
 
 - Split raw retrieval diagnostics, recall-safe NAME hints, and card/body

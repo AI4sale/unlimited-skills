@@ -513,6 +513,7 @@ def resolve_skill_path(root: Path, name_or_path: str) -> Path | None:
 def build_parser() -> argparse.ArgumentParser:
     from .commands import accounts as accounts_cmds
     from .commands import agent_lifecycle as agent_lifecycle_cmds
+    from .commands import business_context as business_context_cmds
     from .commands import catalog as catalog_cmds
     from .commands import community as community_cmds
     from .commands import feedback as feedback_cmds
@@ -576,6 +577,35 @@ def build_parser() -> argparse.ArgumentParser:
     suggest.add_argument("--collection")
     suggest.add_argument("--json", action="store_true")
     suggest.set_defaults(func=library_cmds.cmd_suggest)
+
+    context = sub.add_parser(
+        "context",
+        help="Use an owner-configured local business-context provider.",
+    )
+    context_sub = context.add_subparsers(dest="context_command", required=True)
+    context_retrieve = context_sub.add_parser(
+        "retrieve",
+        help="Retrieve bounded reference context for a task.",
+    )
+    context_retrieve.add_argument("query")
+    context_retrieve.add_argument("--agent", default="cli")
+    context_retrieve.add_argument("--config", default="")
+    context_retrieve.add_argument("--json", action="store_true")
+    context_retrieve.set_defaults(func=business_context_cmds.cmd_context_retrieve)
+    context_completion = context_sub.add_parser(
+        "completion-candidate",
+        help="Submit one JSON completion candidate on stdin; the provider decides whether to keep it.",
+    )
+    context_completion.add_argument("--config", default="")
+    context_completion.add_argument("--json", action="store_true")
+    context_completion.set_defaults(func=business_context_cmds.cmd_context_completion)
+    context_doctor = context_sub.add_parser(
+        "doctor",
+        help="Validate the local provider configuration and optional health contract.",
+    )
+    context_doctor.add_argument("--config", default="")
+    context_doctor.add_argument("--json", action="store_true")
+    context_doctor.set_defaults(func=business_context_cmds.cmd_context_doctor)
 
     skills_parser = sub.add_parser("skills", help="Skill-quality operations (effectiveness regression check).")
     skills_sub = skills_parser.add_subparsers(dest="skills_command", required=True)

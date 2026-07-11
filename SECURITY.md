@@ -35,6 +35,17 @@ prompt or skill data and stays under the local Unlimited Skills runtime root.
 Legacy or wrong-contract listeners are never killed unless ownership is proven;
 the current runtime uses a deterministic versioned fallback loopback endpoint.
 
+Since v0.6.7, an owner may configure a local business-context provider. The
+public core launches only the explicit argument array with `shell=False`, a
+minimal environment plus owner-declared static values, bounded input/output/time, relative source references,
+and a sensitivity allow-list. Retrieved text is labelled as reference data,
+not instructions. The task query and completion summary are disclosed to that
+trusted local provider by design, so operators must review the adapter and its
+source/entity policy before enabling it. With no config, no provider process is
+started. `UNLIMITED_SKILLS_NO_BUSINESS_CONTEXT=1` disables the entire channel;
+`UNLIMITED_SKILLS_NO_COMPLETION_LEARNING=1` disables only the Stop learning
+path. See `docs/business-context-provider.md`.
+
 Registration is required only for official AI4sale-hosted services: hosted adapted catalog, community catalog/submissions, adapted collection updates, registered local enhancement scripts, hosted archives, team sync, dashboard/cloud/business/enterprise features, and future hosted services.
 
 The hosted clients must not upload:

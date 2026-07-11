@@ -66,6 +66,9 @@ from .search_core import (
     vector_sidecar_status,
 )
 from .daemon_endpoint import RUNTIME_CONTRACT_VERSION, warm_daemon_urls
+from .business_context import provider_configured, retrieve_business_context
+
+SUGGEST_CONTEXT_TIMEOUT_SECONDS = 1.5
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -542,6 +545,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--high-threshold", type=float, default=HIGH_CONFIDENCE_THRESHOLD, help="Tier-3 minimum top score (only with --card).")
     parser.add_argument("--high-margin", type=float, default=HIGH_CONFIDENCE_MARGIN, help="Tier-3 minimum top/runner-up score ratio (only with --card).")
     parser.add_argument("--card-max-chars", type=int, default=CARD_MAX_CHARS, help="Hard cap for the skill card text (only with --card).")
+    parser.add_argument(
+        "--no-business-context",
+        action="store_true",
+        help="Skip the optional owner-configured local business-context provider for this call.",
+    )
     return parser
 
 
@@ -562,6 +570,8 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     root = Path(args.root).expanduser()
     started = time.perf_counter()
+    business_context = None
+    business_context_enabled = bool(args.card and not args.no_business_context and provider_configured())
     try:
         # Card mode needs the runner-up score for the margin check even when
         # the caller only displays one candidate.
@@ -569,9 +579,16 @@ def main(argv: list[str] | None = None) -> int:
         hits, reason_code = probe(root, args.query, limit=fetch_limit, floor=args.floor, collection=args.collection)
     except Exception:
         # The probe must never block the task it is trying to help.
+        if business_context_enabled:
+            business_context = retrieve_business_context(
+                args.query,
+                agent="unlimited-skills-suggest",
+                timeout_seconds=SUGGEST_CONTEXT_TIMEOUT_SECONDS,
+            )
         elapsed_ms = (time.perf_counter() - started) * 1000.0
         if args.json:
-            _print_json(args.query, [], REASON_ERROR, elapsed_ms)
+            extra = {"business_context": business_context} if business_context is not None else None
+            _print_json(args.query, [], REASON_ERROR, elapsed_ms, extra)
         # An errored probe is still a router invocation: count it so the meter
         # reflects every call, not just the successful ones.
         try:
@@ -632,6 +649,16 @@ def main(argv: list[str] | None = None) -> int:
     )
     if non_english and not (top_exact_identity or semantic_rescue_succeeded):
         needs_english = True
+
+    # The company-memory contract requires skill selection first. Retrieval is
+    # still part of the same card-mode router call, but it cannot influence the
+    # skill rank or become an instruction source.
+    if business_context_enabled:
+        business_context = retrieve_business_context(
+            args.query,
+            agent="unlimited-skills-suggest",
+            timeout_seconds=SUGGEST_CONTEXT_TIMEOUT_SECONDS,
+        )
 
     hint_hits = recall_safe_hint_hits(hits, args.query)
     card_hits = card_safe_hits(
@@ -697,6 +724,10 @@ def main(argv: list[str] | None = None) -> int:
         }
         if card_obj is not None:
             extra["skill_card"] = card_obj
+    if business_context is not None:
+        # This additive field exists only for explicitly configured consumers;
+        # unconfigured JSON output remains byte-compatible.
+        extra["business_context"] = business_context
     display_hits = hits[: args.limit]
     json_hits = hint_hits[: args.limit] if args.card else display_hits
     # Explicit plain-text suggest remains the score-floor CLI contract. The
@@ -713,6 +744,8 @@ def main(argv: list[str] | None = None) -> int:
     else:
         for hit in text_hits:
             print(format_suggestion(hit))
+        if business_context and business_context.get("context"):
+            print(str(business_context["context"]))
 
     try:
         # Local-only learning log (never printed, never uploaded).

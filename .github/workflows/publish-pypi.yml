@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Package version to publish. For this release this must be 0.6.6."
+        description: "Package version to publish. For this release this must be 0.6.7."
         required: true
         type: string
       expected_sha:
@@ -12,7 +12,7 @@ on:
         required: true
         type: string
       confirm_pypi_publish:
-        description: "Type: publish unlimited-skills 0.6.6 to PyPI"
+        description: "Type: publish unlimited-skills 0.6.7 to PyPI"
         required: true
         type: string
 
@@ -30,7 +30,7 @@ env:
 
 jobs:
   publish:
-    name: Publish and verify unlimited-skills 0.6.6
+    name: Publish and verify unlimited-skills 0.6.7
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -44,8 +44,8 @@ jobs:
 
       - name: Validate manual release inputs
         run: |
-          test "${{ github.event.inputs.version }}" = "0.6.6"
-          test "${{ github.event.inputs.confirm_pypi_publish }}" = "publish unlimited-skills 0.6.6 to PyPI"
+          test "${{ github.event.inputs.version }}" = "0.6.7"
+          test "${{ github.event.inputs.confirm_pypi_publish }}" = "publish unlimited-skills 0.6.7 to PyPI"
           test "$(git rev-parse HEAD)" = "${{ github.event.inputs.expected_sha }}"
           git fetch origin main
           test "$(git rev-parse origin/main)" = "${{ github.event.inputs.expected_sha }}"
@@ -61,7 +61,7 @@ jobs:
           python -m pip install --upgrade pip
           python -m pip install build twine pytest
 
-      - name: Run v0.6.6 product precision verifier
+      - name: Run inherited v0.6.6 product precision verifier
         run: |
           python scripts/verify-v066-product-polish.py \
             --expected-sha "${{ github.event.inputs.expected_sha }}" \
@@ -74,7 +74,7 @@ jobs:
         run: python -m twine check dist/*
 
       - name: Test the exact release artifacts and PyPI upgrade path
-        run: python scripts/run-v065-alpha-package-smoke.py --expected-version 0.6.6 --dist-dir dist --json
+        run: python scripts/run-v065-alpha-package-smoke.py --expected-version 0.6.7 --dist-dir dist --json
 
       - name: Prove live legacy-daemon rollover on upgrade
         run: python scripts/verify-v066-daemon-rollover.py --wheel dist/*.whl --json
@@ -86,17 +86,17 @@ jobs:
           skip-existing: true
 
       - name: Verify exact public PyPI wheel
-        run: python scripts/verify-pypi-publication.py --version 0.6.6 --dist-dir dist --wait-seconds 300 --json
+        run: python scripts/verify-pypi-publication.py --version 0.6.7 --dist-dir dist --wait-seconds 600 --json
 
       - name: Create matching GitHub release after PyPI verification
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view "v0.6.6" >/dev/null 2>&1; then
-            test "$(gh release view "v0.6.6" --json targetCommitish --jq .targetCommitish)" = "${{ github.event.inputs.expected_sha }}"
+          if gh release view "v0.6.7" >/dev/null 2>&1; then
+            test "$(gh release view "v0.6.7" --json targetCommitish --jq .targetCommitish)" = "${{ github.event.inputs.expected_sha }}"
           else
-            gh release create "v0.6.6" \
+            gh release create "v0.6.7" \
               --target "${{ github.event.inputs.expected_sha }}" \
-              --title "v0.6.6 — Product Precision & Release Truth" \
-              --notes-file docs/releases/v0.6.6-plan.md
+              --title "v0.6.7 — Business Context & Safe Learning" \
+              --notes-file docs/releases/v0.6.7-plan.md
           fi

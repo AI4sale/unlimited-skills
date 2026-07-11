@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Verify the v0.6.6 product-precision release surface before publication."""
+"""Verify inherited v0.6.6 precision plus the current v0.6.7 release surface."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.6.6"
+VERSION = "0.6.7"
 FOCUSED_TESTS = (
     "tests/test_suggest.py",
     "tests/test_suggest_language_routing.py",
@@ -21,6 +21,8 @@ FOCUSED_TESTS = (
     "tests/test_doctor.py",
     "tests/test_pypi_trusted_publishing_workflow.py",
     "tests/test_v066_release.py",
+    "tests/test_business_context.py",
+    "tests/test_claude_code_install.py",
 )
 
 
@@ -67,7 +69,7 @@ def verify_static_surface() -> dict[str, Any]:
     }
     require(set(versions.values()) == {VERSION}, f"release versions must all be {VERSION}: {versions}")
 
-    plan = read(ROOT / "docs" / "releases" / "v0.6.6-plan.md")
+    precision_plan = read(ROOT / "docs" / "releases" / "v0.6.6-plan.md")
     for marker in (
         "raw retrieval, recall-safe hints, and card/body eligibility are separate surfaces",
         "Body-only overlap never qualifies",
@@ -75,7 +77,15 @@ def verify_static_surface() -> dict[str, Any]:
         "tag/release creation follows verified public-wheel smoke",
         "No deletion, replacement, or migration of `library/local`",
     ):
-        require(marker in plan, f"release plan missing invariant: {marker}")
+        require(marker in precision_plan, f"precision plan missing invariant: {marker}")
+    release_plan = read(ROOT / "docs" / "releases" / "v0.6.7-plan.md")
+    for marker in (
+        "public core never names or depends on a private knowledge system",
+        'authority="retrieval_only"',
+        "provider decides whether a completion is durable knowledge",
+        "No deletion, replacement, or migration of `library/local`",
+    ):
+        require(marker in release_plan, f"v0.6.7 plan missing invariant: {marker}")
 
     hook = read(ROOT / "plugin" / "hooks" / "user_prompt_submit.py")
     session_hook = read(ROOT / "plugin" / "hooks" / "session_start.py")
@@ -95,16 +105,17 @@ def verify_static_surface() -> dict[str, Any]:
     require("HASHED_PORT_BASE" in endpoint and "sha256" in endpoint, "multi-root daemon endpoint derivation missing")
 
     workflow = read(ROOT / ".github" / "workflows" / "publish-pypi.yml")
-    require('test "${{ github.event.inputs.version }}" = "0.6.6"' in workflow, "workflow version guard mismatch")
+    require(f'test "${{{{ github.event.inputs.version }}}}" = "{VERSION}"' in workflow, "workflow version guard mismatch")
     require(
-        'test "${{ github.event.inputs.confirm_pypi_publish }}" = "publish unlimited-skills 0.6.6 to PyPI"'
+        f'test "${{{{ github.event.inputs.confirm_pypi_publish }}}}" = "publish unlimited-skills {VERSION} to PyPI"'
         in workflow,
         "workflow confirmation guard mismatch",
     )
-    require("python scripts/verify-pypi-publication.py --version 0.6.6" in workflow, "workflow must verify the public PyPI wheel")
+    require(f"python scripts/verify-pypi-publication.py --version {VERSION}" in workflow, "workflow must verify the public PyPI wheel")
     require("verify-v066-daemon-rollover.py --wheel dist/*.whl" in workflow, "workflow must prove live legacy-daemon rollover")
-    require('gh release create "v0.6.6"' in workflow, "workflow must create the release after PyPI verification")
-    require(workflow.index("verify-pypi-publication.py") < workflow.index('gh release create "v0.6.6"'), "GitHub release must follow PyPI verification")
+    release_command = f'gh release create "v{VERSION}"'
+    require(release_command in workflow, "workflow must create the release after PyPI verification")
+    require(workflow.index("verify-pypi-publication.py") < workflow.index(release_command), "GitHub release must follow PyPI verification")
     require("--prerelease" not in workflow, "PEP 440 final package must not create a prerelease tag")
     require("PYPI_TOKEN" not in workflow and "TWINE_PASSWORD" not in workflow, "workflow must remain OIDC-only")
     return {"versions": versions, "plan": "present", "workflow": "pypi_first"}
@@ -143,7 +154,7 @@ def main(argv: list[str] | None = None) -> int:
 
     result = {
         "schema_version": 1,
-        "release": "v0.6.6",
+        "release": f"v{VERSION}",
         "version": VERSION,
         "status": "passed",
         "static": static,
@@ -153,7 +164,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))
     else:
-        print("v0.6.6 product-polish verification passed")
+        print(f"v{VERSION} inherited precision and release verification passed")
     return 0
 
 

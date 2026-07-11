@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Prove live 0.6.4.post1 daemon rollover to the exact 0.6.6 wheel."""
+"""Prove live 0.6.4.post1 daemon rollover to the exact selected wheel."""
 from __future__ import annotations
 
 import argparse
@@ -85,6 +85,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     wheel = Path(args.wheel).resolve()
+    if not wheel.is_file():
+        raise SystemExit(f"wheel not found: {wheel}")
+    try:
+        expected_version = wheel.name.split("-", 2)[1].replace("_", "-")
+    except IndexError as exc:
+        raise SystemExit(f"cannot parse wheel version: {wheel.name}") from exc
     work = Path(tempfile.mkdtemp(prefix="uls-v066-rollover-"))
     legacy: subprocess.Popen | None = None
     current_pid: int | None = None
@@ -129,6 +135,10 @@ def main(argv: list[str] | None = None) -> int:
             fallback,
             lambda row: row.get("ok") is True and row.get("runtime_contract_version") == 2,
         )
+        if current_health.get("package_version") != expected_version:
+            raise RuntimeError(
+                f"current daemon package version {current_health.get('package_version')} does not match wheel {expected_version}"
+            )
         state_files = sorted((home / "runtime").glob("*.json"), key=lambda path: path.stat().st_mtime, reverse=True)
         state = json.loads(state_files[0].read_text(encoding="utf-8"))
         current_pid = int(state.get("pid") or 0) or None
@@ -154,12 +164,13 @@ def main(argv: list[str] | None = None) -> int:
             "fallback_endpoint": fallback,
             "current_runtime_contract_version": current_health.get("runtime_contract_version"),
             "current_package_version": current_health.get("package_version"),
+            "expected_package_version": expected_version,
             "root_matches": Path(current_health.get("root", "")).resolve() == library.resolve(),
             "pid_recorded": current_pid is not None,
             "delivery_candidates": delivered,
             "vector_status": suggest.get("vector_status"),
         }
-        print(json.dumps(result, ensure_ascii=False, indent=2) if args.json else "v0.6.6 daemon rollover: PASS")
+        print(json.dumps(result, ensure_ascii=False, indent=2) if args.json else f"v{expected_version} daemon rollover: PASS")
         return 0
     finally:
         stop_pid(current_pid)

@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import sys
+import time
 from pathlib import Path
 from types import ModuleType
 
@@ -17,6 +18,7 @@ HOOKS_DIR = REPO_ROOT / "plugin" / "hooks"
 SESSION_START = HOOKS_DIR / "session_start.py"
 USER_PROMPT_SUBMIT = HOOKS_DIR / "user_prompt_submit.py"
 PRE_COMPACT = HOOKS_DIR / "pre_compact.py"
+STOP = HOOKS_DIR / "stop.py"
 
 
 def make_library(tmp_path: Path) -> Path:
@@ -53,6 +55,9 @@ def hook_env(tmp_path: Path, **overrides: str) -> dict[str, str]:
     # Generic hook tests exercise retrieval, not process lifecycle. Autoserve
     # has focused unit tests below so the suite never starts real daemons.
     env["UNLIMITED_SKILLS_NO_AUTOSERVE"] = "1"
+    # Generic hook tests must not inherit the developer machine's opt-in local
+    # business provider. Focused provider tests explicitly enable their fixture.
+    env["UNLIMITED_SKILLS_NO_BUSINESS_CONTEXT"] = "1"
     env.pop("UNLIMITED_SKILLS_CLI", None)
     env.update(overrides)
     return env
@@ -256,6 +261,99 @@ def test_user_prompt_submit_is_silent_below_floor(tmp_path: Path) -> None:
     result = run_hook(USER_PROMPT_SUBMIT, payload, env)
     assert result.returncode == 0
     assert result.stdout.strip() == ""
+
+
+def test_user_prompt_submit_injects_business_context_without_a_skill(tmp_path: Path) -> None:
+    library = make_library(tmp_path)
+    provider = tmp_path / "provider.py"
+    provider.write_text(
+        """
+import json, sys
+r = json.load(sys.stdin)
+print(json.dumps({
+    "schema_version": "unlimited-skills.business-context-response.v1",
+    "request_id": r["request_id"],
+    "status": "ok",
+    "items": [{
+        "id": "offer",
+        "title": "Approved offer",
+        "excerpt": "Use the source-backed business offer.",
+        "source_ref": "business/offers/approved.md",
+        "sensitivity": "internal"
+    }]
+}))
+""",
+        encoding="utf-8",
+    )
+    config = tmp_path / "provider.json"
+    config.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "provider": {
+                    "id": "fixture-memory",
+                    "command": [sys.executable, str(provider)],
+                    "capabilities": ["retrieve"],
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    env = hook_env(
+        tmp_path,
+        UNLIMITED_SKILLS_CLI=repo_cli_override(library),
+        UNLIMITED_SKILLS_CONTEXT_PROVIDER_CONFIG=str(config),
+        UNLIMITED_SKILLS_NO_BUSINESS_CONTEXT="",
+    )
+    payload = json.dumps({"prompt": "tell me the capital of Australia for this customer please"})
+    result = run_hook(USER_PROMPT_SUBMIT, payload, env)
+    assert result.returncode == 0, result.stderr
+    context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert "Approved offer" in context
+    assert "business/offers/approved.md" in context
+    assert "Relevant skill" not in context
+
+
+def test_user_prompt_submit_no_context_never_claims_verified_absence(tmp_path: Path) -> None:
+    library = make_library(tmp_path)
+    provider = tmp_path / "provider.py"
+    provider.write_text(
+        "import json, sys\n"
+        "r=json.load(sys.stdin)\n"
+        "print(json.dumps({'schema_version':'unlimited-skills.business-context-response.v1',"
+        "'request_id':r['request_id'],'status':'no_context','items':[],"
+        "'diagnostics':{'daemon_state':'warming'}}))\n",
+        encoding="utf-8",
+    )
+    config = tmp_path / "provider.json"
+    config.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "provider": {
+                    "id": "fixture-memory",
+                    "command": [sys.executable, str(provider)],
+                    "capabilities": ["retrieve"],
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    env = hook_env(
+        tmp_path,
+        UNLIMITED_SKILLS_CLI=repo_cli_override(library),
+        UNLIMITED_SKILLS_CONTEXT_PROVIDER_CONFIG=str(config),
+        UNLIMITED_SKILLS_NO_BUSINESS_CONTEXT="",
+    )
+    result = run_hook(
+        USER_PROMPT_SUBMIT,
+        json.dumps({"prompt": "tell me whether this company policy exists for the current decision"}),
+        env,
+    )
+    assert result.returncode == 0
+    context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert "not a verified not-found result" in context
+    assert 'authority="retrieval_only"' in context
 
 
 def test_user_prompt_submit_never_hints_below_floor_diagnostics(tmp_path: Path) -> None:
@@ -479,6 +577,7 @@ def test_session_start_primary_daemon_ensure_runs_before_contract(
     calls: list[list[str]] = []
     command = ["unlimited-skills"]
     monkeypatch.setattr(module, "resolve_cli_command", lambda: command)
+    monkeypatch.setattr(module, "_ensure_lexical_index_manifest", lambda value: "ready")
     monkeypatch.setattr(module, "_ensure_warm_daemon", lambda value: calls.append(value) or "starting")
     monkeypatch.setattr(module, "_maybe_autoheal", lambda value: None)
     monkeypatch.setattr(module, "_record_money_event", lambda *args: None)
@@ -486,6 +585,54 @@ def test_session_start_primary_daemon_ensure_runs_before_contract(
     assert module.main() == 0
     assert calls == [command]
     assert "Unlimited Skills Library" in capsys.readouterr().out
+
+
+def test_session_start_primes_configured_business_provider_detached(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = load_session_start_module()
+    config = tmp_path / "provider.json"
+    config.write_text("{}", encoding="utf-8")
+    monkeypatch.setenv("UNLIMITED_SKILLS_CONTEXT_PROVIDER_CONFIG", str(config))
+    monkeypatch.delenv("UNLIMITED_SKILLS_NO_BUSINESS_CONTEXT", raising=False)
+    calls = []
+    monkeypatch.setattr(module.subprocess, "Popen", lambda command, **kwargs: calls.append((command, kwargs)))
+    state = module._prime_business_context(["python", "-m", "unlimited_skills"])
+    assert state == "starting"
+    assert calls[0][0][-3:] == ["context", "doctor", "--json"]
+    assert calls[0][1]["stdout"] is subprocess.DEVNULL
+
+
+def test_hook_starts_detached_reindex_for_legacy_index_without_manifest(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    module = load_user_prompt_module()
+    root = tmp_path / "library"
+    root.mkdir()
+    (root / module.LEXICAL_INDEX_NAME).write_text("[]", encoding="utf-8")
+    command = ["unlimited-skills", "--root", str(root)]
+    launched: list[tuple[list[str], dict]] = []
+    monkeypatch.setattr(module, "_claim_daemon_launch", lambda *_args: (True, None))
+    monkeypatch.setattr(module.subprocess, "Popen", lambda args, **kwargs: launched.append((args, kwargs)))
+
+    assert module._ensure_lexical_index_manifest(command) == "started"
+    assert launched[0][0] == [*command, "reindex", "--no-native-sync"]
+    assert launched[0][1]["stdin"] is subprocess.DEVNULL
+    assert launched[0][1].get("start_new_session") is True or launched[0][1].get("creationflags", 0) != 0
+
+
+def test_hook_does_not_reindex_when_manifest_exists(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    module = load_user_prompt_module()
+    root = tmp_path / "library"
+    root.mkdir()
+    (root / module.LEXICAL_INDEX_NAME).write_text("[]", encoding="utf-8")
+    (root / module.LEXICAL_INDEX_MANIFEST_NAME).write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(
+        module.subprocess,
+        "Popen",
+        lambda *_args, **_kwargs: pytest.fail("a manifest-backed index must not trigger repair"),
+    )
+    assert module._ensure_lexical_index_manifest(["unlimited-skills", "--root", str(root)]) == "ready"
 
 
 def test_autoserve_launch_claim_is_cross_process_idempotent(
@@ -559,7 +706,12 @@ def test_user_prompt_submit_instructs_english_requery_on_non_english_timeout(tmp
 
 @pytest.mark.parametrize(
     "event,script",
-    [("SessionStart", "session_start.py"), ("UserPromptSubmit", "user_prompt_submit.py"), ("PreCompact", "pre_compact.py")],
+    [
+        ("SessionStart", "session_start.py"),
+        ("UserPromptSubmit", "user_prompt_submit.py"),
+        ("PreCompact", "pre_compact.py"),
+        ("Stop", "stop.py"),
+    ],
 )
 def test_hook_manifest_registers_both_hooks(event: str, script: str) -> None:
     payload = json.loads((HOOKS_DIR / "hooks.json").read_text(encoding="utf-8"))
@@ -568,6 +720,89 @@ def test_hook_manifest_registers_both_hooks(event: str, script: str) -> None:
     assert script in command
     assert "${CLAUDE_PLUGIN_ROOT}" in command
     assert (HOOKS_DIR / script).is_file()
+
+
+def test_stop_hook_submits_one_bounded_completion_candidate(tmp_path: Path) -> None:
+    captured = tmp_path / "candidate.json"
+    stub = tmp_path / "stub_cli.py"
+    stub.write_text(
+        "import pathlib, sys\n"
+        f"pathlib.Path({str(captured)!r}).write_text(sys.stdin.read(), encoding='utf-8')\n",
+        encoding="utf-8",
+    )
+    env = hook_env(
+        tmp_path,
+        UNLIMITED_SKILLS_CLI=f'"{Path(sys.executable).as_posix()}" "{stub.as_posix()}"',
+        UNLIMITED_SKILLS_CONTEXT_PROVIDER_CONFIG=str(stub),
+        UNLIMITED_SKILLS_NO_BUSINESS_CONTEXT="",
+    )
+    final = (
+        "Completed release 0.6.7 in PR #240 at commit 6c8a2b7. "
+        "Verification finished with 120 tests passed and the public artifact checked."
+    )
+    payload = {
+        "hook_event_name": "Stop",
+        "session_id": "raw-session-must-not-leak",
+        "prompt_id": "raw-prompt-must-not-leak",
+        "cwd": str(tmp_path),
+        "stop_hook_active": False,
+        "last_assistant_message": final,
+        "background_tasks": [],
+        "session_crons": [],
+    }
+    result = run_hook(STOP, json.dumps(payload), env)
+    assert result.returncode == 0
+    deadline = time.monotonic() + 5
+    while not captured.exists() and time.monotonic() < deadline:
+        time.sleep(0.05)
+    assert captured.is_file()
+    candidate = json.loads(captured.read_text(encoding="utf-8"))
+    assert candidate["summary"] == final
+    assert candidate["completion_key"]
+    assert "raw-session-must-not-leak" not in json.dumps(candidate)
+    assert "#240" in candidate["evidence_refs"]
+    assert "6c8a2b7" in candidate["evidence_refs"]
+    assert "120 tests passed" in candidate["evidence_refs"]
+
+
+@pytest.mark.parametrize(
+    "overrides",
+    [
+        {"stop_hook_active": True},
+        {"background_tasks": [{"id": "still-running"}]},
+        {"session_crons": [{"id": "wake-later"}]},
+        {"last_assistant_message": "Short status"},
+        {"last_assistant_message": "Completed and published the requested change in PR #240, but no independent checker result is available yet."},
+    ],
+)
+def test_stop_hook_does_not_submit_non_final_or_recursive_turns(tmp_path: Path, overrides: dict) -> None:
+    captured = tmp_path / "candidate.json"
+    stub = tmp_path / "stub_cli.py"
+    stub.write_text(
+        "import pathlib, sys\n"
+        f"pathlib.Path({str(captured)!r}).write_text(sys.stdin.read(), encoding='utf-8')\n",
+        encoding="utf-8",
+    )
+    env = hook_env(
+        tmp_path,
+        UNLIMITED_SKILLS_CLI=f'"{Path(sys.executable).as_posix()}" "{stub.as_posix()}"',
+        UNLIMITED_SKILLS_CONTEXT_PROVIDER_CONFIG=str(stub),
+        UNLIMITED_SKILLS_NO_BUSINESS_CONTEXT="",
+    )
+    payload = {
+        "hook_event_name": "Stop",
+        "session_id": "session",
+        "prompt_id": "prompt",
+        "cwd": str(tmp_path),
+        "stop_hook_active": False,
+        "last_assistant_message": "Completed a sufficiently long task outcome with concrete verification evidence and a durable result.",
+        "background_tasks": [],
+        "session_crons": [],
+        **overrides,
+    }
+    result = run_hook(STOP, json.dumps(payload), env)
+    assert result.returncode == 0
+    assert not captured.exists()
 
 
 # --- SessionStart auto-heal of a stale launcher / inject -----------------------

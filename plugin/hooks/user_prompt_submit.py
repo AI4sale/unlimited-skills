@@ -66,6 +66,7 @@ MAX_PROMPT_CHARS = 300
 HOOK_CANDIDATE_LIMIT = 5
 HOOK_CANDIDATE_DISPLAY_LIMIT = 5
 DEFAULT_TIMEOUT_SECONDS = 3.0
+MAX_ADDITIONAL_CONTEXT_CHARS = 12000
 KILL_SWITCH_ENV = "UNLIMITED_SKILLS_NO_INJECT"
 NO_AUTOSERVE_ENV = "UNLIMITED_SKILLS_NO_AUTOSERVE"
 WARM_DAEMON_URL_ENV = "UNLIMITED_SKILLS_WARM_DAEMON_URL"
@@ -78,6 +79,8 @@ FALLBACK_PORT_BASE = 20000
 FALLBACK_PORT_SPAN = 1000
 RUNTIME_CONTRACT_VERSION = 2
 AUTOSERVE_RETRY_SECONDS = 30.0
+LEXICAL_INDEX_NAME = ".unlimited-skills-index.json"
+LEXICAL_INDEX_MANIFEST_NAME = ".unlimited-skills-index.meta.json"
 
 # Tier-3 fallback (non-English rescue). The lexical engine scores a non-English
 # prompt at zero, and a cold multilingual embedding load can exceed the probe
@@ -358,6 +361,44 @@ def _ensure_warm_daemon(command: list[str]) -> str:
         return "failed"
 
 
+def _ensure_lexical_index_manifest(command: list[str]) -> str:
+    """Repair a pre-manifest lexical index once, detached from the hook."""
+
+    root = _expected_library_root(command)
+    if root is None:
+        return "unknown_root"
+    index = root / LEXICAL_INDEX_NAME
+    manifest = root / LEXICAL_INDEX_MANIFEST_NAME
+    if not index.is_file() or manifest.is_file():
+        return "ready"
+    claimed, marker = _claim_daemon_launch(command, "lexical-index-manifest-repair")
+    if not claimed:
+        return "repairing"
+    try:
+        kwargs: dict = {
+            "stdin": subprocess.DEVNULL,
+            "stdout": subprocess.DEVNULL,
+            "stderr": subprocess.DEVNULL,
+        }
+        if os.name == "nt":
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = 0
+            kwargs["startupinfo"] = startupinfo
+            kwargs["creationflags"] = subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP
+        else:
+            kwargs["start_new_session"] = True
+        subprocess.Popen([*command, "reindex", "--no-native-sync"], **kwargs)
+        return "started"
+    except Exception:
+        if marker is not None:
+            try:
+                marker.unlink(missing_ok=True)
+            except OSError:
+                pass
+        return "failed"
+
+
 def _non_english_instruction(daemon_state: str) -> str:
     """Return truthful, path-free daemon guidance for the current prompt."""
 
@@ -420,6 +461,33 @@ def _emit(context: str) -> None:
     )
 
 
+def _business_context_text(payload: dict) -> str:
+    report = payload.get("business_context")
+    if not isinstance(report, dict):
+        return ""
+    return str(report.get("context") or "").strip()
+
+
+def _join_context(*parts: str) -> str:
+    """Join independent context channels under one hook-level token budget."""
+
+    result = ""
+    suffix = "\n(context truncated by the Unlimited Skills hook budget)"
+    for raw in parts:
+        if not isinstance(raw, str) or not raw.strip():
+            continue
+        separator = "\n\n" if result else ""
+        part = raw.strip()
+        if len(result) + len(separator) + len(part) <= MAX_ADDITIONAL_CONTEXT_CHARS:
+            result += separator + part
+            continue
+        remaining = MAX_ADDITIONAL_CONTEXT_CHARS - len(result) - len(separator)
+        if remaining > len(suffix):
+            result += separator + part[: remaining - len(suffix)].rstrip() + suffix
+        break
+    return result
+
+
 def _candidate_hint(candidates: list[dict]) -> str:
     items: list[tuple[str, str]] = []
     for candidate in candidates[:HOOK_CANDIDATE_DISPLAY_LIMIT]:
@@ -457,6 +525,7 @@ def main() -> int:
         command = resolve_cli_command()
         if not command:
             return 0
+        _ensure_lexical_index_manifest(command)
         daemon_state = _ensure_warm_daemon(command)
         inject_cards = not _kill_switch_active()
         cmd = [*command, "suggest", prompt[:MAX_PROMPT_CHARS], "--json", "--limit", str(HOOK_CANDIDATE_LIMIT)]
@@ -483,9 +552,14 @@ def main() -> int:
         payload_out = json.loads(proc.stdout)
         if not isinstance(payload_out, dict):
             return 0
+        business_context = _business_context_text(payload_out)
         if payload_out.get("delivery_tier") == 1:
+            rescue = ""
             if non_english or payload_out.get("needs_english_query") is True:
-                _emit(_non_english_instruction(daemon_state))
+                rescue = _non_english_instruction(daemon_state)
+            combined = _join_context(business_context, rescue)
+            if combined:
+                _emit(combined)
             return 0
         # Tier 3: the CLI decided high confidence + margin and built the card.
         card = payload_out.get("skill_card")
@@ -495,7 +569,7 @@ def main() -> int:
             if card_text and card_name:
                 candidates = payload_out.get("delivery_candidates")
                 hint = _candidate_hint(candidates) if isinstance(candidates, list) and len(candidates) > 1 else ""
-                _emit(card_text + ("\n\n" + hint if hint else ""))
+                _emit(_join_context(card_text, hint, business_context))
                 return 0
         # Tier 2: one-line, NAME-only hint. Tier 1: silence.
         candidates = payload_out.get("delivery_candidates")
@@ -505,13 +579,17 @@ def main() -> int:
             # we ALWAYS kick the model to run the search manually rather than fail
             # silently — regardless of whether the CLI set needs_english_query.
             # English no-match stays silent (no false nag).
+            rescue = ""
             if non_english or payload_out.get("needs_english_query") is True:
-                _emit(_non_english_instruction(daemon_state))
+                rescue = _non_english_instruction(daemon_state)
+            combined = _join_context(business_context, rescue)
+            if combined:
+                _emit(combined)
             return 0
         hint = _candidate_hint(candidates)
         if hint:
             rescue = _non_english_instruction(daemon_state) if payload_out.get("needs_english_query") is True else ""
-            _emit(hint + ("\n\n" + rescue if rescue else ""))
+            _emit(_join_context(hint, rescue, business_context))
             return 0
         top = candidates[0]
         if not isinstance(top, dict):
@@ -522,10 +600,11 @@ def main() -> int:
         source = str(top.get("source") or "").strip()
         origin = f" (from the {source} pack)" if source else ""
         # NAME-only reference: no local paths, no prompt text echo.
-        _emit(
+        skill_hint = (
             f"Relevant skill available: {name}{origin} — "
             f"view it with: unlimited-skills view {name}"
         )
+        _emit(_join_context(skill_hint, business_context))
         return 0
     except Exception:
         # Fail open, fail silent: the probe must never break a prompt.

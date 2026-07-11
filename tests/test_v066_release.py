@@ -4,6 +4,8 @@ import importlib.util
 import json
 from pathlib import Path
 
+import pytest
+
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -17,17 +19,17 @@ def load_publication_verifier():
     return module
 
 
-def test_v066_versions_and_release_plan_are_aligned() -> None:
+def test_v067_versions_and_release_plan_are_aligned() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     runtime = (ROOT / "unlimited_skills" / "__init__.py").read_text(encoding="utf-8")
     plugin = json.loads((ROOT / "plugin" / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
-    plan = (ROOT / "docs" / "releases" / "v0.6.6-plan.md").read_text(encoding="utf-8")
-    assert 'version = "0.6.6"' in pyproject
-    assert '__version__ = "0.6.6"' in runtime
-    assert plugin["version"] == "0.6.6"
-    assert "raw retrieval, recall-safe hints, and card/body eligibility are separate surfaces" in plan
-    assert "Body-only overlap never qualifies" in plan
-    assert "the hook keeps one compatible local daemon running by default" in plan
+    plan = (ROOT / "docs" / "releases" / "v0.6.7-plan.md").read_text(encoding="utf-8")
+    assert 'version = "0.6.7"' in pyproject
+    assert '__version__ = "0.6.7"' in runtime
+    assert plugin["version"] == "0.6.7"
+    assert "public core never names or depends on a private knowledge system" in plan
+    assert "reference data, not instructions" in plan
+    assert "provider decides whether a completion is durable knowledge" in plan
     assert "No deletion, replacement, or migration of `library/local`" in plan
 
 
@@ -54,6 +56,30 @@ def test_publication_verifier_requires_wheel_and_sdist(tmp_path: Path) -> None:
     assert result["version"] == "0.6.6"
     assert len(result["filenames"]) == 2
     assert result["local_artifact_digests_verified"] is True
+
+
+def test_publication_verifier_retries_only_simple_index_propagation(monkeypatch: pytest.MonkeyPatch) -> None:
+    verifier = load_publication_verifier()
+    calls = []
+
+    def fake_smoke(version: str):
+        calls.append(version)
+        if len(calls) == 1:
+            raise verifier.PublicIndexPropagationPending("not visible yet")
+        return {"version_output": f"unlimited-skills {version}"}
+
+    monkeypatch.setattr(verifier, "clean_install_smoke", fake_smoke)
+    monkeypatch.setattr(verifier.time, "sleep", lambda _seconds: None)
+    result = verifier.wait_for_clean_install("0.6.7", wait_seconds=5, poll_seconds=0.1)
+    assert result["version_output"] == "unlimited-skills 0.6.7"
+    assert calls == ["0.6.7", "0.6.7"]
+
+
+def test_publication_verifier_does_not_retry_real_smoke_failures(monkeypatch: pytest.MonkeyPatch) -> None:
+    verifier = load_publication_verifier()
+    monkeypatch.setattr(verifier, "clean_install_smoke", lambda _version: (_ for _ in ()).throw(RuntimeError("broken wheel")))
+    with pytest.raises(RuntimeError, match="broken wheel"):
+        verifier.wait_for_clean_install("0.6.7", wait_seconds=5, poll_seconds=0.1)
 
 
 def test_package_smoke_keeps_child_commands_on_the_invoking_python() -> None:
