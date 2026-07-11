@@ -43,12 +43,13 @@ The hosted clients must not upload:
 
 ## Hosted Archives And Enhancers
 
-Current `v0.4.8-alpha` behavior:
+Current `v0.6.x` behavior:
 
 - hosted remote manifests must include valid signed manifest envelopes;
 - signatures verify hosted manifest authenticity;
 - trusted manifest keys are scoped, can be pinned to registry origins, and can be revoked locally;
-- hosted collection archives are SHA256-verified before extraction;
+- SHA256 verification is still enforced for hosted collection archives before
+  extraction;
 - zip extraction rejects path traversal;
 - local enhancement scripts are SHA256-verified before execution;
 - hosted features require a registered installation token and signed device proof;
