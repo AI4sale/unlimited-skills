@@ -1,11 +1,11 @@
 # Install
 
-Status: `v0.6.6` release train.
+Status: `v0.6.7` release train.
 
 Install the free local core from PyPI:
 
 ```bash
-python -m pip install --upgrade "unlimited-skills>=0.6.6"
+python -m pip install --upgrade "unlimited-skills>=0.6.7"
 unlimited-skills --version
 unlimited-skills quickstart
 ```
@@ -14,7 +14,7 @@ The base install provides the fast lexical router. Install the local
 multilingual vector sidecar and warm daemon dependencies with:
 
 ```bash
-python -m pip install --upgrade "unlimited-skills[all]>=0.6.6"
+python -m pip install --upgrade "unlimited-skills[all]>=0.6.7"
 unlimited-skills vector-reindex
 ```
 

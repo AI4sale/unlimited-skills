@@ -1,6 +1,6 @@
 # Support Matrix
 
-`v0.6.6` is a pre-1.0 release. Install the user package from PyPI; use a
+`v0.6.7` is a pre-1.0 release. Install the user package from PyPI; use a
 GitHub clone when you need repository-only installer scripts or contributor
 assets.
 
@@ -23,8 +23,8 @@ assets.
 The supported user distribution path is:
 
 ```bash
-python -m pip install --upgrade "unlimited-skills>=0.6.6"
+python -m pip install --upgrade "unlimited-skills>=0.6.7"
 ```
 
-Use `unlimited-skills[all]>=0.6.6` for multilingual vector retrieval and the
+Use `unlimited-skills[all]>=0.6.7` for multilingual vector retrieval and the
 warm daemon. Agent installer scripts remain available from the GitHub checkout.

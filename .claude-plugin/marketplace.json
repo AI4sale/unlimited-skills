@@ -10,8 +10,8 @@
     {
       "name": "unlimited-skills",
       "source": "./plugin",
-      "description": "Router skill plus SessionStart hook that wire the Unlimited Skills library (local skill retrieval: lexical, vector, and hybrid search) into every Claude Code session. Requires the unlimited-skills CLI: pip install unlimited-skills.",
-      "version": "0.6.6",
+      "description": "Local capability router with skill retrieval and optional owner-governed, cited business context for Claude Code. Requires the unlimited-skills CLI: pip install unlimited-skills.",
+      "version": "0.6.7",
       "author": {
         "name": "AI4sale"
       },

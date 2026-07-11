@@ -13,10 +13,25 @@ Since v0.3.12 Unlimited Skills ships as a native Claude Code plugin. The plugin 
 
   Set `UNLIMITED_SKILLS_NO_INJECT=1` to switch tier 3 off (cards downgrade to the one-line hint). `SessionStart` starts the loopback warm daemon proactively and `UserPromptSubmit` acts as its crash-recovery watchdog. Both validate `/health`, launch a hidden detached process only when the root/model-specific local port is absent, and share a cross-process launch lock plus local PID/status evidence. They never replace an occupied/incompatible port or start a remote endpoint. `UNLIMITED_SKILLS_NO_AUTOSERVE=1` is the emergency override for restricted runtimes. The hooks are fail-open by design: any error, timeout, missing CLI, unreadable SKILL.md, or below-floor result degrades a tier or produces no output, always exit 0. Tier thresholds and the calibration evidence live in [adoption/skill-effectiveness-standard.md](adoption/skill-effectiveness-standard.md). This converts skill invocation from model initiative into deterministic ambient retrieval.
 
+  When an owner has configured a local business-context provider, the same
+  probe can append bounded source-backed references even when no skill clears
+  the floor. The combined hook payload has one 12,000-character cap and labels
+  provider excerpts as reference data, not instructions.
+- **PreCompact hook** (`plugin/hooks/pre_compact.py`): records the local
+  compaction event used by the Money Saved accounting path without blocking
+  compaction.
+- **Stop hook** (`plugin/hooks/stop.py`): reserved for a future structured
+  completion-receipt protocol. In 0.6.7 it never submits assistant prose or
+  triggers a durable write.
+
+At SessionStart, a configured provider also receives one detached `doctor`
+probe. This lets a private local recall daemon begin warming before the first
+company-specific prompt; retrieval does not run `doctor` before every query.
+
 ## Install
 
 The plugin needs the CLI plus `[all]` runtime for guaranteed native-language
-retrieval. Install `unlimited-skills[all]>=0.6.6` first (see
+retrieval. Install `unlimited-skills[all]>=0.6.7` first (see
 [install.md](install.md)). Then, inside Claude Code:
 
 ```text
@@ -31,19 +46,21 @@ Restart the session after installing so the SessionStart hook runs.
 | Aspect | Plugin (recommended for Claude Code) | `scripts/install-claude-code.*` |
 | --- | --- | --- |
 | Router presence in context | Guaranteed via SessionStart hook | Global + project `CLAUDE.md` block AND registered hooks (see below) |
-| Per-prompt skill hints | UserPromptSubmit hook | Same hooks registered into `~/.claude/settings.json` |
+| Per-prompt skill + optional references | UserPromptSubmit hook | Same hooks registered into `~/.claude/settings.json` |
+| Completion learning | Disabled pending structured acceptance receipts | Same reserved Stop hook registration |
 | Updates | `/plugin` marketplace updates | Re-run installer |
 | Machine-specific launchers | Not needed (CLI resolved via fallback chain) | Generated launcher scripts |
 | Skill migration into library | Not performed | Migrates `~/.claude/skills` and project skills |
 
-Since the A0 invocation fixes, the legacy installer also registers the same two hooks directly in `~/.claude/settings.json` (copying the hook scripts next to the router under `~/.claude/skills/unlimited-skills/hooks/`). Pass `--no-hooks` to skip that. The registration is idempotent (re-installs replace the unlimited-skills entries, never duplicate them) and fail-soft: an unparseable `settings.json` is left untouched and reported in the install messages. Both install paths therefore converge on deterministic injection; if both are active the duplicate context is equivalent and harmless, but you can remove one source.
+Since the A0 invocation fixes, the legacy installer also registers the same hook set directly in `~/.claude/settings.json` (copying the hook scripts next to the router under `~/.claude/skills/unlimited-skills/hooks/`). Pass `--no-hooks` to skip that. The registration is idempotent (re-installs replace the unlimited-skills entries, never duplicate them) and fail-soft: an unparseable `settings.json` is left untouched and reported in the install messages. Both install paths therefore converge on deterministic injection; if both are active the duplicate context is equivalent and harmless, but you can remove one source.
 
 Note for library users: native sync (v0.3.10+) discovers skills bundled with installed Claude Code plugins. The Unlimited Skills plugin itself exposes only the router skill, which native sync deliberately excludes, so installing this plugin does not re-import anything into the library.
 
 ## Privacy
 
-The hooks and router are local-only. The prompt text is passed only to the
-local CLI and, when compatible, its loopback warm daemon; nothing is uploaded
+The hooks and router are local-only. The prompt text is passed to the local CLI,
+its compatible loopback warm daemon, and—only when explicitly configured—the
+owner's local business-context command; nothing is uploaded by the public core
 and the hook never calls a remote endpoint. The injected context never echoes
 the prompt and never carries local filesystem paths; the tier-3 skill card is
 the one sanctioned channel that carries a skill body (the matched skill's own

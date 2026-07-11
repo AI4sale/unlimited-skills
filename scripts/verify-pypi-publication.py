@@ -21,6 +21,10 @@ PYPI_JSON = "https://pypi.org/pypi/{package}/{version}/json"
 PYPI_SIMPLE = "https://pypi.org/simple"
 
 
+class PublicIndexPropagationPending(RuntimeError):
+    """The JSON API is live but the pip simple index has not caught up yet."""
+
+
 def require(condition: bool, message: str) -> None:
     if not condition:
         raise RuntimeError(message)
@@ -137,7 +141,7 @@ def clean_install_smoke(version: str) -> dict[str, Any]:
         venv.EnvBuilder(with_pip=True).create(env_dir)
         py = venv_python(env_dir)
         cli = venv_cli(env_dir)
-        checked(
+        install = run(
             [
                 str(py),
                 "-m",
@@ -149,9 +153,15 @@ def clean_install_smoke(version: str) -> dict[str, Any]:
                 f"{PACKAGE}=={version}",
             ],
             cwd=work,
-            label="install public wheel",
             timeout=900,
         )
+        if install.returncode != 0:
+            combined = f"{install.stdout}\n{install.stderr}"
+            if "No matching distribution found" in combined or "Could not find a version that satisfies" in combined:
+                raise PublicIndexPropagationPending(combined[-1600:])
+            raise RuntimeError(
+                f"install public wheel failed ({install.returncode})\nSTDOUT:\n{install.stdout[-1600:]}\nSTDERR:\n{install.stderr[-1600:]}"
+            )
 
         version_output = checked([str(cli), "--version"], cwd=work, label="published CLI version").stdout.strip()
         require(version_output == f"unlimited-skills {version}", "installed CLI version mismatch")
@@ -203,6 +213,26 @@ def clean_install_smoke(version: str) -> dict[str, Any]:
         }
 
 
+def wait_for_clean_install(
+    version: str,
+    *,
+    wait_seconds: float = 300.0,
+    poll_seconds: float = 5.0,
+) -> dict[str, Any]:
+    """Retry only the known PyPI JSON/simple-index propagation race."""
+
+    deadline = time.monotonic() + max(wait_seconds, 0.0)
+    while True:
+        try:
+            return clean_install_smoke(version)
+        except PublicIndexPropagationPending:
+            if time.monotonic() >= deadline:
+                raise RuntimeError(
+                    f"PyPI simple index did not expose {PACKAGE}=={version} within {wait_seconds:g}s"
+                )
+            time.sleep(max(min(poll_seconds, deadline - time.monotonic()), 0.1))
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", required=True)
@@ -226,7 +256,13 @@ def main(argv: list[str] | None = None) -> int:
             args.version,
             dist_dir=Path(args.dist_dir).resolve() if args.dist_dir else None,
         ),
-        "clean_install": None if args.skip_clean_install else clean_install_smoke(args.version),
+        "clean_install": None
+        if args.skip_clean_install
+        else wait_for_clean_install(
+            args.version,
+            wait_seconds=args.wait_seconds,
+            poll_seconds=args.poll_seconds,
+        ),
     }
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2, sort_keys=True))

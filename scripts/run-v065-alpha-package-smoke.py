@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -16,6 +17,13 @@ from typing import Any
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_VERSION = "0.6.5"
 PYPI_UPGRADE_BASELINE = "0.6.4.post1"
+
+
+def _version_at_least(value: str, floor: tuple[int, int, int]) -> bool:
+    match = re.match(r"^(\d+)\.(\d+)\.(\d+)", value)
+    return bool(match and tuple(int(part) for part in match.groups()) >= floor)
+
+
 LINKEDIN_QUERY = "напиши пост для линкедин"
 
 
@@ -218,7 +226,7 @@ def verify_report(report: dict[str, Any], expected_version: str = DEFAULT_VERSIO
     if installed.get("suggest_reason_code") != "match_found":
         errors.append("LinkedIn suggest smoke must find candidates")
     rescue_only = (
-        expected_version == "0.6.6"
+        _version_at_least(expected_version, (0, 6, 6))
         and installed.get("suggest_needs_english_query") is True
         and installed.get("suggest_delivery_mode") == "rescue"
         and installed.get("suggest_delivery_tier") == 1
@@ -238,7 +246,7 @@ def verify_report(report: dict[str, Any], expected_version: str = DEFAULT_VERSIO
         errors.append("source learning-loop smoke must pass")
     if source.get("learning_loop_manual_no_query") is not True:
         errors.append("learning-loop smoke must prove manual search -> view -> use without --query")
-    if expected_version == "0.6.6":
+    if _version_at_least(expected_version, (0, 6, 6)):
         upgrade = report.get("upgrade_from_public_pypi") or {}
         if upgrade.get("baseline_version_output") != f"unlimited-skills {PYPI_UPGRADE_BASELINE}":
             errors.append("upgrade smoke must start from the official PyPI baseline")

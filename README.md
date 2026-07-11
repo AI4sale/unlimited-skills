@@ -12,7 +12,7 @@
 
 **Unlimited Skills** is a local-first capability router for coding agents. It keeps skills, procedures, and tool schemas out of standing context, searches by task intent, and loads only the one capability needed for the current job.
 
-**v0.6.3-alpha / public alpha of a local-first tool.** The MIT core runs offline today. There is nothing for sale on this page; gated alpha surfaces are described under [Enterprise & trust layer](#enterprise--trust-layer).
+**v0.6.7 / pre-1.0 local-first core.** The MIT core runs offline today. An opt-in local provider can add owner-governed, cited business context without putting company code or data in this public repository. Automatic completion write-back remains disabled until structured acceptance receipts ship in a later release. There is nothing for sale on this page; gated surfaces are described under [Enterprise & trust layer](#enterprise--trust-layer).
 
 [Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
 
@@ -92,6 +92,8 @@ Working now in the local core:
 - local vector sidecar index with ChromaDB compatibility storage;
 - hybrid lexical + vector search;
 - privacy-safe `suggest` probe and deterministic skill effectiveness gate for A0/v0.5 adoption readiness;
+- opt-in local business-context provider: one `suggest --card` response can carry both the selected skill and bounded reference data;
+- a reserved, no-write Stop hook: model-written prose is never promoted to memory;
 - full skill view by name;
 - Codex router skill;
 - agent-driven one-skill adaptation workflow;
@@ -108,6 +110,14 @@ Working now in the local core:
 - redacted support diagnostic bundle for support handoff without skill bodies, prompts, search queries, env values, tokens, private keys, or local paths by default.
 
 Registered, hosted, signed-distribution, and governance surfaces — and the integration gates that verify them — are listed under [Enterprise & trust layer](#enterprise--trust-layer).
+
+### Skill plus business context
+
+Unlimited Skills can call an owner-configured local adapter during card-mode `suggest`.
+The public core validates and caps the response, labels it as reference data
+rather than instructions, and fails open if the adapter is unavailable. It does
+not ship a company database or upload prompts. See
+[docs/business-context-provider.md](docs/business-context-provider.md).
 
 ## Install
 
