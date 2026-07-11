@@ -76,6 +76,9 @@ jobs:
       - name: Test the exact release artifacts and PyPI upgrade path
         run: python scripts/run-v065-alpha-package-smoke.py --expected-version 0.6.6 --dist-dir dist --json
 
+      - name: Prove live legacy-daemon rollover on upgrade
+        run: python scripts/verify-v066-daemon-rollover.py --wheel dist/*.whl --json
+
       - name: Publish to PyPI with Trusted Publishing
         uses: pypa/gh-action-pypi-publish@release/v1
         with:

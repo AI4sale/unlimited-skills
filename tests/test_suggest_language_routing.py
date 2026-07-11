@@ -243,7 +243,7 @@ def test_vector_probe_rejects_an_incompatible_local_daemon(
 
     monkeypatch.setattr(suggest_mod.urllib.request, "urlopen", fake_urlopen)
     assert suggest_mod.vector_probe(root, "semantic query", 3) == []
-    assert len(calls) == 1  # health only: the prompt never reaches /search
+    assert len(calls) == 2  # preferred + versioned fallback health; never /search
 
 
 def test_vector_probe_rejects_sidecar_payload_that_disagrees_with_manifest(

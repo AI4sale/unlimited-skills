@@ -10,6 +10,9 @@ DEFAULT_EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-
 DEFAULT_DAEMON_URL = "http://127.0.0.1:8765"
 HASHED_PORT_BASE = 18000
 HASHED_PORT_SPAN = 1000
+FALLBACK_PORT_BASE = 20000
+FALLBACK_PORT_SPAN = 1000
+RUNTIME_CONTRACT_VERSION = 2
 
 
 def warm_daemon_url(root: Path, model: str = DEFAULT_EMBED_MODEL) -> str:
@@ -39,3 +42,20 @@ def warm_daemon_url(root: Path, model: str = DEFAULT_EMBED_MODEL) -> str:
     identity = f"{os.path.normcase(str(resolved))}\0{model}".encode("utf-8")
     port = HASHED_PORT_BASE + (int(hashlib.sha256(identity).hexdigest()[:8], 16) % HASHED_PORT_SPAN)
     return f"http://127.0.0.1:{port}"
+
+
+def warm_daemon_urls(root: Path, model: str = DEFAULT_EMBED_MODEL) -> list[str]:
+    """Preferred plus safe versioned rollover endpoint for stale listeners."""
+
+    preferred = warm_daemon_url(root, model)
+    if not preferred:
+        return []
+    resolved = root.expanduser().resolve()
+    identity = (
+        f"{os.path.normcase(str(resolved))}\0{model}\0runtime-contract-{RUNTIME_CONTRACT_VERSION}"
+    ).encode("utf-8")
+    port = FALLBACK_PORT_BASE + (
+        int(hashlib.sha256(identity).hexdigest()[:8], 16) % FALLBACK_PORT_SPAN
+    )
+    fallback = f"http://127.0.0.1:{port}"
+    return [preferred] if fallback == preferred else [preferred, fallback]

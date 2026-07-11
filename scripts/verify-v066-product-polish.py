@@ -102,6 +102,7 @@ def verify_static_surface() -> dict[str, Any]:
         "workflow confirmation guard mismatch",
     )
     require("python scripts/verify-pypi-publication.py --version 0.6.6" in workflow, "workflow must verify the public PyPI wheel")
+    require("verify-v066-daemon-rollover.py --wheel dist/*.whl" in workflow, "workflow must prove live legacy-daemon rollover")
     require('gh release create "v0.6.6"' in workflow, "workflow must create the release after PyPI verification")
     require(workflow.index("verify-pypi-publication.py") < workflow.index('gh release create "v0.6.6"'), "GitHub release must follow PyPI verification")
     require("--prerelease" not in workflow, "PEP 440 final package must not create a prerelease tag")

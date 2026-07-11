@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 from dataclasses import asdict
 from pathlib import Path
@@ -9,15 +10,24 @@ from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
 from . import __version__
+from .daemon_endpoint import RUNTIME_CONTRACT_VERSION
 from .cli import (
     DEFAULT_EMBED_MODEL,
     DEFAULT_ROOT,
+    atomic_write_text,
+    embed_texts,
     find_by_name,
     hybrid_search,
     lexical_search,
+    library_generation_hash,
+    load_records,
     log_event,
     read_text,
     vector_search,
+    vector_sidecar_path,
+    vector_meta_path,
+    vector_sidecar_status,
+    vector_text,
 )
 
 
@@ -50,6 +60,39 @@ class UseRequest(BaseModel):
 @app.on_event("startup")
 def warm_start() -> None:
     try:
+        status = vector_sidecar_status(ROOT, vector_sidecar_path(ROOT), MODEL)
+        if not status.get("ready"):
+            records = load_records(ROOT)
+            sidecar_records: list[dict] = []
+            dimensions = 0
+            for start in range(0, len(records), 32):
+                batch = records[start : start + 32]
+                embeddings = embed_texts([vector_text(hit, body) for hit, body in batch], MODEL)
+                for (hit, _body), embedding in zip(batch, embeddings):
+                    dimensions = len(embedding)
+                    sidecar_records.append(
+                        {
+                            "name": hit.name,
+                            "description": hit.description,
+                            "collection": hit.collection,
+                            "path": hit.path,
+                            "embedding": [round(float(value), 8) for value in embedding],
+                        }
+                    )
+            generation = library_generation_hash(ROOT)
+            common = {
+                "schema_version": 2,
+                "model": MODEL,
+                "count": len(sidecar_records),
+                "embedding_dimensions": dimensions,
+                "library_generation_hash": generation,
+                "complete": True,
+            }
+            atomic_write_text(
+                vector_sidecar_path(ROOT),
+                json.dumps({**common, "records": sidecar_records}, ensure_ascii=False),
+            )
+            atomic_write_text(vector_meta_path(ROOT), json.dumps(common, ensure_ascii=False))
         vector_search(ROOT, "__warm_start__", 1, MODEL)
     except Exception:
         pass
@@ -61,6 +104,8 @@ def health() -> dict:
         "ok": True,
         "service": "unlimited-skills",
         "protocol": "warm-search-v1",
+        "runtime_contract_version": RUNTIME_CONTRACT_VERSION,
+        "package_version": __version__,
         "root": str(ROOT),
         "model": MODEL,
     }

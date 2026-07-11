@@ -74,6 +74,9 @@ WARM_DAEMON_PROTOCOL = "warm-search-v1"
 DEFAULT_EMBED_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
 HASHED_PORT_BASE = 18000
 HASHED_PORT_SPAN = 1000
+FALLBACK_PORT_BASE = 20000
+FALLBACK_PORT_SPAN = 1000
+RUNTIME_CONTRACT_VERSION = 2
 AUTOSERVE_RETRY_SECONDS = 30.0
 
 # Tier-3 fallback (non-English rescue). The lexical engine scores a non-English
@@ -143,6 +146,22 @@ def _daemon_endpoint(command: list[str]) -> tuple[str, int, str] | None:
     return host, port, raw_url
 
 
+def _daemon_endpoints(command: list[str]) -> list[tuple[str, int, str]]:
+    preferred = _daemon_endpoint(command)
+    if preferred is None:
+        return []
+    root = _expected_library_root(command)
+    if root is None:
+        return [preferred]
+    model = os.environ.get("UNLIMITED_SKILLS_EMBED_MODEL", DEFAULT_EMBED_MODEL)
+    identity = f"{os.path.normcase(str(root))}\0{model}\0runtime-contract-{RUNTIME_CONTRACT_VERSION}"
+    fallback_port = FALLBACK_PORT_BASE + (
+        int(hashlib.sha256(identity.encode("utf-8")).hexdigest()[:8], 16) % FALLBACK_PORT_SPAN
+    )
+    fallback = ("127.0.0.1", fallback_port, f"http://127.0.0.1:{fallback_port}")
+    return [preferred] if preferred[2] == fallback[2] else [preferred, fallback]
+
+
 def _expected_library_root(command: list[str]) -> Path | None:
     for index, part in enumerate(command):
         if part == "--root" and index + 1 < len(command):
@@ -181,6 +200,7 @@ def _daemon_identity_matches(payload: dict, command: list[str]) -> bool:
         payload.get("ok") is True
         and payload.get("service") == "unlimited-skills"
         and payload.get("protocol") == WARM_DAEMON_PROTOCOL
+        and payload.get("runtime_contract_version") == RUNTIME_CONTRACT_VERSION
         and str(payload.get("model") or "")
         == os.environ.get("UNLIMITED_SKILLS_EMBED_MODEL", DEFAULT_EMBED_MODEL)
     ):
@@ -195,8 +215,8 @@ def _daemon_identity_matches(payload: dict, command: list[str]) -> bool:
     return actual_root == expected_root
 
 
-def _daemon_state(command: list[str]) -> str:
-    endpoint = _daemon_endpoint(command)
+def _daemon_state(command: list[str], endpoint: tuple[str, int, str] | None = None) -> str:
+    endpoint = endpoint or _daemon_endpoint(command)
     if endpoint is None:
         return "external_or_invalid"
     host, port, raw_url = endpoint
@@ -281,21 +301,29 @@ def _ensure_warm_daemon(command: list[str]) -> str:
 
     if _autoserve_disabled():
         return "disabled"
-    state = _daemon_state(command)
-    if state == "ready":
-        endpoint = _daemon_endpoint(command)
-        if endpoint is not None:
+    endpoints = _daemon_endpoints(command)
+    if not endpoints:
+        return "external_or_invalid"
+    saw_incompatible = False
+    for endpoint in endpoints:
+        state = _daemon_state(command, endpoint)
+        if state == "ready":
             try:
                 _launch_marker(command, endpoint[2]).unlink(missing_ok=True)
             except OSError:
                 pass
             _write_daemon_state(command, endpoint[2], "running")
-        return state
-    if state != "missing":
-        return state
-    endpoint = _daemon_endpoint(command)
-    if endpoint is None:
-        return "external_or_invalid"
+            return state
+        if state == "incompatible":
+            saw_incompatible = True
+            continue
+        if state == "external_or_invalid":
+            return state
+        if state != "missing":
+            continue
+        break
+    else:
+        return "incompatible" if saw_incompatible else "failed"
     host, port, raw_url = endpoint
     claimed, marker = _claim_daemon_launch(command, raw_url)
     if not claimed:

@@ -65,7 +65,7 @@ from .search_core import (
     split_frontmatter,
     vector_sidecar_status,
 )
-from .daemon_endpoint import warm_daemon_url
+from .daemon_endpoint import RUNTIME_CONTRACT_VERSION, warm_daemon_urls
 
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -214,6 +214,50 @@ def sidecar_installed(root: Path) -> bool:
         return False
 
 
+def _warm_daemon_vector_probe(
+    root: Path, query: str, limit: int, collection: str | None = None
+) -> list[SkillHit]:
+    for daemon_url in warm_daemon_urls(root, DEFAULT_EMBED_MODEL):
+        try:
+            with urllib.request.urlopen(f"{daemon_url}/health", timeout=WARM_DAEMON_TIMEOUT_SECONDS) as response:
+                health = json.loads(response.read().decode("utf-8"))
+            daemon_root_raw = str(health.get("root") or "").strip()
+            if not (
+                health.get("ok") is True
+                and health.get("service") == "unlimited-skills"
+                and health.get("protocol") == WARM_DAEMON_PROTOCOL
+                and health.get("runtime_contract_version") == RUNTIME_CONTRACT_VERSION
+                and daemon_root_raw
+                and Path(daemon_root_raw).expanduser().resolve() == root.expanduser().resolve()
+                and str(health.get("model") or "") == DEFAULT_EMBED_MODEL
+            ):
+                continue
+            request = urllib.request.Request(
+                f"{daemon_url}/search",
+                data=json.dumps(
+                    {"query": query, "mode": "vector", "limit": max(limit, 1), "collection": collection, "require_vector": True}
+                ).encode("utf-8"),
+                headers={"Content-Type": "application/json"},
+                method="POST",
+            )
+            with urllib.request.urlopen(request, timeout=WARM_DAEMON_SEARCH_TIMEOUT_SECONDS) as response:
+                result = json.loads(response.read().decode("utf-8"))
+            return [
+                SkillHit(
+                    name=str(row.get("name") or ""),
+                    description=str(row.get("description") or ""),
+                    collection=str(row.get("collection") or ""),
+                    path=str(row.get("path") or ""),
+                    score=float(row.get("score") or 0.0),
+                )
+                for row in result.get("hits") or []
+                if isinstance(row, dict) and float(row.get("score") or 0.0) >= VECTOR_FLOOR
+            ]
+        except Exception:
+            continue
+    return []
+
+
 def vector_probe(root: Path, query: str, limit: int, collection: str | None = None) -> list[SkillHit]:
     """Best-effort vector rescue without cold-loading an embedding model.
 
@@ -224,6 +268,8 @@ def vector_probe(root: Path, query: str, limit: int, collection: str | None = No
     query = (query or "").strip()[:MAX_QUERY_CHARS]
     if not query:
         return []
+    if not sidecar_installed(root):
+        return _warm_daemon_vector_probe(root, query, limit, collection)
     try:
         payload = json.loads(read_text(root / VECTOR_SIDECAR_NAME))
         records = payload.get("records") if isinstance(payload, dict) else None
@@ -270,43 +316,7 @@ def vector_probe(root: Path, query: str, limit: int, collection: str | None = No
                     )
             return sorted(scored, key=lambda hit: (-hit.score, hit.collection, hit.name))[: max(limit, 1)]
 
-        daemon_url = warm_daemon_url(root, DEFAULT_EMBED_MODEL)
-        if not daemon_url:
-            return []
-        with urllib.request.urlopen(f"{daemon_url}/health", timeout=WARM_DAEMON_TIMEOUT_SECONDS) as response:
-            health = json.loads(response.read().decode("utf-8"))
-        daemon_root_raw = str(health.get("root") or "").strip()
-        if not (
-            health.get("ok") is True
-            and health.get("service") == "unlimited-skills"
-            and health.get("protocol") == WARM_DAEMON_PROTOCOL
-            and daemon_root_raw
-        ):
-            return []
-        daemon_root = Path(daemon_root_raw).expanduser().resolve()
-        if daemon_root != root.expanduser().resolve() or str(health.get("model") or "") != DEFAULT_EMBED_MODEL:
-            return []
-        request = urllib.request.Request(
-            f"{daemon_url}/search",
-            data=json.dumps(
-                {"query": query, "mode": "vector", "limit": max(limit, 1), "collection": collection, "require_vector": True}
-            ).encode("utf-8"),
-            headers={"Content-Type": "application/json"},
-            method="POST",
-        )
-        with urllib.request.urlopen(request, timeout=WARM_DAEMON_SEARCH_TIMEOUT_SECONDS) as response:
-            result = json.loads(response.read().decode("utf-8"))
-        hits = [
-            SkillHit(
-                name=str(row.get("name") or ""),
-                description=str(row.get("description") or ""),
-                collection=str(row.get("collection") or ""),
-                path=str(row.get("path") or ""),
-                score=float(row.get("score") or 0.0),
-            )
-            for row in result.get("hits") or []
-            if isinstance(row, dict)
-        ]
+        hits = _warm_daemon_vector_probe(root, query, limit, collection)
     except Exception:
         return []
     return [hit for hit in hits if getattr(hit, "score", 0.0) >= VECTOR_FLOOR]
@@ -597,7 +607,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.card and not lexical_decisive:
         if _vector_fallback_disabled():
             vector_status = "disabled"
-        elif sidecar_installed(root):
+        elif non_english or sidecar_installed(root):
             vector_status = "compatible_no_in_budget_hits"
             vector_hits = vector_probe(root, args.query, fetch_limit, args.collection)
             if vector_hits:
@@ -611,8 +621,8 @@ def main(argv: list[str] | None = None) -> int:
                 reason_code = REASON_MATCH_FOUND if hits and hits[0].score >= args.floor else REASON_LOW_CONFIDENCE
                 retrieval_path = "hybrid" if any("lexical" in candidate_debug_payload(hit).get("candidate_sources", []) for hit in hits) else "vector"
                 vector_status = "available_used"
-        elif non_english and reason_code != REASON_MATCH_FOUND:
-            vector_status = "unavailable_missing_sidecar"
+            elif non_english and reason_code != REASON_MATCH_FOUND:
+                vector_status = "unavailable_or_warming"
 
     # Mixed-language prompts need an explicit recovery action unless exact
     # identity or a strong semantic hint actually resolved them.

@@ -30,6 +30,15 @@
 - Split the 250 ms daemon health budget from the 1.5 s already-warm semantic
   request budget. The old shared timeout discarded valid non-English results
   even after health was ready.
+- Add runtime-contract/package identity to daemon health and a deterministic
+  versioned fallback endpoint. A live pre-0.6.6 daemon or old-model daemon can
+  keep its occupied port while SessionStart safely rolls the current runtime
+  forward without killing an unowned PID.
+- Gate publication on a live official `0.6.4.post1[all]` upgrade with the legacy
+  daemon kept running, current fallback recovery, and Russian semantic delivery.
+- Let the already-running compatible daemon answer semantic rescue even when a
+  legacy/missing sidecar manifest cannot serve an in-process cached query. The
+  sidecar is an optimization, not a prerequisite for the mandatory warm runtime.
 - Make `quickstart` add missing bundled skills even inside partially populated
   collections, migrate legacy indexes in place without deleting or replacing
   existing/local skills, apply the production floor to its proof search, and

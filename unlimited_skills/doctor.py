@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from . import __version__
-from .daemon_endpoint import warm_daemon_url
+from .daemon_endpoint import RUNTIME_CONTRACT_VERSION, warm_daemon_urls
 from .private_pack_diagnostics import private_pack_local_summary
 from .registration import DEFAULT_SERVICE_URL, RegistrationError, load_registration, unlimited_skills_home
 from .search_core import (
@@ -116,8 +116,8 @@ def _runtime_deps_summary() -> dict[str, Any]:
 
 
 def _warm_daemon_summary(root: Path) -> dict[str, Any]:
-    daemon_url = warm_daemon_url(root, DEFAULT_EMBED_MODEL)
-    if not daemon_url:
+    daemon_urls = warm_daemon_urls(root, DEFAULT_EMBED_MODEL)
+    if not daemon_urls:
         return {
             "endpoint": "refused_non_local_or_invalid",
             "required_for_native_semantic_retrieval": True,
@@ -129,39 +129,50 @@ def _warm_daemon_summary(root: Path) -> dict[str, Any]:
             "model_matches": False,
             "ready": False,
         }
-    try:
-        with urllib.request.urlopen(f"{daemon_url}/health", timeout=0.2) as response:
-            payload = json.loads(response.read().decode("utf-8"))
-        root_value = str(payload.get("root") or "").strip()
-        protocol_matches = (
-            payload.get("service") == "unlimited-skills"
-            and payload.get("protocol") == WARM_DAEMON_PROTOCOL
-        )
-        root_matches = bool(root_value) and Path(root_value).expanduser().resolve() == root.expanduser().resolve()
-        model_matches = str(payload.get("model") or "") == DEFAULT_EMBED_MODEL
-        return {
-            "endpoint": daemon_url,
+    observed_running = False
+    for daemon_url in daemon_urls:
+        try:
+            with urllib.request.urlopen(f"{daemon_url}/health", timeout=0.2) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            observed_running = observed_running or bool(payload.get("ok"))
+            root_value = str(payload.get("root") or "").strip()
+            protocol_matches = (
+                payload.get("service") == "unlimited-skills"
+                and payload.get("protocol") == WARM_DAEMON_PROTOCOL
+                and payload.get("runtime_contract_version") == RUNTIME_CONTRACT_VERSION
+            )
+            root_matches = bool(root_value) and Path(root_value).expanduser().resolve() == root.expanduser().resolve()
+            model_matches = str(payload.get("model") or "") == DEFAULT_EMBED_MODEL
+            ready = bool(payload.get("ok")) and protocol_matches and root_matches and model_matches
+            if ready:
+                return {
+                    "endpoint": daemon_url,
+                    "candidate_endpoints": daemon_urls,
+                    "required_for_native_semantic_retrieval": True,
+                    "auto_start_enabled": os.environ.get("UNLIMITED_SKILLS_NO_AUTOSERVE", "").strip().lower() not in {"1", "true", "yes", "on"},
+                    "running": True,
+                    "warming": False,
+                    "protocol_matches": True,
+                    "runtime_contract_matches": True,
+                    "root_matches": True,
+                    "model_matches": True,
+                    "ready": True,
+                }
+        except Exception:
+            continue
+    return {
+            "endpoint": daemon_urls[0],
+            "candidate_endpoints": daemon_urls,
             "required_for_native_semantic_retrieval": True,
             "auto_start_enabled": os.environ.get("UNLIMITED_SKILLS_NO_AUTOSERVE", "").strip().lower() not in {"1", "true", "yes", "on"},
-            "running": bool(payload.get("ok")),
-            "warming": False,
-            "protocol_matches": protocol_matches,
-            "root_matches": root_matches,
-            "model_matches": model_matches,
-            "ready": bool(payload.get("ok")) and protocol_matches and root_matches and model_matches,
-        }
-    except Exception:
-        return {
-            "endpoint": daemon_url,
-            "required_for_native_semantic_retrieval": True,
-            "auto_start_enabled": os.environ.get("UNLIMITED_SKILLS_NO_AUTOSERVE", "").strip().lower() not in {"1", "true", "yes", "on"},
-            "running": False,
+            "running": observed_running,
             "warming": False,
             "protocol_matches": False,
+            "runtime_contract_matches": False,
             "root_matches": False,
             "model_matches": False,
             "ready": False,
-        }
+    }
 
 
 # Concrete contents of the [all] extra (mirror pyproject.toml [project.optional-dependencies]).

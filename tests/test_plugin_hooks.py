@@ -336,8 +336,9 @@ def test_user_prompt_submit_autoserve_starts_missing_local_daemon(monkeypatch: p
     module = load_user_prompt_module()
     calls: list[tuple[list[str], dict]] = []
     monkeypatch.delenv("UNLIMITED_SKILLS_NO_AUTOSERVE", raising=False)
-    monkeypatch.setattr(module, "_daemon_state", lambda command: "missing")
-    monkeypatch.setattr(module, "_daemon_endpoint", lambda command: ("127.0.0.1", 8765, "http://127.0.0.1:8765"))
+    endpoint = ("127.0.0.1", 8765, "http://127.0.0.1:8765")
+    monkeypatch.setattr(module, "_daemon_state", lambda command, endpoint=None: "missing")
+    monkeypatch.setattr(module, "_daemon_endpoints", lambda command: [endpoint])
     monkeypatch.setattr(module, "_claim_daemon_launch", lambda command, url: (True, None))
     monkeypatch.setattr(module, "_write_daemon_state", lambda *args, **kwargs: None)
     monkeypatch.setattr(module.subprocess, "Popen", lambda command, **kwargs: calls.append((command, kwargs)))
@@ -361,7 +362,8 @@ def test_user_prompt_submit_autoserve_never_replaces_running_or_refused_endpoint
 ) -> None:
     module = load_user_prompt_module()
     monkeypatch.delenv("UNLIMITED_SKILLS_NO_AUTOSERVE", raising=False)
-    monkeypatch.setattr(module, "_daemon_state", lambda command: state)
+    monkeypatch.setattr(module, "_daemon_state", lambda command, endpoint=None: state)
+    monkeypatch.setattr(module, "_daemon_endpoints", lambda command: [("127.0.0.1", 8765, "http://127.0.0.1:8765")])
     monkeypatch.setattr(
         module.subprocess,
         "Popen",
@@ -374,8 +376,9 @@ def test_user_prompt_submit_autoserve_never_replaces_running_or_refused_endpoint
 def test_user_prompt_submit_autoserve_cooldown_prevents_spawn_storm(monkeypatch: pytest.MonkeyPatch) -> None:
     module = load_user_prompt_module()
     monkeypatch.delenv("UNLIMITED_SKILLS_NO_AUTOSERVE", raising=False)
-    monkeypatch.setattr(module, "_daemon_state", lambda command: "missing")
-    monkeypatch.setattr(module, "_daemon_endpoint", lambda command: ("127.0.0.1", 8765, "http://127.0.0.1:8765"))
+    endpoint = ("127.0.0.1", 8765, "http://127.0.0.1:8765")
+    monkeypatch.setattr(module, "_daemon_state", lambda command, endpoint=None: "missing")
+    monkeypatch.setattr(module, "_daemon_endpoints", lambda command: [endpoint])
     monkeypatch.setattr(module, "_claim_daemon_launch", lambda command, url: (False, Path("launch")))
     monkeypatch.setattr(
         module.subprocess,
@@ -389,7 +392,7 @@ def test_user_prompt_submit_autoserve_cooldown_prevents_spawn_storm(monkeypatch:
 def test_user_prompt_submit_autoserve_emergency_override(monkeypatch: pytest.MonkeyPatch) -> None:
     module = load_user_prompt_module()
     monkeypatch.setenv("UNLIMITED_SKILLS_NO_AUTOSERVE", "1")
-    monkeypatch.setattr(module, "_daemon_state", lambda command: pytest.fail("disabled autoserve must not probe the port"))
+    monkeypatch.setattr(module, "_daemon_state", lambda *args: pytest.fail("disabled autoserve must not probe the port"))
     monkeypatch.setattr(module.subprocess, "Popen", lambda *args, **kwargs: pytest.fail("autoserve is disabled"))
 
     assert module._ensure_warm_daemon(["unlimited-skills"]) == "disabled"
@@ -423,6 +426,7 @@ def test_user_prompt_submit_autoserve_requires_matching_root_and_model(
         "ok": True,
         "service": "unlimited-skills",
         "protocol": "warm-search-v1",
+        "runtime_contract_version": module.RUNTIME_CONTRACT_VERSION,
         "root": str(root),
         "model": module.DEFAULT_EMBED_MODEL,
     }
@@ -430,6 +434,28 @@ def test_user_prompt_submit_autoserve_requires_matching_root_and_model(
     assert module._daemon_identity_matches(payload, command) is True
     assert module._daemon_identity_matches({**payload, "root": str(tmp_path / "other")}, command) is False
     assert module._daemon_identity_matches({**payload, "model": "wrong-model"}, command) is False
+
+
+def test_autoserve_rolls_over_from_legacy_listener_to_versioned_fallback(
+    monkeypatch: pytest.MonkeyPatch
+) -> None:
+    module = load_user_prompt_module()
+    preferred = ("127.0.0.1", 8765, "http://127.0.0.1:8765")
+    fallback = ("127.0.0.1", 20555, "http://127.0.0.1:20555")
+    launched: list[list[str]] = []
+    monkeypatch.delenv("UNLIMITED_SKILLS_NO_AUTOSERVE", raising=False)
+    monkeypatch.setattr(module, "_daemon_endpoints", lambda command: [preferred, fallback])
+    monkeypatch.setattr(
+        module,
+        "_daemon_state",
+        lambda command, endpoint=None: "incompatible" if endpoint == preferred else "missing",
+    )
+    monkeypatch.setattr(module, "_claim_daemon_launch", lambda command, url: (True, None))
+    monkeypatch.setattr(module, "_write_daemon_state", lambda *args, **kwargs: None)
+    monkeypatch.setattr(module.subprocess, "Popen", lambda command, **kwargs: launched.append(command))
+
+    assert module._ensure_warm_daemon(["unlimited-skills"]) == "starting"
+    assert launched[0][-6:] == ["--host", "127.0.0.1", "--port", "20555", "--log-level", "warning"]
 
 
 def test_user_prompt_submit_derives_distinct_ports_for_distinct_roots(tmp_path: Path) -> None:
