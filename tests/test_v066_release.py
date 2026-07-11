@@ -29,7 +29,7 @@ def test_v067_versions_and_release_plan_are_aligned() -> None:
     assert plugin["version"] == "0.6.7"
     assert "public core never names or depends on a private knowledge system" in plan
     assert "reference data, not instructions" in plan
-    assert "provider decides whether a completion is durable knowledge" in plan
+    assert "the Stop hook never submits prose" in plan
     assert "No deletion, replacement, or migration of `library/local`" in plan
 
 
