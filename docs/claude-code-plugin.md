@@ -20,9 +20,11 @@ Since v0.3.12 Unlimited Skills ships as a native Claude Code plugin. The plugin 
 - **PreCompact hook** (`plugin/hooks/pre_compact.py`): records the local
   compaction event used by the Money Saved accounting path without blocking
   compaction.
-- **Stop hook** (`plugin/hooks/stop.py`): reserved for a future structured
-  completion-receipt protocol. In 0.6.7 it never submits assistant prose or
-  triggers a durable write.
+- **Stop hook** (`plugin/hooks/stop.py`): submits only a host-supplied signed
+  receipt object or a receipt file confined to the owner-configured inbox. It
+  never reads assistant prose or waits for indexing; provider enqueue has a
+  two-second hard timeout and is disabled by
+  `UNLIMITED_SKILLS_NO_COMPLETION_MEMORY=1`.
 
 At SessionStart, a configured provider also receives one detached `doctor`
 probe. This lets a private local recall daemon begin warming before the first
@@ -31,7 +33,7 @@ company-specific prompt; retrieval does not run `doctor` before every query.
 ## Install
 
 The plugin needs the CLI plus `[all]` runtime for guaranteed native-language
-retrieval. Install `unlimited-skills[all]>=0.6.7` first (see
+retrieval. Install `unlimited-skills[all]>=0.6.8` first (see
 [install.md](install.md)). Then, inside Claude Code:
 
 ```text
@@ -47,7 +49,7 @@ Restart the session after installing so the SessionStart hook runs.
 | --- | --- | --- |
 | Router presence in context | Guaranteed via SessionStart hook | Global + project `CLAUDE.md` block AND registered hooks (see below) |
 | Per-prompt skill + optional references | UserPromptSubmit hook | Same hooks registered into `~/.claude/settings.json` |
-| Completion learning | Disabled pending structured acceptance receipts | Same reserved Stop hook registration |
+| Completion learning | Signed trusted receipt enqueue only | Same bounded Stop hook registration |
 | Updates | `/plugin` marketplace updates | Re-run installer |
 | Machine-specific launchers | Not needed (CLI resolved via fallback chain) | Generated launcher scripts |
 | Skill migration into library | Not performed | Migrates `~/.claude/skills` and project skills |

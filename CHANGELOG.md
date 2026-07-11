@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Added (0.6.8 - Verified Completion Memory)
+
+- Add a provider-neutral signed completion-receipt transport. The public core
+  performs bounded structural validation and forwards the envelope; only the
+  owner-configured private provider authenticates signatures and authorizes
+  durable knowledge writes.
+- Add `context completion-receipt --file` and `--stdin`. The Claude Code Stop
+  hook can enqueue only an explicit trusted-host receipt field or a bounded
+  file from an owner-configured inbox; assistant prose and tool logs are never
+  treated as acceptance evidence.
+- Add exact-wheel release gates for receipt transport while retaining the 0.6.7
+  retrieval contract and the existing file-first provider path.
+
+### Fixed (0.6.8)
+
+- Reject duplicate JSON properties, malformed envelopes, contradictory provider
+  state/proof flags, oversized inbox files, and path/symlink escapes.
+- Keep provider-specific trust keys, audience policy, data, and write authority
+  outside the public package.
+
 ### Added (0.6.7 — Business Context & Safe Learning)
 
 - Add a generic, opt-in local business-context provider contract. A single
@@ -10,10 +30,8 @@
 - Add `context retrieve`, `context doctor`, and `context completion-candidate`
   commands with JSON-over-stdio adapters, minimal environment forwarding,
   strict source/sensitivity validation, and fail-open time/output caps.
-- Add a Claude Code Stop hook that submits evidence-bearing completion
-  candidates in a detached process only when an owner provider is configured.
-  The provider—not the public core—decides whether to accept, ignore,
-  quarantine, or deduplicate durable knowledge.
+- Add the manual `context completion-candidate` compatibility command. No
+  bundled hook invokes it in 0.6.7; automatic completion learning remains off.
 
 ### Fixed (0.6.7)
 

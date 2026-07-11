@@ -1,6 +1,6 @@
 # Packaging
 
-Status: `v0.6.7` PyPI-first release train.
+Status: `v0.6.8` PyPI-first release train.
 
 ## Distribution decision
 
@@ -10,8 +10,8 @@ clean install, an upgrade from the public `0.6.4.post1` wheel, local-skill
 preservation, index migration, retrieval, and frozen v0.6 CLI contracts.
 
 ```bash
-python -m pip install --upgrade "unlimited-skills>=0.6.7"
-python -m pip install --upgrade "unlimited-skills[all]>=0.6.7"  # vector + daemon
+python -m pip install --upgrade "unlimited-skills>=0.6.8"
+python -m pip install --upgrade "unlimited-skills[all]>=0.6.8"  # vector + daemon
 ```
 
 A GitHub clone remains the contributor/operator distribution because it also
@@ -26,7 +26,7 @@ python -m pip install -e ".[all]"
 
 ## Release gates
 
-The v0.6.7 workflow builds wheel and sdist once, runs `twine check` and tests
+The v0.6.8 workflow builds wheel and sdist once, runs `twine check` and tests
 that exact artifact set, publishes through PyPI Trusted Publishing, waits for
 the exact public version JSON, installs the public wheel into a clean
 environment, and creates the GitHub tag/release only after that public-wheel
@@ -41,5 +41,5 @@ python scripts/verify-v06-frozen-contracts.py
 python scripts/verify-skill-effectiveness-gate.py
 ```
 
-See `docs/releases/v0.6.7-plan.md` and `.github/workflows/publish-pypi.yml` for the
+See `docs/releases/v0.6.8-plan.md` and `.github/workflows/publish-pypi.yml` for the
 exact contract.

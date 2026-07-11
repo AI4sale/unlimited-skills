@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Verify inherited v0.6.6 precision plus the current v0.6.7 release surface."""
+"""Verify inherited v0.6.6 precision plus the current v0.6.8 release surface."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.6.7"
+VERSION = "0.6.8"
 FOCUSED_TESTS = (
     "tests/test_suggest.py",
     "tests/test_suggest_language_routing.py",
@@ -23,6 +23,7 @@ FOCUSED_TESTS = (
     "tests/test_v066_release.py",
     "tests/test_business_context.py",
     "tests/test_claude_code_install.py",
+    "tests/test_claude_code_plugin_package.py",
 )
 
 
@@ -66,6 +67,7 @@ def verify_static_surface() -> dict[str, Any]:
         "pyproject": declared_version(ROOT / "pyproject.toml", r'^version\s*=\s*"([^"]+)"'),
         "runtime": declared_version(ROOT / "unlimited_skills" / "__init__.py", r'__version__\s*=\s*"([^"]+)"'),
         "claude_plugin": declared_version(ROOT / "plugin" / ".claude-plugin" / "plugin.json", r'"version"\s*:\s*"([^"]+)"'),
+        "claude_marketplace": declared_version(ROOT / ".claude-plugin" / "marketplace.json", r'"version"\s*:\s*"([^"]+)"'),
     }
     require(set(versions.values()) == {VERSION}, f"release versions must all be {VERSION}: {versions}")
 
@@ -78,15 +80,25 @@ def verify_static_surface() -> dict[str, Any]:
         "No deletion, replacement, or migration of `library/local`",
     ):
         require(marker in precision_plan, f"precision plan missing invariant: {marker}")
-    release_plan = read(ROOT / "docs" / "releases" / "v0.6.7-plan.md")
+    release_plan = read(ROOT / "docs" / "releases" / "v0.6.8-plan.md")
     for marker in (
-        "never names or imports a private knowledge system",
-        "provider-controlled text is escaped and adversarially tested",
+        "never names or depends on a private knowledge system",
         "the Stop hook never submits prose",
-        "defaults permit only `public` and `internal-sanitized`",
+        "A committed record whose index or visibility proof failed is not reported as accepted",
+        "The current file-first backend remains supported",
         "No deletion, replacement, or migration of `library/local`",
     ):
-        require(marker in release_plan, f"v0.6.7 plan missing invariant: {marker}")
+        require(marker in release_plan, f"v0.6.8 plan missing invariant: {marker}")
+    public_receipt_surfaces = (
+        ROOT / "unlimited_skills" / "completion_receipt.py",
+        ROOT / "scripts" / "verify-v068-completion-receipt-wheel.py",
+        ROOT / "docs" / "releases" / "v0.6.8-plan.md",
+        ROOT / "README-pypi.md",
+    )
+    for surface in public_receipt_surfaces:
+        lowered = read(surface).casefold()
+        for private_name in ("ais-os", "aios-recall", "knowledgeos", "ais-os-company-memory"):
+            require(private_name not in lowered, f"private implementation name leaked into {surface.relative_to(ROOT)}")
 
     hook = read(ROOT / "plugin" / "hooks" / "user_prompt_submit.py")
     session_hook = read(ROOT / "plugin" / "hooks" / "session_start.py")
@@ -117,6 +129,10 @@ def verify_static_surface() -> dict[str, Any]:
     require(
         "verify-v067-business-context-wheel.py --wheel dist/*.whl" in workflow,
         "workflow must prove business-context retrieval from the exact wheel",
+    )
+    require(
+        "verify-v068-completion-receipt-wheel.py --wheel dist/*.whl" in workflow,
+        "workflow must prove signed-receipt transport from the exact wheel",
     )
     release_command = f'gh release create "v{VERSION}"'
     require(release_command in workflow, "workflow must create the release after PyPI verification")

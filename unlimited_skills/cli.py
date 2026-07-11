@@ -599,6 +599,16 @@ def build_parser() -> argparse.ArgumentParser:
     context_completion.add_argument("--config", default="")
     context_completion.add_argument("--json", action="store_true")
     context_completion.set_defaults(func=business_context_cmds.cmd_context_completion)
+    context_receipt = context_sub.add_parser(
+        "completion-receipt",
+        help="Submit one independently signed completion receipt from a file or stdin.",
+    )
+    receipt_input = context_receipt.add_mutually_exclusive_group(required=True)
+    receipt_input.add_argument("--file", default="", help="Read the JSON receipt from this file.")
+    receipt_input.add_argument("--stdin", action="store_true", help="Read the JSON receipt from stdin.")
+    context_receipt.add_argument("--config", default="")
+    context_receipt.add_argument("--json", action="store_true")
+    context_receipt.set_defaults(func=business_context_cmds.cmd_context_completion_receipt)
     context_doctor = context_sub.add_parser(
         "doctor",
         help="Validate the local provider configuration and optional health contract.",

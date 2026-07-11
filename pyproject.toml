@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "unlimited-skills"
-version = "0.6.7"
+version = "0.6.8"
 description = "A local-first capability router with skill retrieval, opt-in business context, and provider-governed learning."
 readme = "README-pypi.md"
 requires-python = ">=3.10"

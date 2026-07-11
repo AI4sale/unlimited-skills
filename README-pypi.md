@@ -4,11 +4,11 @@ Unlimited Skills is a local-first skill memory and retrieval layer for coding
 agents. It keeps large skill libraries out of the agent context and retrieves
 the small, relevant skill context only when it is useful.
 
-This is `v0.6.7` of the free MIT local core. There is no telemetry, no hosted
+This is `v0.6.8` of the free MIT local core. There is no telemetry, no hosted
 dependency for local use, and nothing for sale in this release. The project is
 still pre-1.0, so APIs and JSON output may change before `1.0`.
 
-Use `unlimited-skills==0.6.7` or newer after this release is published. The
+Use `unlimited-skills==0.6.8` or newer after this release is published. The
 `0.6.0` package was uploaded to PyPI but was not tagged or released because the
 published verifier caught a CLI contract issue after upload.
 
@@ -23,7 +23,7 @@ To avoid earlier uploaded-but-not-current artifacts explicitly, pin the
 accepted v0.6 alpha floor:
 
 ```bash
-pip install --upgrade "unlimited-skills>=0.6.7"
+pip install --upgrade "unlimited-skills>=0.6.8"
 ```
 
 For hybrid/vector search:
@@ -47,9 +47,10 @@ unlimited-skills context retrieve "current source-backed operating context" --js
 
 Retrieved text is `retrieval_only`, treated as data rather than instructions,
 and marked internal. `no_context` never means verified absence. The Claude Code
-Stop hook may offer a completion only when it has both an accepted artifact and
-an independent checker reference; the private provider owns acceptance,
-quarantine, idempotency, and durable writes.
+Stop hook never derives evidence from assistant prose. It only forwards an
+explicit, bounded signed receipt supplied by a trusted host field or an
+owner-controlled inbox. The private provider owns signature authentication,
+acceptance, quarantine, idempotency, and durable writes.
 
 ## What Quickstart Proves
 
@@ -66,7 +67,7 @@ quarantine, idempotency, and durable writes.
 The package smoke for this release verifies the wheel in a fresh virtual
 environment: `unlimited-skills --version`, `quickstart`, `suggest`,
 `mcp savings`, `feedback prepare`, `learning-summary --events`, and
-`roi receipt` all run from the installed package. The v0.6.7 package smoke also
+`roi receipt` all run from the installed package. The v0.6.8 package smoke also
 verifies retrieval precision and onboarding from a clean wheel install: weak
 matches stay silent, mixed-language prompts request an English-keyword rescue,
 quickstart completes missing bundled collections without touching local skills,
@@ -88,8 +89,8 @@ Your local results depend on your installed skills and MCP servers. Run
 - No telemetry or automatic uploads.
 - No skill execution by the library.
 - No business provider is enabled by default. When explicitly configured, task
-  queries and evidence-bearing completion summaries go only to that trusted
-  local command.
+  queries and explicit signed completion receipts go only to that trusted local
+  command.
 - The Claude Code prompt hook may start the optional warm-search daemon on
   loopback; it never binds LAN/remote or uploads prompt data. Set
   `UNLIMITED_SKILLS_NO_AUTOSERVE=1` only for restricted runtimes.

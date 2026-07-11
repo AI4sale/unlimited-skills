@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Package version to publish. For this release this must be 0.6.7."
+        description: "Package version to publish. For this release this must be 0.6.8."
         required: true
         type: string
       expected_sha:
@@ -12,7 +12,7 @@ on:
         required: true
         type: string
       confirm_pypi_publish:
-        description: "Type: publish unlimited-skills 0.6.7 to PyPI"
+        description: "Type: publish unlimited-skills 0.6.8 to PyPI"
         required: true
         type: string
 
@@ -30,7 +30,7 @@ env:
 
 jobs:
   publish:
-    name: Publish and verify unlimited-skills 0.6.7
+    name: Publish and verify unlimited-skills 0.6.8
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -44,8 +44,8 @@ jobs:
 
       - name: Validate manual release inputs
         run: |
-          test "${{ github.event.inputs.version }}" = "0.6.7"
-          test "${{ github.event.inputs.confirm_pypi_publish }}" = "publish unlimited-skills 0.6.7 to PyPI"
+          test "${{ github.event.inputs.version }}" = "0.6.8"
+          test "${{ github.event.inputs.confirm_pypi_publish }}" = "publish unlimited-skills 0.6.8 to PyPI"
           test "$(git rev-parse HEAD)" = "${{ github.event.inputs.expected_sha }}"
           git fetch origin main
           test "$(git rev-parse origin/main)" = "${{ github.event.inputs.expected_sha }}"
@@ -74,10 +74,13 @@ jobs:
         run: python -m twine check dist/*
 
       - name: Test the exact release artifacts and PyPI upgrade path
-        run: python scripts/run-v065-alpha-package-smoke.py --expected-version 0.6.7 --dist-dir dist --json
+        run: python scripts/run-v065-alpha-package-smoke.py --expected-version 0.6.8 --dist-dir dist --json
 
       - name: Prove business-context retrieval from the exact wheel
-        run: python scripts/verify-v067-business-context-wheel.py --wheel dist/*.whl --expected-version 0.6.7 --json
+        run: python scripts/verify-v067-business-context-wheel.py --wheel dist/*.whl --expected-version 0.6.8 --json
+
+      - name: Prove signed completion-receipt transport from the exact wheel
+        run: python scripts/verify-v068-completion-receipt-wheel.py --wheel dist/*.whl --expected-version 0.6.8 --json
 
       - name: Prove live legacy-daemon rollover on upgrade
         run: python scripts/verify-v066-daemon-rollover.py --wheel dist/*.whl --json
@@ -89,17 +92,17 @@ jobs:
           skip-existing: true
 
       - name: Verify exact public PyPI wheel
-        run: python scripts/verify-pypi-publication.py --version 0.6.7 --dist-dir dist --wait-seconds 600 --json
+        run: python scripts/verify-pypi-publication.py --version 0.6.8 --dist-dir dist --wait-seconds 600 --json
 
       - name: Create matching GitHub release after PyPI verification
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          if gh release view "v0.6.7" >/dev/null 2>&1; then
-            test "$(gh release view "v0.6.7" --json targetCommitish --jq .targetCommitish)" = "${{ github.event.inputs.expected_sha }}"
+          if gh release view "v0.6.8" >/dev/null 2>&1; then
+            test "$(gh release view "v0.6.8" --json targetCommitish --jq .targetCommitish)" = "${{ github.event.inputs.expected_sha }}"
           else
-            gh release create "v0.6.7" \
+            gh release create "v0.6.8" \
               --target "${{ github.event.inputs.expected_sha }}" \
-              --title "v0.6.7 — Business Context Retrieval" \
-              --notes-file docs/releases/v0.6.7-plan.md
+              --title "v0.6.8 — Verified Completion Memory" \
+              --notes-file docs/releases/v0.6.8-plan.md
           fi

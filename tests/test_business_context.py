@@ -2,11 +2,13 @@ from __future__ import annotations
 
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 
 import pytest
 
+import unlimited_skills.business_context as business_context_module
 from unlimited_skills import suggest
 from unlimited_skills.business_context import (
     BusinessContextError,
@@ -17,7 +19,9 @@ from unlimited_skills.business_context import (
     provider_doctor,
     retrieve_business_context,
     submit_completion_candidate,
+    submit_completion_receipt,
 )
+from unlimited_skills.completion_receipt import CompletionReceiptError, parse_json_strict, validate_receipt
 from unlimited_skills.search_core import save_index
 
 
@@ -73,9 +77,19 @@ elif operation == "completion_candidate":
         "source_ref": "business/lessons/release-completion-atom.md" if accepted else None,
         "reason": "no evidence" if not accepted else None,
     })
+elif operation == "completion_receipt":
+    response.update({
+        "status": "queued",
+        "receipt_id": "a" * 64,
+        "operation_id": "op-" + "a" * 32,
+        "committed": False,
+        "indexed": False,
+        "visible": False,
+    })
 elif operation == "doctor":
     response["status"] = "ok"
     response["diagnostics"] = {"daemon_state": "ready", "business_wall": "fixture"}
+    response["writeback"] = "signed_receipt_v1"
 else:
     response["status"] = "ignored"
 print(json.dumps(response))
@@ -89,7 +103,7 @@ def write_provider(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, **provider_o
     provider = {
         "id": "fixture-company-memory",
         "command": [sys.executable, str(script), str(log)],
-        "capabilities": ["retrieve", "completion_candidate", "doctor"],
+        "capabilities": ["retrieve", "completion_candidate", "completion_receipt", "doctor"],
         "timeout_seconds": 2,
         "max_context_chars": 3000,
         "allowed_sensitivities": ["internal"],
@@ -101,6 +115,35 @@ def write_provider(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, **provider_o
     monkeypatch.setenv("UNLIMITED_SKILLS_CONTEXT_PROVIDER_CONFIG", str(config))
     monkeypatch.delenv("UNLIMITED_SKILLS_NO_BUSINESS_CONTEXT", raising=False)
     return config, log
+
+
+def signed_receipt_fixture() -> dict:
+    return {
+        "schema_version": "unlimited-skills.accepted-completion-receipt.v1",
+        "audience": "owner-company-memory",
+        "purpose": "completion_memory",
+        "project_scope": "core-ai4sale",
+        "entity": "core-ai4sale",
+        "sensitivity": "internal",
+        "issued_at": "2026-07-11T12:00:00Z",
+        "summary": "The release was published and independently verified.",
+        "producer": {"id": "codex-executor"},
+        "artifact": {
+            "type": "release",
+            "logical_ref": "pypi:unlimited-skills",
+            "canonical_ref": "https://pypi.org/project/unlimited-skills/0.6.8/",
+            "revision": "0.6.8",
+            "digest": "sha256:" + "a" * 64,
+            "supersedes": None,
+        },
+        "destination": {"status": "published", "receipt_id": "pypi:unlimited-skills@0.6.8"},
+        "checker": {
+            "id": "github-actions:ci",
+            "status": "passed",
+            "evidence_digest": "sha256:" + "b" * 64,
+        },
+        "signature": {"algorithm": "ed25519", "key_id": "release-operator-2026-01", "value": "A" * 86},
+    }
 
 
 def test_missing_provider_is_a_zero_noise_noop(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -266,6 +309,165 @@ def test_completion_is_provider_decided_and_idempotency_key_is_forwarded(tmp_pat
     assert recorded["completion"]["evidence_refs"] == ["#238", "6c8a2b7"]
 
 
+def test_signed_receipt_is_structurally_validated_and_forwarded_without_public_acceptance_claim(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, log = write_provider(tmp_path, monkeypatch)
+    receipt = signed_receipt_fixture()
+    result = submit_completion_receipt(receipt)
+    assert result == {
+        "schema_version": 1,
+        "status": "queued",
+        "provider_id": "fixture-company-memory",
+        "committed": False,
+        "indexed": False,
+        "visible": False,
+        "receipt_id": "a" * 64,
+        "operation_id": "op-" + "a" * 32,
+    }
+    recorded = json.loads(log.read_text(encoding="utf-8"))["request"]
+    assert recorded["operation"] == "completion_receipt"
+    assert recorded["receipt"] == receipt
+    assert "summary" not in result
+    assert "signature" not in result
+
+
+def test_receipt_duplicate_json_properties_and_malformed_signature_are_rejected_before_provider(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, log = write_provider(tmp_path, monkeypatch)
+    with pytest.raises(CompletionReceiptError, match="duplicate_json_property"):
+        parse_json_strict('{"schema_version":"x","schema_version":"y"}')
+    receipt = signed_receipt_fixture()
+    receipt["signature"]["value"] = "not-a-signature"
+    result = submit_completion_receipt(receipt)
+    assert result["status"] == "rejected"
+    assert result["reason_code"] == "invalid_signature_encoding"
+    assert not log.exists()
+
+
+def test_receipt_structural_validation_normalizes_non_json_python_values() -> None:
+    receipt = signed_receipt_fixture()
+    receipt["summary"] = object()
+    with pytest.raises(CompletionReceiptError, match="invalid_receipt"):
+        validate_receipt(receipt)
+
+
+def test_completion_receipt_rejects_contradictory_provider_proof_state(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config, _log = write_provider(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        business_context_module,
+        "_run_provider",
+        lambda _config, request: {
+            "schema_version": "unlimited-skills.business-context-response.v1",
+            "request_id": request["request_id"],
+            "status": "visible",
+            "committed": False,
+            "indexed": False,
+            "visible": False,
+        },
+    )
+    result = submit_completion_receipt(signed_receipt_fixture(), config_path=config)
+    assert result["status"] == "unavailable"
+    assert "contradictory" in result["reason"]
+
+
+def test_duplicate_queued_preserves_monotonic_in_progress_proof_flags(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config, _log = write_provider(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        business_context_module,
+        "_run_provider",
+        lambda _config, request: {
+            "schema_version": "unlimited-skills.business-context-response.v1",
+            "request_id": request["request_id"],
+            "status": "duplicate_queued",
+            "receipt_id": "a" * 64,
+            "committed": True,
+            "indexed": True,
+            "visible": False,
+        },
+    )
+    result = submit_completion_receipt(signed_receipt_fixture(), config_path=config)
+    assert result["status"] == "duplicate_queued"
+    assert result["committed"] is True
+    assert result["indexed"] is True
+    assert result["visible"] is False
+
+
+def test_doctor_reports_completion_writeback_as_unavailable_when_provider_does_not_prove_it(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    config, _log = write_provider(tmp_path, monkeypatch)
+    monkeypatch.setattr(
+        business_context_module,
+        "_run_provider",
+        lambda _config, request: {
+            "schema_version": "unlimited-skills.business-context-response.v1",
+            "request_id": request["request_id"],
+            "status": "ok",
+            "daemon_state": "ready",
+            "writeback": "unavailable",
+        },
+    )
+    result = provider_doctor(config)
+    assert result["status"] == "unavailable"
+    assert result["writeback"] == "unavailable"
+
+
+def test_completion_receipt_cli_supports_file_and_stdin_without_inline_shell_payload(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _, log = write_provider(tmp_path, monkeypatch)
+    receipt = signed_receipt_fixture()
+    receipt_file = tmp_path / "receipt.json"
+    receipt_file.write_text(json.dumps(receipt), encoding="utf-8")
+    env = dict(os.environ)
+    file_run = subprocess.run(
+        [
+            sys.executable,
+            "-m",
+            "unlimited_skills",
+            "context",
+            "completion-receipt",
+            "--file",
+            str(receipt_file),
+            "--json",
+        ],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        env=env,
+        timeout=10,
+    )
+    assert file_run.returncode == 0
+    assert json.loads(file_run.stdout)["status"] == "queued"
+    assert json.loads(log.read_text(encoding="utf-8"))["request"]["receipt"] == receipt
+
+    log.unlink()
+    stdin_run = subprocess.run(
+        [sys.executable, "-m", "unlimited_skills", "context", "completion-receipt", "--stdin", "--json"],
+        input=json.dumps(receipt),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        env=env,
+        timeout=10,
+    )
+    assert stdin_run.returncode == 0
+    assert json.loads(stdin_run.stdout)["status"] == "queued"
+    assert log.is_file()
+
+
 def test_doctor_and_suggest_card_share_the_same_provider(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys) -> None:
     write_provider(tmp_path, monkeypatch)
     library = tmp_path / "library"
@@ -274,8 +476,13 @@ def test_doctor_and_suggest_card_share_the_same_provider(tmp_path: Path, monkeyp
 
     doctor = provider_doctor()
     assert doctor["status"] == "ok"
-    assert doctor["capabilities"] == ["completion_candidate", "doctor", "retrieve"]
-    assert doctor["provider_diagnostics"] == {"daemon_state": "ready", "business_wall": "fixture"}
+    assert doctor["writeback"] == "signed_receipt_v1"
+    assert doctor["capabilities"] == ["completion_candidate", "completion_receipt", "doctor", "retrieve"]
+    assert doctor["provider_diagnostics"] == {
+        "daemon_state": "ready",
+        "business_wall": "fixture",
+        "writeback": "signed_receipt_v1",
+    }
 
     assert suggest.main(["prepare current offer", "--root", str(library), "--json", "--card"]) == 0
     payload = json.loads(capsys.readouterr().out)
