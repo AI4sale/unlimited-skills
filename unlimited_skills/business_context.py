@@ -3,8 +3,8 @@
 The public core knows nothing about a particular company knowledge base.  It
 only speaks a small JSON-over-stdio protocol to an owner-configured local
 adapter.  The adapter is an explicit trust boundary: it selects sources,
-enforces entity/sensitivity policy, and decides whether a completion candidate
-is durable knowledge.
+enforces entity/sensitivity policy, and alone decides whether a signed
+completion receipt is authentic and eligible for durable knowledge.
 
 Provider processes are launched with ``shell=False``, a bounded timeout, a
 small allow-listed environment, and capped input/output.  Missing, disabled,
@@ -23,6 +23,8 @@ from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any, Mapping
 
+from .completion_receipt import CompletionReceiptError, canonical_json, validate_receipt
+
 
 CONFIG_ENV = "UNLIMITED_SKILLS_CONTEXT_PROVIDER_CONFIG"
 DISABLE_ENV = "UNLIMITED_SKILLS_NO_BUSINESS_CONTEXT"
@@ -38,7 +40,7 @@ MAX_COMPLETION_CHARS = 16000
 MAX_PROVIDER_OUTPUT_BYTES = 262_144
 MAX_ITEMS = 8
 MAX_ITEM_EXCERPT_CHARS = 1800
-ALLOWED_CAPABILITIES = frozenset({"retrieve", "completion_candidate", "doctor"})
+ALLOWED_CAPABILITIES = frozenset({"retrieve", "completion_candidate", "completion_receipt", "doctor"})
 DEFAULT_ALLOWED_SENSITIVITIES = frozenset({"public", "internal-sanitized"})
 _ID_RE = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9._-]{0,63}$")
 _ENV_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -484,6 +486,96 @@ def submit_completion_candidate(
         return {**base, "status": "unavailable", "reason": str(exc)[:240]}
 
 
+def submit_completion_receipt(
+    receipt: Mapping[str, Any],
+    *,
+    config_path: Path | None = None,
+) -> dict[str, Any]:
+    """Forward one structurally valid signed receipt to the private verifier.
+
+    Public code does not authenticate the signature and cannot claim success.
+    The provider owns issuer trust, durable enqueue, transaction state, and
+    exact/semantic visibility proof.
+    """
+
+    base = {"schema_version": 1, "status": "not_configured", "provider_id": None}
+    try:
+        config = load_provider_config(config_path)
+        if config is None:
+            return base
+        base["provider_id"] = config.provider_id
+        if "completion_receipt" not in config.capabilities:
+            return {**base, "status": "unsupported"}
+        normalized = validate_receipt(receipt)
+        stable_key = hashlib.sha256(canonical_json(normalized)).hexdigest()
+        request_id = _request_id("completion_receipt", stable_key)
+        response = _run_provider(
+            config,
+            {
+                "schema_version": REQUEST_SCHEMA,
+                "request_id": request_id,
+                "operation": "completion_receipt",
+                "provider_id": config.provider_id,
+                "scope": config.scope,
+                "receipt": normalized,
+            },
+        )
+        status = str(response.get("status") or "")
+        if status not in {
+            "queued",
+            "duplicate_queued",
+            "duplicate_visible",
+            "duplicate_existing",
+            "quarantined",
+            "committed_not_visible",
+            "visible",
+            "rejected",
+        }:
+            raise BusinessContextError("provider returned an invalid completion-receipt status")
+        flags = tuple(response.get(name) for name in ("committed", "indexed", "visible"))
+        if any(not isinstance(value, bool) for value in flags):
+            raise BusinessContextError("provider returned invalid completion-receipt proof flags")
+        committed, indexed, visible = flags
+        valid_state = (
+            status in {"visible", "duplicate_visible", "duplicate_existing"}
+            and committed and indexed and visible
+        ) or (
+            status == "committed_not_visible"
+            and committed and not visible
+        ) or (
+            status == "duplicate_queued"
+            and not visible and (not indexed or committed)
+        ) or (
+            status in {"queued", "quarantined", "rejected"}
+            and not committed and not indexed and not visible
+        )
+        if not valid_state:
+            raise BusinessContextError("provider returned contradictory completion-receipt state")
+        result: dict[str, Any] = {
+            **base,
+            "status": status,
+            "committed": committed,
+            "indexed": indexed,
+            "visible": visible,
+        }
+        for key in (
+            "receipt_id",
+            "operation_id",
+            "memory_record_id",
+            "source_ref",
+            "projection_ref",
+            "reason_code",
+        ):
+            value = response.get(key)
+            if isinstance(value, str) and value:
+                result[key] = value[:1_200]
+        return result
+    except CompletionReceiptError as exc:
+        return {**base, "status": "rejected", "reason_code": str(exc)[:240]}
+    except (BusinessContextError, OSError, ValueError) as exc:
+        return {**base, "status": "unavailable", "reason": str(exc)[:240]}
+
+
 def provider_doctor(config_path: Path | None = None) -> dict[str, Any]:
     path = (config_path or default_config_path()).expanduser()
     report: dict[str, Any] = {
@@ -509,7 +601,7 @@ def provider_doctor(config_path: Path | None = None) -> dict[str, Any]:
         ) if "doctor" in config.capabilities else None
         diagnostics = _normalized_diagnostics(response) if response is not None else {}
         if response is not None:
-            for key in ("daemon_state", "business_wall"):
+            for key in ("daemon_state", "business_wall", "writeback"):
                 value = response.get(key)
                 if isinstance(value, bool):
                     diagnostics.setdefault(key, value)
@@ -517,11 +609,16 @@ def provider_doctor(config_path: Path | None = None) -> dict[str, Any]:
                     diagnostics.setdefault(key, value)
                 elif isinstance(value, str):
                     diagnostics.setdefault(key, value[:240])
+        writeback = str(response.get("writeback") or "unavailable") if response is not None else "unavailable"
+        response_ok = response is None or response.get("status") == "ok"
+        if "completion_receipt" in config.capabilities and writeback != "signed_receipt_v1":
+            response_ok = False
         return {
             **report,
             "provider_id": config.provider_id,
             "capabilities": sorted(config.capabilities),
-            "status": "ok" if response is None or response.get("status") == "ok" else "unavailable",
+            "status": "ok" if response_ok else "unavailable",
+            "writeback": writeback,
             "provider_diagnostics": diagnostics,
         }
     except (BusinessContextError, OSError, ValueError) as exc:

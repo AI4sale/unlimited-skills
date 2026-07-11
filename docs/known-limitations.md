@@ -1,6 +1,6 @@
 # Known Limitations
 
-`v0.6.7` is a pre-1.0 release, not a production SLA. CLI and JSON contracts
+`v0.6.8` is a pre-1.0 release, not a production SLA. CLI and JSON contracts
 covered by the frozen v0.6 verifier are protected inside the release line;
 other APIs may still change before 1.0.
 
@@ -38,12 +38,16 @@ other APIs may still change before 1.0.
 ## Learning and hosted surfaces
 
 - The built-in learning loop records privacy-safe feedback and aggregates. An
-  opt-in business-context provider may separately accept evidence-bearing Stop
-  candidates, but the provider—not Unlimited Skills—owns completion judgment,
-  entity/sensitivity policy, durable writes, and reindexing.
-- A configured provider is trusted local code and receives the bounded task
-  query and completion summary. The public transport contract cannot prove the
-  adapter's business-wall correctness; operators must review that policy.
+  opt-in business-context provider may separately accept signed completion
+  receipts, but the provider—not Unlimited Skills—owns cryptographic trust,
+  completion judgment, entity/sensitivity policy, durable writes, quarantine,
+  reindexing, and visibility proof.
+- A configured provider is trusted owner code and receives the bounded task
+  query or explicitly submitted signed receipt. The public transport cannot
+  prove the adapter's business-wall or issuer-policy correctness; operators
+  must review that policy.
+- The bundled Stop hook cannot create a receipt. A trusted host/checker must
+  supply one; otherwise Stop remains a no-op.
 - Hosted registry, community, team, policy, billing-status, and Local Skill Hub
   surfaces are alpha. Registration is not required for local search, indexing,
   daemon, learning logs, quickstart, or MCP savings.

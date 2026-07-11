@@ -755,6 +755,124 @@ def test_stop_hook_never_promotes_model_written_prose_to_memory(tmp_path: Path) 
     assert not captured.exists()
 
 
+def _trusted_receipt_fixture() -> dict:
+    return {
+        "schema_version": "unlimited-skills.accepted-completion-receipt.v1",
+        "audience": "owner-company-memory",
+        "purpose": "completion_memory",
+        "project_scope": "core-ai4sale",
+        "entity": "core-ai4sale",
+        "sensitivity": "internal",
+        "issued_at": "2026-07-11T12:00:00Z",
+        "summary": "The release was published and independently verified.",
+        "producer": {"id": "codex-executor"},
+        "artifact": {
+            "type": "release",
+            "logical_ref": "pypi:unlimited-skills",
+            "canonical_ref": "https://pypi.org/project/unlimited-skills/0.6.8/",
+            "revision": "0.6.8",
+            "digest": "sha256:" + "a" * 64,
+            "supersedes": None,
+        },
+        "destination": {"status": "published", "receipt_id": "pypi:unlimited-skills@0.6.8"},
+        "checker": {
+            "id": "github-actions:ci",
+            "status": "passed",
+            "evidence_digest": "sha256:" + "b" * 64,
+        },
+        "signature": {"algorithm": "ed25519", "key_id": "release-operator-2026-01", "value": "A" * 86},
+    }
+
+
+def test_stop_hook_submits_only_explicit_trusted_receipt_field_and_never_logs_raw_envelope(tmp_path: Path) -> None:
+    captured = tmp_path / "receipt-call.json"
+    stub = tmp_path / "stub_cli.py"
+    stub.write_text(
+        "import json, pathlib, sys\n"
+        f"pathlib.Path({str(captured)!r}).write_text(json.dumps({{'args': sys.argv[1:], 'stdin': sys.stdin.read()}}), encoding='utf-8')\n",
+        encoding="utf-8",
+    )
+    env = hook_env(
+        tmp_path,
+        UNLIMITED_SKILLS_CLI=f'"{Path(sys.executable).as_posix()}" "{stub.as_posix()}"',
+    )
+    payload = {
+        "hook_event_name": "Stop",
+        "last_assistant_message": "This prose must never be sent.",
+        "trusted_completion_receipt": _trusted_receipt_fixture(),
+    }
+    result = run_hook(STOP, json.dumps(payload), env)
+    assert result.returncode == 0
+    call = json.loads(captured.read_text(encoding="utf-8"))
+    assert call["args"] == ["context", "completion-receipt", "--stdin", "--json"]
+    assert json.loads(call["stdin"]) == payload["trusted_completion_receipt"]
+    assert "This prose must never be sent" not in call["stdin"]
+    assert result.stdout == ""
+    assert result.stderr == ""
+
+
+def test_stop_hook_receipt_file_is_confined_to_owner_inbox_and_kill_switch_wins(tmp_path: Path) -> None:
+    captured = tmp_path / "receipt.json"
+    stub = tmp_path / "stub_cli.py"
+    stub.write_text(
+        "import pathlib, sys\n"
+        f"pathlib.Path({str(captured)!r}).write_text(sys.stdin.read(), encoding='utf-8')\n",
+        encoding="utf-8",
+    )
+    inbox = tmp_path / "inbox"
+    inbox.mkdir()
+    receipt_file = inbox / "accepted.json"
+    receipt_file.write_text(json.dumps(_trusted_receipt_fixture()), encoding="utf-8")
+    env = hook_env(
+        tmp_path,
+        UNLIMITED_SKILLS_CLI=f'"{Path(sys.executable).as_posix()}" "{stub.as_posix()}"',
+        UNLIMITED_SKILLS_COMPLETION_RECEIPT_INBOX=str(inbox),
+    )
+    result = run_hook(STOP, json.dumps({"trusted_completion_receipt_file": "accepted.json"}), env)
+    assert result.returncode == 0
+    assert json.loads(captured.read_text(encoding="utf-8")) == _trusted_receipt_fixture()
+
+    captured.unlink()
+    for name in (str(receipt_file), "../inbox/accepted.json", "../outside.json"):
+        run_hook(STOP, json.dumps({"trusted_completion_receipt_file": name}), env)
+        assert not captured.exists()
+
+    oversized = inbox / "oversized.json"
+    oversized.write_bytes(b"{" + b" " * 40_000 + b"}")
+    run_hook(STOP, json.dumps({"trusted_completion_receipt_file": "oversized.json"}), env)
+    assert not captured.exists()
+
+    outside = tmp_path / "outside-receipt.json"
+    outside.write_text(json.dumps(_trusted_receipt_fixture()), encoding="utf-8")
+    linked = inbox / "linked.json"
+    try:
+        linked.symlink_to(outside)
+    except OSError:
+        linked = None
+    if linked is not None:
+        run_hook(STOP, json.dumps({"trusted_completion_receipt_file": "linked.json"}), env)
+        assert not captured.exists()
+
+    disabled = dict(env)
+    disabled["UNLIMITED_SKILLS_NO_COMPLETION_MEMORY"] = "1"
+    run_hook(STOP, json.dumps({"trusted_completion_receipt_file": "accepted.json"}), disabled)
+    assert not captured.exists()
+
+
+def test_stop_hook_stalled_provider_cannot_block_final_response(tmp_path: Path) -> None:
+    stub = tmp_path / "slow_cli.py"
+    stub.write_text("import time; time.sleep(30)\n", encoding="utf-8")
+    env = hook_env(
+        tmp_path,
+        UNLIMITED_SKILLS_CLI=f'"{Path(sys.executable).as_posix()}" "{stub.as_posix()}"',
+    )
+    started = time.monotonic()
+    result = run_hook(STOP, json.dumps({"trusted_completion_receipt": _trusted_receipt_fixture()}), env)
+    elapsed = time.monotonic() - started
+    assert result.returncode == 0
+    assert elapsed < 4.0
+
+
 @pytest.mark.parametrize(
     "overrides",
     [

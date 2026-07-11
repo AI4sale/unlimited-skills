@@ -17,7 +17,7 @@ Create `~/.unlimited-skills/business-context-provider.json` (or set
   "provider": {
     "id": "company-memory",
     "command": ["python", "/path/to/local_provider.py"],
-    "capabilities": ["retrieve", "doctor"],
+    "capabilities": ["retrieve", "completion_receipt", "doctor"],
     "timeout_seconds": 2,
     "max_context_chars": 6000,
     "allowed_sensitivities": ["public", "internal-sanitized"],
@@ -79,18 +79,37 @@ never converted into a verified absence claim. When the provider is warming or
 unavailable, the hook tells the agent to continue only generic work and to
 defer company-specific or consequential claims instead of guessing.
 
-## Completion learning
+## Verified completion learning
 
-Automatic completion write-back is disabled in 0.6.7. The installed `Stop`
-hook consumes the stable hook event but never promotes assistant prose, URLs,
-PR numbers, hashes, or test-count strings to memory. The manual
-`context completion-candidate` transport remains experimental for provider
-development; do not enable it as a durable write path.
+0.6.8 accepts only a structured Ed25519 envelope supplied by a trusted host or
+independent checker:
 
-A later release will require structured acceptance receipts containing project
-scope, canonical artifact identity and digest, accepted destination status, and
-an independently verifiable checker receipt. This split keeps retrieval useful
-without treating model-authored success prose as evidence.
+```bash
+unlimited-skills context completion-receipt --file receipt.json --json
+unlimited-skills context completion-receipt --stdin --json
+```
+
+There is no inline receipt argument. The public client checks only the bounded
+shape and encoding; the private provider verifies issuer keys, audience,
+project/entity/sensitivity policy, destination acceptance, checker identity,
+idempotency, conflicts, and visibility. Public status output never echoes the
+summary, evidence, signature, or full envelope.
+
+The installed `Stop` hook never promotes assistant prose, URLs, PR numbers,
+hashes, test counts, cwd scans, or tool logs. It submits only a host-supplied
+`trusted_completion_receipt` or a relative receipt file inside the directory
+configured by `UNLIMITED_SKILLS_COMPLETION_RECEIPT_INBOX`. Set
+`UNLIMITED_SKILLS_NO_COMPLETION_MEMORY=1` to disable this handoff. Stop performs
+enqueue only under a two-second timeout; atom creation and visibility proof run
+outside the final-response path.
+
+The host field is only a transport trigger, not proof of trust. Even if a model
+or plugin can populate it, the private provider must still reject every receipt
+whose signature, issuer policy, checker, destination, or scope is not valid.
+
+The legacy `context completion-candidate` command remains experimental for
+compatibility. It is never called by the bundled hook and must not be treated
+as a durable write path.
 
 ## Security and privacy boundary
 
@@ -104,7 +123,8 @@ without treating model-authored success prose as evidence.
   names must be explicitly allow-listed; explicit static `env` values are
   owner-controlled, bounded, and should contain roots or modes rather than
   credentials.
-- Calls have bounded input, output, item count, excerpt length, and timeout.
+- Calls have bounded input, output, item count, excerpt length, receipt size,
+  and timeout.
 - A missing, slow, or malformed provider fails open without breaking skill
   retrieval or the agent turn.
 - Provider code is trusted local code. Review it and its source/sensitivity

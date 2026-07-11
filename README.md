@@ -12,7 +12,7 @@
 
 **Unlimited Skills** is a local-first capability router for coding agents. It keeps skills, procedures, and tool schemas out of standing context, searches by task intent, and loads only the one capability needed for the current job.
 
-**v0.6.7 / pre-1.0 local-first core.** The MIT core runs offline today. An opt-in local provider can add owner-governed, cited business context without putting company code or data in this public repository. Automatic completion write-back remains disabled until structured acceptance receipts ship in a later release. There is nothing for sale on this page; gated surfaces are described under [Enterprise & trust layer](#enterprise--trust-layer).
+**v0.6.8 / pre-1.0 local-first core.** The MIT core runs offline today. An opt-in provider can add owner-governed, cited business context and accept independently signed completion receipts without putting company code, trust keys, or data in this public repository. Raw assistant prose is never acceptance evidence. There is nothing for sale on this page; gated surfaces are described under [Enterprise & trust layer](#enterprise--trust-layer).
 
 [Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
 

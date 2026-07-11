@@ -19,17 +19,18 @@ def load_publication_verifier():
     return module
 
 
-def test_v067_versions_and_release_plan_are_aligned() -> None:
+def test_v068_versions_and_release_plan_are_aligned() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     runtime = (ROOT / "unlimited_skills" / "__init__.py").read_text(encoding="utf-8")
     plugin = json.loads((ROOT / "plugin" / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
-    plan = (ROOT / "docs" / "releases" / "v0.6.7-plan.md").read_text(encoding="utf-8")
-    assert 'version = "0.6.7"' in pyproject
-    assert '__version__ = "0.6.7"' in runtime
-    assert plugin["version"] == "0.6.7"
+    plan = (ROOT / "docs" / "releases" / "v0.6.8-plan.md").read_text(encoding="utf-8")
+    assert 'version = "0.6.8"' in pyproject
+    assert '__version__ = "0.6.8"' in runtime
+    assert plugin["version"] == "0.6.8"
     assert "public core never names or depends on a private knowledge system" in plan
     assert "reference data, not instructions" in plan
     assert "the Stop hook never submits prose" in plan
+    assert "A committed record whose index or visibility proof failed is not reported as accepted" in plan
     assert "No deletion, replacement, or migration of `library/local`" in plan
 
 
@@ -70,16 +71,16 @@ def test_publication_verifier_retries_only_simple_index_propagation(monkeypatch:
 
     monkeypatch.setattr(verifier, "clean_install_smoke", fake_smoke)
     monkeypatch.setattr(verifier.time, "sleep", lambda _seconds: None)
-    result = verifier.wait_for_clean_install("0.6.7", wait_seconds=5, poll_seconds=0.1)
-    assert result["version_output"] == "unlimited-skills 0.6.7"
-    assert calls == ["0.6.7", "0.6.7"]
+    result = verifier.wait_for_clean_install("0.6.8", wait_seconds=5, poll_seconds=0.1)
+    assert result["version_output"] == "unlimited-skills 0.6.8"
+    assert calls == ["0.6.8", "0.6.8"]
 
 
 def test_publication_verifier_does_not_retry_real_smoke_failures(monkeypatch: pytest.MonkeyPatch) -> None:
     verifier = load_publication_verifier()
     monkeypatch.setattr(verifier, "clean_install_smoke", lambda _version: (_ for _ in ()).throw(RuntimeError("broken wheel")))
     with pytest.raises(RuntimeError, match="broken wheel"):
-        verifier.wait_for_clean_install("0.6.7", wait_seconds=5, poll_seconds=0.1)
+        verifier.wait_for_clean_install("0.6.8", wait_seconds=5, poll_seconds=0.1)
 
 
 def test_package_smoke_keeps_child_commands_on_the_invoking_python() -> None:
