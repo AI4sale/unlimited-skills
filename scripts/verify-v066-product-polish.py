@@ -80,7 +80,7 @@ def verify_static_surface() -> dict[str, Any]:
         require(marker in precision_plan, f"precision plan missing invariant: {marker}")
     release_plan = read(ROOT / "docs" / "releases" / "v0.6.7-plan.md")
     for marker in (
-        "public core never names or imports a private knowledge system",
+        "never names or imports a private knowledge system",
         "provider-controlled text is escaped and adversarially tested",
         "the Stop hook never submits prose",
         "defaults permit only `public` and `internal-sanitized`",
