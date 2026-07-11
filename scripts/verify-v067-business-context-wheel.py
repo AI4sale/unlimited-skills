@@ -142,6 +142,11 @@ def verify(wheel: Path, expected_version: str) -> dict:
             cwd=work,
             env=base_env,
         )
+        plain_card_safe = (
+            plain_card.returncode == 0
+            and "company_memory" not in plain_card.stdout
+            and not provider_log.exists()
+        )
         killed = require_json(
             run(
                 [str(cli), "context", "retrieve", "prepare current offer", "--json"],
@@ -177,7 +182,7 @@ def verify(wheel: Path, expected_version: str) -> dict:
             errors.append("installed suggest card did not include business context")
         if "business_context" in plain:
             errors.append("plain suggest JSON contract changed")
-        if plain_card.returncode != 0 or "company_memory" in plain_card.stdout or provider_log.exists():
+        if not plain_card_safe:
             errors.append("non-JSON card mode exposed company context")
         if killed.get("status") != "not_configured":
             errors.append("business-context kill switch failed")
@@ -200,7 +205,7 @@ def verify(wheel: Path, expected_version: str) -> dict:
             "delimiter_preserved": context.count("</company_memory>") == 1,
             "card_context": card.get("business_context", {}).get("status"),
             "plain_contract_unchanged": "business_context" not in plain,
-            "plain_card_has_no_context": "company_memory" not in plain_card.stdout and not provider_log.exists(),
+            "plain_card_has_no_context": plain_card_safe,
             "kill_switch": killed.get("status"),
             "mismatch": mismatch.get("status"),
             "timeout": timeout.get("status"),
