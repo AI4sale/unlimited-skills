@@ -90,7 +90,8 @@ registries, directories, or claims submission evidence:
 
 These areas remain valid, but are not the active adoption lane:
 
-- persistent warm daemon for faster vector retrieval on very large libraries;
+- broader host adapters for the local warm-daemon lifecycle now used by the
+  Claude Code prompt hook;
 - learning-loop improvements that aggregate accepted/rejected matches;
 - broader adapter support for more agent harnesses;
 - hosted registry hardening;

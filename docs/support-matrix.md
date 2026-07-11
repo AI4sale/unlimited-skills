@@ -1,6 +1,8 @@
 # Support Matrix
 
-`v0.3.0-alpha` is a developer preview. Install from a GitHub clone, not PyPI, because repo assets are required.
+`v0.6.6` is a pre-1.0 release. Install the user package from PyPI; use a
+GitHub clone when you need repository-only installer scripts or contributor
+assets.
 
 | Agent | Installer | Router | Patch | Native sync | Notes |
 | --- | --- | --- | --- | --- | --- |
@@ -18,12 +20,11 @@
 
 ## Distribution
 
-The v0.2.x alpha distribution path is:
+The supported user distribution path is:
 
 ```bash
-git clone https://github.com/AI4sale/unlimited-skills.git
-cd unlimited-skills
-python -m pip install -e ".[all]"
+python -m pip install --upgrade "unlimited-skills>=0.6.6"
 ```
 
-PyPI is not the supported v0.3.0-alpha distribution path yet.
+Use `unlimited-skills[all]>=0.6.6` for multilingual vector retrieval and the
+warm daemon. Agent installer scripts remain available from the GitHub checkout.

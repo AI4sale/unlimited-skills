@@ -1,39 +1,53 @@
 # Known Limitations
 
-`v0.4.0-alpha` is a developer preview, not a stable production SLA.
+`v0.6.6` is a pre-1.0 release, not a production SLA. CLI and JSON contracts
+covered by the frozen v0.6 verifier are protected inside the release line;
+other APIs may still change before 1.0.
 
-- v0.4 SkillOps implementation epics are approved to start after the go/no-go package. This does not authorize a v0.4 release/tag, production rollout, live billing, PyPI publication, full catalog distribution, automatic telemetry, automatic hosted query forwarding, automatic skill rewriting, or auto-publish.
-- v0.4 planning must preserve no-prompt/no-skill-body/no-private-data boundaries, signed hosted manifest requirements, and registration-free MIT local core behavior.
-- The v0.4 cross-repo readiness suite is technical readiness evidence only. It can run in public fixture mode or against a local private registry checkout, but it does not approve v0.4 implementation, does not distribute private registry content, and does not allow production hosted calls, production signing keys, live billing, PyPI publication, full catalog distribution, automatic install/update/remove, automatic skill rewriting, or auto-publish.
-- The v0.4 go/no-go package can recommend GO for implementation epics after review and merge, but it does not ship v0.4 runtime code or production rollout by itself. Each epic remains gated by review, security/privacy checks, and release-owner approval.
-- The v0.4.0-alpha E01-E04 integration gate is now packaged as the v0.4.0-alpha SkillOps foundation milestone. It proves the first SkillOps foundation layer across public and private contracts, but it does not let Codex create or push the final release tag, authorize production rollout, enable live billing, publish to PyPI, distribute the full catalog, upload prompts or skill bodies, forward hosted queries automatically, rewrite skills automatically, install/update/remove skills automatically, or auto-publish artifacts. The final tag remains pending release-owner approval.
-- Policy-aware recommendation runtime preview is preview-only. It combines signed catalog metadata with quality, improvement, entitlement, and policy signals, but does not install, update, remove, rewrite, reindex, publish, distribute the full catalog, or upload prompts, skill bodies, task text, local paths, tokens, proofs, private keys, or customer data.
-- Hosted registry access is early-access.
-- The registered hosted catalog exists and is populated, but availability may be limited during alpha.
-- Exact registered catalog contents are delivered through registered hosted catalog/update commands, not published in the MIT repo.
-- Catalog quality and skill evaluation status are signed metadata-only diagnostics. The v0.3.8-alpha integration uses fixture/static evaluations; it does not upload prompts, inspect customer data, execute untrusted skill scripts, rewrite skills automatically, or auto-publish fixes.
-- Skill improvement status is a maintainer-controlled signed metadata workflow. The v0.3.9-alpha integration proves improvement backlog, maintainer triage, fixed pending eval status, update recommendation preview, and deprecated/retired warnings; it does not rewrite skills automatically, auto-publish fixes, upload prompts, upload search queries, send user telemetry, or call production hosted services in tests.
-- Catalog feedback is explicit-only and registration-gated. It is a quality signal, not automatic telemetry or a support transcript upload path.
-- Catalog browser discovery requires registration and hosted `/v1/catalog/browser/*` support. It is signed metadata-only alpha; official and private-visible installs are metadata/dry-run only until dedicated install-plan capability checks are implemented.
-- Community submissions are implemented as explicit registered uploads with local dry-run preview, hosted maintainer review, and signed approved/published distribution. `community submit --dry-run` remains local-only and uploads nothing.
-- Enterprise Skill Lock is an opt-in local policy MVP. Managed hosted policy sync client behavior is implemented and fixture-verified; production private-registry endpoint delivery remains an in-review private registry dependency for the v0.3 alpha stack. SSO, SCIM, live billing, hosted payment provider integration, organization administration, hosted dashboard controls, and broad enterprise private-registry enforcement are not implemented in this alpha.
-- Plan and billing diagnostics are implemented, but billing is sandbox-only. The public client does not create checkout sessions, payment links, invoices, refunds, real charges, live billing credentials, or card/bank data collection.
-- `billing refresh` requires a registered installation and hosted `/v1/hub/billing-status` support. `billing status` and `billing doctor` remain local/cache-only.
-- Private team pack client commands are implemented and fixture-verified. Production private pack access requires registry-side entitlement or a Business/Enterprise plan plus the private registry distribution, publishing, admin, and entitlement PRs being accepted and deployed.
-- Hosted remote manifests must include valid signed manifest envelopes. SHA256 verification is still enforced for hosted collection archives and enhancement scripts before local installation.
-- PyPI is not the supported v0.4.0-alpha distribution path because router skills, scripts, docs, and bundled packs are repo assets.
-- Unlimited Tools MCP is alpha and local-only in v1. It supports stdio tools only: no OAuth upstreams, no MCP resources, no MCP prompts, no hosted gateway mode, no automatic telemetry, and no production hosted calls.
-- Warm daemon mode is experimental and not the default retrieval path.
-- Team sync is an MVP; server-side enforcement of limits and paid plan behavior may evolve.
-- Local Skill Hub runtime is MVP alpha. The public repo includes docs, schemas, sanitized examples, CLI commands, and an allowlist-backed local FastAPI runtime when `server` extras are installed.
-- Local Skill Hub can bootstrap from a validated local fixture allowlist or registered hosted allowlist metadata. The public repo includes only sanitized fake allowlist fixtures, not private registered skill bodies.
-- Local Skill Hub LAN mode is alpha. It requires explicit `--allow-lan` and at least one active hub client token, but serious LAN deployment still needs reverse proxy/TLS and normal network access controls.
-- `remote search`, `remote resolve`, and `remote view` call a configured Local Skill Hub over HTTP with hub-token auth. They are still alpha client runtime commands, not hosted registry search.
-- Remote fallback is explicit: `local_allowed` falls back to the local library when the hub is unavailable, while `hub_required` fails.
-- The current private registry audit verdict is `YES_WITH_ALLOWLIST` after scanning 315 skills.
-- Production-signed registry artifacts are not verified until the registry operator completes the protected signing ceremony. The final v0.3.1-alpha publication verifier blocks by default in that state unless a release owner explicitly accepts blocked registry signing as a known issue.
-- Full catalog distribution is disabled. Local Skill Hub uses allowlist-only distribution.
-- Community install requires signed hosted metadata and an `approved` or `published` review status. Pending, rejected, withdrawn, deprecated, retired, and unreviewed items must not install silently.
-- No marketplace storefront, billing, checkout, revenue share, live payment provider, card data, or bank data behavior is included in v0.3.7-alpha.
-- Tool/platform skills use dry-run local install plans and client capability matching. The hub still never executes skills or installs packages.
-- Existing `unlimited-skills serve` remains the separate free local daemon and does not require registration.
+## Local retrieval
+
+- The fast lexical path is optimized for English skill metadata. Native-language
+  retrieval needs the optional `[all]` dependencies and a current vector
+  sidecar (`unlimited-skills vector-reindex`).
+- The Claude Code prompt hook keeps the loopback warm daemon running by
+  default. Other hosts still need a manual daemon or their own lifecycle
+  adapter. Restricted runtimes can set `UNLIMITED_SKILLS_NO_AUTOSERVE=1`.
+- A newly launched embedding runtime may not answer the same prompt that
+  started it. That prompt remains fail-open and receives an English-keyword
+  rescue; later prompts use the warm daemon.
+- If the optional server/vector runtime is absent or broken, automatic launch
+  cannot repair packages in the background. Run `unlimited-skills doctor --fix`.
+- The free daemon has no remote authentication. Autoserve is loopback-only; do
+  not expose `unlimited-skills serve` to LAN or the public internet.
+- Retrieval quality depends on skill names/descriptions and the indexed library.
+  Use `reindex` after out-of-band file edits and `vector-reindex` after inventory
+  or embedding-model changes.
+
+## Agent integrations
+
+- Deterministic SessionStart/UserPromptSubmit injection is strongest in Claude
+  Code. Codex, Hermes, and OpenClaw use router/install adapters but do not all
+  expose an equivalent per-prompt lifecycle hook.
+- Vellum AI remains migration-only; it does not have a full installer/router
+  integration.
+- Skill cards intentionally include the selected skill's body head at high
+  confidence. Set `UNLIMITED_SKILLS_NO_INJECT=1` to keep NAME-only hints.
+
+## Learning and hosted surfaces
+
+- The local learning loop records privacy-safe feedback and aggregates. It does
+  not infer successful task completion or publish/rewrite skills automatically.
+- Hosted registry, community, team, policy, billing-status, and Local Skill Hub
+  surfaces are alpha. Registration is not required for local search, indexing,
+  daemon, learning logs, quickstart, or MCP savings.
+- Hosted clients must not upload prompts, source code, skill bodies, full local
+  paths, environment values, tokens, private keys, or customer data. Community
+  submission is the explicit exception for the selected submitted skill/pack.
+- Full catalog distribution remains disabled. Local Skill Hub is allowlist-only;
+  LAN binding requires explicit opt-in, active hub tokens, and normal network
+  controls such as TLS/reverse proxy for serious deployment.
+- Billing commands are diagnostics/status surfaces. The public client does not
+  create charges, checkout sessions, invoices, refunds, or collect payment data.
+
+Historical milestone-specific restrictions remain in `docs/releases/` and are
+not statements about the current PyPI distribution path.

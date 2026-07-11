@@ -1,39 +1,45 @@
 # Packaging
 
-Status: `v0.3.0-alpha`.
+Status: `v0.6.6` PyPI-first release train.
 
-## Distribution Decision
+## Distribution decision
 
-PyPI is not the supported `v0.3.0-alpha` distribution path. Use a GitHub clone.
-
-Reason: the alpha product is more than the importable Python package. A working install needs repo assets that are intentionally kept visible and reviewable:
-
-- router skills under `skills/`;
-- shell and PowerShell installers under `scripts/`;
-- migration and rollback scripts;
-- schemas and sanitized examples;
-- release and operations documentation;
-- bundled starter/adapted packs when present in the repo.
-
-A wheel-only install can provide the CLI entry point, but it cannot yet prove that agent router skills, installer scripts, and repo-managed assets are present on disk beside the checkout. PyPI packaging should wait until wheel/sdist asset inclusion and installer behavior are tested in CI.
-
-## Required Asset Checks
-
-Before publishing a v0.3.0-alpha release candidate, run:
+PyPI is the supported user distribution path. The wheel includes the Python
+package and bundled packs required by `quickstart`; package smoke verifies a
+clean install, an upgrade from the public `0.6.4.post1` wheel, local-skill
+preservation, index migration, retrieval, and frozen v0.6 CLI contracts.
 
 ```bash
-python scripts/verify-v0.3.0-alpha-package-assets.py
-python scripts/run-v0.3.0-alpha-packaging-smoke.py
+python -m pip install --upgrade "unlimited-skills>=0.6.6"
+python -m pip install --upgrade "unlimited-skills[all]>=0.6.6"  # vector + daemon
 ```
 
-The verifier checks:
+A GitHub clone remains the contributor/operator distribution because it also
+contains source tests, release scripts, full docs, schemas, examples, and
+agent-specific installer scripts:
 
-- `pyproject.toml` and `unlimited_skills.__version__` agree on `0.3.0`;
-- README and support docs identify `v0.3.0-alpha`;
-- PyPI is explicitly documented as unsupported for this alpha;
-- agent router skill assets exist;
-- Codex, Claude Code, Hermes, and OpenClaw installers exist for PowerShell and shell;
-- installer scripts expose opt-out and remote-token-safe flags;
-- local library deletion is not documented as normal sync behavior.
+```bash
+git clone https://github.com/AI4sale/unlimited-skills.git
+cd unlimited-skills
+python -m pip install -e ".[all]"
+```
 
-The smoke test installs the checkout in an isolated environment, runs `unlimited-skills --version`, reindexes a temporary library, and verifies basic search/view behavior without production hosted calls.
+## Release gates
+
+The v0.6.6 workflow builds wheel and sdist once, runs `twine check` and tests
+that exact artifact set, publishes through PyPI Trusted Publishing, waits for
+the exact public version JSON, installs the public wheel into a clean
+environment, and creates the GitHub tag/release only after that public-wheel
+smoke passes. GitHub therefore cannot advertise a newer supported release than
+PyPI.
+
+Run the local source gates before publication:
+
+```bash
+python scripts/verify-v066-product-polish.py
+python scripts/verify-v06-frozen-contracts.py
+python scripts/verify-skill-effectiveness-gate.py
+```
+
+See `docs/releases/v0.6.6-plan.md` and `.github/workflows/publish-pypi.yml` for the
+exact contract.

@@ -69,6 +69,9 @@ Your local results depend on your installed skills and MCP servers. Run
 
 - No telemetry or automatic uploads.
 - No skill execution by the library.
+- The Claude Code prompt hook may start the optional warm-search daemon on
+  loopback; it never binds LAN/remote or uploads prompt data. Set
+  `UNLIMITED_SKILLS_NO_AUTOSERVE=1` only for restricted runtimes.
 - No paid, hosted, Team, Pro, Business, or Enterprise feature is required for
   local search, quickstart, suggestion, indexing, or MCP savings.
 - Hosted/registered catalog and team surfaces are early alpha paths documented

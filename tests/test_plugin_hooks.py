@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import importlib.util
 import json
 import os
 import subprocess
 import sys
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -48,9 +50,21 @@ def hook_env(tmp_path: Path, **overrides: str) -> dict[str, str]:
     # Isolate the fallback chain from the developer machine's real installs.
     env["CLAUDE_HOME"] = str(tmp_path / "claude-home")
     env["UNLIMITED_SKILLS_INSTALL_ROOT"] = str(tmp_path / "install-root")
+    # Generic hook tests exercise retrieval, not process lifecycle. Autoserve
+    # has focused unit tests below so the suite never starts real daemons.
+    env["UNLIMITED_SKILLS_NO_AUTOSERVE"] = "1"
     env.pop("UNLIMITED_SKILLS_CLI", None)
     env.update(overrides)
     return env
+
+
+def load_user_prompt_module() -> ModuleType:
+    name = f"_unlimited_skills_user_prompt_submit_{os.urandom(6).hex()}"
+    spec = importlib.util.spec_from_file_location(name, USER_PROMPT_SUBMIT)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def repo_cli_override(root: Path) -> str:
@@ -305,11 +319,107 @@ def test_user_prompt_submit_instructs_english_requery_for_non_english(tmp_path: 
     assert result.returncode == 0, result.stderr
     context = json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
     assert "English" in context and "unlimited-skills suggest" in context
-    # A hook must never create a background service without operator consent.
-    assert "serve" in context and "approv" in context.lower()
-    assert "already" not in context.lower()
+    assert "UNLIMITED_SKILLS_NO_AUTOSERVE" in context
     assert prompt not in context  # privacy: no raw prompt echo
-    assert "subprocess.Popen" not in USER_PROMPT_SUBMIT.read_text(encoding="utf-8")
+
+
+def test_user_prompt_submit_autoserve_starts_missing_local_daemon(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_user_prompt_module()
+    calls: list[tuple[list[str], dict]] = []
+    monkeypatch.delenv("UNLIMITED_SKILLS_NO_AUTOSERVE", raising=False)
+    monkeypatch.setattr(module, "_daemon_state", lambda command: "missing")
+    monkeypatch.setattr(module, "_daemon_endpoint", lambda: ("127.0.0.1", 8765, "http://127.0.0.1:8765"))
+    monkeypatch.setattr(module, "_claim_daemon_launch", lambda command, url: (True, None))
+    monkeypatch.setattr(module.subprocess, "Popen", lambda command, **kwargs: calls.append((command, kwargs)))
+
+    state = module._ensure_warm_daemon(["unlimited-skills"])
+
+    assert state == "starting"
+    assert len(calls) == 1
+    assert calls[0][0] == [
+        "unlimited-skills", "serve", "--host", "127.0.0.1", "--port", "8765", "--log-level", "warning"
+    ]
+    assert calls[0][1]["stdin"] is subprocess.DEVNULL
+    assert calls[0][1]["stdout"] is subprocess.DEVNULL
+    assert calls[0][1]["stderr"] is subprocess.DEVNULL
+    assert calls[0][1].get("start_new_session") is True or calls[0][1].get("creationflags", 0) != 0
+
+
+@pytest.mark.parametrize("state", ["ready", "incompatible", "external_or_invalid"])
+def test_user_prompt_submit_autoserve_never_replaces_running_or_refused_endpoint(
+    monkeypatch: pytest.MonkeyPatch, state: str
+) -> None:
+    module = load_user_prompt_module()
+    monkeypatch.delenv("UNLIMITED_SKILLS_NO_AUTOSERVE", raising=False)
+    monkeypatch.setattr(module, "_daemon_state", lambda command: state)
+    monkeypatch.setattr(
+        module.subprocess,
+        "Popen",
+        lambda *args, **kwargs: pytest.fail(f"unexpected daemon launch for {state}"),
+    )
+
+    assert module._ensure_warm_daemon(["unlimited-skills"]) == state
+
+
+def test_user_prompt_submit_autoserve_cooldown_prevents_spawn_storm(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_user_prompt_module()
+    monkeypatch.delenv("UNLIMITED_SKILLS_NO_AUTOSERVE", raising=False)
+    monkeypatch.setattr(module, "_daemon_state", lambda command: "missing")
+    monkeypatch.setattr(module, "_daemon_endpoint", lambda: ("127.0.0.1", 8765, "http://127.0.0.1:8765"))
+    monkeypatch.setattr(module, "_claim_daemon_launch", lambda command, url: (False, Path("launch")))
+    monkeypatch.setattr(
+        module.subprocess,
+        "Popen",
+        lambda *args, **kwargs: pytest.fail("cooldown must suppress duplicate daemon launch"),
+    )
+
+    assert module._ensure_warm_daemon(["unlimited-skills"]) == "warming"
+
+
+def test_user_prompt_submit_autoserve_emergency_override(monkeypatch: pytest.MonkeyPatch) -> None:
+    module = load_user_prompt_module()
+    monkeypatch.setenv("UNLIMITED_SKILLS_NO_AUTOSERVE", "1")
+    monkeypatch.setattr(module, "_daemon_state", lambda command: pytest.fail("disabled autoserve must not probe the port"))
+    monkeypatch.setattr(module.subprocess, "Popen", lambda *args, **kwargs: pytest.fail("autoserve is disabled"))
+
+    assert module._ensure_warm_daemon(["unlimited-skills"]) == "disabled"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "https://127.0.0.1:8765",
+        "http://example.com:8765",
+        "http://user:pass@127.0.0.1:8765",
+        "http://127.0.0.1:8765/nested",
+        "http://127.0.0.1:8765?next=remote",
+    ],
+)
+def test_user_prompt_submit_autoserve_rejects_non_local_or_malformed_endpoint(
+    monkeypatch: pytest.MonkeyPatch, url: str
+) -> None:
+    module = load_user_prompt_module()
+    monkeypatch.setenv("UNLIMITED_SKILLS_WARM_DAEMON_URL", url)
+    assert module._daemon_endpoint() is None
+
+
+def test_user_prompt_submit_autoserve_requires_matching_root_and_model(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    module = load_user_prompt_module()
+    root = tmp_path / "library"
+    command = ["unlimited-skills", "--root", str(root)]
+    payload = {
+        "ok": True,
+        "service": "unlimited-skills",
+        "protocol": "warm-search-v1",
+        "root": str(root),
+        "model": module.DEFAULT_EMBED_MODEL,
+    }
+
+    assert module._daemon_identity_matches(payload, command) is True
+    assert module._daemon_identity_matches({**payload, "root": str(tmp_path / "other")}, command) is False
+    assert module._daemon_identity_matches({**payload, "model": "wrong-model"}, command) is False
 
 
 def test_user_prompt_submit_rescues_mixed_language_weak_match(tmp_path: Path) -> None:

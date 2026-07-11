@@ -17,8 +17,11 @@
   hint qualifies.
 - Add versioned lexical-index and vector-manifest freshness checks, atomic
   artifact replacement, and RRF lexical/vector fusion without raw-score magic.
-- Remove automatic background daemon startup from `UserPromptSubmit`; starting
-  `unlimited-skills serve` now requires an explicit operator/user decision.
+- Keep the optional local warm daemon running from `UserPromptSubmit`: the hook
+  probes the service identity, starts one hidden detached process only when the
+  local port is absent, coalesces concurrent launch attempts, refuses remote or
+  incompatible endpoints, and remains fail-open. Restricted runtimes can set
+  `UNLIMITED_SKILLS_NO_AUTOSERVE=1` as an emergency override.
 - Make `quickstart` add missing bundled skills even inside partially populated
   collections, migrate legacy indexes in place without deleting or replacing
   existing/local skills, apply the production floor to its proof search, and

@@ -2,7 +2,8 @@
 
 ## Supported Version
 
-`v0.4.9-alpha` is a developer preview. Security fixes should target the current `main` branch first.
+`v0.6.x` is the supported pre-1.0 line. Security fixes should target the
+current `main` branch first.
 
 The older `v0.3.7-alpha` security boundary remains documented for compatibility with the v0.2.x smoke claims that protect release-history wording.
 
@@ -18,6 +19,14 @@ Do not send live credentials, private keys, customer data, tokens, secrets, full
 ## Local-First Boundary
 
 The MIT Community Core is designed to work offline. Local commands such as `search`, `list`, `view`, `where`, `use`, `feedback`, `reindex`, `vector-reindex`, `serve`, `adapt`, installers, migration scripts, local learning logs, native sync, and public self-update do not require registration.
+
+Since v0.6.6, the Claude Code `UserPromptSubmit` hook keeps the optional warm
+search daemon running by default. Autoserve is restricted to an exact loopback
+HTTP endpoint, validates service/protocol/root/model identity before reuse,
+never uses a shell, never replaces an occupied port, coalesces concurrent
+launches, and remains fail-open. It does not install an operating-system
+service or bind LAN/remote. Restricted runtimes can set
+`UNLIMITED_SKILLS_NO_AUTOSERVE=1`.
 
 Registration is required only for official AI4sale-hosted services: hosted adapted catalog, community catalog/submissions, adapted collection updates, registered local enhancement scripts, hosted archives, team sync, dashboard/cloud/business/enterprise features, and future hosted services.
 

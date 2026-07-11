@@ -147,4 +147,10 @@ depends on two invariants — keep them:
 1. `python -m unlimited_skills suggest` and the rendered launchers dispatch to `unlimited_skills/suggest.py` WITHOUT importing `unlimited_skills.cli` (see `unlimited_skills/__main__.py`); the full CLI import alone costs ~650 ms.
 2. `suggest` never syncs native skill roots, never loads embedding models, and reads the prebuilt lexical index (`.unlimited-skills-index.json`); a missing index falls back to a filesystem walk, which is slower but still within budget at this library size.
 
-If the library outgrows the budget, the documented upgrade path is the existing warm daemon (`unlimited-skills serve`, `unlimited_skills/server.py`): teach `suggest` to proxy to the daemon when it is running and fall back in-process otherwise.
+For native-language retrieval, `suggest` uses only an in-budget cached vector
+or an already-running compatible warm daemon; it never pays a cold embedding
+load inside the prompt budget. The Claude Code prompt hook health-checks and
+starts that loopback daemon when absent, with a cross-process cooldown and
+`UNLIMITED_SKILLS_NO_AUTOSERVE=1` emergency override. The current request stays
+fail-open on lexical/English-keyword rescue while a newly launched runtime
+warms.
