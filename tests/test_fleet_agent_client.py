@@ -101,6 +101,34 @@ def heartbeat_response(
     }
 
 
+def receipt_response(
+    batch: Mapping[str, Any],
+    *,
+    outcome: str = "accepted",
+    accepted_event_ids: list[str] | None = None,
+    duplicate_event_ids: list[str] | None = None,
+    rejected_events: list[dict[str, str]] | None = None,
+) -> dict[str, Any]:
+    return {
+        "contract_id": "unlimited-skills.fleet-wire",
+        "contract_version": 1,
+        "message_type": "receipt-response",
+        "batch_id": str(batch["batch_id"]),
+        "server_timestamp": "2026-07-27T12:00:02Z",
+        "accepted_event_ids": (
+            accepted_event_ids
+            if accepted_event_ids is not None
+            else [
+                str(item["event_id"])
+                for item in batch["receipts"]
+            ]
+        ),
+        "duplicate_event_ids": duplicate_event_ids or [],
+        "rejected_events": rejected_events or [],
+        "outcome": outcome,
+    }
+
+
 def sign_desired_for_agent(agent_id: str) -> dict[str, Any]:
     private_key = Ed25519PrivateKey.from_private_bytes(FIXTURE_SEED)
     desired = copy.deepcopy(VALID_DESIRED)
@@ -125,9 +153,16 @@ class FakeAdapter:
     adapter_id = "codex"
     adapter_version = "1.0.0"
 
+    def __init__(self) -> None:
+        self.activated = False
+
     def discover(self) -> RuntimeInventory:
         return RuntimeInventory(
-            runtime_generation="generation_fleet_client_01",
+            runtime_generation=(
+                "generation_fleet_client_post"
+                if self.activated
+                else "generation_fleet_client_pre"
+            ),
             active_revisions={},
             inventory_digest="sha256:" + ("d" * 64),
         )
@@ -158,7 +193,7 @@ class FakeAdapter:
         *,
         activation_nonce: str,
     ) -> None:
-        return None
+        self.activated = True
 
     def attest_runtime(
         self,
@@ -167,7 +202,7 @@ class FakeAdapter:
         activation_nonce: str,
     ) -> RuntimeAttestation:
         return RuntimeAttestation(
-            runtime_generation="generation_fleet_client_01",
+            runtime_generation="generation_fleet_client_post",
             activation_nonce=activation_nonce,
             pack_id=str(item["pack_id"]),
             release_id=str(item["release_id"]),
@@ -455,6 +490,8 @@ def test_run_once_registers_heartbeats_and_reconciles_signed_desired(
                     "agent_fleet_client_01"
                 )
             )
+        if path == "/v1/fleet/receipts":
+            return receipt_response(payload)
         raise AssertionError(path)
 
     result = client(tmp_path, transport).run_once()
@@ -471,7 +508,7 @@ def test_run_once_registers_heartbeats_and_reconciles_signed_desired(
     heartbeat = calls[1]["payload"]
     assert heartbeat["message_type"] == "heartbeat-request"
     assert heartbeat["runtime_generation"] == (
-        "generation_fleet_client_01"
+        "generation_fleet_client_pre"
     )
     assert heartbeat["active_inventory_digest"].startswith("sha256:")
     assert not {
@@ -481,6 +518,119 @@ def test_run_once_registers_heartbeats_and_reconciles_signed_desired(
         "compliant",
         "receipts",
     } & set(heartbeat)
+    assert calls[2]["path"] == "/v1/fleet/heartbeat"
+    assert calls[2]["payload"]["runtime_generation"] == (
+        "generation_fleet_client_post"
+    )
+    assert calls[3]["path"] == "/v1/fleet/receipts"
+    assert result.receipt_upload is not None
+    assert result.receipt_upload.accepted_count == 6
+    assert result.receipt_upload.pending_count == 0
+
+
+def test_atomic_receipt_rejection_keeps_the_entire_spool(
+    tmp_path: Path,
+) -> None:
+    receipt_batches: list[dict[str, Any]] = []
+
+    def transport(state, path, payload, **kwargs):
+        if path == "/v1/fleet/agents/register":
+            return registration_response(
+                local_instance_id=str(payload["local_instance_id"])
+            )
+        if path == "/v1/fleet/heartbeat":
+            return heartbeat_response(
+                desired_state=sign_desired_for_agent(
+                    "agent_fleet_client_01"
+                )
+            )
+        if path == "/v1/fleet/receipts":
+            receipt_batches.append(copy.deepcopy(payload))
+            failed = payload["receipts"][3]
+            return receipt_response(
+                payload,
+                outcome="sequence_gap",
+                accepted_event_ids=[],
+                rejected_events=[
+                    {
+                        "event_id": failed["event_id"],
+                        "reason_code": "invalid_event_sequence",
+                    }
+                ],
+            ) | {
+                "first_failed_event_index": 3,
+                "expected_next_sequence": 4,
+            }
+        raise AssertionError(path)
+
+    instance = client(tmp_path, transport)
+    result = instance.run_once()
+
+    assert len(receipt_batches) == 1
+    assert result.receipt_upload is not None
+    assert result.receipt_upload.outcome == "sequence_gap"
+    assert result.receipt_upload.accepted_count == 0
+    assert result.receipt_upload.pending_count == 6
+    assert len(instance.spool.pending()) == 6
+
+
+def test_receipt_upload_chunks_at_100_and_acks_duplicates(
+    tmp_path: Path,
+) -> None:
+    batches: list[dict[str, Any]] = []
+
+    def transport(state, path, payload, **kwargs):
+        assert path == "/v1/fleet/receipts"
+        batches.append(copy.deepcopy(payload))
+        ids = [
+            str(item["event_id"]) for item in payload["receipts"]
+        ]
+        return receipt_response(
+            payload,
+            outcome="accepted_duplicate",
+            accepted_event_ids=[],
+            duplicate_event_ids=ids,
+        )
+
+    instance = client(tmp_path, transport)
+    template = copy.deepcopy(
+        json.loads(
+            (
+                ROOT
+                / "contracts"
+                / "fleet"
+                / "v1"
+                / "fixtures"
+                / "valid"
+                / "receipt-runtime-attested.json"
+            ).read_text(encoding="utf-8")
+        )
+    )
+    for index in range(201):
+        receipt = copy.deepcopy(template)
+        receipt["event_id"] = f"evt_chunk_{index:04d}"
+        receipt["idempotency_key"] = receipt["event_id"]
+        receipt["attempt_id"] = f"attempt_chunk_{index:04d}"
+        instance.spool.append(receipt)
+
+    identity = instance.identity_store.bind_agent(
+        instance.identity_store.load_or_create(
+            "uls_inst_fleet_client"
+        ),
+        "agent_fleet_client_01",
+    )
+    result = instance.upload_pending_receipts(identity)
+
+    assert [len(batch["receipts"]) for batch in batches] == [
+        100,
+        100,
+        1,
+    ]
+    assert len({batch["batch_id"] for batch in batches}) == 3
+    assert result.accepted_count == 0
+    assert result.duplicate_count == 201
+    assert result.pending_count == 0
+    assert instance.spool.pending() == []
 
 
 @pytest.mark.parametrize(

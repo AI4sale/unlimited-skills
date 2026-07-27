@@ -1,4 +1,4 @@
-"""Registered fleet agent client for FCP-003.
+"""Registered fleet agent client and atomic FCP-004 receipt uploader.
 
 This module owns client-generated local agent identity, body-bound
 registration and heartbeat requests, and the handoff of verified desired
@@ -10,6 +10,7 @@ states.
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import re
 import tempfile
@@ -78,6 +79,16 @@ class FleetAgentRunResult:
     server_timestamp: str
     desired_state_received: bool
     reconcile_result: ReconcileResult | None
+    receipt_upload: FleetReceiptUploadResult | None
+
+
+@dataclass(frozen=True)
+class FleetReceiptUploadResult:
+    batch_count: int
+    accepted_count: int
+    duplicate_count: int
+    pending_count: int
+    outcome: str
 
 
 FleetTransport = Callable[..., dict[str, Any]]
@@ -550,6 +561,126 @@ class FleetAgentClient:
                 )
         return response
 
+    def upload_pending_receipts(
+        self,
+        identity: FleetAgentIdentity,
+    ) -> FleetReceiptUploadResult:
+        """Upload atomic batches while acknowledging only safe outcomes."""
+
+        persisted = self.identity_store.load_or_create(
+            self.registration.install_id
+        )
+        if persisted != identity or not identity.agent_id:
+            raise FleetAgentClientError(
+                "fleet_receipt_local_identity_mismatch"
+            )
+        batch_count = 0
+        accepted_count = 0
+        duplicate_count = 0
+        final_outcome = "accepted"
+        while True:
+            receipts = self.spool.pending(limit=100)
+            if not receipts:
+                break
+            receipt_bytes = json.dumps(
+                receipts,
+                ensure_ascii=False,
+                sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+            batch_id = (
+                "batch_"
+                + hashlib.sha256(receipt_bytes).hexdigest()[:48]
+            )
+            payload = {
+                "contract_id": FLEET_CONTRACT_ID,
+                "contract_version": FLEET_CONTRACT_VERSION,
+                "message_type": "receipt-batch",
+                "installation_id": identity.installation_id,
+                "batch_id": batch_id,
+                "receipts": receipts,
+                "required_extensions": [],
+            }
+            try:
+                request = validate_contract_message(payload)
+                response = validate_contract_message(
+                    self._send("/v1/fleet/receipts", request)
+                )
+            except FleetContractError as exc:
+                raise FleetAgentClientError(str(exc)) from exc
+            if response["batch_id"] != batch_id:
+                raise FleetAgentClientError(
+                    "fleet_receipt_batch_response_mismatch"
+                )
+            sent_ids = {
+                str(item["event_id"]) for item in receipts
+            }
+            accepted_ids = {
+                str(item) for item in response["accepted_event_ids"]
+            }
+            duplicate_ids = {
+                str(item) for item in response["duplicate_event_ids"]
+            }
+            rejected_ids = {
+                str(item["event_id"])
+                for item in response["rejected_events"]
+            }
+            returned_ids = (
+                accepted_ids | duplicate_ids | rejected_ids
+            )
+            if (
+                not returned_ids <= sent_ids
+                or accepted_ids & duplicate_ids
+                or accepted_ids & rejected_ids
+                or duplicate_ids & rejected_ids
+            ):
+                raise FleetAgentClientError(
+                    "fleet_receipt_response_identity_mismatch"
+                )
+            outcome = str(response.get("outcome") or "")
+            if not outcome:
+                outcome = (
+                    "rejected"
+                    if rejected_ids
+                    else (
+                        "accepted_duplicate"
+                        if duplicate_ids and not accepted_ids
+                        else "accepted"
+                    )
+                )
+            final_outcome = outcome
+            if outcome in {
+                "rejected",
+                "conflict",
+                "sequence_gap",
+                "stale_attempt",
+            } or rejected_ids:
+                if accepted_ids:
+                    raise FleetAgentClientError(
+                        "fleet_receipt_atomic_response_invalid"
+                    )
+                break
+            if returned_ids != sent_ids:
+                raise FleetAgentClientError(
+                    "fleet_receipt_response_incomplete"
+                )
+            acknowledged = accepted_ids | duplicate_ids
+            removed = self.spool.acknowledge(acknowledged)
+            if removed != len(acknowledged):
+                raise FleetAgentClientError(
+                    "fleet_receipt_spool_ack_mismatch"
+                )
+            batch_count += 1
+            accepted_count += len(accepted_ids)
+            duplicate_count += len(duplicate_ids)
+        return FleetReceiptUploadResult(
+            batch_count=batch_count,
+            accepted_count=accepted_count,
+            duplicate_count=duplicate_count,
+            pending_count=len(self.spool.pending(limit=256)),
+            outcome=final_outcome,
+        )
+
     def run_once(self) -> FleetAgentRunResult:
         identity = self.register()
         try:
@@ -561,6 +692,7 @@ class FleetAgentClient:
         response = self.heartbeat(identity, inventory=inventory)
         desired = response.get("desired_state")
         reconcile_result: ReconcileResult | None = None
+        receipt_upload: FleetReceiptUploadResult | None = None
         if desired is not None:
             reconciler = FleetReconciler(
                 agent_id=identity.agent_id,
@@ -575,9 +707,26 @@ class FleetAgentClient:
                 reconcile_result = reconciler.reconcile(desired)
             except ReconcileError as exc:
                 raise FleetAgentClientError(str(exc)) from exc
+            try:
+                post_inventory = self.adapter.discover()
+            except Exception as exc:
+                raise FleetAgentClientError(
+                    "fleet_adapter_discovery_failed"
+                ) from exc
+            if not isinstance(post_inventory, RuntimeInventory):
+                raise FleetAgentClientError(
+                    "fleet_adapter_inventory_invalid"
+                )
+            response = self.heartbeat(
+                identity,
+                inventory=post_inventory,
+            )
+        if self.spool.pending(limit=1):
+            receipt_upload = self.upload_pending_receipts(identity)
         return FleetAgentRunResult(
             identity=identity,
             server_timestamp=str(response["server_timestamp"]),
             desired_state_received=desired is not None,
             reconcile_result=reconcile_result,
+            receipt_upload=receipt_upload,
         )

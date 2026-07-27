@@ -27,6 +27,7 @@ from .client import (
     FleetAgentIdentity,
     FleetAgentIdentityStore,
     FleetAgentRunResult,
+    FleetReceiptUploadResult,
     post_fleet_json,
 )
 from .privacy import FleetPrivacyError, assert_receipt_metadata_safe
@@ -44,6 +45,7 @@ __all__ = [
     "FleetAgentIdentity",
     "FleetAgentIdentityStore",
     "FleetAgentRunResult",
+    "FleetReceiptUploadResult",
     "FleetPrivacyError",
     "FleetReconciler",
     "InstalledRevision",

@@ -713,7 +713,8 @@ validator, vendor-neutral adapter interface and local receipt spool are an
 implementation foundation for a future verified fleet-delivery path. The
 client persists a client-generated UUIDv4, performs proof-bound registration
 and heartbeat, verifies signed desired state and hands it to the reconciler.
-It does not yet upload receipts. These components do not by themselves prove
+The registered client now uploads atomic, proof-bound receipt batches while
+keeping rejected batches in its offline spool. These components do not by themselves prove
 that a skill is verified active across a fleet, do not provide the dashboard,
 and do not authorize Business or Enterprise delivery claims.
 

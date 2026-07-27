@@ -1,9 +1,8 @@
 # Fleet Wire Contract v1
 
-Status: FCP-002 bundle revision 2 plus the FCP-003 public registered-agent
-client. This document does not claim that Business fleet delivery, the
-Enterprise control plane, the dashboard, receipt ingestion, or a production
-SLA is complete.
+Status: FCP-002 bundle revision 2 plus the FCP-004 public registered-agent
+receipt uploader. This document does not claim that Business fleet delivery,
+the Enterprise control plane, the dashboard, or a production SLA is complete.
 
 ## Authority
 
@@ -181,7 +180,7 @@ spool.
 
 ## Registered agent client
 
-`unlimited_skills.fleet.FleetAgentClient` is the public FCP-003 client library.
+`unlimited_skills.fleet.FleetAgentClient` is the public registered-agent client.
 It composes the registered installation identity, a vendor adapter, a
 persisted agent identity, the signed desired-state trust set, the reconciler
 state and the receipt spool.
@@ -248,10 +247,17 @@ anchor. Business and Enterprise deployments must provision the dedicated
 fleet desired-state public keys through an authenticated administrative
 channel and rotate them under change control.
 
-The client library does not schedule itself and does not upload receipt events
-in FCP-003. Receipt upload and the server truth engine are FCP-004 scope.
-Therefore a successful FCP-003 run may spool `RUNTIME_ATTESTED` locally while
-the server correctly remains `TARGETED` with `verified_active=false`.
+The client library does not schedule itself. It uploads offline-spooled
+receipts to `/v1/fleet/receipts` in deterministic chunks of at most 100 events
+inside the wire maximum of 256 events and 256 KiB. Every HTTP retry reuses the
+exact batch body but creates a fresh device-proof nonce. An accepted or exact
+duplicate event is acknowledged locally. A rejected atomic batch leaves every
+spool entry intact.
+
+After reconciliation, the client reports the post-activation runtime
+generation and inventory through heartbeat before uploading
+`RUNTIME_ATTESTED`. The server still owns all positive delivery truth; the
+client never emits `VERIFIED_ACTIVE`.
 
 Registration and heartbeat do not contain skill bodies, prompts, local paths,
 environment values, stdout, stderr, tracebacks, secrets, access tokens or
