@@ -172,6 +172,7 @@ class FakeAdapter:
             pack_id=str(item["pack_id"]),
             release_id=str(item["release_id"]),
             active_archive_sha256=str(item["archive_sha256"]),
+            active_inventory_digest="sha256:" + ("d" * 64),
             adapter_version=self.adapter_version,
         )
 
