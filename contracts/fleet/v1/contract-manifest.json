@@ -1,0 +1,30 @@
+{
+  "compatibility": "v1-additive-optional-only",
+  "contract_id": "unlimited-skills.fleet-wire",
+  "files": {
+    "agent-registration-request.schema.json": "sha256:7d765ed65980bcbb47c7abace2e64ca26aa7fc872b87feeab916c36226b66ca0",
+    "agent-registration-response.schema.json": "sha256:d6555655a467ae17bd0420f264d098a7df6acb70a51997c885396e0f5c9e5600",
+    "desired-state.schema.json": "sha256:368aa1f1b7151aae17e0bd9a3e2c45053383c137684b5d2b2053a7931dbde18d",
+    "fixtures/invalid/desired-state-tampered.json": "sha256:885e68503f847e63e2b93518925cba57e50b72feb88bbd2e6dbc5b680c66e83b",
+    "fixtures/invalid/receipt-client-verified-active.json": "sha256:543236eb45f70bd91350686402d8428a2646fac4176aa3c877d6c8e2344b2e32",
+    "fixtures/invalid/rollback-old-epoch-replay.json": "sha256:2bb63c74ed8f38fedcb5929797c4708c6c670ecfd1cc92f49d9ac6fdb4ea195d",
+    "fixtures/valid/agent-registration-request.json": "sha256:c9abc547dde24a5b0bbc878d7d0a52767492b6148b6340dff3a9f05e960199f7",
+    "fixtures/valid/agent-registration-response.json": "sha256:c283e6853f168955e1192bf9476416633db120bba964794052b807d0f1959a3d",
+    "fixtures/valid/desired-state.signed.json": "sha256:95301a958485787032a8333050f95daabce3f435bfd6e683dede2645404ad130",
+    "fixtures/valid/heartbeat-request.json": "sha256:f1344503b1af7c8936b36c387b40092c0e6dc27c6249e4e64e31af2aef1837fe",
+    "fixtures/valid/heartbeat-response.json": "sha256:941dbbd972ff4482874d28b48ffba4407ed5e4c62c947a3e6a0fef91fd7c9971",
+    "fixtures/valid/receipt-batch.json": "sha256:0b5a7012cb7cf9de818ab2cff6f2da0307a95c47a3270fc2a0f3bdafcfcfdeb3",
+    "fixtures/valid/receipt-response.json": "sha256:b463439289d2e1c609fcc0a4103d7cb31a260a6b28b924819351efda84d4c03d",
+    "fixtures/valid/receipt-runtime-attested.json": "sha256:085f505dd7350d66e50f826abb89dde550ccf64492bfe6ede6ce6353c787d53d",
+    "heartbeat-request.schema.json": "sha256:0f8c7edb844600ed45a0865200f887154a7a8b051acd3ca61c85bdc6d36f9842",
+    "heartbeat-response.schema.json": "sha256:9a2382e16f817b39ff8246fe6cac94145b3104ca948fe79b90db530deb5d574e",
+    "reason-codes.json": "sha256:823a1f952d364ac1818c52be468224c42359cf1d2c68e76edf5e96c6d54991a3",
+    "receipt-batch.schema.json": "sha256:62450451efdd3f69b28cf0e662a303094d37f1ec79ca13a33c100c23f314f5aa",
+    "receipt-event.schema.json": "sha256:ec9e56069ee39a059506ca4d048c63b90d5adfbf67c1b47871d5d6c772843a68",
+    "receipt-response.schema.json": "sha256:da080f96ba13d7ba75539e4aea7bd5cbd3aed6f9fcc40b02d6aa1f2f2c13e49b",
+    "signing-contract.json": "sha256:e8298c54415134d9f8839359133de3aa3a69712349dc1a0674b8e1cf73f514fc",
+    "state-machine.json": "sha256:41bf564ddc0fd0b357f89fafea026a7d4e1acd2235cac2536fba0a60ddbee791",
+    "versioning.json": "sha256:0515df9771f17c4308251c011840652769c1dcc1104863a506db4c6bee2dde24"
+  },
+  "major_version": 1
+}

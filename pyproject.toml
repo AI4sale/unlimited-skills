@@ -57,6 +57,7 @@ packages = ["unlimited_skills"]
 
 [tool.hatch.build.targets.wheel.force-include]
 "packs" = "unlimited_skills/bundled_packs"
+"contracts/fleet/v1" = "unlimited_skills/contracts/fleet/v1"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

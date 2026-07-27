@@ -1,0 +1,10 @@
+{
+  "active_inventory_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "agent_id": "agent_fixture_01",
+  "client_timestamp": "2026-07-27T00:00:30Z",
+  "contract_id": "unlimited-skills.fleet-wire",
+  "contract_version": 1,
+  "installation_id": "uls_inst_fixture",
+  "message_type": "heartbeat-request",
+  "runtime_generation": "generation_fixture_02"
+}

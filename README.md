@@ -694,6 +694,7 @@ Map of the trust stack:
 | Hosted catalog and registry contract | [docs/hosted-registry-api.md](docs/hosted-registry-api.md), [docs/hosted-catalog-model.md](docs/hosted-catalog-model.md), [docs/catalog-browser.md](docs/catalog-browser.md) |
 | Community skills | [docs/community-skills.md](docs/community-skills.md), [docs/community-submission-review.md](docs/community-submission-review.md) |
 | Teams and private packs | [docs/team-free.md](docs/team-free.md), [docs/team-skill-sync.md](docs/team-skill-sync.md), [docs/private-team-packs.md](docs/private-team-packs.md) |
+| Fleet delivery protocol foundation | [docs/fleet-wire-contract-v1.md](docs/fleet-wire-contract-v1.md) |
 | Local Skill Hub | [docs/local-skill-hub.md](docs/local-skill-hub.md), [docs/local-skill-hub-security.md](docs/local-skill-hub-security.md) |
 | Release channels and rollback | [docs/release-channels.md](docs/release-channels.md), [docs/update-channels-and-rollback.md](docs/update-channels-and-rollback.md) |
 
@@ -706,6 +707,13 @@ See [docs/product-editions.md](docs/product-editions.md) for the full edition ta
 - **Team Free**: registered team sync MVP with master approval and up to 10 instances when enforced server-side.
 - **Team collaboration roadmap**: hosted collaboration, dashboard, private packs, collection assignment, longer auto-approval windows, and support remain future gated work. The public client includes registered private-pack install/sync commands; registry-side access requires explicit private-pack entitlement.
 - **Enterprise**: local Enterprise Skill Lock policy MVP and registered managed policy sync now; private registry enforcement, SSO/on-prem/VPC options later.
+
+The public Fleet Wire Contract v1, reference validator, vendor-neutral adapter
+interface and local receipt spool are an implementation foundation for a
+future verified fleet-delivery path. They do not by themselves prove that a
+skill is verified active across a fleet, do not provide the private control
+plane or dashboard, and do not authorize Business or Enterprise delivery
+claims.
 
 Local Skill Hub is separate from the free local daemon: `unlimited-skills serve` remains unregistered, while `unlimited-skills hub serve` is registration-gated and allowlist-only. See [docs/local-skill-hub.md](docs/local-skill-hub.md).
 

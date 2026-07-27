@@ -1,0 +1,92 @@
+{
+  "$id": "https://github.com/AI4sale/unlimited-skills/contracts/fleet/v1/agent-registration-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills Fleet Agent Registration Request v1",
+  "type": "object",
+  "required": [
+    "contract_id",
+    "contract_version",
+    "message_type",
+    "installation_id",
+    "local_instance_id",
+    "runtime_vendor",
+    "adapter_id",
+    "adapter_version",
+    "reported_capabilities"
+  ],
+  "properties": {
+    "contract_id": {
+      "const": "unlimited-skills.fleet-wire"
+    },
+    "contract_version": {
+      "const": 1
+    },
+    "message_type": {
+      "const": "agent-registration-request"
+    },
+    "installation_id": {
+      "$ref": "#/$defs/identifier"
+    },
+    "local_instance_id": {
+      "$ref": "#/$defs/identifier"
+    },
+    "runtime_vendor": {
+      "$ref": "#/$defs/identifier"
+    },
+    "adapter_id": {
+      "$ref": "#/$defs/identifier"
+    },
+    "adapter_version": {
+      "$ref": "#/$defs/identifier"
+    },
+    "reported_capabilities": {
+      "type": "array",
+      "maxItems": 64,
+      "items": {
+        "$ref": "#/$defs/identifier"
+      }
+    },
+    "required_extensions": {
+      "type": "array",
+      "maxItems": 0
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,159}$"
+    }
+  },
+  "not": {
+    "anyOf": [
+      {
+        "required": [
+          "agent_id"
+        ]
+      },
+      {
+        "required": [
+          "operator_labels"
+        ]
+      },
+      {
+        "required": [
+          "labels"
+        ]
+      },
+      {
+        "required": [
+          "role"
+        ]
+      },
+      {
+        "required": [
+          "environment"
+        ]
+      }
+    ]
+  },
+  "additionalProperties": true
+}

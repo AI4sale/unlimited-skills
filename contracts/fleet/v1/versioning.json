@@ -1,0 +1,22 @@
+{
+  "contract_id": "unlimited-skills.fleet-wire",
+  "major_version": 1,
+  "within_v1": {
+    "allowed": [
+      "Add an optional field with no required semantic.",
+      "Add an optional diagnostic that older peers may ignore."
+    ],
+    "forbidden": [
+      "Remove a required field.",
+      "Change the meaning of an existing field.",
+      "Reuse an enum value with a new meaning.",
+      "Change signed-byte representation.",
+      "Change state-transition semantics.",
+      "Change verified_active authority or meaning.",
+      "Change control_epoch or rollback semantics."
+    ],
+    "unknown_optional_diagnostics": "may_ignore",
+    "unknown_action": "fail_closed",
+    "unknown_required_semantic": "fail_closed"
+  }
+}

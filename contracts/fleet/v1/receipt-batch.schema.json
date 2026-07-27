@@ -1,0 +1,52 @@
+{
+  "$id": "https://github.com/AI4sale/unlimited-skills/contracts/fleet/v1/receipt-batch.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills Fleet Receipt Batch v1",
+  "type": "object",
+  "required": [
+    "contract_id",
+    "contract_version",
+    "message_type",
+    "installation_id",
+    "batch_id",
+    "receipts"
+  ],
+  "properties": {
+    "contract_id": {
+      "const": "unlimited-skills.fleet-wire"
+    },
+    "contract_version": {
+      "const": 1
+    },
+    "message_type": {
+      "const": "receipt-batch"
+    },
+    "installation_id": {
+      "$ref": "#/$defs/identifier"
+    },
+    "batch_id": {
+      "$ref": "#/$defs/identifier"
+    },
+    "receipts": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": {
+        "$ref": "receipt-event.schema.json"
+      }
+    },
+    "required_extensions": {
+      "type": "array",
+      "maxItems": 0
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,159}$"
+    }
+  },
+  "additionalProperties": true
+}

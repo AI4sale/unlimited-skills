@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Added (0.6.9 - Fleet Contract Foundation)
+
+- Add the public Fleet Wire Contract v1 with hash-pinned schemas, positive and
+  negative golden fixtures, explicit versioning rules, and a separate
+  `fleet-desired-state-signing` role.
+- Add a vendor-neutral local adapter protocol, finite-action reconciler,
+  server-authority receipt boundary, privacy allowlist, and atomic offline
+  receipt spool.
+- Keep automatic activation off by default and expose a global fleet
+  reconciliation kill switch. This is a protocol foundation, not a claim that
+  Business fleet delivery or an Enterprise control plane is complete.
+
 ### Added (0.6.8 - Verified Completion Memory)
 
 - Add a provider-neutral signed completion-receipt transport. The public core

@@ -1,0 +1,32 @@
+{
+  "contract_id": "unlimited-skills.fleet-wire",
+  "major_version": 1,
+  "client_allowlist": [
+    "none",
+    "activation_pending",
+    "adapter_unavailable",
+    "artifact_hash_mismatch",
+    "desired_state_expired",
+    "desired_state_signature_invalid",
+    "drift_detected",
+    "install_failed",
+    "manifest_invalid",
+    "manifest_signature_invalid",
+    "offline",
+    "runtime_attestation_invalid",
+    "stale_control_epoch",
+    "unsupported_action"
+  ],
+  "server_rejection_allowlist": [
+    "activation_nonce_mismatch",
+    "agent_binding_mismatch",
+    "invalid_event_sequence",
+    "rollout_attempt_mismatch",
+    "runtime_generation_mismatch",
+    "server_authority_event_forbidden",
+    "stale_control_epoch",
+    "tenant_mismatch",
+    "unsupported_contract_version"
+  ],
+  "privacy_rule": "Reason codes are allowlisted identifiers. Raw exceptions, stderr, prompts, environment values and local paths are forbidden."
+}

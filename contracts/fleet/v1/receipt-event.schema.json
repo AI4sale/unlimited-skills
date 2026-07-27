@@ -1,0 +1,166 @@
+{
+  "$id": "https://github.com/AI4sale/unlimited-skills/contracts/fleet/v1/receipt-event.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills Fleet Receipt Event v1",
+  "type": "object",
+  "required": [
+    "contract_id",
+    "contract_version",
+    "message_type",
+    "event_id",
+    "idempotency_key",
+    "rollout_id",
+    "attempt_id",
+    "agent_id",
+    "desired_state_revision",
+    "control_epoch",
+    "pack_id",
+    "release_id",
+    "archive_sha256",
+    "event_type",
+    "event_seq",
+    "runtime_generation",
+    "activation_nonce",
+    "active_archive_sha256",
+    "client_timestamp",
+    "reason_code",
+    "client_version",
+    "adapter_version"
+  ],
+  "properties": {
+    "contract_id": {
+      "const": "unlimited-skills.fleet-wire"
+    },
+    "contract_version": {
+      "const": 1
+    },
+    "message_type": {
+      "const": "receipt-event"
+    },
+    "event_id": {
+      "$ref": "#/$defs/identifier"
+    },
+    "idempotency_key": {
+      "$ref": "#/$defs/identifier"
+    },
+    "rollout_id": {
+      "$ref": "#/$defs/identifier"
+    },
+    "attempt_id": {
+      "$ref": "#/$defs/identifier"
+    },
+    "agent_id": {
+      "$ref": "#/$defs/identifier"
+    },
+    "desired_state_revision": {
+      "$ref": "#/$defs/identifier"
+    },
+    "control_epoch": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "pack_id": {
+      "$ref": "#/$defs/identifier"
+    },
+    "release_id": {
+      "$ref": "#/$defs/identifier"
+    },
+    "archive_sha256": {
+      "$ref": "#/$defs/digest"
+    },
+    "event_type": {
+      "enum": [
+        "DESIRED_SEEN",
+        "MANIFEST_VERIFIED",
+        "ARTIFACT_VERIFIED",
+        "ARTIFACT_DOWNLOADED",
+        "INSTALL_COMMITTED",
+        "ACTIVATION_PENDING",
+        "RUNTIME_ATTESTED",
+        "FAILED_RETRYABLE",
+        "FAILED_TERMINAL",
+        "REJECTED",
+        "DRIFT_DETECTED"
+      ]
+    },
+    "event_seq": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "runtime_generation": {
+      "oneOf": [
+        {
+          "const": ""
+        },
+        {
+          "$ref": "#/$defs/identifier"
+        }
+      ]
+    },
+    "activation_nonce": {
+      "oneOf": [
+        {
+          "const": ""
+        },
+        {
+          "$ref": "#/$defs/identifier"
+        }
+      ]
+    },
+    "active_archive_sha256": {
+      "oneOf": [
+        {
+          "const": ""
+        },
+        {
+          "$ref": "#/$defs/digest"
+        }
+      ]
+    },
+    "client_timestamp": {
+      "$ref": "#/$defs/timestamp"
+    },
+    "reason_code": {
+      "enum": [
+        "none",
+        "activation_pending",
+        "adapter_unavailable",
+        "artifact_hash_mismatch",
+        "desired_state_expired",
+        "desired_state_signature_invalid",
+        "drift_detected",
+        "install_failed",
+        "manifest_invalid",
+        "manifest_signature_invalid",
+        "offline",
+        "runtime_attestation_invalid",
+        "stale_control_epoch",
+        "unsupported_action"
+      ]
+    },
+    "client_version": {
+      "$ref": "#/$defs/identifier"
+    },
+    "adapter_version": {
+      "$ref": "#/$defs/identifier"
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,159}$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$"
+    }
+  },
+  "additionalProperties": false
+}
