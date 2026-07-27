@@ -30,6 +30,18 @@ from .client import (
     FleetReceiptUploadResult,
     post_fleet_json,
 )
+from .claude_code import (
+    CLAUDE_CODE_ADAPTER_ID,
+    CLAUDE_CODE_ADAPTER_VERSION,
+    ClaudeCodeFleetAdapter,
+    ClaudeCodeFleetAdapterError,
+    load_fleet_public_keys,
+    managed_claude_config_dir,
+    managed_inventory_digest,
+    parse_session_start_payload,
+    private_pack_release_id,
+    record_claude_session_start,
+)
 from .privacy import FleetPrivacyError, assert_receipt_metadata_safe
 from .receipts import ReceiptBuilder, ReceiptError
 from .reconciler import FleetReconciler, ReconcileError, ReconcileResult
@@ -37,6 +49,10 @@ from .spool import ReceiptSpool, ReceiptSpoolError
 
 __all__ = [
     "AgentAdapter",
+    "CLAUDE_CODE_ADAPTER_ID",
+    "CLAUDE_CODE_ADAPTER_VERSION",
+    "ClaudeCodeFleetAdapter",
+    "ClaudeCodeFleetAdapterError",
     "FLEET_CONTRACT_ID",
     "FLEET_CONTRACT_VERSION",
     "FleetContractError",
@@ -62,8 +78,14 @@ __all__ = [
     "canonical_json_bytes",
     "desired_state_digest",
     "load_contract_document",
+    "load_fleet_public_keys",
+    "managed_claude_config_dir",
+    "managed_inventory_digest",
     "parse_json_strict",
+    "parse_session_start_payload",
     "post_fleet_json",
+    "private_pack_release_id",
+    "record_claude_session_start",
     "validate_contract_bundle",
     "validate_contract_message",
     "validate_desired_state",

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import importlib.util
+import io
 import json
 import os
 import subprocess
@@ -585,6 +586,45 @@ def test_session_start_primary_daemon_ensure_runs_before_contract(
     assert module.main() == 0
     assert calls == [command]
     assert "Unlimited Skills Library" in capsys.readouterr().out
+
+
+def test_session_start_hands_exact_hook_input_to_fleet_runtime(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    module = load_session_start_module()
+    raw = json.dumps(
+        {
+            "session_id": "session-enterprise",
+            "hook_event_name": "SessionStart",
+            "source": "startup",
+        }
+    ).encode("utf-8")
+
+    class FleetStdin:
+        buffer = io.BytesIO(raw)
+
+    calls: list[tuple[list[str], dict]] = []
+    monkeypatch.setenv(
+        "UNLIMITED_SKILLS_FLEET_MANAGED_ROOT",
+        "managed-agent",
+    )
+    monkeypatch.setattr(module.sys, "stdin", FleetStdin())
+    monkeypatch.setattr(
+        module.subprocess,
+        "run",
+        lambda command, **kwargs: calls.append((command, kwargs)),
+    )
+
+    module._record_fleet_runtime(["python", "-m", "unlimited_skills"])
+
+    assert calls[0][0][-4:] == [
+        "unlimited_skills",
+        "fleet",
+        "runtime-start",
+        "--json",
+    ]
+    assert calls[0][1]["input"] == raw
+    assert calls[0][1]["capture_output"] is True
 
 
 def test_session_start_primes_configured_business_provider_detached(
