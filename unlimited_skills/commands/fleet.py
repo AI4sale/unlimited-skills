@@ -13,13 +13,21 @@ from pathlib import Path
 from unlimited_skills import __version__
 from unlimited_skills.fleet import (
     ClaudeCodeFleetAdapter,
+    CodexFleetAdapter,
     FleetAgentClient,
     FleetAgentIdentityStore,
+    OpenClawFleetAdapter,
     ReceiptSpool,
     load_fleet_public_keys,
     managed_claude_config_dir,
+    managed_codex_home,
+    managed_codex_workspace,
+    parse_codex_session_start_payload,
+    parse_openclaw_bootstrap_payload,
     parse_session_start_payload,
     record_claude_session_start,
+    record_codex_session_start,
+    record_openclaw_agent_bootstrap,
 )
 from unlimited_skills.registration import load_registration
 
@@ -56,6 +64,35 @@ def cmd_fleet_runtime_start(args: argparse.Namespace) -> int:
     raw = sys.stdin.buffer.read(64 * 1024 + 1)
     payload = parse_session_start_payload(raw)
     result = record_claude_session_start(managed_root, payload)
+    return _emit(result, as_json=args.json)
+
+
+def cmd_fleet_codex_runtime_start(args: argparse.Namespace) -> int:
+    managed_root = _required_path(
+        args.managed_root
+        or os.environ.get("UNLIMITED_SKILLS_FLEET_MANAGED_ROOT", ""),
+        "fleet_managed_root_required",
+    )
+    raw = sys.stdin.buffer.read(64 * 1024 + 1)
+    payload = parse_codex_session_start_payload(raw)
+    result = record_codex_session_start(managed_root, payload)
+    return _emit(result, as_json=args.json)
+
+
+def cmd_fleet_openclaw_runtime_start(
+    args: argparse.Namespace,
+) -> int:
+    managed_root = _required_path(
+        args.managed_root
+        or os.environ.get("UNLIMITED_SKILLS_FLEET_MANAGED_ROOT", ""),
+        "fleet_managed_root_required",
+    )
+    raw = sys.stdin.buffer.read(64 * 1024 + 1)
+    payload = parse_openclaw_bootstrap_payload(raw)
+    result = record_openclaw_agent_bootstrap(
+        managed_root,
+        payload,
+    )
     return _emit(result, as_json=args.json)
 
 
@@ -110,6 +147,292 @@ def cmd_fleet_claude_launch(args: argparse.Namespace) -> int:
     return int(completed.returncode)
 
 
+def cmd_fleet_codex_launch(args: argparse.Namespace) -> int:
+    """Launch Codex with the isolated Enterprise home and workspace."""
+
+    managed_root = _required_path(
+        args.managed_root
+        or os.environ.get("UNLIMITED_SKILLS_FLEET_MANAGED_ROOT", ""),
+        "fleet_managed_root_required",
+    )
+    registration = load_registration()
+    CodexFleetAdapter(
+        registration=registration,
+        managed_root=managed_root,
+        timeout=args.timeout,
+    )
+    requested = str(args.codex_executable or "codex").strip()
+    executable = shutil.which(requested)
+    if not executable:
+        candidate = Path(requested).expanduser()
+        if candidate.is_file():
+            executable = str(candidate.resolve())
+    if not executable:
+        raise RuntimeError("codex_executable_not_found")
+    codex_args = list(args.codex_args or [])
+    if codex_args[:1] == ["--"]:
+        codex_args = codex_args[1:]
+    if any(
+        value in {"-C", "--cd"}
+        or value.startswith("--cd=")
+        for value in codex_args
+    ):
+        raise RuntimeError("codex_workspace_override_forbidden")
+    environment = dict(os.environ)
+    environment["CODEX_HOME"] = str(
+        managed_codex_home(managed_root)
+    )
+    environment["UNLIMITED_SKILLS_FLEET_MANAGED_ROOT"] = str(
+        managed_root.expanduser().resolve()
+    )
+    if args.dry_run:
+        return _emit(
+            {
+                "schema_version": 1,
+                "runtime_vendor": "codex",
+                "configuration_ready": True,
+                "executable_resolved": True,
+                "managed_home": True,
+                "managed_workspace": True,
+                "hook_trust_required": True,
+            },
+            as_json=args.json,
+        )
+    completed = subprocess.run(
+        [
+            executable,
+            "-C",
+            str(managed_codex_workspace(managed_root)),
+            *codex_args,
+        ],
+        env=environment,
+        check=False,
+    )
+    return int(completed.returncode)
+
+
+def _build_fleet_adapter(
+    args: argparse.Namespace,
+    *,
+    registration,
+    managed_root: Path,
+):
+    runtime_vendor = str(
+        getattr(args, "runtime_vendor", "") or "claude-code"
+    )
+    if runtime_vendor == "claude-code":
+        return ClaudeCodeFleetAdapter(
+            registration=registration,
+            managed_root=managed_root,
+            timeout=args.timeout,
+        )
+    if runtime_vendor == "codex":
+        user_skills_root = str(
+            getattr(args, "codex_user_skills_root", "") or ""
+        ).strip()
+        return CodexFleetAdapter(
+            registration=registration,
+            managed_root=managed_root,
+            user_skills_root=(
+                Path(user_skills_root).expanduser()
+                if user_skills_root
+                else None
+            ),
+            timeout=args.timeout,
+        )
+    if runtime_vendor == "openclaw":
+        workspace = _required_path(
+            getattr(args, "workspace", "")
+            or os.environ.get(
+                "UNLIMITED_SKILLS_FLEET_OPENCLAW_WORKSPACE",
+                "",
+            ),
+            "openclaw_workspace_required",
+        )
+        openclaw_home = _required_path(
+            getattr(args, "openclaw_home", "")
+            or os.environ.get("OPENCLAW_STATE_DIR", "")
+            or (Path.home() / ".openclaw"),
+            "openclaw_home_required",
+        )
+        agent_id = str(
+            getattr(args, "agent_id", "")
+            or os.environ.get(
+                "UNLIMITED_SKILLS_FLEET_OPENCLAW_AGENT_ID",
+                "",
+            )
+        ).strip()
+        if not agent_id:
+            raise RuntimeError("openclaw_agent_id_required")
+        return OpenClawFleetAdapter(
+            registration=registration,
+            managed_root=managed_root,
+            workspace=workspace,
+            agent_id=agent_id,
+            openclaw_home=openclaw_home,
+            timeout=args.timeout,
+        )
+    raise RuntimeError("fleet_runtime_vendor_unsupported")
+
+
+def _resolve_executable(requested: str, reason: str) -> str:
+    value = str(requested or "").strip()
+    executable = shutil.which(value)
+    if not executable:
+        candidate = Path(value).expanduser()
+        if candidate.is_file():
+            executable = str(candidate.resolve())
+    if not executable:
+        raise RuntimeError(reason)
+    return executable
+
+
+def _openclaw_json(
+    executable: str,
+    arguments: list[str],
+    *,
+    environment: dict[str, str],
+) -> dict | list:
+    completed = subprocess.run(
+        [executable, *arguments],
+        env=environment,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if completed.returncode != 0:
+        raise RuntimeError("openclaw_cli_failed")
+    try:
+        value = json.loads(completed.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("openclaw_cli_json_invalid") from exc
+    if not isinstance(value, (dict, list)):
+        raise RuntimeError("openclaw_cli_json_invalid")
+    return value
+
+
+def cmd_fleet_openclaw_provision(args: argparse.Namespace) -> int:
+    """Bind and enable the Fleet hook for one configured OpenClaw agent."""
+
+    managed_root = _required_path(
+        args.managed_root
+        or os.environ.get("UNLIMITED_SKILLS_FLEET_MANAGED_ROOT", ""),
+        "fleet_managed_root_required",
+    )
+    workspace = _required_path(
+        args.workspace
+        or os.environ.get(
+            "UNLIMITED_SKILLS_FLEET_OPENCLAW_WORKSPACE",
+            "",
+        ),
+        "openclaw_workspace_required",
+    ).resolve()
+    openclaw_home = _required_path(
+        args.openclaw_home
+        or os.environ.get("OPENCLAW_STATE_DIR", "")
+        or (Path.home() / ".openclaw"),
+        "openclaw_home_required",
+    ).resolve()
+    agent_id = str(
+        args.agent_id
+        or os.environ.get(
+            "UNLIMITED_SKILLS_FLEET_OPENCLAW_AGENT_ID",
+            "",
+        )
+    ).strip()
+    if not agent_id:
+        raise RuntimeError("openclaw_agent_id_required")
+    executable = _resolve_executable(
+        args.openclaw_executable or "openclaw",
+        "openclaw_executable_not_found",
+    )
+    environment = dict(os.environ)
+    environment["OPENCLAW_STATE_DIR"] = str(openclaw_home)
+    agents_value = _openclaw_json(
+        executable,
+        ["agents", "list", "--json"],
+        environment=environment,
+    )
+    agents = (
+        agents_value
+        if isinstance(agents_value, list)
+        else agents_value.get("agents", [])
+    )
+    match = next(
+        (
+            row
+            for row in agents
+            if isinstance(row, dict)
+            and str(row.get("id") or row.get("agentId") or "")
+            == agent_id
+        ),
+        None,
+    )
+    if match is None:
+        raise RuntimeError("openclaw_agent_not_configured")
+    configured_workspace = Path(
+        str(match.get("workspace") or "")
+    ).expanduser().resolve()
+    if configured_workspace != workspace:
+        raise RuntimeError("openclaw_workspace_mismatch")
+    registration = load_registration()
+    adapter = OpenClawFleetAdapter(
+        registration=registration,
+        managed_root=managed_root,
+        workspace=workspace,
+        agent_id=agent_id,
+        openclaw_home=openclaw_home,
+        timeout=args.timeout,
+    )
+    enabled = subprocess.run(
+        [
+            executable,
+            "hooks",
+            "enable",
+            "unlimited-skills-fleet",
+        ],
+        env=environment,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if enabled.returncode != 0:
+        raise RuntimeError("openclaw_hook_enable_failed")
+    info = _openclaw_json(
+        executable,
+        [
+            "hooks",
+            "info",
+            "unlimited-skills-fleet",
+            "--json",
+        ],
+        environment=environment,
+    )
+    if (
+        not isinstance(info, dict)
+        or info.get("hookKey") != "unlimited-skills-fleet"
+        or info.get("loadable") is not True
+        or info.get("disabled") is True
+    ):
+        raise RuntimeError("openclaw_hook_not_loadable")
+    return _emit(
+        {
+            "schema_version": 1,
+            "runtime_vendor": "openclaw",
+            "adapter_version": adapter.adapter_version,
+            "agent_id": agent_id,
+            "configured_agent_verified": True,
+            "workspace_binding_verified": True,
+            "hook_provisioned": True,
+            "hook_enabled": True,
+            "hook_loadable": True,
+        },
+        as_json=args.json,
+    )
+
+
 def cmd_fleet_run_once(args: argparse.Namespace) -> int:
     managed_root = _required_path(
         args.managed_root
@@ -122,14 +445,22 @@ def cmd_fleet_run_once(args: argparse.Namespace) -> int:
         "fleet_public_keys_path_required",
     )
     registration = load_registration()
-    adapter = ClaudeCodeFleetAdapter(
+    adapter = _build_fleet_adapter(
+        args,
         registration=registration,
         managed_root=managed_root,
-        timeout=args.timeout,
     )
+    runtime_vendor = str(
+        getattr(args, "runtime_vendor", "") or "claude-code"
+    )
+    runtime_capability = {
+        "claude-code": "claude-code-session-start-attestation-v1",
+        "codex": "codex-session-start-attestation-v1",
+        "openclaw": "openclaw-agent-bootstrap-attestation-v1",
+    }[runtime_vendor]
     client = FleetAgentClient(
         registration=registration,
-        runtime_vendor="claude-code",
+        runtime_vendor=runtime_vendor,
         adapter=adapter,
         identity_store=FleetAgentIdentityStore(
             managed_root / "control" / "agent-identity.json"
@@ -141,10 +472,11 @@ def cmd_fleet_run_once(args: argparse.Namespace) -> int:
         spool=ReceiptSpool(managed_root / "control" / "receipts"),
         client_version=__version__,
         reported_capabilities=(
-            "claude-code-session-start-attestation-v1",
+            runtime_capability,
             "desired-state-v1",
             "drift-detection-v1",
             "immutable-revisions-v1",
+            "multi-pack-atomic-inventory-v1",
             "receipt-spool-v1",
             "rollback-v1",
             "runtime-attestation",
@@ -164,7 +496,7 @@ def cmd_fleet_run_once(args: argparse.Namespace) -> int:
     receipt_upload = result.receipt_upload
     payload = {
         "schema_version": 1,
-        "runtime_vendor": "claude-code",
+        "runtime_vendor": runtime_vendor,
         "adapter_version": adapter.adapter_version,
         "agent_id": result.identity.agent_id,
         "local_instance_id": result.identity.local_instance_id,

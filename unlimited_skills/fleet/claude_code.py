@@ -28,13 +28,21 @@ import zipfile
 from pathlib import Path, PurePosixPath
 from typing import Any, Mapping
 
+from ..frontmatter import load_frontmatter
 from ..private_packs import PrivatePackClient
 from ..registration import RegistrationState
-from .adapter import InstalledRevision, RuntimeAttestation, RuntimeInventory
+from .adapter import (
+    InstalledRevision,
+    ManagedFleetAdapterError,
+    RuntimeAttestation,
+    RuntimeInventory,
+    RuntimeInventoryAttestation,
+)
 from .contract import (
     DESIRED_STATE_SIGNING_ROLE,
     FLEET_CONTRACT_ID,
     FLEET_CONTRACT_VERSION,
+    MAX_ITEMS,
     canonical_json_bytes,
 )
 
@@ -42,7 +50,7 @@ from .contract import (
 CLAUDE_CODE_ADAPTER_ID = "claude-code"
 CLAUDE_CODE_ADAPTER_VERSION = "claude-code-fleet/1.0.0"
 MANAGED_ROOT_SCHEMA_VERSION = 1
-ACTIVE_STATE_SCHEMA_VERSION = 1
+ACTIVE_STATE_SCHEMA_VERSION = 2
 RUNTIME_MARKER_SCHEMA_VERSION = 1
 MAX_ARCHIVE_BYTES = 128 * 1024 * 1024
 MAX_EXPANDED_BYTES = 512 * 1024 * 1024
@@ -77,7 +85,7 @@ _WINDOWS_RESERVED_NAMES = {
 }
 
 
-class ClaudeCodeFleetAdapterError(RuntimeError):
+class ClaudeCodeFleetAdapterError(ManagedFleetAdapterError):
     """Raised when the Claude Code managed runtime cannot prove safe state."""
 
 
@@ -399,6 +407,28 @@ def _resolve_skills_source(extracted: Path) -> Path:
     return skills
 
 
+def _skill_runtime_name(skill_dir: Path) -> str:
+    try:
+        text = (skill_dir / "SKILL.md").read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError) as exc:
+        raise ClaudeCodeFleetAdapterError(
+            "pack_skills_layout_invalid"
+        ) from exc
+    metadata, _ = load_frontmatter(text)
+    name = str(metadata.get("name") or skill_dir.name).strip()
+    if (
+        not name
+        or len(name) > 160
+        or "\x00" in name
+        or "/" in name
+        or "\\" in name
+    ):
+        raise ClaudeCodeFleetAdapterError(
+            "pack_skill_name_invalid"
+        )
+    return name.casefold()
+
+
 def _make_read_only(root: Path) -> None:
     for path in sorted(
         root.rglob("*"),
@@ -568,12 +598,35 @@ def _active_inventory(
     if state.get("schema_version") != ACTIVE_STATE_SCHEMA_VERSION:
         raise ClaudeCodeFleetAdapterError("active_state_invalid")
     raw_inventory = state.get("managed_inventory")
-    if not isinstance(raw_inventory, list) or len(raw_inventory) != 1:
+    if (
+        not isinstance(raw_inventory, list)
+        or not raw_inventory
+        or len(raw_inventory) > MAX_ITEMS
+    ):
         raise ClaudeCodeFleetAdapterError("active_state_invalid")
-    row = raw_inventory[0]
-    if not isinstance(row, dict):
+    inventory: list[dict[str, Any]] = []
+    pack_ids: set[str] = set()
+    for raw_row in raw_inventory:
+        if not isinstance(raw_row, dict):
+            raise ClaudeCodeFleetAdapterError("active_state_invalid")
+        try:
+            row = _inventory_row(raw_row)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ClaudeCodeFleetAdapterError(
+                "active_state_invalid"
+            ) from exc
+        pack_id = str(row["pack_id"])
+        if not pack_id or pack_id in pack_ids:
+            raise ClaudeCodeFleetAdapterError("active_state_invalid")
+        pack_ids.add(pack_id)
+        inventory.append(row)
+    inventory.sort(key=lambda value: str(value["pack_id"]))
+    expected_inventory_digest = managed_inventory_digest(inventory)
+    if (
+        state.get("expected_inventory_digest")
+        != expected_inventory_digest
+    ):
         raise ClaudeCodeFleetAdapterError("active_state_invalid")
-    inventory = [_inventory_row(row)]
     skills_root = root / "runtime" / ".claude" / "skills"
     _assert_managed_directory_path(
         root,
@@ -589,6 +642,40 @@ def _active_inventory(
         else managed_inventory_digest(inventory)
     )
     return inventory, digest, observed_tree, drifted
+
+
+def _active_pack_maps(
+    state: Mapping[str, Any],
+) -> tuple[dict[str, str], dict[str, str], dict[str, str]]:
+    raw_packs = state.get("active_packs")
+    if not isinstance(raw_packs, list) or not raw_packs:
+        raise ClaudeCodeFleetAdapterError("active_state_invalid")
+    activation_nonces: dict[str, str] = {}
+    active_revisions: dict[str, str] = {}
+    active_archives: dict[str, str] = {}
+    for raw_pack in raw_packs:
+        if not isinstance(raw_pack, dict):
+            raise ClaudeCodeFleetAdapterError("active_state_invalid")
+        pack_id = str(raw_pack.get("pack_id") or "")
+        release_id = str(raw_pack.get("release_id") or "")
+        archive_sha256 = str(
+            raw_pack.get("archive_sha256") or ""
+        )
+        activation_nonce = str(
+            raw_pack.get("activation_nonce") or ""
+        )
+        if (
+            not pack_id
+            or pack_id in active_revisions
+            or not release_id
+            or not archive_sha256.startswith("sha256:")
+            or not activation_nonce
+        ):
+            raise ClaudeCodeFleetAdapterError("active_state_invalid")
+        active_revisions[pack_id] = release_id
+        active_archives[pack_id] = archive_sha256
+        activation_nonces[pack_id] = activation_nonce
+    return activation_nonces, active_revisions, active_archives
 
 
 def record_claude_session_start(
@@ -658,6 +745,11 @@ def record_claude_session_start(
         root,
         state,
     )
+    (
+        activation_nonces,
+        active_revisions,
+        active_archives,
+    ) = _active_pack_maps(state)
     state_digest = _state_digest(state)
     generation_hash = hashlib.sha256(
         (
@@ -682,12 +774,9 @@ def record_claude_session_start(
         ),
         "active_state_sha256": state_digest,
         "activation_marker": str(state.get("activation_marker") or ""),
-        "activation_nonce": str(state.get("activation_nonce") or ""),
-        "pack_id": str(state.get("pack_id") or ""),
-        "release_id": str(state.get("release_id") or ""),
-        "active_archive_sha256": str(
-            state.get("active_archive_sha256") or ""
-        ),
+        "activation_nonces": activation_nonces,
+        "active_revisions": active_revisions,
+        "active_archive_sha256": active_archives,
         "active_inventory_digest": inventory_digest,
         "observed_skills_tree_sha256": observed_tree,
         "drifted": drifted,
@@ -995,12 +1084,13 @@ class ClaudeCodeFleetAdapter:
                     str(state.get("activation_marker") or "")
                 )[:24]
             )
-        row = inventory[0]
+        active_revisions = {
+            str(row["pack_id"]): str(row["release_id"])
+            for row in inventory
+        }
         return RuntimeInventory(
             runtime_generation=generation,
-            active_revisions={
-                str(row["pack_id"]): str(row["release_id"])
-            },
+            active_revisions=active_revisions,
             inventory_digest=digest,
         )
 
@@ -1066,7 +1156,7 @@ class ClaudeCodeFleetAdapter:
         )
         committed = False
         try:
-            archive = staging_root / "pack.zip"
+            archive = staging_root / "archive.zip"
             archive.write_bytes(archive_bytes)
             extracted = staging_root / "extracted"
             _strict_extract_zip(archive, extracted)
@@ -1087,13 +1177,16 @@ class ClaudeCodeFleetAdapter:
                 "skills_tree_sha256": skills_tree_sha,
                 "installed_at": _utc_now(),
             }
-            archive.unlink()
             shutil.rmtree(extracted)
             _atomic_write_json(
                 staging_root / "installed.json",
                 metadata,
             )
             _make_read_only(payload_root)
+            try:
+                os.chmod(archive, 0o444)
+            except OSError:
+                pass
             try:
                 os.replace(staging_root, final_root)
                 committed = True
@@ -1155,42 +1248,113 @@ class ClaudeCodeFleetAdapter:
             raise ClaudeCodeFleetAdapterError(
                 "installed_revision_mismatch"
             )
+        archive = release_root / "archive.zip"
+        if (
+            archive.is_symlink()
+            or not archive.is_file()
+            or archive.stat().st_size > MAX_ARCHIVE_BYTES
+            or _sha256_file(archive) != expected["archive_sha256"]
+        ):
+            raise ClaudeCodeFleetAdapterError(
+                "installed_revision_tampered"
+            )
+        verification_root = _assert_managed_directory_path(
+            self.managed_root,
+            self.state_root / "verification",
+            "managed_verification_directory_invalid",
+            create=True,
+        )
+        with tempfile.TemporaryDirectory(
+            prefix=".archive-verify-",
+            dir=verification_root,
+        ) as temporary:
+            extracted = Path(temporary) / "extracted"
+            _strict_extract_zip(archive, extracted)
+            archive_tree = _tree_digest(
+                _resolve_skills_source(extracted)
+            )
         observed_tree = _tree_digest(release_root / "payload")
-        if observed_tree != str(
-            metadata.get("skills_tree_sha256") or ""
+        if (
+            observed_tree
+            != str(metadata.get("skills_tree_sha256") or "")
+            or archive_tree != observed_tree
         ):
             raise ClaudeCodeFleetAdapterError(
                 "installed_revision_tampered"
             )
 
-    def _activate(
+    def activate_inventory(
         self,
-        item: Mapping[str, Any],
-        installed: InstalledRevision,
+        items: list[Mapping[str, Any]],
+        installed: Mapping[str, InstalledRevision],
         *,
-        activation_nonce: str,
+        activation_nonces: Mapping[str, str],
     ) -> None:
         self._assert_state_root()
-        self.verify_revision(item, installed)
-        release_root = self._release_root(
-            installed.pack_id,
-            installed.release_id,
+        if not items or len(items) > MAX_ITEMS:
+            raise ClaudeCodeFleetAdapterError(
+                "managed_inventory_invalid"
+            )
+        normalized_items = sorted(
+            [dict(item) for item in items],
+            key=lambda value: str(value["pack_id"]),
         )
-        metadata = _read_json_object(
-            release_root / "installed.json",
-            "installed_revision_invalid",
-        )
-        inventory = [_inventory_row(item)]
+        pack_ids = [str(item["pack_id"]) for item in normalized_items]
+        if (
+            len(set(pack_ids)) != len(pack_ids)
+            or set(installed) != set(pack_ids)
+            or set(activation_nonces) != set(pack_ids)
+        ):
+            raise ClaudeCodeFleetAdapterError(
+                "managed_inventory_invalid"
+            )
+        release_roots: dict[str, Path] = {}
+        release_metadata: dict[str, dict[str, Any]] = {}
+        active_packs: list[dict[str, Any]] = []
+        for item in normalized_items:
+            pack_id = str(item["pack_id"])
+            revision = installed[pack_id]
+            if str(activation_nonces[pack_id]) != str(
+                item["activation_nonce"]
+            ):
+                raise ClaudeCodeFleetAdapterError(
+                    "activation_nonce_mismatch"
+                )
+            self.verify_revision(item, revision)
+            release_root = self._release_root(
+                revision.pack_id,
+                revision.release_id,
+            )
+            metadata = _read_json_object(
+                release_root / "installed.json",
+                "installed_revision_invalid",
+            )
+            release_roots[pack_id] = release_root
+            release_metadata[pack_id] = metadata
+            active_packs.append(
+                {
+                    "action": str(item["action"]),
+                    "activation_nonce": str(
+                        activation_nonces[pack_id]
+                    ),
+                    "archive_sha256": revision.archive_sha256,
+                    "pack_id": pack_id,
+                    "release_id": revision.release_id,
+                    "skills_tree_sha256": str(
+                        metadata.get("skills_tree_sha256") or ""
+                    ),
+                    "version": revision.version,
+                }
+            )
+        inventory = [_inventory_row(item) for item in normalized_items]
+        expected_inventory_digest = managed_inventory_digest(inventory)
         existing = _optional_json_object(
             self.state_root / "active.json",
             "active_state_invalid",
         )
         same_activation = bool(
             existing
-            and existing.get("pack_id") == installed.pack_id
-            and existing.get("release_id") == installed.release_id
-            and existing.get("activation_nonce") == activation_nonce
-            and existing.get("action") == item["action"]
+            and existing.get("active_packs") == active_packs
             and existing.get("managed_inventory") == inventory
         )
         if same_activation:
@@ -1204,7 +1368,6 @@ class ClaudeCodeFleetAdapter:
             if not drifted:
                 return
 
-        source = release_root / "payload"
         _assert_managed_directory_path(
             self.managed_root,
             self.skills_root.parent,
@@ -1222,15 +1385,40 @@ class ClaudeCodeFleetAdapter:
         )
         had_previous = self.skills_root.exists()
         try:
-            shutil.rmtree(staging)
-            shutil.copytree(source, staging)
+            claimed_skill_names: dict[str, str] = {}
+            for item in normalized_items:
+                pack_id = str(item["pack_id"])
+                source = release_roots[pack_id] / "payload"
+                observed_source_tree = _tree_digest(source)
+                if observed_source_tree != str(
+                    release_metadata[pack_id].get(
+                        "skills_tree_sha256"
+                    )
+                    or ""
+                ):
+                    raise ClaudeCodeFleetAdapterError(
+                        "activation_payload_mismatch"
+                    )
+                for child in sorted(
+                    source.iterdir(),
+                    key=lambda value: value.name.casefold(),
+                ):
+                    if child.is_symlink() or not child.is_dir():
+                        raise ClaudeCodeFleetAdapterError(
+                            "pack_skills_layout_invalid"
+                        )
+                    if not (child / "SKILL.md").is_file():
+                        raise ClaudeCodeFleetAdapterError(
+                            "pack_skills_layout_invalid"
+                        )
+                    collision_key = _skill_runtime_name(child)
+                    if collision_key in claimed_skill_names:
+                        raise ClaudeCodeFleetAdapterError(
+                            "managed_skill_collision"
+                        )
+                    claimed_skill_names[collision_key] = pack_id
+                    shutil.copytree(child, staging / child.name)
             observed_tree = _tree_digest(staging)
-            if observed_tree != str(
-                metadata.get("skills_tree_sha256") or ""
-            ):
-                raise ClaudeCodeFleetAdapterError(
-                    "activation_payload_mismatch"
-                )
             if had_previous:
                 if self.skills_root.is_symlink():
                     raise ClaudeCodeFleetAdapterError(
@@ -1243,21 +1431,12 @@ class ClaudeCodeFleetAdapter:
                 "adapter_id": self.adapter_id,
                 "adapter_version": self.adapter_version,
                 "installation_id": self.registration.install_id,
-                "pack_id": installed.pack_id,
-                "release_id": installed.release_id,
-                "version": installed.version,
-                "action": str(item["action"]),
-                "activation_nonce": activation_nonce,
+                "active_packs": active_packs,
                 "activation_marker": (
                     "activation_" + secrets.token_urlsafe(24)
                 ),
-                "active_archive_sha256": (
-                    installed.archive_sha256
-                ),
                 "managed_inventory": inventory,
-                "expected_inventory_digest": (
-                    managed_inventory_digest(inventory)
-                ),
+                "expected_inventory_digest": expected_inventory_digest,
                 "skills_tree_sha256": observed_tree,
                 "activated_at": _utc_now(),
             }
@@ -1278,6 +1457,21 @@ class ClaudeCodeFleetAdapter:
                 shutil.rmtree(staging, ignore_errors=True)
             if backup.exists():
                 shutil.rmtree(backup, ignore_errors=True)
+
+    def _activate(
+        self,
+        item: Mapping[str, Any],
+        installed: InstalledRevision,
+        *,
+        activation_nonce: str,
+    ) -> None:
+        self.activate_inventory(
+            [item],
+            {str(item["pack_id"]): installed},
+            activation_nonces={
+                str(item["pack_id"]): activation_nonce
+            },
+        )
 
     def activate_revision(
         self,
@@ -1313,12 +1507,12 @@ class ClaudeCodeFleetAdapter:
             activation_nonce=activation_nonce,
         )
 
-    def attest_runtime(
+    def attest_inventory(
         self,
-        item: Mapping[str, Any],
+        items: list[Mapping[str, Any]],
         *,
-        activation_nonce: str,
-    ) -> RuntimeAttestation:
+        activation_nonces: Mapping[str, str],
+    ) -> RuntimeInventoryAttestation:
         self._assert_state_root()
         state = _read_json_object(
             self.state_root / "active.json",
@@ -1332,6 +1526,30 @@ class ClaudeCodeFleetAdapter:
             self.managed_root,
             state,
         )
+        (
+            state_nonces,
+            active_revisions,
+            active_archives,
+        ) = _active_pack_maps(state)
+        expected_items = sorted(
+            [dict(item) for item in items],
+            key=lambda value: str(value["pack_id"]),
+        )
+        expected_inventory = [
+            _inventory_row(item) for item in expected_items
+        ]
+        expected_revisions = {
+            str(item["pack_id"]): str(item["release_id"])
+            for item in expected_items
+        }
+        expected_archives = {
+            str(item["pack_id"]): str(item["archive_sha256"])
+            for item in expected_items
+        }
+        expected_nonces = {
+            str(item["pack_id"]): str(item["activation_nonce"])
+            for item in expected_items
+        }
         if (
             drifted
             or marker.get("schema_version")
@@ -1342,31 +1560,64 @@ class ClaudeCodeFleetAdapter:
             != _state_digest(state)
             or marker.get("activation_marker")
             != state.get("activation_marker")
-            or marker.get("activation_nonce") != activation_nonce
-            or state.get("activation_nonce") != activation_nonce
-            or state.get("pack_id") != item["pack_id"]
-            or state.get("release_id") != item["release_id"]
-            or state.get("active_archive_sha256")
-            != item["archive_sha256"]
+            or dict(activation_nonces) != expected_nonces
+            or state_nonces != expected_nonces
+            or marker.get("activation_nonces")
+            != expected_nonces
+            or active_revisions != expected_revisions
+            or marker.get("active_revisions")
+            != expected_revisions
+            or active_archives != expected_archives
+            or marker.get("active_archive_sha256")
+            != expected_archives
             or marker.get("observed_skills_tree_sha256")
             != observed_tree
             or marker.get("active_inventory_digest") != digest
-            or inventory != [_inventory_row(item)]
+            or inventory != expected_inventory
         ):
             raise ClaudeCodeFleetAdapterError(
                 "runtime_attestation_invalid"
             )
-        return RuntimeAttestation(
+        return RuntimeInventoryAttestation(
             runtime_generation=str(marker["runtime_generation"]),
-            activation_nonce=activation_nonce,
-            pack_id=str(item["pack_id"]),
-            release_id=str(item["release_id"]),
-            active_archive_sha256=str(item["archive_sha256"]),
+            activation_nonces=expected_nonces,
+            active_revisions=expected_revisions,
+            active_archive_sha256=expected_archives,
             active_inventory_digest=digest,
             adapter_version=self.adapter_version,
         )
 
-    def detect_drift(self, item: Mapping[str, Any]) -> bool:
+    def attest_runtime(
+        self,
+        item: Mapping[str, Any],
+        *,
+        activation_nonce: str,
+    ) -> RuntimeAttestation:
+        attestation = self.attest_inventory(
+            [item],
+            activation_nonces={
+                str(item["pack_id"]): activation_nonce
+            },
+        )
+        pack_id = str(item["pack_id"])
+        return RuntimeAttestation(
+            runtime_generation=attestation.runtime_generation,
+            activation_nonce=activation_nonce,
+            pack_id=pack_id,
+            release_id=attestation.active_revisions[pack_id],
+            active_archive_sha256=(
+                attestation.active_archive_sha256[pack_id]
+            ),
+            active_inventory_digest=(
+                attestation.active_inventory_digest
+            ),
+            adapter_version=attestation.adapter_version,
+        )
+
+    def detect_inventory_drift(
+        self,
+        items: list[Mapping[str, Any]],
+    ) -> bool:
         self._assert_state_root()
         state = _read_json_object(
             self.state_root / "active.json",
@@ -1379,4 +1630,11 @@ class ClaudeCodeFleetAdapter:
             )
         except ClaudeCodeFleetAdapterError:
             return True
-        return drifted or inventory != [_inventory_row(item)]
+        expected = sorted(
+            [_inventory_row(item) for item in items],
+            key=lambda value: str(value["pack_id"]),
+        )
+        return drifted or inventory != expected
+
+    def detect_drift(self, item: Mapping[str, Any]) -> bool:
+        return self.detect_inventory_drift([item])

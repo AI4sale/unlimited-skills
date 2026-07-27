@@ -2,9 +2,12 @@
 
 from .adapter import (
     AgentAdapter,
+    InventoryAgentAdapter,
     InstalledRevision,
+    ManagedFleetAdapterError,
     RuntimeAttestation,
     RuntimeInventory,
+    RuntimeInventoryAttestation,
 )
 from .contract import (
     FLEET_CONTRACT_ID,
@@ -42,6 +45,25 @@ from .claude_code import (
     private_pack_release_id,
     record_claude_session_start,
 )
+from .codex import (
+    CODEX_ADAPTER_ID,
+    CODEX_ADAPTER_VERSION,
+    CodexFleetAdapter,
+    CodexFleetAdapterError,
+    managed_codex_home,
+    managed_codex_workspace,
+    parse_codex_session_start_payload,
+    record_codex_session_start,
+)
+from .openclaw import (
+    OPENCLAW_ADAPTER_ID,
+    OPENCLAW_ADAPTER_VERSION,
+    OpenClawFleetAdapter,
+    OpenClawFleetAdapterError,
+    parse_openclaw_bootstrap_payload,
+    provision_openclaw_runtime_hook,
+    record_openclaw_agent_bootstrap,
+)
 from .privacy import FleetPrivacyError, assert_receipt_metadata_safe
 from .receipts import ReceiptBuilder, ReceiptError
 from .reconciler import FleetReconciler, ReconcileError, ReconcileResult
@@ -51,8 +73,12 @@ __all__ = [
     "AgentAdapter",
     "CLAUDE_CODE_ADAPTER_ID",
     "CLAUDE_CODE_ADAPTER_VERSION",
+    "CODEX_ADAPTER_ID",
+    "CODEX_ADAPTER_VERSION",
     "ClaudeCodeFleetAdapter",
     "ClaudeCodeFleetAdapterError",
+    "CodexFleetAdapter",
+    "CodexFleetAdapterError",
     "FLEET_CONTRACT_ID",
     "FLEET_CONTRACT_VERSION",
     "FleetContractError",
@@ -64,7 +90,13 @@ __all__ = [
     "FleetReceiptUploadResult",
     "FleetPrivacyError",
     "FleetReconciler",
+    "InventoryAgentAdapter",
     "InstalledRevision",
+    "ManagedFleetAdapterError",
+    "OPENCLAW_ADAPTER_ID",
+    "OPENCLAW_ADAPTER_VERSION",
+    "OpenClawFleetAdapter",
+    "OpenClawFleetAdapterError",
     "ReceiptBuilder",
     "ReceiptError",
     "ReceiptSpool",
@@ -73,6 +105,7 @@ __all__ = [
     "ReconcileResult",
     "RuntimeAttestation",
     "RuntimeInventory",
+    "RuntimeInventoryAttestation",
     "assert_receipt_metadata_safe",
     "canonical_desired_state_bytes",
     "canonical_json_bytes",
@@ -80,11 +113,18 @@ __all__ = [
     "load_contract_document",
     "load_fleet_public_keys",
     "managed_claude_config_dir",
+    "managed_codex_home",
+    "managed_codex_workspace",
     "managed_inventory_digest",
     "parse_json_strict",
     "parse_session_start_payload",
+    "parse_codex_session_start_payload",
+    "parse_openclaw_bootstrap_payload",
     "post_fleet_json",
     "private_pack_release_id",
+    "provision_openclaw_runtime_hook",
+    "record_codex_session_start",
+    "record_openclaw_agent_bootstrap",
     "record_claude_session_start",
     "validate_contract_bundle",
     "validate_contract_message",

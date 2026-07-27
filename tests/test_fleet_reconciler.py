@@ -14,10 +14,12 @@ from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from unlimited_skills.fleet import (
     FleetReconciler,
     InstalledRevision,
+    ManagedFleetAdapterError,
     ReceiptSpool,
     ReconcileError,
     RuntimeAttestation,
     RuntimeInventory,
+    RuntimeInventoryAttestation,
     canonical_desired_state_bytes,
     canonical_json_bytes,
     desired_state_digest,
@@ -133,6 +135,97 @@ class FakeAdapter:
     ) -> None:
         self.rollbacks += 1
         self.last_nonce = activation_nonce
+
+
+class BundleFakeAdapter(FakeAdapter):
+    def __init__(self) -> None:
+        super().__init__()
+        self.bundle_activations = 0
+        self.bundle_items: list[str] = []
+        self.call_log: list[str] = []
+
+    def install_revision(self, item: Mapping[str, Any]) -> InstalledRevision:
+        self.call_log.append(f"install:{item['pack_id']}")
+        return super().install_revision(item)
+
+    def verify_revision(
+        self,
+        item: Mapping[str, Any],
+        installed: InstalledRevision,
+    ) -> None:
+        self.call_log.append(f"verify:{item['pack_id']}")
+        super().verify_revision(item, installed)
+
+    def activate_inventory(
+        self,
+        items: list[Mapping[str, Any]],
+        installed: Mapping[str, InstalledRevision],
+        *,
+        activation_nonces: Mapping[str, str],
+    ) -> None:
+        self.call_log.append("activate-inventory")
+        self.bundle_activations += 1
+        self.bundle_items = [str(item["pack_id"]) for item in items]
+        assert set(installed) == set(self.bundle_items)
+        assert set(activation_nonces) == set(self.bundle_items)
+
+    def attest_inventory(
+        self,
+        items: list[Mapping[str, Any]],
+        *,
+        activation_nonces: Mapping[str, str],
+    ) -> RuntimeInventoryAttestation:
+        self.call_log.append("attest-inventory")
+        return RuntimeInventoryAttestation(
+            runtime_generation="generation_fixture_bundle_02",
+            activation_nonces=dict(activation_nonces),
+            active_revisions={
+                str(item["pack_id"]): str(item["release_id"])
+                for item in items
+            },
+            active_archive_sha256={
+                str(item["pack_id"]): str(item["archive_sha256"])
+                for item in items
+            },
+            active_inventory_digest="sha256:" + ("d" * 64),
+            adapter_version=self.adapter_version,
+        )
+
+    def detect_inventory_drift(
+        self,
+        items: list[Mapping[str, Any]],
+    ) -> bool:
+        self.call_log.append("detect-inventory-drift")
+        return self.drifted
+
+
+class PartialFailureBundleAdapter(BundleFakeAdapter):
+    def install_revision(
+        self,
+        item: Mapping[str, Any],
+    ) -> InstalledRevision:
+        installed = super().install_revision(item)
+        if item["pack_id"] == "pack_fixture_b":
+            return InstalledRevision(
+                pack_id=installed.pack_id,
+                release_id="release_wrong",
+                version=installed.version,
+                archive_sha256=installed.archive_sha256,
+                install_committed=True,
+            )
+        return installed
+
+
+class TerminalActivationBundleAdapter(BundleFakeAdapter):
+    def activate_inventory(
+        self,
+        items: list[Mapping[str, Any]],
+        installed: Mapping[str, InstalledRevision],
+        *,
+        activation_nonces: Mapping[str, str],
+    ) -> None:
+        del items, installed, activation_nonces
+        raise ManagedFleetAdapterError("managed_skill_collision")
 
 
 def reconciler(tmp_path: Path, adapter: FakeAdapter) -> FleetReconciler:
@@ -266,3 +359,122 @@ def test_global_fleet_disable_blocks_reconciliation(
         reconciler(tmp_path, adapter).reconcile(VALID_DESIRED)
 
     assert adapter.activations == 0
+
+
+def two_pack_desired_state() -> dict[str, Any]:
+    desired = copy.deepcopy(VALID_DESIRED)
+    desired["desired_state_revision"] = "ds_fixture_two_packs"
+    desired["rollout_id"] = "rollout_fixture_two_packs"
+    desired["items"][0]["attempt_id"] = "attempt_fixture_pack_a"
+    desired["items"].append(
+        {
+            "attempt_id": "attempt_fixture_pack_b",
+            "pack_id": "pack_fixture_b",
+            "release_id": "release_fixture_b",
+            "version": "2.0.0",
+            "archive_sha256": "sha256:" + ("b" * 64),
+            "activation_nonce": "nonce_fixture_pack_b",
+            "manifest_ref": (
+                "registry:private-pack/pack_fixture_b/release_fixture_b"
+            ),
+            "required": True,
+            "action": "activate",
+        }
+    )
+    return sign_desired(desired)
+
+
+def test_reconciler_activates_multi_pack_inventory_once_after_all_verification(
+    tmp_path: Path,
+) -> None:
+    adapter = BundleFakeAdapter()
+
+    result = reconciler(tmp_path, adapter).reconcile(
+        two_pack_desired_state()
+    )
+
+    assert adapter.bundle_activations == 1
+    assert adapter.activations == 0
+    assert adapter.bundle_items == ["pack_fixture", "pack_fixture_b"]
+    assert adapter.call_log == [
+        "install:pack_fixture",
+        "verify:pack_fixture",
+        "install:pack_fixture_b",
+        "verify:pack_fixture_b",
+        "activate-inventory",
+        "attest-inventory",
+        "detect-inventory-drift",
+    ]
+    assert [
+        (row["attempt_id"], row["event_type"])
+        for row in result.receipts
+        if row["event_type"] in {"ACTIVATION_PENDING", "RUNTIME_ATTESTED"}
+    ] == [
+        ("attempt_fixture_pack_a", "ACTIVATION_PENDING"),
+        ("attempt_fixture_pack_b", "ACTIVATION_PENDING"),
+        ("attempt_fixture_pack_a", "RUNTIME_ATTESTED"),
+        ("attempt_fixture_pack_b", "RUNTIME_ATTESTED"),
+    ]
+    assert result.activation_pending is False
+
+
+def test_reconciler_rejects_multi_pack_for_legacy_single_item_adapter(
+    tmp_path: Path,
+) -> None:
+    adapter = FakeAdapter()
+
+    with pytest.raises(
+        ReconcileError,
+        match="adapter_inventory_activation_required",
+    ):
+        reconciler(tmp_path, adapter).reconcile(two_pack_desired_state())
+
+    assert adapter.activations == 0
+    assert adapter.rollbacks == 0
+
+
+def test_partial_bundle_install_failure_never_activates_and_receipts_validate(
+    tmp_path: Path,
+) -> None:
+    adapter = PartialFailureBundleAdapter()
+
+    result = reconciler(tmp_path, adapter).reconcile(
+        two_pack_desired_state()
+    )
+
+    assert adapter.bundle_activations == 0
+    assert result.activation_pending is True
+    assert any(
+        row["attempt_id"] == "attempt_fixture_pack_b"
+        and row["event_type"] == "FAILED_TERMINAL"
+        and row["reason_code"] == "install_failed"
+        for row in result.receipts
+    )
+    assert any(
+        row["attempt_id"] == "attempt_fixture_pack_a"
+        and row["event_type"] == "ACTIVATION_PENDING"
+        and row["reason_code"] == "install_failed"
+        for row in result.receipts
+    )
+
+
+def test_terminal_adapter_policy_failure_is_not_reported_retryable(
+    tmp_path: Path,
+) -> None:
+    adapter = TerminalActivationBundleAdapter()
+
+    result = reconciler(tmp_path, adapter).reconcile(
+        two_pack_desired_state()
+    )
+
+    failures = [
+        row
+        for row in result.receipts
+        if row["event_type"].startswith("FAILED_")
+    ]
+    assert len(failures) == 2
+    assert {
+        (row["event_type"], row["reason_code"])
+        for row in failures
+    } == {("FAILED_TERMINAL", "install_failed")}
+    assert "attest-inventory" not in adapter.call_log

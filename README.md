@@ -694,7 +694,7 @@ Map of the trust stack:
 | Hosted catalog and registry contract | [docs/hosted-registry-api.md](docs/hosted-registry-api.md), [docs/hosted-catalog-model.md](docs/hosted-catalog-model.md), [docs/catalog-browser.md](docs/catalog-browser.md) |
 | Community skills | [docs/community-skills.md](docs/community-skills.md), [docs/community-submission-review.md](docs/community-submission-review.md) |
 | Teams and private packs | [docs/team-free.md](docs/team-free.md), [docs/team-skill-sync.md](docs/team-skill-sync.md), [docs/private-team-packs.md](docs/private-team-packs.md) |
-| Fleet delivery contract and registered agent client | [docs/fleet-wire-contract-v1.md](docs/fleet-wire-contract-v1.md) |
+| Fleet delivery contract and registered agent client | [docs/fleet-wire-contract-v1.md](docs/fleet-wire-contract-v1.md), [docs/fcp-007-claude-code-enterprise-adapter.md](docs/fcp-007-claude-code-enterprise-adapter.md), [docs/fcp-008-openclaw-codex-enterprise-adapters.md](docs/fcp-008-openclaw-codex-enterprise-adapters.md) |
 | Local Skill Hub | [docs/local-skill-hub.md](docs/local-skill-hub.md), [docs/local-skill-hub-security.md](docs/local-skill-hub-security.md) |
 | Release channels and rollback | [docs/release-channels.md](docs/release-channels.md), [docs/update-channels-and-rollback.md](docs/update-channels-and-rollback.md) |
 
@@ -708,15 +708,16 @@ See [docs/product-editions.md](docs/product-editions.md) for the full edition ta
 - **Team collaboration roadmap**: hosted collaboration, dashboard, private packs, collection assignment, longer auto-approval windows, and support remain future gated work. The public client includes registered private-pack install/sync commands; registry-side access requires explicit private-pack entitlement.
 - **Enterprise**: local Enterprise Skill Lock policy MVP and registered managed policy sync now; private registry enforcement, SSO/on-prem/VPC options later.
 
-The public Fleet Wire Contract v1, registered agent client, reference
-validator, vendor-neutral adapter interface and local receipt spool are an
-implementation foundation for a future verified fleet-delivery path. The
+The public Fleet Wire Contract v1, registered agent client, receipt spool, and
+Claude Code, Codex, and OpenClaw runtime adapters now implement the local
+verified-delivery path. Multi-pack desired state is verified completely,
+activated atomically, and attested from a real vendor lifecycle event. The
 client persists a client-generated UUIDv4, performs proof-bound registration
-and heartbeat, verifies signed desired state and hands it to the reconciler.
-The registered client now uploads atomic, proof-bound receipt batches while
-keeping rejected batches in its offline spool. These components do not by themselves prove
-that a skill is verified active across a fleet, do not provide the dashboard,
-and do not authorize Business or Enterprise delivery claims.
+and heartbeat, and keeps rejected receipt batches in its offline spool.
+Implementation tests still do not prove a production fleet or authorize a
+Business or Enterprise-ready claim. The required real-topology pilots,
+production dashboard evidence, rollout operations, and release approval remain
+separate gates.
 
 Local Skill Hub is separate from the free local daemon: `unlimited-skills serve` remains unregistered, while `unlimited-skills hub serve` is registration-gated and allowlist-only. See [docs/local-skill-hub.md](docs/local-skill-hub.md).
 

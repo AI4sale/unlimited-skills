@@ -12,7 +12,7 @@ managed root. It supports:
 - signed Fleet Wire desired state;
 - signed private-pack manifest verification and release-bound download;
 - immutable side-by-side revisions;
-- activation and higher-epoch rollback;
+- atomic complete-inventory activation and higher-epoch rollback;
 - drift detection and repair;
 - runtime attestation from a real Claude Code `SessionStart`;
 - receipt spooling and upload through the Fleet agent client.
@@ -93,10 +93,14 @@ duplicate paths, Windows reserved names, trailing spaces or dots, control
 characters, symlinks, special files, and payloads without a valid skills
 root.
 
-Installed payloads remain immutable. Activation copies a verified payload
-into the adapter-owned Claude skills root. Rollback reuses the immutable older
-revision but issues a new activation marker, nonce, runtime generation, and
-receipt chain.
+Installed payloads remain immutable. Every desired pack is verified before
+activation, then the adapter atomically materializes the complete inventory
+into its Claude skills root. Duplicate skill names across packs fail closed.
+Each immutable revision retains the hash-bound archive. Verification
+re-extracts it and compares the resulting skills tree with the stored payload,
+so changing both a payload and its local metadata cannot rebase trust.
+Rollback reuses immutable older revisions as a new complete target and issues
+new activation markers, nonces, runtime generation, and receipt chains.
 
 ## Privacy
 

@@ -13,6 +13,22 @@
 - Keep automatic activation off by default and expose a global fleet
   reconciliation kill switch. This is a protocol foundation, not a claim that
   Business fleet delivery or an Enterprise control plane is complete.
+- Add Claude Code, Codex, and OpenClaw Enterprise Fleet adapters with
+  immutable revisions, atomic multi-pack inventory activation, runtime-bound
+  attestation, drift detection, and higher-epoch rollback.
+- Bind each OpenClaw instance to one configured `agentId` and workspace through
+  a finite `agent:bootstrap` hook, and bind each Codex instance to an isolated
+  `CODEX_HOME`, workspace, and trusted `SessionStart` hook.
+- Add `fleet codex-launch`, `fleet openclaw-provision`, vendor-selectable
+  `fleet run-once`, and vendor-specific runtime evidence commands.
+
+### Fixed (0.6.9 - Fleet Contract Foundation)
+
+- Reconcile multi-pack desired state as one complete inventory instead of
+  activating and attesting each pack against the complete digest one at a
+  time. Legacy single-item adapters now fail closed before partial activation.
+- Retain each signed, hash-bound pack archive and re-extract it during revision
+  verification so local payload plus metadata tampering cannot rebase trust.
 
 ### Added (0.6.8 - Verified Completion Memory)
 

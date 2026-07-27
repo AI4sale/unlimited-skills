@@ -1846,6 +1846,50 @@ def build_parser() -> argparse.ArgumentParser:
     fleet_runtime_start.set_defaults(
         func=fleet_cmds.cmd_fleet_runtime_start
     )
+    fleet_codex_runtime_start = fleet_sub.add_parser(
+        "codex-runtime-start",
+        help=(
+            "Record privacy-safe evidence from a Codex SessionStart "
+            "hook."
+        ),
+    )
+    fleet_codex_runtime_start.add_argument(
+        "--managed-root",
+        default="",
+        help=(
+            "Isolated fleet managed root. Defaults to "
+            "UNLIMITED_SKILLS_FLEET_MANAGED_ROOT."
+        ),
+    )
+    fleet_codex_runtime_start.add_argument(
+        "--json",
+        action="store_true",
+    )
+    fleet_codex_runtime_start.set_defaults(
+        func=fleet_cmds.cmd_fleet_codex_runtime_start
+    )
+    fleet_openclaw_runtime_start = fleet_sub.add_parser(
+        "openclaw-runtime-start",
+        help=(
+            "Record privacy-safe evidence from an OpenClaw "
+            "agent:bootstrap hook."
+        ),
+    )
+    fleet_openclaw_runtime_start.add_argument(
+        "--managed-root",
+        default="",
+        help=(
+            "Isolated fleet managed root. Defaults to "
+            "UNLIMITED_SKILLS_FLEET_MANAGED_ROOT."
+        ),
+    )
+    fleet_openclaw_runtime_start.add_argument(
+        "--json",
+        action="store_true",
+    )
+    fleet_openclaw_runtime_start.set_defaults(
+        func=fleet_cmds.cmd_fleet_openclaw_runtime_start
+    )
     fleet_claude_launch = fleet_sub.add_parser(
         "claude-launch",
         help=(
@@ -1886,6 +1930,96 @@ def build_parser() -> argparse.ArgumentParser:
     fleet_claude_launch.set_defaults(
         func=fleet_cmds.cmd_fleet_claude_launch
     )
+    fleet_codex_launch = fleet_sub.add_parser(
+        "codex-launch",
+        help=(
+            "Launch Codex with the isolated managed Enterprise home "
+            "and workspace."
+        ),
+    )
+    fleet_codex_launch.add_argument(
+        "--managed-root",
+        default="",
+        help=(
+            "Isolated fleet managed root. Defaults to "
+            "UNLIMITED_SKILLS_FLEET_MANAGED_ROOT."
+        ),
+    )
+    fleet_codex_launch.add_argument(
+        "--codex-executable",
+        default="codex",
+        help="Codex executable name or explicit path.",
+    )
+    fleet_codex_launch.add_argument(
+        "--timeout",
+        type=float,
+        default=30.0,
+        help="Registry client timeout used while preparing the profile.",
+    )
+    fleet_codex_launch.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Prepare and validate the managed profile without launching.",
+    )
+    fleet_codex_launch.add_argument("--json", action="store_true")
+    fleet_codex_launch.add_argument(
+        "codex_args",
+        nargs=argparse.REMAINDER,
+        help="Arguments passed directly to Codex after --.",
+    )
+    fleet_codex_launch.set_defaults(
+        func=fleet_cmds.cmd_fleet_codex_launch
+    )
+    fleet_openclaw_provision = fleet_sub.add_parser(
+        "openclaw-provision",
+        help=(
+            "Verify one configured OpenClaw agent, provision its Fleet "
+            "target, and enable the runtime hook."
+        ),
+    )
+    fleet_openclaw_provision.add_argument(
+        "--managed-root",
+        default="",
+        help=(
+            "Isolated managed root for this agent instance. Defaults "
+            "to UNLIMITED_SKILLS_FLEET_MANAGED_ROOT."
+        ),
+    )
+    fleet_openclaw_provision.add_argument(
+        "--agent-id",
+        required=True,
+        help="Exact configured OpenClaw agent ID.",
+    )
+    fleet_openclaw_provision.add_argument(
+        "--workspace",
+        required=True,
+        help="Exact configured OpenClaw workspace.",
+    )
+    fleet_openclaw_provision.add_argument(
+        "--openclaw-home",
+        default="",
+        help=(
+            "OpenClaw state root. Defaults to OPENCLAW_STATE_DIR or "
+            "~/.openclaw."
+        ),
+    )
+    fleet_openclaw_provision.add_argument(
+        "--openclaw-executable",
+        default="openclaw",
+        help="OpenClaw executable name or explicit path.",
+    )
+    fleet_openclaw_provision.add_argument(
+        "--timeout",
+        type=float,
+        default=30.0,
+    )
+    fleet_openclaw_provision.add_argument(
+        "--json",
+        action="store_true",
+    )
+    fleet_openclaw_provision.set_defaults(
+        func=fleet_cmds.cmd_fleet_openclaw_provision
+    )
     fleet_run_once = fleet_sub.add_parser(
         "run-once",
         help=(
@@ -1915,6 +2049,43 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "Server-assigned organization ID. Defaults to "
             "UNLIMITED_SKILLS_FLEET_ORGANIZATION_ID."
+        ),
+    )
+    fleet_run_once.add_argument(
+        "--runtime-vendor",
+        choices=("claude-code", "codex", "openclaw"),
+        default="claude-code",
+        help=(
+            "Runtime adapter for this registered agent instance. "
+            "Defaults to claude-code for compatibility."
+        ),
+    )
+    fleet_run_once.add_argument(
+        "--agent-id",
+        default="",
+        help="Exact OpenClaw agent ID when --runtime-vendor openclaw.",
+    )
+    fleet_run_once.add_argument(
+        "--workspace",
+        default="",
+        help=(
+            "Exact OpenClaw workspace when --runtime-vendor openclaw."
+        ),
+    )
+    fleet_run_once.add_argument(
+        "--openclaw-home",
+        default="",
+        help=(
+            "OpenClaw state root. Defaults to OPENCLAW_STATE_DIR or "
+            "~/.openclaw."
+        ),
+    )
+    fleet_run_once.add_argument(
+        "--codex-user-skills-root",
+        default="",
+        help=(
+            "Optional explicit user skills root used only for Codex "
+            "collision checks."
         ),
     )
     activation_mode = fleet_run_once.add_mutually_exclusive_group()

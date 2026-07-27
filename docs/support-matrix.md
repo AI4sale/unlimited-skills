@@ -4,13 +4,13 @@
 GitHub clone when you need repository-only installer scripts or contributor
 assets.
 
-| Agent | Installer | Router | Patch | Native sync | Notes |
+| Agent | Installer | Router | Native sync | Enterprise Fleet adapter | Notes |
 | --- | --- | --- | --- | --- | --- |
-| Codex | Yes | Yes | `AGENTS.md` patch yes | Yes | Default installer patches `~/.codex/AGENTS.md` and stores the library under `~/.codex/.unlimited-skills`. Project `AGENTS.md` patching is explicit opt-in. |
-| Claude Code | Yes | Yes | `CLAUDE.md` patch yes | Yes | Supports personal skills and project `.claude/skills`. |
-| Hermes | Yes | Yes | Router-only context reduction yes | Yes | Use `evacuate-visible-skills` when Hermes loads visible skills into startup context; rollback is supported. |
-| OpenClaw | Yes | Yes | `AGENTS.md` patch yes | Yes | Workspace/plugin/built-in installer supported. |
-| Vellum AI | Migration script | Not full installer yet | Not yet | Migration-only | Full installer is not implemented in v0.3.0-alpha. |
+| Codex | Yes | Yes | Yes | Implemented, real-topology pilot pending | Default local installer patches `~/.codex/AGENTS.md`. Fleet instead uses an isolated `CODEX_HOME`, workspace `.agents/skills`, and trusted `SessionStart` evidence. |
+| Claude Code | Yes | Yes | Yes | Implemented, real-topology pilot pending | Fleet uses an isolated `CLAUDE_CONFIG_DIR` and `SessionStart` evidence. |
+| Hermes | Yes | Yes | Yes | Not implemented | Use `evacuate-visible-skills` for router context reduction; installer rollback is supported. |
+| OpenClaw | Yes | Yes | Yes | Implemented, real-topology pilot pending | Fleet binds one configured `agentId` and workspace, with `agent:bootstrap` evidence. |
+| Vellum AI | Migration script | Not full installer yet | Migration-only | Not implemented | Full installer and Fleet adapter are not implemented. |
 
 ## Operating Systems
 

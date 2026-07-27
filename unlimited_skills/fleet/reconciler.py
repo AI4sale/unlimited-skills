@@ -15,9 +15,12 @@ from typing import Any, Mapping
 
 from .adapter import (
     AgentAdapter,
+    InventoryAgentAdapter,
     InstalledRevision,
+    ManagedFleetAdapterError,
     RuntimeAttestation,
     RuntimeInventory,
+    RuntimeInventoryAttestation,
 )
 from .contract import (
     FleetContractError,
@@ -30,6 +33,39 @@ from .spool import ReceiptSpool
 
 class ReconcileError(RuntimeError):
     pass
+
+
+def _adapter_failure_receipt(
+    exc: ManagedFleetAdapterError,
+) -> tuple[str, str]:
+    code = str(exc)
+    if code == "runtime_attestation_pending":
+        return "FAILED_RETRYABLE", "activation_pending"
+    if code == "runtime_attestation_invalid":
+        return "FAILED_TERMINAL", "runtime_attestation_invalid"
+    if code.startswith("pack_manifest"):
+        return "FAILED_TERMINAL", "manifest_invalid"
+    if code in {
+        "pack_archive_hash_mismatch",
+        "artifact_hash_mismatch",
+    }:
+        return "FAILED_TERMINAL", "artifact_hash_mismatch"
+    terminal_prefixes = (
+        "activation_",
+        "active_state_",
+        "installed_revision_",
+        "managed_inventory_",
+        "managed_root_",
+        "managed_skill_",
+        "pack_archive_",
+        "pack_skill_",
+        "pack_skills_",
+        "runtime_path_",
+        "unmanaged_skill_",
+    )
+    if code.startswith(terminal_prefixes):
+        return "FAILED_TERMINAL", "install_failed"
+    return "FAILED_RETRYABLE", "adapter_unavailable"
 
 
 @dataclass(frozen=True)
@@ -127,6 +163,313 @@ class FleetReconciler:
         self.spool.append(receipt)
         receipts.append(receipt)
 
+    def _receipt_builder(
+        self,
+        desired: Mapping[str, Any],
+        item: Mapping[str, Any],
+    ) -> ReceiptBuilder:
+        return ReceiptBuilder(
+            rollout_id=str(desired["rollout_id"]),
+            attempt_id=str(item["attempt_id"]),
+            agent_id=self.agent_id,
+            desired_state_revision=str(desired["desired_state_revision"]),
+            desired_state_digest=str(desired["desired_state_digest"]),
+            control_epoch=int(desired["control_epoch"]),
+            pack_id=str(item["pack_id"]),
+            release_id=str(item["release_id"]),
+            archive_sha256=str(item["archive_sha256"]),
+            client_version=self.client_version,
+            adapter_version=self.adapter.adapter_version,
+        )
+
+    def _write_epoch_state(
+        self,
+        desired: Mapping[str, Any],
+        *,
+        already_seen: bool,
+    ) -> None:
+        if already_seen:
+            return
+        self._write_state(
+            {
+                "agent_id": self.agent_id,
+                "control_epoch": desired["control_epoch"],
+                "desired_state_digest": desired["desired_state_digest"],
+                "desired_state_revision": desired["desired_state_revision"],
+                "rollout_id": desired["rollout_id"],
+            }
+        )
+
+    def _result(
+        self,
+        desired: Mapping[str, Any],
+        receipts: list[dict[str, Any]],
+        *,
+        activation_pending: bool,
+        already_seen: bool,
+    ) -> ReconcileResult:
+        self._write_epoch_state(desired, already_seen=already_seen)
+        return ReconcileResult(
+            agent_id=self.agent_id,
+            rollout_id=str(desired["rollout_id"]),
+            desired_state_revision=str(desired["desired_state_revision"]),
+            control_epoch=int(desired["control_epoch"]),
+            receipts=tuple(receipts),
+            activation_pending=activation_pending,
+        )
+
+    def _reconcile_inventory(
+        self,
+        desired: Mapping[str, Any],
+        inventory: RuntimeInventory,
+        *,
+        already_seen: bool,
+    ) -> ReconcileResult:
+        adapter = self.adapter
+        if not isinstance(adapter, InventoryAgentAdapter):
+            raise ReconcileError("adapter_inventory_activation_required")
+        items = [dict(item) for item in desired["items"]]
+        receipts: list[dict[str, Any]] = []
+        builders = {
+            str(item["pack_id"]): self._receipt_builder(desired, item)
+            for item in items
+        }
+        installed: dict[str, InstalledRevision] = {}
+        activation_pending = False
+        install_failed = False
+
+        for item in items:
+            pack_id = str(item["pack_id"])
+            builder = builders[pack_id]
+            self._spool_receipt(
+                receipts,
+                builder,
+                "DESIRED_SEEN",
+                runtime_generation=inventory.runtime_generation,
+            )
+            try:
+                revision = adapter.install_revision(item)
+                if (
+                    not isinstance(revision, InstalledRevision)
+                    or not revision.install_committed
+                    or revision.pack_id != item["pack_id"]
+                    or revision.release_id != item["release_id"]
+                    or revision.version != item["version"]
+                ):
+                    raise ReconcileError("install_failed")
+                adapter.verify_revision(item, revision)
+                self._spool_receipt(
+                    receipts,
+                    builder,
+                    "MANIFEST_VERIFIED",
+                )
+                if revision.archive_sha256 != item["archive_sha256"]:
+                    raise ReconcileError("artifact_hash_mismatch")
+                self._spool_receipt(
+                    receipts,
+                    builder,
+                    "ARTIFACT_VERIFIED",
+                )
+                self._spool_receipt(
+                    receipts,
+                    builder,
+                    "INSTALL_COMMITTED",
+                )
+                installed[pack_id] = revision
+            except ReconcileError as exc:
+                self._spool_receipt(
+                    receipts,
+                    builder,
+                    "FAILED_TERMINAL",
+                    reason_code=(
+                        str(exc)
+                        if str(exc)
+                        in {"artifact_hash_mismatch", "install_failed"}
+                        else "install_failed"
+                    ),
+                )
+                install_failed = True
+                activation_pending = True
+            except ManagedFleetAdapterError as exc:
+                event_type, reason_code = _adapter_failure_receipt(
+                    exc
+                )
+                self._spool_receipt(
+                    receipts,
+                    builder,
+                    event_type,
+                    reason_code=reason_code,
+                )
+                install_failed = True
+                activation_pending = True
+            except Exception as exc:
+                self._spool_receipt(
+                    receipts,
+                    builder,
+                    "FAILED_RETRYABLE",
+                    reason_code="adapter_unavailable",
+                )
+                install_failed = True
+                activation_pending = True
+                if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+                    raise
+
+        if install_failed:
+            for item in items:
+                pack_id = str(item["pack_id"])
+                if pack_id not in installed:
+                    continue
+                self._spool_receipt(
+                    receipts,
+                    builders[pack_id],
+                    "ACTIVATION_PENDING",
+                    reason_code="install_failed",
+                    activation_nonce=str(item["activation_nonce"]),
+                )
+            return self._result(
+                desired,
+                receipts,
+                activation_pending=activation_pending,
+                already_seen=already_seen,
+            )
+
+        activation_nonces = {
+            str(item["pack_id"]): str(item["activation_nonce"])
+            for item in items
+        }
+        if not self.auto_activate:
+            for item in items:
+                self._spool_receipt(
+                    receipts,
+                    builders[str(item["pack_id"])],
+                    "ACTIVATION_PENDING",
+                    reason_code="activation_pending",
+                    activation_nonce=str(item["activation_nonce"]),
+                )
+            return self._result(
+                desired,
+                receipts,
+                activation_pending=True,
+                already_seen=already_seen,
+            )
+
+        try:
+            adapter.activate_inventory(
+                items,
+                installed,
+                activation_nonces=activation_nonces,
+            )
+            for item in items:
+                self._spool_receipt(
+                    receipts,
+                    builders[str(item["pack_id"])],
+                    "ACTIVATION_PENDING",
+                    reason_code="activation_pending",
+                    activation_nonce=str(item["activation_nonce"]),
+                )
+            attestation = adapter.attest_inventory(
+                items,
+                activation_nonces=activation_nonces,
+            )
+            if not isinstance(
+                attestation,
+                RuntimeInventoryAttestation,
+            ):
+                raise ReconcileError("runtime_attestation_invalid")
+            expected_revisions = {
+                str(item["pack_id"]): str(item["release_id"])
+                for item in items
+            }
+            expected_archives = {
+                str(item["pack_id"]): str(item["archive_sha256"])
+                for item in items
+            }
+            if (
+                dict(attestation.activation_nonces)
+                != activation_nonces
+                or dict(attestation.active_revisions)
+                != expected_revisions
+                or dict(attestation.active_archive_sha256)
+                != expected_archives
+                or attestation.active_inventory_digest
+                != desired["expected_inventory_digest"]
+                or attestation.adapter_version
+                != adapter.adapter_version
+            ):
+                raise ReconcileError("runtime_attestation_invalid")
+            for item in items:
+                pack_id = str(item["pack_id"])
+                self._spool_receipt(
+                    receipts,
+                    builders[pack_id],
+                    "RUNTIME_ATTESTED",
+                    runtime_generation=attestation.runtime_generation,
+                    activation_nonce=activation_nonces[pack_id],
+                    active_archive_sha256=(
+                        attestation.active_archive_sha256[pack_id]
+                    ),
+                    active_inventory_digest=(
+                        attestation.active_inventory_digest
+                    ),
+                )
+            if adapter.detect_inventory_drift(items):
+                for item in items:
+                    pack_id = str(item["pack_id"])
+                    self._spool_receipt(
+                        receipts,
+                        builders[pack_id],
+                        "DRIFT_DETECTED",
+                        reason_code="drift_detected",
+                        runtime_generation=(
+                            attestation.runtime_generation
+                        ),
+                        activation_nonce=activation_nonces[pack_id],
+                        active_inventory_digest=(
+                            attestation.active_inventory_digest
+                        ),
+                    )
+                activation_pending = True
+        except ReconcileError as exc:
+            for item in items:
+                self._spool_receipt(
+                    receipts,
+                    builders[str(item["pack_id"])],
+                    "FAILED_TERMINAL",
+                    reason_code=(
+                        str(exc)
+                        if str(exc) == "runtime_attestation_invalid"
+                        else "install_failed"
+                    ),
+                )
+            activation_pending = True
+        except ManagedFleetAdapterError as exc:
+            event_type, reason_code = _adapter_failure_receipt(exc)
+            for item in items:
+                self._spool_receipt(
+                    receipts,
+                    builders[str(item["pack_id"])],
+                    event_type,
+                    reason_code=reason_code,
+                )
+            activation_pending = True
+        except Exception as exc:
+            for item in items:
+                self._spool_receipt(
+                    receipts,
+                    builders[str(item["pack_id"])],
+                    "FAILED_RETRYABLE",
+                    reason_code="adapter_unavailable",
+                )
+            activation_pending = True
+            if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+                raise
+        return self._result(
+            desired,
+            receipts,
+            activation_pending=activation_pending,
+            already_seen=already_seen,
+        )
+
     def reconcile(self, desired_state: Mapping[str, Any]) -> ReconcileResult:
         if os.environ.get("UNLIMITED_SKILLS_FLEET_DISABLE", "").strip().lower() in {
             "1",
@@ -149,24 +492,21 @@ class FleetReconciler:
                 raise ReconcileError("adapter_unavailable")
         except Exception as exc:
             raise ReconcileError("adapter_unavailable") from exc
+        items = list(desired["items"])
+        if isinstance(self.adapter, InventoryAgentAdapter):
+            return self._reconcile_inventory(
+                desired,
+                inventory,
+                already_seen=already_seen,
+            )
+        if len(items) > 1:
+            raise ReconcileError(
+                "adapter_inventory_activation_required"
+            )
         receipts: list[dict[str, Any]] = []
         activation_pending = False
-        for item in desired["items"]:
-            builder = ReceiptBuilder(
-                rollout_id=str(desired["rollout_id"]),
-                attempt_id=str(item["attempt_id"]),
-                agent_id=self.agent_id,
-                desired_state_revision=str(desired["desired_state_revision"]),
-                desired_state_digest=str(
-                    desired["desired_state_digest"]
-                ),
-                control_epoch=int(desired["control_epoch"]),
-                pack_id=str(item["pack_id"]),
-                release_id=str(item["release_id"]),
-                archive_sha256=str(item["archive_sha256"]),
-                client_version=self.client_version,
-                adapter_version=self.adapter.adapter_version,
-            )
+        for item in items:
+            builder = self._receipt_builder(desired, item)
             self._spool_receipt(
                 receipts,
                 builder,
@@ -277,6 +617,17 @@ class FleetReconciler:
                     else "install_failed",
                 )
                 activation_pending = True
+            except ManagedFleetAdapterError as exc:
+                event_type, reason_code = _adapter_failure_receipt(
+                    exc
+                )
+                self._spool_receipt(
+                    receipts,
+                    builder,
+                    event_type,
+                    reason_code=reason_code,
+                )
+                activation_pending = True
             except Exception as exc:
                 self._spool_receipt(
                     receipts,
@@ -287,21 +638,9 @@ class FleetReconciler:
                 activation_pending = True
                 if isinstance(exc, (KeyboardInterrupt, SystemExit)):
                     raise
-        if not already_seen:
-            self._write_state(
-                {
-                    "agent_id": self.agent_id,
-                    "control_epoch": desired["control_epoch"],
-                    "desired_state_digest": desired["desired_state_digest"],
-                    "desired_state_revision": desired["desired_state_revision"],
-                    "rollout_id": desired["rollout_id"],
-                }
-            )
-        return ReconcileResult(
-            agent_id=self.agent_id,
-            rollout_id=str(desired["rollout_id"]),
-            desired_state_revision=str(desired["desired_state_revision"]),
-            control_epoch=int(desired["control_epoch"]),
-            receipts=tuple(receipts),
+        return self._result(
+            desired,
+            receipts,
             activation_pending=activation_pending,
+            already_seen=already_seen,
         )

@@ -159,9 +159,19 @@ Unknown actions and unknown required semantics fail closed.
 - verifies the desired-state signature and expiry;
 - enforces monotonic control epochs;
 - invokes a finite vendor adapter interface;
+- verifies every desired pack before atomically activating the complete
+  managed inventory when the adapter implements
+  `InventoryAgentAdapter`;
 - creates allowlisted milestone receipts;
 - writes receipts to an atomic offline spool;
 - never emits `VERIFIED_ACTIVE`.
+
+Wire Contract v1 permits multiple unique pack items. A multi-pack target must
+not be implemented as independent activation plus complete-digest attestation
+for each item. The reconciler installs and verifies all items first, replaces
+the managed inventory once, and accepts one runtime generation that proves the
+complete digest. A legacy adapter without the inventory extension fails closed
+before activating a multi-pack target.
 
 Automatic activation defaults off. Operators opt in explicitly:
 

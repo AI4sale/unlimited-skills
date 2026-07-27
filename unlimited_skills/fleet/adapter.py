@@ -10,6 +10,10 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping, Protocol, runtime_checkable
 
 
+class ManagedFleetAdapterError(RuntimeError):
+    """Base error for local managed-runtime adapter failures."""
+
+
 @dataclass(frozen=True)
 class InstalledRevision:
     pack_id: str
@@ -34,6 +38,18 @@ class RuntimeAttestation:
     pack_id: str
     release_id: str
     active_archive_sha256: str
+    active_inventory_digest: str
+    adapter_version: str
+
+
+@dataclass(frozen=True)
+class RuntimeInventoryAttestation:
+    """Evidence that one runtime generation loaded an exact pack inventory."""
+
+    runtime_generation: str
+    activation_nonces: Mapping[str, str]
+    active_revisions: Mapping[str, str]
+    active_archive_sha256: Mapping[str, str]
     active_inventory_digest: str
     adapter_version: str
 
@@ -82,3 +98,31 @@ class AgentAdapter(Protocol):
         activation_nonce: str,
     ) -> None:
         """Atomically activate an older signed revision for a new rollout."""
+
+
+@runtime_checkable
+class InventoryAgentAdapter(AgentAdapter, Protocol):
+    """Adapter extension for atomic multi-pack desired-state activation."""
+
+    def activate_inventory(
+        self,
+        items: list[Mapping[str, Any]],
+        installed: Mapping[str, InstalledRevision],
+        *,
+        activation_nonces: Mapping[str, str],
+    ) -> None:
+        """Atomically replace the complete managed runtime inventory."""
+
+    def attest_inventory(
+        self,
+        items: list[Mapping[str, Any]],
+        *,
+        activation_nonces: Mapping[str, str],
+    ) -> RuntimeInventoryAttestation:
+        """Return proof for the complete inventory from one runtime generation."""
+
+    def detect_inventory_drift(
+        self,
+        items: list[Mapping[str, Any]],
+    ) -> bool:
+        """Return True when the active runtime differs from the full target."""

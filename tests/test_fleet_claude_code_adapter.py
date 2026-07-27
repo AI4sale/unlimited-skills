@@ -15,6 +15,7 @@ from unlimited_skills.fleet.claude_code import (
     CLAUDE_CODE_ADAPTER_VERSION,
     ClaudeCodeFleetAdapter,
     ClaudeCodeFleetAdapterError,
+    _tree_digest,
     load_fleet_public_keys,
     managed_claude_config_dir,
     managed_inventory_digest,
@@ -42,6 +43,8 @@ def pack_archive(
     skill_body: str = "# Enterprise Skill\n",
     *,
     unsafe_name: str = "",
+    skill_name: str = "enterprise-skill",
+    declared_name: str = "",
 ) -> bytes:
     output = io.BytesIO()
     with zipfile.ZipFile(output, "w") as bundle:
@@ -49,11 +52,19 @@ def pack_archive(
             bundle.writestr(unsafe_name, skill_body)
         else:
             bundle.writestr(
-                "enterprise-pack/skills/enterprise-skill/SKILL.md",
-                skill_body,
+                f"enterprise-pack/skills/{skill_name}/SKILL.md",
+                (
+                    "---\n"
+                    f"name: {declared_name}\n"
+                    "description: test\n"
+                    "---\n"
+                    f"{skill_body}"
+                    if declared_name
+                    else skill_body
+                ),
             )
             bundle.writestr(
-                "enterprise-pack/skills/enterprise-skill/reference.md",
+                f"enterprise-pack/skills/{skill_name}/reference.md",
                 "source-backed reference\n",
             )
     return output.getvalue()
@@ -131,6 +142,27 @@ class StubPackClient:
         return self.archive
 
 
+class MultiPackClient:
+    def __init__(self, *clients: StubPackClient) -> None:
+        self.clients = {client.pack_id: client for client in clients}
+
+    def signed_manifest(self, pack_id: str) -> dict:
+        return self.clients[pack_id].signed_manifest(pack_id)
+
+    def download_archive(
+        self,
+        pack_id: str,
+        *,
+        release_id: str = "",
+        expected_sha256: str = "",
+    ) -> bytes:
+        return self.clients[pack_id].download_archive(
+            pack_id,
+            release_id=release_id,
+            expected_sha256=expected_sha256,
+        )
+
+
 def desired_item(
     client: StubPackClient,
     *,
@@ -150,6 +182,16 @@ def desired_item(
         ),
         "required": True,
         "action": action,
+    }
+
+
+def inventory_row(item: dict) -> dict:
+    return {
+        "action": str(item["action"]),
+        "archive_sha256": str(item["archive_sha256"]),
+        "pack_id": str(item["pack_id"]),
+        "release_id": str(item["release_id"]),
+        "required": bool(item["required"]),
     }
 
 
@@ -220,6 +262,34 @@ def test_installs_verified_revision_side_by_side_without_activation(
     same = instance.install_revision(item)
     assert same == installed
     assert len(client.downloads) == 1
+
+
+def test_installed_payload_cannot_be_rebased_by_tampering_local_metadata(
+    tmp_path: Path,
+) -> None:
+    client = StubPackClient()
+    instance = adapter(tmp_path, client)
+    item = desired_item(client)
+    installed = instance.install_revision(item)
+    metadata_path = next(
+        (instance.managed_root / "releases").rglob("installed.json")
+    )
+    payload = metadata_path.parent / "payload"
+    skill = payload / "enterprise-skill" / "SKILL.md"
+    os.chmod(skill, 0o666)
+    skill.write_text("# attacker-controlled\n", encoding="utf-8")
+    metadata = json.loads(metadata_path.read_text(encoding="utf-8"))
+    metadata["skills_tree_sha256"] = _tree_digest(payload)
+    metadata_path.write_text(
+        json.dumps(metadata),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(
+        ClaudeCodeFleetAdapterError,
+        match="installed_revision_tampered",
+    ):
+        instance.verify_revision(item, installed)
 
 
 def test_rejects_manifest_release_race_before_download(
@@ -649,6 +719,184 @@ def test_managed_root_is_bound_to_registration_installation(
             registration=registered_state("uls_inst_two"),
             managed_root=root,
             pack_client=client,
+        )
+
+
+def test_multi_pack_inventory_is_materialized_and_attested_atomically(
+    tmp_path: Path,
+) -> None:
+    pack_a = StubPackClient(
+        pack_id="pack_a",
+        version="1.0.0",
+        archive=pack_archive(
+            "# Skill A\n",
+            skill_name="enterprise-a",
+        ),
+    )
+    pack_b = StubPackClient(
+        pack_id="pack_b",
+        version="2.0.0",
+        archive=pack_archive(
+            "# Skill B\n",
+            skill_name="enterprise-b",
+        ),
+    )
+    instance = ClaudeCodeFleetAdapter(
+        registration=registered_state(),
+        managed_root=tmp_path / "managed-bundle",
+        pack_client=MultiPackClient(pack_a, pack_b),
+    )
+    item_a = desired_item(pack_a, nonce="nonce_a")
+    item_b = desired_item(pack_b, nonce="nonce_b")
+    installed = {
+        "pack_a": instance.install_revision(item_a),
+        "pack_b": instance.install_revision(item_b),
+    }
+
+    instance.activate_inventory(
+        [item_a, item_b],
+        installed,
+        activation_nonces={
+            "pack_a": "nonce_a",
+            "pack_b": "nonce_b",
+        },
+    )
+
+    assert (instance.skills_root / "enterprise-a" / "SKILL.md").is_file()
+    assert (instance.skills_root / "enterprise-b" / "SKILL.md").is_file()
+    discovered = instance.discover()
+    assert discovered.active_revisions == {
+        "pack_a": item_a["release_id"],
+        "pack_b": item_b["release_id"],
+    }
+    expected_digest = managed_inventory_digest(
+        [inventory_row(item_a), inventory_row(item_b)]
+    )
+    assert discovered.inventory_digest == expected_digest
+    with pytest.raises(
+        ClaudeCodeFleetAdapterError,
+        match="runtime_attestation_pending",
+    ):
+        instance.attest_inventory(
+            [item_a, item_b],
+            activation_nonces={
+                "pack_a": "nonce_a",
+                "pack_b": "nonce_b",
+            },
+        )
+
+    runtime = record_claude_session_start(
+        instance.managed_root,
+        session_payload("session-bundle"),
+        environment=runtime_environment(instance),
+        parent_process_id=6400,
+    )
+    attestation = instance.attest_inventory(
+        [item_a, item_b],
+        activation_nonces={
+            "pack_a": "nonce_a",
+            "pack_b": "nonce_b",
+        },
+    )
+
+    assert attestation.runtime_generation == runtime["runtime_generation"]
+    assert attestation.activation_nonces == {
+        "pack_a": "nonce_a",
+        "pack_b": "nonce_b",
+    }
+    assert attestation.active_revisions == {
+        "pack_a": item_a["release_id"],
+        "pack_b": item_b["release_id"],
+    }
+    assert attestation.active_archive_sha256 == {
+        "pack_a": item_a["archive_sha256"],
+        "pack_b": item_b["archive_sha256"],
+    }
+    assert attestation.active_inventory_digest == expected_digest
+    assert instance.detect_inventory_drift([item_a, item_b]) is False
+
+
+def test_multi_pack_activation_rejects_skill_name_collisions(
+    tmp_path: Path,
+) -> None:
+    pack_a = StubPackClient(
+        pack_id="pack_a",
+        archive=pack_archive("# A\n", skill_name="same-skill"),
+    )
+    pack_b = StubPackClient(
+        pack_id="pack_b",
+        archive=pack_archive("# B\n", skill_name="same-skill"),
+    )
+    instance = ClaudeCodeFleetAdapter(
+        registration=registered_state(),
+        managed_root=tmp_path / "managed-collision",
+        pack_client=MultiPackClient(pack_a, pack_b),
+    )
+    item_a = desired_item(pack_a, nonce="nonce_a")
+    item_b = desired_item(pack_b, nonce="nonce_b")
+    installed = {
+        "pack_a": instance.install_revision(item_a),
+        "pack_b": instance.install_revision(item_b),
+    }
+
+    with pytest.raises(
+        ClaudeCodeFleetAdapterError,
+        match="managed_skill_collision",
+    ):
+        instance.activate_inventory(
+            [item_a, item_b],
+            installed,
+            activation_nonces={
+                "pack_a": "nonce_a",
+                "pack_b": "nonce_b",
+            },
+        )
+
+    assert not instance.skills_root.exists()
+
+
+def test_multi_pack_activation_rejects_declared_name_collisions(
+    tmp_path: Path,
+) -> None:
+    pack_a = StubPackClient(
+        pack_id="pack_a",
+        archive=pack_archive(
+            "# A\n",
+            skill_name="folder-a",
+            declared_name="shared-runtime-name",
+        ),
+    )
+    pack_b = StubPackClient(
+        pack_id="pack_b",
+        archive=pack_archive(
+            "# B\n",
+            skill_name="folder-b",
+            declared_name="shared-runtime-name",
+        ),
+    )
+    instance = ClaudeCodeFleetAdapter(
+        registration=registered_state(),
+        managed_root=tmp_path / "managed-declared-collision",
+        pack_client=MultiPackClient(pack_a, pack_b),
+    )
+    item_a = desired_item(pack_a, nonce="nonce_a")
+    item_b = desired_item(pack_b, nonce="nonce_b")
+    installed = {
+        "pack_a": instance.install_revision(item_a),
+        "pack_b": instance.install_revision(item_b),
+    }
+
+    with pytest.raises(
+        ClaudeCodeFleetAdapterError,
+        match="managed_skill_collision",
+    ):
+        instance.activate_inventory(
+            [item_a, item_b],
+            installed,
+            activation_nonces={
+                "pack_a": "nonce_a",
+                "pack_b": "nonce_b",
+            },
         )
 
 
