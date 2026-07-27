@@ -5,7 +5,7 @@ import os
 import time
 import urllib.error
 import urllib.request
-from typing import Any
+from typing import Any, Callable
 
 
 class ServiceClientError(RuntimeError):
@@ -60,18 +60,46 @@ def request_json(
     retry_safe: bool = False,
     max_retries: int | None = None,
     redactor: Any | None = None,
+    max_response_bytes: int | None = None,
+    headers_factory: Callable[[], dict[str, str]] | None = None,
 ) -> dict[str, Any]:
     effective_timeout = configured_timeout(timeout)
     retries = configured_retries(2 if retry_safe else 0) if max_retries is None else max(0, min(int(max_retries), 5))
     attempts = retries + 1 if retry_safe else 1
     redactor = redactor or str
     last_error: Exception | None = None
+    response_limit = (
+        max(1, int(max_response_bytes))
+        if max_response_bytes is not None
+        else None
+    )
 
     for attempt in range(1, attempts + 1):
-        request = urllib.request.Request(url, data=body, headers=headers, method=method)
+        attempt_headers = (
+            headers_factory() if headers_factory is not None else headers
+        )
+        request = urllib.request.Request(
+            url,
+            data=body,
+            headers=attempt_headers,
+            method=method,
+        )
         try:
             with urllib.request.urlopen(request, timeout=effective_timeout) as response:
-                raw = response.read().decode("utf-8")
+                payload = (
+                    response.read(response_limit + 1)
+                    if response_limit is not None
+                    else response.read()
+                )
+                if (
+                    response_limit is not None
+                    and len(payload) > response_limit
+                ):
+                    raise ServiceClientError(
+                        "Registration service response exceeded the "
+                        "configured size limit."
+                    )
+                raw = payload.decode("utf-8")
             try:
                 data = json.loads(raw or "{}")
             except json.JSONDecodeError as exc:
@@ -80,7 +108,23 @@ def request_json(
                 raise ServiceClientError("Registration service returned a non-object JSON payload.")
             return data
         except urllib.error.HTTPError as exc:
-            message = redactor(exc.read().decode("utf-8", errors="replace") if exc.fp else str(exc))
+            if exc.fp:
+                error_payload = (
+                    exc.read(response_limit + 1)
+                    if response_limit is not None
+                    else exc.read()
+                )
+                if (
+                    response_limit is not None
+                    and len(error_payload) > response_limit
+                ):
+                    message = "response body exceeded the configured size limit"
+                else:
+                    message = redactor(
+                        error_payload.decode("utf-8", errors="replace")
+                    )
+            else:
+                message = redactor(str(exc))
             if retry_safe and exc.code in {429, 500, 502, 503, 504} and attempt < attempts:
                 last_error = exc
                 time.sleep(_retry_delay(attempt))

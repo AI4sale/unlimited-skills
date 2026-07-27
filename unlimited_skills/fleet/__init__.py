@@ -20,6 +20,14 @@ from .contract import (
     validate_desired_state,
     verify_desired_state_signature,
 )
+from .client import (
+    FleetAgentClient,
+    FleetAgentClientError,
+    FleetAgentIdentity,
+    FleetAgentIdentityStore,
+    FleetAgentRunResult,
+    post_fleet_json,
+)
 from .privacy import FleetPrivacyError, assert_receipt_metadata_safe
 from .receipts import ReceiptBuilder, ReceiptError
 from .reconciler import FleetReconciler, ReconcileError, ReconcileResult
@@ -30,6 +38,11 @@ __all__ = [
     "FLEET_CONTRACT_ID",
     "FLEET_CONTRACT_VERSION",
     "FleetContractError",
+    "FleetAgentClient",
+    "FleetAgentClientError",
+    "FleetAgentIdentity",
+    "FleetAgentIdentityStore",
+    "FleetAgentRunResult",
     "FleetPrivacyError",
     "FleetReconciler",
     "InstalledRevision",
@@ -47,6 +60,7 @@ __all__ = [
     "desired_state_digest",
     "load_contract_document",
     "parse_json_strict",
+    "post_fleet_json",
     "validate_contract_bundle",
     "validate_contract_message",
     "validate_desired_state",

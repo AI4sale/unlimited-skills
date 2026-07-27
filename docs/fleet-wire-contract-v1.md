@@ -1,8 +1,9 @@
 # Fleet Wire Contract v1
 
-Status: FCP-002 implementation foundation. This document does not claim that
-Business fleet delivery, the Enterprise control plane, or a production SLA is
-complete.
+Status: FCP-002 frozen contract plus the FCP-003 public registered-agent
+client. This document does not claim that Business fleet delivery, the
+Enterprise control plane, the dashboard, receipt ingestion, or a production
+SLA is complete.
 
 ## Authority
 
@@ -153,6 +154,84 @@ UNLIMITED_SKILLS_FLEET_DISABLE=1
 The kill switch blocks new reconciliation. It does not erase the local receipt
 spool.
 
+## Registered agent client
+
+`unlimited_skills.fleet.FleetAgentClient` is the public FCP-003 client library.
+It composes the registered installation identity, a vendor adapter, a
+persisted agent identity, the signed desired-state trust set, the reconciler
+state and the receipt spool.
+
+The client:
+
+- creates a random canonical UUIDv4 before its first network registration;
+- persists that UUID atomically and reuses it for the life of the local agent
+  instance;
+- binds the server-issued `agent_id` to that UUID and installation;
+- repeats registration idempotently on each control-loop start so runtime and
+  adapter metadata can be refreshed;
+- signs every registration and heartbeat HTTP request with the existing
+  installation device key and an exact body hash;
+- creates a fresh proof nonce for every network retry;
+- sends only runtime generation and an inventory digest in heartbeat;
+- validates registration and heartbeat responses against Fleet Wire Contract
+  v1;
+- verifies desired-state expiry, digest, key role and Ed25519 signature before
+  handing the document to the reconciler;
+- caps a fleet HTTP response at the contract limit of 256 KiB;
+- never trusts an agent identity supplied only by a caller. Heartbeat must use
+  the identity currently persisted by the configured identity store.
+
+Example composition:
+
+```python
+from pathlib import Path
+
+from unlimited_skills import __version__
+from unlimited_skills.fleet import (
+    FleetAgentClient,
+    FleetAgentIdentityStore,
+    ReceiptSpool,
+)
+from unlimited_skills.registration import load_registration
+
+agent_root = Path.home() / ".unlimited-skills" / "fleet" / "codex-primary"
+client = FleetAgentClient(
+    registration=load_registration(),
+    runtime_vendor="codex",
+    adapter=adapter,
+    identity_store=FleetAgentIdentityStore(
+        agent_root / "agent-identity.json"
+    ),
+    public_keys=provisioned_fleet_public_keys,
+    reconcile_state_path=agent_root / "reconcile-state.json",
+    spool=ReceiptSpool(agent_root / "receipts"),
+    client_version=__version__,
+    reported_capabilities=(
+        "desired-state-v1",
+        "receipt-spool-v1",
+        "runtime-attestation",
+    ),
+    organization_id="org_server_assigned",
+)
+result = client.run_once()
+```
+
+`adapter` and `provisioned_fleet_public_keys` are explicit integration inputs.
+The client does not implement trust-on-first-use. An HTTPS
+`/v1/fleet/public-keys` response is discovery metadata, not by itself a trust
+anchor. Business and Enterprise deployments must provision the dedicated
+fleet desired-state public keys through an authenticated administrative
+channel and rotate them under change control.
+
+The client library does not schedule itself and does not upload receipt events
+in FCP-003. Receipt upload and the server truth engine are FCP-004 scope.
+Therefore a successful FCP-003 run may spool `RUNTIME_ATTESTED` locally while
+the server correctly remains `TARGETED` with `verified_active=false`.
+
+Registration and heartbeat do not contain skill bodies, prompts, local paths,
+environment values, stdout, stderr, tracebacks, secrets, access tokens or
+device private keys.
+
 ## Verification
 
 Run:
@@ -161,7 +240,7 @@ Run:
 python scripts/generate-fleet-contract-fixtures.py
 python scripts/generate-fleet-contract-manifest.py
 python scripts/verify-fleet-wire-contract.py
-python -m pytest tests/test_fleet_contract.py tests/test_fleet_reconciler.py -q
+python -m pytest tests/test_fleet_contract.py tests/test_fleet_reconciler.py tests/test_fleet_agent_client.py -q
 ```
 
 The generators run in check mode by default. Use `--write` only when
