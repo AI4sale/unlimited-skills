@@ -3,21 +3,23 @@
   "contract_id": "unlimited-skills.fleet-wire",
   "contract_version": 1,
   "control_epoch": 7,
-  "desired_state_digest": "sha256:60b45bf3ae6468254cd2a2fe1289a6461e18ca2a8274d0bd3af6ce6f47df8892",
+  "desired_state_digest": "sha256:8225663e5732cac734c09d7ffde98fae2012d5999652e3c621990b468fd021bc",
   "desired_state_revision": "ds_fixture_b",
   "desired_state_signature": {
     "algorithm": "ed25519",
     "key_id": "fleet-fixture-key-v1",
     "role": "fleet-desired-state-signing",
     "schema_version": 1,
-    "signature": "SnMzeONvz5ZJ5gFrn1KhZLPmUPDVn_uCQc_zkQ16uDzfuFuGtWpRVLzbTmyez0XevFyG08OMqLLucAhKO7cYBQ",
-    "signed_payload_sha256": "sha256:b94e479950da45fd1345161f71a031b79af26534f017956cffa0c96bc48fa751"
+    "signature": "XOBQT-2iZQHTzZADzYRuE9x3d99c8zvIgSeFbryhmkm3934N-mx_SP7IdSaankGoYl2LDLxduqzBJeUH2oruCA",
+    "signed_payload_sha256": "sha256:081aabe608db5b61bce5aa1ce135192a871039fcd3afce4bc7488cfe11d3ea75"
   },
+  "expected_inventory_digest": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
   "expires_at": "2099-12-31T00:00:00Z",
   "issued_at": "2026-07-27T00:00:00Z",
   "items": [
     {
       "action": "activate",
+      "activation_nonce": "act_fixture_01",
       "archive_sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       "attempt_id": "attempt_fixture_01",
       "manifest_ref": "registry:private-pack/pack_fixture/release_b",

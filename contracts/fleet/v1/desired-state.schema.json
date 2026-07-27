@@ -14,6 +14,7 @@
     "previous_digest",
     "issued_at",
     "expires_at",
+    "expected_inventory_digest",
     "rollout_id",
     "items",
     "desired_state_signature"
@@ -57,6 +58,9 @@
     "expires_at": {
       "$ref": "#/$defs/timestamp"
     },
+    "expected_inventory_digest": {
+      "$ref": "#/$defs/digest"
+    },
     "rollout_id": {
       "$ref": "#/$defs/identifier"
     },
@@ -72,6 +76,7 @@
           "release_id",
           "version",
           "archive_sha256",
+          "activation_nonce",
           "manifest_ref",
           "required",
           "action"
@@ -91,6 +96,9 @@
           },
           "archive_sha256": {
             "$ref": "#/$defs/digest"
+          },
+          "activation_nonce": {
+            "$ref": "#/$defs/identifier"
           },
           "manifest_ref": {
             "type": "string",

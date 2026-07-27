@@ -18,6 +18,7 @@ from .contract import (
     validate_contract_bundle,
     validate_contract_message,
     validate_desired_state,
+    validate_receipt_against_desired,
     verify_desired_state_signature,
 )
 from .client import (
@@ -64,5 +65,6 @@ __all__ = [
     "validate_contract_bundle",
     "validate_contract_message",
     "validate_desired_state",
+    "validate_receipt_against_desired",
     "verify_desired_state_signature",
 ]

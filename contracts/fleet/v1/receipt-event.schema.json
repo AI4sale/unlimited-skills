@@ -13,6 +13,7 @@
     "attempt_id",
     "agent_id",
     "desired_state_revision",
+    "desired_state_digest",
     "control_epoch",
     "pack_id",
     "release_id",
@@ -54,6 +55,9 @@
     },
     "desired_state_revision": {
       "$ref": "#/$defs/identifier"
+    },
+    "desired_state_digest": {
+      "$ref": "#/$defs/digest"
     },
     "control_epoch": {
       "type": "integer",
@@ -143,6 +147,33 @@
     },
     "adapter_version": {
       "$ref": "#/$defs/identifier"
+    },
+    "runtime_attestation": {
+      "type": "object",
+      "required": [
+        "kind",
+        "runtime_generation",
+        "active_inventory_digest",
+        "adapter_version"
+      ],
+      "properties": {
+        "kind": {
+          "const": "agent-adapter-runtime-v1"
+        },
+        "activation_nonce": {
+          "$ref": "#/$defs/identifier"
+        },
+        "runtime_generation": {
+          "$ref": "#/$defs/identifier"
+        },
+        "active_inventory_digest": {
+          "$ref": "#/$defs/digest"
+        },
+        "adapter_version": {
+          "$ref": "#/$defs/identifier"
+        }
+      },
+      "additionalProperties": false
     }
   },
   "$defs": {
@@ -162,5 +193,48 @@
       "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$"
     }
   },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "RUNTIME_ATTESTED"
+          }
+        },
+        "required": [
+          "event_type"
+        ]
+      },
+      "then": {
+        "required": [
+          "runtime_attestation"
+        ],
+        "properties": {
+          "runtime_attestation": {
+            "required": [
+              "activation_nonce"
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
+            "const": "DRIFT_DETECTED"
+          }
+        },
+        "required": [
+          "event_type"
+        ]
+      },
+      "then": {
+        "required": [
+          "runtime_attestation"
+        ]
+      }
+    }
+  ],
   "additionalProperties": false
 }

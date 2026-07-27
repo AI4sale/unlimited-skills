@@ -55,11 +55,13 @@ def build() -> dict[Path, dict[str, Any]]:
         "control_epoch": 7,
         "desired_state_digest": "",
         "desired_state_revision": "ds_fixture_b",
+        "expected_inventory_digest": "sha256:" + ("d" * 64),
         "expires_at": "2099-12-31T00:00:00Z",
         "issued_at": "2026-07-27T00:00:00Z",
         "items": [
             {
                 "action": "activate",
+                "activation_nonce": "act_fixture_01",
                 "archive_sha256": "sha256:" + ("b" * 64),
                 "attempt_id": "attempt_fixture_01",
                 "manifest_ref": "registry:private-pack/pack_fixture/release_b",
@@ -101,6 +103,7 @@ def build() -> dict[Path, dict[str, Any]]:
         "contract_version": 1,
         "control_epoch": 7,
         "desired_state_revision": "ds_fixture_b",
+        "desired_state_digest": desired["desired_state_digest"],
         "event_id": "evt_fixture_01",
         "event_seq": 7,
         "event_type": "RUNTIME_ATTESTED",
@@ -111,6 +114,13 @@ def build() -> dict[Path, dict[str, Any]]:
         "release_id": "release_b",
         "rollout_id": "rollout_fixture_b",
         "runtime_generation": "generation_fixture_02",
+        "runtime_attestation": {
+            "activation_nonce": "act_fixture_01",
+            "active_inventory_digest": "sha256:" + ("d" * 64),
+            "adapter_version": "1.0.0",
+            "kind": "agent-adapter-runtime-v1",
+            "runtime_generation": "generation_fixture_02",
+        },
     }
     registration_request = {
         "adapter_id": "claude-code",
@@ -169,6 +179,7 @@ def build() -> dict[Path, dict[str, Any]]:
         "contract_version": 1,
         "duplicate_event_ids": [],
         "message_type": "receipt-response",
+        "outcome": "accepted",
         "rejected_events": [],
         "server_timestamp": "2026-07-27T00:01:01Z",
     }
@@ -183,6 +194,22 @@ def build() -> dict[Path, dict[str, Any]]:
     rollback_replay["items"][0]["attempt_id"] = "attempt_fixture_replay"
     rollback_replay["items"][0]["action"] = "rollback"
     rollback_replay["desired_state_revision"] = "ds_fixture_a_replay"
+    nonce_mismatch = copy.deepcopy(receipt)
+    nonce_mismatch["event_id"] = "evt_invalid_nonce"
+    nonce_mismatch["idempotency_key"] = "evt_invalid_nonce"
+    nonce_mismatch["runtime_attestation"]["activation_nonce"] = (
+        "act_fixture_wrong"
+    )
+    inventory_mismatch = copy.deepcopy(receipt)
+    inventory_mismatch["event_id"] = "evt_invalid_inventory"
+    inventory_mismatch["idempotency_key"] = "evt_invalid_inventory"
+    inventory_mismatch["runtime_attestation"][
+        "active_inventory_digest"
+    ] = "sha256:" + ("e" * 64)
+    activation_nonce_tampered = copy.deepcopy(desired)
+    activation_nonce_tampered["items"][0]["activation_nonce"] = (
+        "act_fixture_tampered"
+    )
     signing_contract = {
         "algorithm": "ed25519",
         "canonicalization": {
@@ -199,6 +226,7 @@ def build() -> dict[Path, dict[str, Any]]:
             "single_byte_mutation_result": "reject",
         },
         "major_version": 1,
+        "bundle_revision": 2,
         "role": "fleet-desired-state-signing",
         "separate_from_role": "pack-release-signing",
     }
@@ -214,6 +242,9 @@ def build() -> dict[Path, dict[str, Any]]:
         CONTRACT_ROOT / "fixtures" / "invalid" / "desired-state-tampered.json": invalid_signature,
         CONTRACT_ROOT / "fixtures" / "invalid" / "receipt-client-verified-active.json": client_verified,
         CONTRACT_ROOT / "fixtures" / "invalid" / "rollback-old-epoch-replay.json": rollback_replay,
+        CONTRACT_ROOT / "fixtures" / "invalid" / "desired-state-activation-nonce-tampered.json": activation_nonce_tampered,
+        CONTRACT_ROOT / "fixtures" / "invalid" / "receipt-runtime-attestation-nonce-mismatch.json": nonce_mismatch,
+        CONTRACT_ROOT / "fixtures" / "invalid" / "receipt-runtime-attestation-inventory-mismatch.json": inventory_mismatch,
         CONTRACT_ROOT / "signing-contract.json": signing_contract,
     }
 

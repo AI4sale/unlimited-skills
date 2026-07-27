@@ -19,8 +19,8 @@
   "items": [
     {
       "action": "activate",
-      "activation_nonce": "act_fixture_01",
-      "archive_sha256": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "activation_nonce": "act_fixture_tampered",
+      "archive_sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
       "attempt_id": "attempt_fixture_01",
       "manifest_ref": "registry:private-pack/pack_fixture/release_b",
       "pack_id": "pack_fixture",

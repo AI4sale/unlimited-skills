@@ -1,10 +1,12 @@
 {
   "contract_id": "unlimited-skills.fleet-wire",
+  "bundle_revision": 2,
   "major_version": 1,
   "within_v1": {
     "allowed": [
       "Add an optional field with no required semantic.",
-      "Add an optional diagnostic that older peers may ignore."
+      "Add an optional diagnostic that older peers may ignore.",
+      "Complete required v1 delivery proof fields in bundle revision 2 before the first public merge."
     ],
     "forbidden": [
       "Remove a required field.",

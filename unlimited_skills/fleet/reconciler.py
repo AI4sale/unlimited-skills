@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import json
 import os
-import secrets
 import tempfile
 from dataclasses import dataclass
 from pathlib import Path
@@ -158,6 +157,9 @@ class FleetReconciler:
                 attempt_id=str(item["attempt_id"]),
                 agent_id=self.agent_id,
                 desired_state_revision=str(desired["desired_state_revision"]),
+                desired_state_digest=str(
+                    desired["desired_state_digest"]
+                ),
                 control_epoch=int(desired["control_epoch"]),
                 pack_id=str(item["pack_id"]),
                 release_id=str(item["release_id"]),
@@ -165,7 +167,12 @@ class FleetReconciler:
                 client_version=self.client_version,
                 adapter_version=self.adapter.adapter_version,
             )
-            self._spool_receipt(receipts, builder, "DESIRED_SEEN")
+            self._spool_receipt(
+                receipts,
+                builder,
+                "DESIRED_SEEN",
+                runtime_generation=inventory.runtime_generation,
+            )
             try:
                 installed = self.adapter.install_revision(item)
                 if not isinstance(installed, InstalledRevision) or not installed.install_committed:
@@ -182,7 +189,7 @@ class FleetReconciler:
                     raise ReconcileError("artifact_hash_mismatch")
                 self._spool_receipt(receipts, builder, "ARTIFACT_VERIFIED")
                 self._spool_receipt(receipts, builder, "INSTALL_COMMITTED")
-                activation_nonce = f"act_{secrets.token_urlsafe(24)}"
+                activation_nonce = str(item["activation_nonce"])
                 if not self.auto_activate:
                     self._spool_receipt(
                         receipts,
@@ -225,6 +232,8 @@ class FleetReconciler:
                     or attestation.pack_id != item["pack_id"]
                     or attestation.release_id != item["release_id"]
                     or attestation.active_archive_sha256 != item["archive_sha256"]
+                    or attestation.active_inventory_digest
+                    != desired["expected_inventory_digest"]
                     or attestation.adapter_version != self.adapter.adapter_version
                 ):
                     raise ReconcileError("runtime_attestation_invalid")
@@ -235,6 +244,9 @@ class FleetReconciler:
                     runtime_generation=attestation.runtime_generation,
                     activation_nonce=attestation.activation_nonce,
                     active_archive_sha256=attestation.active_archive_sha256,
+                    active_inventory_digest=(
+                        attestation.active_inventory_digest
+                    ),
                 )
                 if self.adapter.detect_drift(item):
                     self._spool_receipt(
@@ -244,6 +256,9 @@ class FleetReconciler:
                         reason_code="drift_detected",
                         runtime_generation=attestation.runtime_generation,
                         activation_nonce=attestation.activation_nonce,
+                        active_inventory_digest=(
+                            attestation.active_inventory_digest
+                        ),
                     )
                     activation_pending = True
             except ReconcileError as exc:

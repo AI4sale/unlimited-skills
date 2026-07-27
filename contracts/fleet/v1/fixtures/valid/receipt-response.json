@@ -7,6 +7,7 @@
   "contract_version": 1,
   "duplicate_event_ids": [],
   "message_type": "receipt-response",
+  "outcome": "accepted",
   "rejected_events": [],
   "server_timestamp": "2026-07-27T00:01:01Z"
 }

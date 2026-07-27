@@ -34,6 +34,7 @@ class RuntimeAttestation:
     pack_id: str
     release_id: str
     active_archive_sha256: str
+    active_inventory_digest: str
     adapter_version: str
 
 

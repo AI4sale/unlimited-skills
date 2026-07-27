@@ -22,6 +22,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
 
 FLEET_CONTRACT_ID = "unlimited-skills.fleet-wire"
 FLEET_CONTRACT_VERSION = 1
+FLEET_CONTRACT_BUNDLE_REVISION = 2
 DESIRED_STATE_SIGNING_ROLE = "fleet-desired-state-signing"
 MAX_MESSAGE_BYTES = 256 * 1024
 MAX_ID_CHARS = 160
@@ -128,6 +129,11 @@ def validate_contract_bundle(root: Path | None = None) -> dict[str, Any]:
         raise FleetContractError("contract_id_mismatch")
     if manifest.get("major_version") != FLEET_CONTRACT_VERSION:
         raise FleetContractError("contract_major_version_mismatch")
+    if (
+        manifest.get("bundle_revision")
+        != FLEET_CONTRACT_BUNDLE_REVISION
+    ):
+        raise FleetContractError("contract_bundle_revision_mismatch")
     files = manifest.get("files")
     if not isinstance(files, dict) or not files:
         raise FleetContractError("contract_manifest_files_required")
@@ -149,6 +155,7 @@ def validate_contract_bundle(root: Path | None = None) -> dict[str, Any]:
     return {
         "contract_id": FLEET_CONTRACT_ID,
         "major_version": FLEET_CONTRACT_VERSION,
+        "bundle_revision": FLEET_CONTRACT_BUNDLE_REVISION,
         "manifest_sha256": "sha256:" + hashlib.sha256(manifest_bytes).hexdigest(),
         "verified_files": verified,
     }
@@ -278,6 +285,10 @@ def validate_desired_state(payload: Mapping[str, Any]) -> dict[str, Any]:
     _identifier(payload.get("rollout_id"), "rollout_id")
     _integer(payload.get("control_epoch"), "control_epoch", minimum=1)
     _digest(payload.get("desired_state_digest"), "desired_state_digest")
+    _digest(
+        payload.get("expected_inventory_digest"),
+        "expected_inventory_digest",
+    )
     previous_digest = payload.get("previous_digest", "")
     if previous_digest:
         _digest(previous_digest, "previous_digest")
@@ -300,6 +311,10 @@ def validate_desired_state(payload: Mapping[str, Any]) -> dict[str, Any]:
         _identifier(item.get("release_id"), f"items_{index}_release_id")
         _identifier(item.get("version"), f"items_{index}_version")
         _digest(item.get("archive_sha256"), f"items_{index}_archive_sha256")
+        _identifier(
+            item.get("activation_nonce"),
+            f"items_{index}_activation_nonce",
+        )
         action = item.get("action")
         if action not in ALLOWED_ACTIONS:
             raise FleetContractError("unsupported_action")
@@ -453,6 +468,10 @@ def _validate_receipt_event(payload: Mapping[str, Any]) -> dict[str, Any]:
     _integer(payload.get("control_epoch"), "control_epoch", minimum=1)
     _integer(payload.get("event_seq"), "event_seq", minimum=1)
     _digest(payload.get("archive_sha256"), "archive_sha256")
+    _digest(
+        payload.get("desired_state_digest"),
+        "desired_state_digest",
+    )
     event_type = payload.get("event_type")
     if event_type in SERVER_EVENT_TYPES:
         raise FleetContractError("server_authority_event_forbidden")
@@ -472,6 +491,64 @@ def _validate_receipt_event(payload: Mapping[str, Any]) -> dict[str, Any]:
         _identifier(generation, "runtime_generation")
     if nonce:
         _identifier(nonce, "activation_nonce")
+    attestation = payload.get("runtime_attestation")
+    if event_type in {"RUNTIME_ATTESTED", "DRIFT_DETECTED"}:
+        if not isinstance(attestation, Mapping):
+            raise FleetContractError("runtime_attestation_required")
+        allowed_attestation_fields = {
+            "kind",
+            "activation_nonce",
+            "runtime_generation",
+            "active_inventory_digest",
+            "adapter_version",
+        }
+        if set(attestation) - allowed_attestation_fields:
+            raise FleetContractError(
+                "invalid_runtime_attestation_fields"
+            )
+        if (
+            attestation.get("kind")
+            != "agent-adapter-runtime-v1"
+        ):
+            raise FleetContractError(
+                "invalid_runtime_attestation_kind"
+            )
+        attested_generation = _identifier(
+            attestation.get("runtime_generation"),
+            "attested_runtime_generation",
+        )
+        attested_inventory = _digest(
+            attestation.get("active_inventory_digest"),
+            "attested_active_inventory_digest",
+        )
+        attested_adapter = _identifier(
+            attestation.get("adapter_version"),
+            "attested_adapter_version",
+        )
+        if (
+            attested_generation != generation
+            or attested_adapter != payload.get("adapter_version")
+        ):
+            raise FleetContractError(
+                "runtime_attestation_event_mismatch"
+            )
+        if event_type == "RUNTIME_ATTESTED":
+            attested_nonce = _identifier(
+                attestation.get("activation_nonce"),
+                "attested_activation_nonce",
+            )
+            if attested_nonce != nonce:
+                raise FleetContractError(
+                    "runtime_attestation_nonce_mismatch"
+                )
+            if not attested_inventory:
+                raise FleetContractError(
+                    "runtime_attestation_inventory_missing"
+                )
+    elif attestation is not None:
+        raise FleetContractError(
+            "runtime_attestation_event_forbidden"
+        )
     return dict(payload)
 
 
@@ -517,7 +594,110 @@ def _validate_receipt_response(payload: Mapping[str, Any]) -> dict[str, Any]:
     all_ids = accepted + duplicate + rejected_ids
     if len(all_ids) != len(set(all_ids)):
         raise FleetContractError("duplicate_receipt_response_event_id")
+    outcome = payload.get("outcome")
+    if outcome is not None and outcome not in {
+        "accepted",
+        "accepted_duplicate",
+        "rejected",
+        "conflict",
+        "sequence_gap",
+        "stale_attempt",
+    }:
+        raise FleetContractError("invalid_receipt_outcome")
+    failed_index = payload.get("first_failed_event_index")
+    if failed_index is not None:
+        _integer(
+            failed_index,
+            "first_failed_event_index",
+            minimum=0,
+        )
+        if failed_index > 255:
+            raise FleetContractError(
+                "invalid_first_failed_event_index"
+            )
+    expected_sequence = payload.get("expected_next_sequence")
+    if expected_sequence is not None:
+        _integer(
+            expected_sequence,
+            "expected_next_sequence",
+            minimum=1,
+        )
     return dict(payload)
+
+
+def validate_receipt_against_desired(
+    receipt: Mapping[str, Any],
+    desired_state: Mapping[str, Any],
+) -> dict[str, Any]:
+    """Correlate one client observation to one signed desired document."""
+
+    normalized = _validate_receipt_event(receipt)
+    desired = validate_desired_state(desired_state)
+    exact = {
+        "agent_id": desired["agent_id"],
+        "rollout_id": desired["rollout_id"],
+        "desired_state_revision": desired[
+            "desired_state_revision"
+        ],
+        "control_epoch": desired["control_epoch"],
+        "desired_state_digest": desired["desired_state_digest"],
+    }
+    for field, expected in exact.items():
+        if normalized.get(field) != expected:
+            raise FleetContractError(
+                f"receipt_desired_state_mismatch:{field}"
+            )
+    item = next(
+        (
+            candidate
+            for candidate in desired["items"]
+            if candidate["attempt_id"] == normalized["attempt_id"]
+        ),
+        None,
+    )
+    if item is None:
+        raise FleetContractError("receipt_attempt_not_in_desired_state")
+    for field in ("pack_id", "release_id", "archive_sha256"):
+        if normalized[field] != item[field]:
+            raise FleetContractError(
+                f"receipt_desired_item_mismatch:{field}"
+            )
+    if normalized["event_type"] == "RUNTIME_ATTESTED":
+        attestation = normalized["runtime_attestation"]
+        if (
+            normalized["activation_nonce"]
+            != item["activation_nonce"]
+            or attestation["activation_nonce"]
+            != item["activation_nonce"]
+        ):
+            raise FleetContractError(
+                "runtime_attestation_nonce_mismatch"
+            )
+        if (
+            attestation["active_inventory_digest"]
+            != desired["expected_inventory_digest"]
+        ):
+            raise FleetContractError(
+                "runtime_attestation_inventory_mismatch"
+            )
+        if (
+            normalized["active_archive_sha256"]
+            != item["archive_sha256"]
+        ):
+            raise FleetContractError(
+                "runtime_attestation_archive_mismatch"
+            )
+    elif normalized["event_type"] == "DRIFT_DETECTED":
+        if (
+            normalized["runtime_attestation"][
+                "active_inventory_digest"
+            ]
+            == desired["expected_inventory_digest"]
+        ):
+            raise FleetContractError(
+                "drift_attestation_inventory_matches_desired"
+            )
+    return normalized
 
 
 def validate_contract_message(payload: Mapping[str, Any]) -> dict[str, Any]:

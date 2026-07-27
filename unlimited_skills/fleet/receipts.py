@@ -32,6 +32,7 @@ class ReceiptBuilder:
     attempt_id: str
     agent_id: str
     desired_state_revision: str
+    desired_state_digest: str
     control_epoch: int
     pack_id: str
     release_id: str
@@ -48,6 +49,7 @@ class ReceiptBuilder:
         runtime_generation: str = "",
         activation_nonce: str = "",
         active_archive_sha256: str = "",
+        active_inventory_digest: str = "",
         event_id: str | None = None,
         client_timestamp: str | None = None,
     ) -> dict[str, Any]:
@@ -70,6 +72,7 @@ class ReceiptBuilder:
             "attempt_id": self.attempt_id,
             "agent_id": self.agent_id,
             "desired_state_revision": self.desired_state_revision,
+            "desired_state_digest": self.desired_state_digest,
             "control_epoch": self.control_epoch,
             "pack_id": self.pack_id,
             "release_id": self.release_id,
@@ -84,6 +87,16 @@ class ReceiptBuilder:
             "client_version": self.client_version,
             "adapter_version": self.adapter_version,
         }
+        if event_type in {"RUNTIME_ATTESTED", "DRIFT_DETECTED"}:
+            attestation = {
+                "kind": "agent-adapter-runtime-v1",
+                "runtime_generation": runtime_generation,
+                "active_inventory_digest": active_inventory_digest,
+                "adapter_version": self.adapter_version,
+            }
+            if activation_nonce:
+                attestation["activation_nonce"] = activation_nonce
+            receipt["runtime_attestation"] = attestation
         try:
             normalized = validate_contract_message(receipt)
             assert_receipt_metadata_safe(normalized)

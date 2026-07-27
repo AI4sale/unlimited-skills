@@ -74,7 +74,7 @@ class FakeAdapter:
 
     def discover(self) -> RuntimeInventory:
         return RuntimeInventory(
-            runtime_generation="generation_fixture_02",
+            runtime_generation="generation_fixture_01",
             active_revisions={},
             inventory_digest="sha256:" + ("d" * 64),
         )
@@ -117,6 +117,7 @@ class FakeAdapter:
             pack_id=str(item["pack_id"]),
             release_id=str(item["release_id"]),
             active_archive_sha256=str(item["archive_sha256"]),
+            active_inventory_digest="sha256:" + ("d" * 64),
             adapter_version=self.attested_adapter_override or self.adapter_version,
         )
 

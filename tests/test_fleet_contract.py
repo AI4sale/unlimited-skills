@@ -22,6 +22,7 @@ from unlimited_skills.fleet import (
     validate_contract_bundle,
     validate_contract_message,
     validate_desired_state,
+    validate_receipt_against_desired,
     verify_desired_state_signature,
 )
 
@@ -65,6 +66,7 @@ def test_contract_bundle_is_hash_pinned_and_complete() -> None:
 
     assert result["contract_id"] == "unlimited-skills.fleet-wire"
     assert result["major_version"] == 1
+    assert result["bundle_revision"] == 2
     assert result["manifest_sha256"].startswith("sha256:")
     assert {
         "desired-state.schema.json",
@@ -143,6 +145,43 @@ def test_tampered_desired_state_fails_closed() -> None:
 
     with pytest.raises(FleetContractError, match="desired_state_digest_mismatch"):
         validate_desired_state(payload)
+
+
+def test_signed_activation_nonce_is_covered_by_desired_digest() -> None:
+    payload = read_fixture(
+        "invalid",
+        "desired-state-activation-nonce-tampered.json",
+    )
+
+    with pytest.raises(
+        FleetContractError,
+        match="desired_state_digest_mismatch",
+    ):
+        validate_desired_state(payload)
+
+
+@pytest.mark.parametrize(
+    "fixture_name, reason",
+    [
+        (
+            "receipt-runtime-attestation-nonce-mismatch.json",
+            "runtime_attestation_nonce_mismatch",
+        ),
+        (
+            "receipt-runtime-attestation-inventory-mismatch.json",
+            "runtime_attestation_inventory_mismatch",
+        ),
+    ],
+)
+def test_runtime_attestation_must_match_signed_desired_state(
+    fixture_name: str,
+    reason: str,
+) -> None:
+    with pytest.raises(FleetContractError, match=reason):
+        validate_receipt_against_desired(
+            read_fixture("invalid", fixture_name),
+            read_fixture("valid", "desired-state.signed.json"),
+        )
 
 
 def test_expired_desired_state_is_rejected_after_signature_validation() -> None:
@@ -227,6 +266,7 @@ def test_receipt_builder_rejects_server_only_states() -> None:
         attempt_id="attempt_1",
         agent_id="agent_1",
         desired_state_revision="desired_1",
+        desired_state_digest="sha256:" + ("b" * 64),
         control_epoch=1,
         pack_id="pack_1",
         release_id="release_1",
@@ -288,6 +328,7 @@ def test_receipt_spool_orders_each_attempt_by_event_sequence(tmp_path: Path) -> 
     earlier["runtime_generation"] = ""
     earlier["activation_nonce"] = ""
     earlier["active_archive_sha256"] = ""
+    earlier.pop("runtime_attestation")
     later = dict(template)
     later["event_id"] = "evt_a_early_filename"
     later["idempotency_key"] = later["event_id"]
@@ -296,6 +337,7 @@ def test_receipt_spool_orders_each_attempt_by_event_sequence(tmp_path: Path) -> 
     later["runtime_generation"] = ""
     later["activation_nonce"] = ""
     later["active_archive_sha256"] = ""
+    later.pop("runtime_attestation")
     spool = ReceiptSpool(tmp_path / "spool")
     spool.append(later)
     spool.append(earlier)

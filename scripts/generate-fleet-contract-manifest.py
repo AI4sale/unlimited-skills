@@ -23,6 +23,7 @@ def build_manifest() -> dict:
         if path != MANIFEST_PATH
     }
     return {
+        "bundle_revision": 2,
         "compatibility": "v1-additive-optional-only",
         "contract_id": "unlimited-skills.fleet-wire",
         "files": files,

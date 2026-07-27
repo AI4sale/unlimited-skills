@@ -16,6 +16,7 @@ ALLOWED_RECEIPT_KEYS = {
     "attempt_id",
     "agent_id",
     "desired_state_revision",
+    "desired_state_digest",
     "control_epoch",
     "pack_id",
     "release_id",
@@ -28,6 +29,14 @@ ALLOWED_RECEIPT_KEYS = {
     "client_timestamp",
     "reason_code",
     "client_version",
+    "adapter_version",
+    "runtime_attestation",
+}
+ALLOWED_RUNTIME_ATTESTATION_KEYS = {
+    "kind",
+    "activation_nonce",
+    "runtime_generation",
+    "active_inventory_digest",
     "adapter_version",
 }
 PROHIBITED_KEY_PARTS = {
@@ -67,6 +76,33 @@ def assert_receipt_metadata_safe(receipt: Mapping[str, Any]) -> None:
         lowered = str(key).lower()
         if any(part == lowered or part in lowered.split("_") for part in PROHIBITED_KEY_PARTS):
             raise FleetPrivacyError("receipt_field_prohibited")
+        if key == "runtime_attestation":
+            if not isinstance(value, Mapping):
+                raise FleetPrivacyError(
+                    "invalid_runtime_attestation_metadata"
+                )
+            if set(value) - ALLOWED_RUNTIME_ATTESTATION_KEYS:
+                raise FleetPrivacyError(
+                    "runtime_attestation_field_not_allowlisted"
+                )
+            for nested_key, nested_value in value.items():
+                if isinstance(nested_value, (dict, list)):
+                    raise FleetPrivacyError(
+                        "nested_receipt_metadata_forbidden"
+                    )
+                if isinstance(nested_value, str):
+                    if (
+                        "\x00" in nested_value
+                        or "\n" in nested_value
+                        or "\r" in nested_value
+                        or _WINDOWS_PATH_RE.search(nested_value)
+                        or _POSIX_PATH_RE.search(nested_value)
+                        or _SECRET_RE.search(nested_value)
+                    ):
+                        raise FleetPrivacyError(
+                            "unsafe_runtime_attestation_metadata"
+                        )
+            continue
         if isinstance(value, (dict, list)):
             raise FleetPrivacyError("nested_receipt_metadata_forbidden")
         if isinstance(value, str):

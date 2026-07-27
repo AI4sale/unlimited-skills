@@ -1,6 +1,6 @@
 # Fleet Wire Contract v1
 
-Status: FCP-002 frozen contract plus the FCP-003 public registered-agent
+Status: FCP-002 bundle revision 2 plus the FCP-003 public registered-agent
 client. This document does not claim that Business fleet delivery, the
 Enterprise control plane, the dashboard, receipt ingestion, or a production
 SLA is complete.
@@ -66,6 +66,11 @@ The signature covers the UTF-8 canonical JSON representation of the complete
 desired-state object except `desired_state_signature`. Floats are forbidden.
 Keys are sorted and JSON is emitted without insignificant whitespace.
 
+Bundle revision 2 makes the server-issued `activation_nonce` part of each
+signed desired item and makes the complete post-reconciliation
+`expected_inventory_digest` part of the signed desired document. The client
+must consume the signed nonce; it must never generate a replacement locally.
+
 The `desired_state_digest` covers the desired-state object excluding both
 `desired_state_digest` and `desired_state_signature`. This provides a stable
 chain through `previous_digest` without a self-referential hash.
@@ -84,6 +89,10 @@ ARTIFACT_VERIFIED
 INSTALL_COMMITTED
 ACTIVATION_PENDING
 RUNTIME_ATTESTED
+FAILED_RETRYABLE
+FAILED_TERMINAL
+REJECTED
+DRIFT_DETECTED
 ```
 
 `ARTIFACT_DOWNLOADED` is informational.
@@ -91,6 +100,17 @@ RUNTIME_ATTESTED
 Each signed desired-state item includes the server-issued `attempt_id` that
 must appear unchanged in every receipt for that item. Clients never invent or
 substitute delivery-attempt identity.
+
+Every receipt names the exact `desired_state_digest`. `RUNTIME_ATTESTED` also
+contains the privacy-bounded `agent-adapter-runtime-v1` object produced from a
+typed `AgentAdapter.attest_runtime()` result. It correlates the signed
+activation nonce, post-activation runtime generation, complete managed
+inventory digest and adapter version. This is authenticated software evidence,
+not hardware-grade attestation.
+
+`REJECTED` is terminal for its attempt. `DRIFT_DETECTED` is a negative
+observation after installation; it removes current compliance without erasing
+historical verification.
 
 Only the server may create:
 
@@ -114,10 +134,15 @@ Rollback is a new signed desired state and rollout:
 
 ## Compatibility
 
-Within v1, a producer may add an optional field with no new required semantic.
-An older consumer may ignore unknown optional diagnostics.
+The first public v1 merge uses bundle revision 2. It completes the runtime
+proof fields found missing during pre-merge implementation review. All peers
+must pin both major version 1 and the exact revision-2 manifest digest.
 
-The following require v2:
+After the first public merge, a producer may add only an optional field with
+no new required semantic. An older consumer may ignore unknown optional
+diagnostics.
+
+After that freeze point, the following require v2:
 
 - removing a required field;
 - changing an existing field's meaning;

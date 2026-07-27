@@ -91,6 +91,25 @@
     "required_extensions": {
       "type": "array",
       "maxItems": 0
+    },
+    "outcome": {
+      "enum": [
+        "accepted",
+        "accepted_duplicate",
+        "rejected",
+        "conflict",
+        "sequence_gap",
+        "stale_attempt"
+      ]
+    },
+    "first_failed_event_index": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 255
+    },
+    "expected_next_sequence": {
+      "type": "integer",
+      "minimum": 1
     }
   },
   "$defs": {

@@ -66,7 +66,9 @@
       "FAILED_RETRYABLE",
       "FAILED_TERMINAL",
       "REJECTED"
-    ]
+    ],
+    "rejected_rule": "REJECTED is a terminal client observation after DESIRED_SEEN. Server policy classifies retryability and any retry uses a new attempt_id and activation_nonce.",
+    "drift_rule": "DRIFT_DETECTED is a negative observational overlay after INSTALL_COMMITTED, normally after RUNTIME_ATTESTED. It removes current compliance without erasing historical verification."
   },
   "overlays": [
     "OFFLINE",
