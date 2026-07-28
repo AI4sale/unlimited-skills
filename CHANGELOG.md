@@ -4,8 +4,8 @@
 
 ### Added (0.6.9 - Fleet Contract Foundation)
 
-- Candidate package `0.6.9rc6` uses the immutable GitHub/pilot label
-  `v0.6.9-rc.6`; the final stable release label remains `v0.6.9`.
+- Candidate package `0.6.9rc7` uses the immutable GitHub/pilot label
+  `v0.6.9-rc.7`; the final stable release label remains `v0.6.9`.
 - Reframe the public README around Unlimited Skills as governed AI agent fleet
   skill infrastructure. The local router remains a documented runtime
   component, not the product category, and Business/Enterprise Fleet claims
@@ -27,6 +27,13 @@
   `CODEX_HOME`, workspace, and trusted `SessionStart` hook.
 - Add `fleet codex-launch`, `fleet openclaw-provision`, vendor-selectable
   `fleet run-once`, and vendor-specific runtime evidence commands.
+- Add a Hermes Enterprise Fleet adapter that owns only a nested managed
+  skills tree, preserves personal Hermes skills and credentials, and requires
+  a real `on_session_start` event from an explicitly enabled local plugin
+  before the control plane can verify activation.
+- Add `fleet hermes-provision`, `fleet hermes-launch`, Hermes-selectable
+  `fleet run-once`, and the `hermes-session-start-attestation-v1` capability
+  without changing Fleet Wire Contract v1.
 
 ### Fixed (0.6.9 - Fleet Contract Foundation)
 
