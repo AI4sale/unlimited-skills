@@ -4,8 +4,8 @@
 
 ### Added (0.6.9 - Fleet Contract Foundation)
 
-- Candidate package `0.6.9rc5` uses the immutable GitHub/pilot label
-  `v0.6.9-rc.5`; the final stable release label remains `v0.6.9`.
+- Candidate package `0.6.9rc6` uses the immutable GitHub/pilot label
+  `v0.6.9-rc.6`; the final stable release label remains `v0.6.9`.
 - Reframe the public README around Unlimited Skills as governed AI agent fleet
   skill infrastructure. The local router remains a documented runtime
   component, not the product category, and Business/Enterprise Fleet claims
@@ -30,6 +30,10 @@
 
 ### Fixed (0.6.9 - Fleet Contract Foundation)
 
+- Make the generated Codex `SessionStart` hook use Codex's documented
+  successful no-output contract. Runtime evidence is still recorded, while a
+  successful startup no longer appears as `SessionStart Failed` because
+  adapter evidence JSON was mistaken for Codex hook-control JSON.
 - Keep expected runtime startup latency in the non-terminal
   `ACTIVATION_PENDING` state. A later reconciliation now resumes directly
   with `RUNTIME_ATTESTED` instead of replaying installation events or
