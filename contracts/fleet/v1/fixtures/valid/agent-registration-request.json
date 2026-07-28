@@ -1,0 +1,14 @@
+{
+  "adapter_id": "claude-code",
+  "adapter_version": "1.0.0",
+  "contract_id": "unlimited-skills.fleet-wire",
+  "contract_version": 1,
+  "installation_id": "uls_inst_fixture",
+  "local_instance_id": "local_claude_01",
+  "message_type": "agent-registration-request",
+  "reported_capabilities": [
+    "managed-roots",
+    "runtime-attestation"
+  ],
+  "runtime_vendor": "claude-code"
+}

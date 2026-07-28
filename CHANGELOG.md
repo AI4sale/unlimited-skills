@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+### Added (0.6.9 - Fleet Contract Foundation)
+
+- Pilot package `0.6.9rc1` uses the immutable GitHub/pilot label
+  `v0.6.9-rc.1`; the final stable release label remains `v0.6.9`.
+- Reframe the public README around Unlimited Skills as governed AI agent fleet
+  skill infrastructure. The local router remains a documented runtime
+  component, not the product category, and Business/Enterprise Fleet claims
+  remain explicitly in Preview until the production pilot passes.
+- Add the public Fleet Wire Contract v1 with hash-pinned schemas, positive and
+  negative golden fixtures, explicit versioning rules, and a separate
+  `fleet-desired-state-signing` role.
+- Add a vendor-neutral local adapter protocol, finite-action reconciler,
+  server-authority receipt boundary, privacy allowlist, and atomic offline
+  receipt spool.
+- Keep automatic activation off by default and expose a global fleet
+  reconciliation kill switch. This is a protocol foundation, not a claim that
+  Business fleet delivery or an Enterprise control plane is complete.
+- Add Claude Code, Codex, and OpenClaw Enterprise Fleet adapters with
+  immutable revisions, atomic multi-pack inventory activation, runtime-bound
+  attestation, drift detection, and higher-epoch rollback.
+- Bind each OpenClaw instance to one configured `agentId` and workspace through
+  a finite `agent:bootstrap` hook, and bind each Codex instance to an isolated
+  `CODEX_HOME`, workspace, and trusted `SessionStart` hook.
+- Add `fleet codex-launch`, `fleet openclaw-provision`, vendor-selectable
+  `fleet run-once`, and vendor-specific runtime evidence commands.
+
+### Fixed (0.6.9 - Fleet Contract Foundation)
+
+- Reconcile multi-pack desired state as one complete inventory instead of
+  activating and attesting each pack against the complete digest one at a
+  time. Legacy single-item adapters now fail closed before partial activation.
+- Retain each signed, hash-bound pack archive and re-extract it during revision
+  verification so local payload plus metadata tampering cannot rebase trust.
+
 ### Added (0.6.8 - Verified Completion Memory)
 
 - Add a provider-neutral signed completion-receipt transport. The public core

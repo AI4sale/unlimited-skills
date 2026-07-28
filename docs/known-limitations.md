@@ -25,9 +25,19 @@ other APIs may still change before 1.0.
 
 ## Agent integrations
 
-- Deterministic SessionStart/UserPromptSubmit injection is strongest in Claude
-  Code. Codex, Hermes, and OpenClaw use router/install adapters but do not all
-  expose an equivalent per-prompt lifecycle hook.
+- Enterprise Fleet runtime adapters now use Claude Code `SessionStart`, Codex
+  `SessionStart`, and OpenClaw `agent:bootstrap` lifecycle evidence. Their
+  implementation tests do not replace the required real-topology pilot.
+- Codex user hooks must be explicitly reviewed and trusted. Production
+  Enterprise rollout should use an organization-managed hook source; until the
+  hook runs, Fleet truth remains `ACTIVATION_PENDING`.
+- A newly provisioned OpenClaw internal hook may require a Gateway reload or
+  restart for the installed OpenClaw version. `hooks info` proves
+  configuration, not runtime activation.
+- Codex and OpenClaw skills outside the adapter-owned subtree remain
+  unmanaged. Fleet receipts describe only the signed managed inventory.
+- Hermes still uses the router/installer integration and has no Enterprise
+  Fleet runtime-attestation adapter.
 - Vellum AI remains migration-only; it does not have a full installer/router
   integration.
 - Skill cards intentionally include the selected skill's body head at high

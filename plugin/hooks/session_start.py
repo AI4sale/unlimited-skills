@@ -33,8 +33,10 @@ _INJECT_STAMP_RE = re.compile(r"unlimited-skills-contract:\s*(\d+)")
 _UNLIMITED_BLOCK_MARKER = "<!-- BEGIN UNLIMITED SKILLS -->"
 _HEAL_TIMEOUT_SECONDS = 25.0
 _MONEY_EVENT_TIMEOUT_SECONDS = 10.0
+_FLEET_EVENT_TIMEOUT_SECONDS = 10.0
 _CONTEXT_CONFIG_ENV = "UNLIMITED_SKILLS_CONTEXT_PROVIDER_CONFIG"
 _CONTEXT_DISABLE_ENV = "UNLIMITED_SKILLS_NO_BUSINESS_CONTEXT"
+_FLEET_MANAGED_ROOT_ENV = "UNLIMITED_SKILLS_FLEET_MANAGED_ROOT"
 
 CONTRACT_TEMPLATE = """## Unlimited Skills Library (plugin)
 
@@ -168,6 +170,28 @@ def _record_money_event(command: list[str], event_type: str) -> None:
         return
 
 
+def _record_fleet_runtime(command: list[str]) -> None:
+    """Best-effort handoff of exact SessionStart input to the fleet adapter."""
+
+    if not os.environ.get(_FLEET_MANAGED_ROOT_ENV, "").strip():
+        return
+    try:
+        raw = sys.stdin.buffer.read(64 * 1024 + 1)
+    except Exception:
+        return
+    if not raw or len(raw) > 64 * 1024:
+        return
+    try:
+        subprocess.run(
+            [*command, "fleet", "runtime-start", "--json"],
+            input=raw,
+            capture_output=True,
+            timeout=_FLEET_EVENT_TIMEOUT_SECONDS,
+        )
+    except Exception:
+        return
+
+
 def _business_context_configured() -> bool:
     if os.environ.get(_CONTEXT_DISABLE_ENV, "").strip().casefold() in {"1", "true", "yes", "on"}:
         return False
@@ -206,6 +230,10 @@ def main() -> int:
     except Exception:
         command = None
     if command:
+        try:
+            _record_fleet_runtime(command)
+        except Exception:
+            pass
         try:
             _ensure_lexical_index_manifest(command)
             _ensure_warm_daemon(command)

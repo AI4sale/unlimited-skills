@@ -314,6 +314,32 @@ class PrivatePackClient:
             raise PrivatePackError(str(exc)) from exc
         return {"manifest": manifest, "verification": verification}
 
+    def download_archive(
+        self,
+        pack_id: str,
+        *,
+        release_id: str = "",
+        expected_sha256: str = "",
+    ) -> bytes:
+        """Download one authorized archive with request-bound release hints.
+
+        Older registry servers may ignore the additional hints.  Callers must
+        still verify the returned archive against the signed manifest and
+        desired state before using it.
+        """
+
+        extra: dict[str, Any] = {"pack_id": pack_id}
+        if release_id:
+            extra["release_id"] = release_id
+        if expected_sha256:
+            extra["expected_sha256"] = expected_sha256
+        return _post_private_pack_bytes(
+            self.state,
+            "/v1/private-packs/download",
+            self._payload(extra),
+            timeout=self.timeout,
+        )
+
     def access_check(self, pack_id: str) -> dict[str, Any]:
         return self._post("/v1/private-packs/access-check", self._payload({"pack_id": pack_id}))
 
@@ -336,7 +362,10 @@ class PrivatePackClient:
         version = str(manifest.get("version") or "")
         if dry_run:
             return PrivatePackInstallResult(pack_id=pack_id, version=version, sha256=expected_sha, target=str(target), installed=False, dry_run=True)
-        archive_bytes = _post_private_pack_bytes(self.state, "/v1/private-packs/download", self._payload({"pack_id": pack_id}), timeout=self.timeout)
+        archive_bytes = self.download_archive(
+            pack_id,
+            expected_sha256=expected_sha,
+        )
         root.mkdir(parents=True, exist_ok=True)
         with tempfile.TemporaryDirectory(prefix="unlimited-skills-private-pack-") as tmp:
             tmp_path = Path(tmp)

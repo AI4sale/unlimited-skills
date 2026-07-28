@@ -1,0 +1,178 @@
+{
+  "$id": "https://github.com/AI4sale/unlimited-skills/contracts/fleet/v1/desired-state.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills Fleet Desired State v1",
+  "type": "object",
+  "required": [
+    "contract_id",
+    "contract_version",
+    "message_type",
+    "agent_id",
+    "desired_state_revision",
+    "control_epoch",
+    "desired_state_digest",
+    "previous_digest",
+    "issued_at",
+    "expires_at",
+    "expected_inventory_digest",
+    "rollout_id",
+    "items",
+    "desired_state_signature"
+  ],
+  "properties": {
+    "contract_id": {
+      "const": "unlimited-skills.fleet-wire"
+    },
+    "contract_version": {
+      "const": 1
+    },
+    "message_type": {
+      "const": "desired-state"
+    },
+    "agent_id": {
+      "$ref": "#/$defs/identifier"
+    },
+    "desired_state_revision": {
+      "$ref": "#/$defs/identifier"
+    },
+    "control_epoch": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "desired_state_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "previous_digest": {
+      "oneOf": [
+        {
+          "const": ""
+        },
+        {
+          "$ref": "#/$defs/digest"
+        }
+      ]
+    },
+    "issued_at": {
+      "$ref": "#/$defs/timestamp"
+    },
+    "expires_at": {
+      "$ref": "#/$defs/timestamp"
+    },
+    "expected_inventory_digest": {
+      "$ref": "#/$defs/digest"
+    },
+    "rollout_id": {
+      "$ref": "#/$defs/identifier"
+    },
+    "items": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "required": [
+          "attempt_id",
+          "pack_id",
+          "release_id",
+          "version",
+          "archive_sha256",
+          "activation_nonce",
+          "manifest_ref",
+          "required",
+          "action"
+        ],
+        "properties": {
+          "attempt_id": {
+            "$ref": "#/$defs/identifier"
+          },
+          "pack_id": {
+            "$ref": "#/$defs/identifier"
+          },
+          "release_id": {
+            "$ref": "#/$defs/identifier"
+          },
+          "version": {
+            "$ref": "#/$defs/identifier"
+          },
+          "archive_sha256": {
+            "$ref": "#/$defs/digest"
+          },
+          "activation_nonce": {
+            "$ref": "#/$defs/identifier"
+          },
+          "manifest_ref": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1024,
+            "pattern": "^(?:https://|registry:|urn:)[^\\\\\\u0000]*$"
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "action": {
+            "enum": [
+              "activate",
+              "rollback"
+            ]
+          }
+        },
+        "additionalProperties": true
+      }
+    },
+    "desired_state_signature": {
+      "type": "object",
+      "required": [
+        "schema_version",
+        "algorithm",
+        "role",
+        "key_id",
+        "signed_payload_sha256",
+        "signature"
+      ],
+      "properties": {
+        "schema_version": {
+          "const": 1
+        },
+        "algorithm": {
+          "const": "ed25519"
+        },
+        "role": {
+          "const": "fleet-desired-state-signing"
+        },
+        "key_id": {
+          "$ref": "#/$defs/identifier"
+        },
+        "signed_payload_sha256": {
+          "$ref": "#/$defs/digest"
+        },
+        "signature": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9_-]{86}$"
+        }
+      },
+      "additionalProperties": false
+    },
+    "required_extensions": {
+      "type": "array",
+      "maxItems": 0
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,159}$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$"
+    }
+  },
+  "additionalProperties": true
+}

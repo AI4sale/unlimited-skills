@@ -1,0 +1,83 @@
+{
+  "contract_id": "unlimited-skills.fleet-wire",
+  "major_version": 1,
+  "rollout": {
+    "initial": "DRAFT",
+    "terminal": [
+      "COMPLETED_VERIFIED",
+      "FAILED",
+      "ROLLED_BACK_VERIFIED",
+      "ROLLBACK_FAILED",
+      "CANCELLED"
+    ],
+    "transitions": {
+      "DRAFT": [
+        "APPROVED",
+        "CANCELLED"
+      ],
+      "APPROVED": [
+        "RUNNING",
+        "CANCELLED"
+      ],
+      "RUNNING": [
+        "COMPLETED_VERIFIED",
+        "FAILED",
+        "ROLLBACK_RUNNING",
+        "CANCELLED"
+      ],
+      "ROLLBACK_RUNNING": [
+        "ROLLED_BACK_VERIFIED",
+        "ROLLBACK_FAILED"
+      ]
+    }
+  },
+  "attempt": {
+    "server_only": [
+      "TARGETED",
+      "VERIFIED_ACTIVE"
+    ],
+    "client_reportable": [
+      "DESIRED_SEEN",
+      "MANIFEST_VERIFIED",
+      "ARTIFACT_DOWNLOADED",
+      "ARTIFACT_VERIFIED",
+      "INSTALL_COMMITTED",
+      "ACTIVATION_PENDING",
+      "RUNTIME_ATTESTED",
+      "FAILED_RETRYABLE",
+      "FAILED_TERMINAL",
+      "REJECTED",
+      "DRIFT_DETECTED"
+    ],
+    "ordered_success_path": [
+      "TARGETED",
+      "DESIRED_SEEN",
+      "MANIFEST_VERIFIED",
+      "ARTIFACT_VERIFIED",
+      "INSTALL_COMMITTED",
+      "ACTIVATION_PENDING",
+      "RUNTIME_ATTESTED",
+      "VERIFIED_ACTIVE"
+    ],
+    "informational": [
+      "ARTIFACT_DOWNLOADED"
+    ],
+    "failure": [
+      "FAILED_RETRYABLE",
+      "FAILED_TERMINAL",
+      "REJECTED"
+    ],
+    "rejected_rule": "REJECTED is a terminal client observation after DESIRED_SEEN. Server policy classifies retryability and any retry uses a new attempt_id and activation_nonce.",
+    "drift_rule": "DRIFT_DETECTED is a negative observational overlay after INSTALL_COMMITTED, normally after RUNTIME_ATTESTED. It removes current compliance without erasing historical verification."
+  },
+  "overlays": [
+    "OFFLINE",
+    "STALE",
+    "DRIFTED",
+    "REVOKED",
+    "SUPERSEDED"
+  ],
+  "verified_active_authority": "server",
+  "targeted_authority": "server",
+  "rollback_rule": "A rollback is a new signed rollout with a higher control_epoch. Replaying an older desired-state document is forbidden."
+}

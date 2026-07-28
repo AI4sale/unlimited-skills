@@ -1,0 +1,20 @@
+{
+  "algorithm": "ed25519",
+  "bundle_revision": 2,
+  "canonicalization": {
+    "encoding": "utf-8",
+    "floats": "forbidden",
+    "json": "sort_keys=true,separators=(',',':'),ensure_ascii=false",
+    "signature_field_excluded": "desired_state_signature"
+  },
+  "contract_id": "unlimited-skills.fleet-wire",
+  "golden_fixture": {
+    "desired_state_path": "fixtures/valid/desired-state.signed.json",
+    "public_key": "ebVWLo_mVPlAeLES6KmLp5AfhTrmlb7X4OORC60ElmQ",
+    "signed_payload_sha256": "sha256:081aabe608db5b61bce5aa1ce135192a871039fcd3afce4bc7488cfe11d3ea75",
+    "single_byte_mutation_result": "reject"
+  },
+  "major_version": 1,
+  "role": "fleet-desired-state-signing",
+  "separate_from_role": "pack-release-signing"
+}

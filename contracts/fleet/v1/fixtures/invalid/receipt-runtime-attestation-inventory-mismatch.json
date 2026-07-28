@@ -1,0 +1,32 @@
+{
+  "activation_nonce": "act_fixture_01",
+  "active_archive_sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "adapter_version": "1.0.0",
+  "agent_id": "agent_fixture_01",
+  "archive_sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "attempt_id": "attempt_fixture_01",
+  "client_timestamp": "2026-07-27T00:01:00Z",
+  "client_version": "0.6.9",
+  "contract_id": "unlimited-skills.fleet-wire",
+  "contract_version": 1,
+  "control_epoch": 7,
+  "desired_state_digest": "sha256:8225663e5732cac734c09d7ffde98fae2012d5999652e3c621990b468fd021bc",
+  "desired_state_revision": "ds_fixture_b",
+  "event_id": "evt_invalid_inventory",
+  "event_seq": 7,
+  "event_type": "RUNTIME_ATTESTED",
+  "idempotency_key": "evt_invalid_inventory",
+  "message_type": "receipt-event",
+  "pack_id": "pack_fixture",
+  "reason_code": "none",
+  "release_id": "release_b",
+  "rollout_id": "rollout_fixture_b",
+  "runtime_attestation": {
+    "activation_nonce": "act_fixture_01",
+    "active_inventory_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "adapter_version": "1.0.0",
+    "kind": "agent-adapter-runtime-v1",
+    "runtime_generation": "generation_fixture_02"
+  },
+  "runtime_generation": "generation_fixture_02"
+}

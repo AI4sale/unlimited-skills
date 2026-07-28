@@ -1,0 +1,124 @@
+{
+  "$id": "https://github.com/AI4sale/unlimited-skills/contracts/fleet/v1/receipt-response.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills Fleet Receipt Response v1",
+  "type": "object",
+  "required": [
+    "contract_id",
+    "contract_version",
+    "message_type",
+    "batch_id",
+    "server_timestamp",
+    "accepted_event_ids",
+    "duplicate_event_ids",
+    "rejected_events"
+  ],
+  "properties": {
+    "contract_id": {
+      "const": "unlimited-skills.fleet-wire"
+    },
+    "contract_version": {
+      "const": 1
+    },
+    "message_type": {
+      "const": "receipt-response"
+    },
+    "batch_id": {
+      "$ref": "#/$defs/identifier"
+    },
+    "server_timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$"
+    },
+    "accepted_event_ids": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "$ref": "#/$defs/identifier"
+      }
+    },
+    "duplicate_event_ids": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "$ref": "#/$defs/identifier"
+      }
+    },
+    "rejected_events": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {
+        "type": "object",
+        "required": [
+          "event_id",
+          "reason_code"
+        ],
+        "properties": {
+          "event_id": {
+            "$ref": "#/$defs/identifier"
+          },
+          "reason_code": {
+            "enum": [
+              "none",
+              "activation_pending",
+              "adapter_unavailable",
+              "activation_nonce_mismatch",
+              "agent_binding_mismatch",
+              "artifact_hash_mismatch",
+              "desired_state_expired",
+              "desired_state_signature_invalid",
+              "drift_detected",
+              "install_failed",
+              "invalid_event_sequence",
+              "manifest_invalid",
+              "manifest_signature_invalid",
+              "offline",
+              "rollout_attempt_mismatch",
+              "runtime_attestation_invalid",
+              "runtime_generation_mismatch",
+              "server_authority_event_forbidden",
+              "stale_control_epoch",
+              "tenant_mismatch",
+              "unsupported_action",
+              "unsupported_contract_version"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "required_extensions": {
+      "type": "array",
+      "maxItems": 0
+    },
+    "outcome": {
+      "enum": [
+        "accepted",
+        "accepted_duplicate",
+        "rejected",
+        "conflict",
+        "sequence_gap",
+        "stale_attempt"
+      ]
+    },
+    "first_failed_event_index": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 255
+    },
+    "expected_next_sequence": {
+      "type": "integer",
+      "minimum": 1
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,159}$"
+    }
+  },
+  "additionalProperties": true
+}

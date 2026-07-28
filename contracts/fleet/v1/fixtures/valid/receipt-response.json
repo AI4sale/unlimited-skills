@@ -1,0 +1,13 @@
+{
+  "accepted_event_ids": [
+    "evt_fixture_01"
+  ],
+  "batch_id": "batch_fixture_01",
+  "contract_id": "unlimited-skills.fleet-wire",
+  "contract_version": 1,
+  "duplicate_event_ids": [],
+  "message_type": "receipt-response",
+  "outcome": "accepted",
+  "rejected_events": [],
+  "server_timestamp": "2026-07-27T00:01:01Z"
+}

@@ -1,0 +1,78 @@
+{
+  "$id": "https://github.com/AI4sale/unlimited-skills/contracts/fleet/v1/heartbeat-request.schema.json",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Unlimited Skills Fleet Heartbeat Request v1",
+  "type": "object",
+  "required": [
+    "contract_id",
+    "contract_version",
+    "message_type",
+    "agent_id",
+    "installation_id",
+    "client_timestamp",
+    "runtime_generation",
+    "active_inventory_digest"
+  ],
+  "properties": {
+    "contract_id": {
+      "const": "unlimited-skills.fleet-wire"
+    },
+    "contract_version": {
+      "const": 1
+    },
+    "message_type": {
+      "const": "heartbeat-request"
+    },
+    "agent_id": {
+      "$ref": "#/$defs/identifier"
+    },
+    "installation_id": {
+      "$ref": "#/$defs/identifier"
+    },
+    "client_timestamp": {
+      "$ref": "#/$defs/timestamp"
+    },
+    "runtime_generation": {
+      "oneOf": [
+        {
+          "const": ""
+        },
+        {
+          "$ref": "#/$defs/identifier"
+        }
+      ]
+    },
+    "active_inventory_digest": {
+      "oneOf": [
+        {
+          "const": ""
+        },
+        {
+          "$ref": "#/$defs/digest"
+        }
+      ]
+    },
+    "required_extensions": {
+      "type": "array",
+      "maxItems": 0
+    }
+  },
+  "$defs": {
+    "identifier": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 160,
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._:/@+-]{0,159}$"
+    },
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(?:\\.\\d{1,6})?Z$"
+    }
+  },
+  "additionalProperties": true
+}
