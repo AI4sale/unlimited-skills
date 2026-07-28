@@ -79,7 +79,7 @@ def _runtime_hook_command(root: Path) -> str:
             "codex-runtime-start",
             "--managed-root",
             str(root),
-            "--json",
+            "--hook-output",
         ]
     )
 

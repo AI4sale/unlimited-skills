@@ -307,6 +307,8 @@ def test_codex_provisions_isolated_user_hook_and_workspace(
     assert session_start[0]["matcher"] == "startup|resume"
     command = session_start[0]["hooks"][0]["command"]
     assert "codex-runtime-start" in command
+    assert "--hook-output" in command
+    assert "--json" not in command
     assert str(instance.managed_root) in command
     assert "secret-token" not in command
     assert instance.workspace.is_dir()
@@ -373,13 +375,15 @@ def test_cli_exposes_codex_and_openclaw_fleet_controls() -> None:
             "codex-runtime-start",
             "--managed-root",
             "managed",
-            "--json",
+            "--hook-output",
         ]
     )
     assert (
         codex_hook.func.__name__
         == "cmd_fleet_codex_runtime_start"
     )
+    assert codex_hook.hook_output is True
+    assert codex_hook.json is False
     openclaw_hook = parser.parse_args(
         [
             "fleet",

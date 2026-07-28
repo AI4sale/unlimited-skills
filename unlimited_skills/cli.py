@@ -1865,6 +1865,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--json",
         action="store_true",
     )
+    fleet_codex_runtime_start.add_argument(
+        "--hook-output",
+        action="store_true",
+        help=(
+            "Emit no stdout after a successful Codex hook run. "
+            "Codex treats exit 0 with no output as success."
+        ),
+    )
     fleet_codex_runtime_start.set_defaults(
         func=fleet_cmds.cmd_fleet_codex_runtime_start
     )

@@ -82,6 +82,8 @@ def cmd_fleet_codex_runtime_start(args: argparse.Namespace) -> int:
     raw = sys.stdin.buffer.read(64 * 1024 + 1)
     payload = parse_codex_session_start_payload(raw)
     result = record_codex_session_start(managed_root, payload)
+    if args.hook_output:
+        return 0
     return _emit(result, as_json=args.json)
 
 
