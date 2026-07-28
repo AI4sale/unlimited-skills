@@ -4,8 +4,8 @@
 
 ### Added (0.6.9 - Fleet Contract Foundation)
 
-- Pilot package `0.6.9rc1` uses the immutable GitHub/pilot label
-  `v0.6.9-rc.1`; the final stable release label remains `v0.6.9`.
+- Candidate package `0.6.9rc2` uses the immutable GitHub/pilot label
+  `v0.6.9-rc.2`; the final stable release label remains `v0.6.9`.
 - Reframe the public README around Unlimited Skills as governed AI agent fleet
   skill infrastructure. The local router remains a documented runtime
   component, not the product category, and Business/Enterprise Fleet claims
@@ -30,6 +30,16 @@
 
 ### Fixed (0.6.9 - Fleet Contract Foundation)
 
+- Route Fleet adapter payload fetches through dedicated Fleet-scoped
+  endpoints. Every manifest and archive request is bound in both the
+  device-signed body and bounded headers to the exact agent, rollout,
+  attempt, desired-state revision, release, and archive hash.
+- Advertise the `fleet-payload-v2` and exact rc2 client capabilities so the
+  control plane can withhold desired state from incompatible agents.
+- Make private-pack trust pins offline, origin/scope/role-bound,
+  fingerprint-checked, and locally expiring. Same-ID keys merge only when
+  their Ed25519 public bytes are identical; different material is refused
+  even when a replace import is requested.
 - Reconcile multi-pack desired state as one complete inventory instead of
   activating and attesting each pack against the complete digest one at a
   time. Legacy single-item adapters now fail closed before partial activation.

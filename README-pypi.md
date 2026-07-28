@@ -4,11 +4,11 @@ Unlimited Skills is a local-first skill memory and retrieval layer for coding
 agents. It keeps large skill libraries out of the agent context and retrieves
 the small, relevant skill context only when it is useful.
 
-This is `v0.6.9rc1` of the free MIT local core. There is no telemetry, no hosted
+This is `v0.6.9rc2` of the free MIT local core. There is no telemetry, no hosted
 dependency for local use, and nothing for sale in this release. The project is
 still pre-1.0, so APIs and JSON output may change before `1.0`.
 
-Use `unlimited-skills==0.6.9rc1` for the approved Fleet pilot candidate. The
+Use `unlimited-skills==0.6.9rc2` for the FCP-008C Fleet pilot candidate. The
 `0.6.0` package was uploaded to PyPI but was not tagged or released because the
 published verifier caught a CLI contract issue after upload.
 

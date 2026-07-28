@@ -5,6 +5,7 @@ import json
 import os
 import time
 import urllib.parse
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -20,6 +21,9 @@ PUBLIC_KEYS_FILE_ENV = "UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS_FILE"
 REQUIRE_SIGNATURES_ENV = "UNLIMITED_SKILLS_REQUIRE_SIGNED_MANIFESTS"
 REVOKED_KEYS_ENV = "UNLIMITED_SKILLS_REVOKED_MANIFEST_KEY_IDS"
 LOCAL_TRUST_FILE = "manifest-public-keys.v1.json"
+MANIFEST_SCOPE_ROLES = {
+    "private-team-pack": "private-team-pack-manifest",
+}
 BUNDLED_TRUSTED_MANIFEST_KEYS = [
     {
         "key_id": "registry-alpha-2026-06",
@@ -107,6 +111,30 @@ def normalize_registry_origin(value: str) -> str:
     return f"{parsed.scheme.lower()}://{parsed.netloc.lower()}"
 
 
+def _not_after_timestamp(value: str, *, key_id: str) -> float:
+    if (
+        not value
+        or not value.endswith("Z")
+        or "T" not in value
+    ):
+        raise ManifestSignatureError(
+            f"Trusted manifest public key not_after is invalid: {key_id}"
+        )
+    try:
+        parsed = datetime.fromisoformat(
+            value.removesuffix("Z") + "+00:00"
+        )
+    except ValueError as exc:
+        raise ManifestSignatureError(
+            f"Trusted manifest public key not_after is invalid: {key_id}"
+        ) from exc
+    if parsed.tzinfo is None:
+        raise ManifestSignatureError(
+            f"Trusted manifest public key not_after is invalid: {key_id}"
+        )
+    return parsed.astimezone(timezone.utc).timestamp()
+
+
 def canonical_manifest_bytes(payload: dict[str, Any]) -> bytes:
     unsigned = {key: value for key, value in payload.items() if key not in SIGNATURE_FIELDS}
     return json.dumps(unsigned, ensure_ascii=False, sort_keys=True, separators=(",", ":")).encode("utf-8")
@@ -174,6 +202,32 @@ def _manifest_key_records(path: Path, *, source: str) -> list[dict[str, Any]]:
             raise ManifestSignatureError(f"Trusted manifest public key is invalid: {key_id}") from exc
         if len(decoded) != 32:
             raise ManifestSignatureError(f"Trusted manifest public key has invalid length: {key_id}")
+        fingerprint = "sha256:" + hashlib.sha256(decoded).hexdigest()
+        declared_fingerprint = str(
+            item.get("sha256_fingerprint") or ""
+        )
+        if (
+            declared_fingerprint
+            and declared_fingerprint != fingerprint
+        ):
+            raise ManifestSignatureError(
+                f"Trusted manifest public key fingerprint is invalid: {key_id}"
+            )
+        role = str(item.get("role") or "")
+        not_after = str(item.get("not_after") or "")
+        if not_after:
+            _not_after_timestamp(not_after, key_id=key_id)
+        raw_scopes = item.get("scopes", ["*"])
+        raw_origins = item.get("registry_origins", ["*"])
+        if (
+            not isinstance(raw_scopes, list)
+            or not raw_scopes
+            or not isinstance(raw_origins, list)
+            or not raw_origins
+        ):
+            raise ManifestSignatureError(
+                f"Trusted manifest public key scope is invalid: {key_id}"
+            )
         normalized.append(
             {
                 "key_id": key_id,
@@ -181,8 +235,19 @@ def _manifest_key_records(path: Path, *, source: str) -> list[dict[str, Any]]:
                 "public_key": public_key,
                 "status": str(item.get("status") or "active").lower(),
                 "source": source,
-                "scopes": [str(scope) for scope in item.get("scopes", ["*"]) if str(scope)],
-                "registry_origins": [normalize_registry_origin(str(origin)) for origin in item.get("registry_origins", ["*"]) if str(origin)],
+                "scopes": [
+                    str(scope)
+                    for scope in raw_scopes
+                    if str(scope)
+                ],
+                "registry_origins": [
+                    normalize_registry_origin(str(origin))
+                    for origin in raw_origins
+                    if str(origin)
+                ],
+                "role": role,
+                "not_after": not_after,
+                "sha256_fingerprint": fingerprint,
             }
         )
     return normalized
@@ -219,7 +284,107 @@ def trusted_manifest_key_records(*, include_public: bool = False) -> list[dict[s
             continue
         normalized = dict(record)
         normalized["status"] = "revoked" if key_id in revoked else str(normalized.get("status") or "active").lower()
-        by_id[key_id] = normalized
+        existing = by_id.get(key_id)
+        if existing is not None:
+            existing_public = str(existing.get("public_key") or "")
+            offered_public = str(normalized.get("public_key") or "")
+            if (
+                existing_public
+                and offered_public
+                and base64_urlsafe_decode(existing_public)
+                != base64_urlsafe_decode(offered_public)
+            ):
+                raise ManifestSignatureError(
+                    "Trusted manifest key_id collision has different "
+                    f"public material: {key_id}"
+                )
+            merged = dict(existing)
+            merged.update(
+                {
+                    "public_key": offered_public or existing_public,
+                    "source": str(
+                        normalized.get("source")
+                        or existing.get("source")
+                        or ""
+                    ),
+                    "status": (
+                        "revoked"
+                        if "revoked"
+                        in {
+                            str(existing.get("status") or ""),
+                            str(normalized.get("status") or ""),
+                        }
+                        else "active"
+                    ),
+                    "scopes": sorted(
+                        {
+                            str(value)
+                            for value in [
+                                *existing.get("scopes", []),
+                                *normalized.get("scopes", []),
+                            ]
+                            if str(value)
+                        }
+                    ),
+                    "registry_origins": sorted(
+                        {
+                            normalize_registry_origin(str(value))
+                            for value in [
+                                *existing.get(
+                                    "registry_origins",
+                                    [],
+                                ),
+                                *normalized.get(
+                                    "registry_origins",
+                                    [],
+                                ),
+                            ]
+                            if str(value)
+                        }
+                    ),
+                }
+            )
+            existing_role = str(existing.get("role") or "")
+            offered_role = str(normalized.get("role") or "")
+            if (
+                existing_role
+                and offered_role
+                and existing_role != offered_role
+            ):
+                raise ManifestSignatureError(
+                    "Trusted manifest key_id collision has different "
+                    f"roles: {key_id}"
+                )
+            merged["role"] = offered_role or existing_role
+            expiry_values = [
+                str(value)
+                for value in (
+                    existing.get("not_after"),
+                    normalized.get("not_after"),
+                )
+                if value not in (None, "")
+            ]
+            merged["not_after"] = (
+                min(
+                    expiry_values,
+                    key=lambda value: _not_after_timestamp(
+                        value,
+                        key_id=key_id,
+                    ),
+                )
+                if expiry_values
+                else ""
+            )
+            merged["sha256_fingerprint"] = (
+                str(
+                    normalized.get("sha256_fingerprint")
+                    or existing.get("sha256_fingerprint")
+                    or ""
+                )
+            )
+            by_id[key_id] = merged
+        else:
+            by_id[key_id] = normalized
     output = []
     for key_id in sorted(by_id):
         record = dict(by_id[key_id])
@@ -249,8 +414,22 @@ def key_record_allows(record: dict[str, Any], *, scope: str = "", registry_url: 
         return False
     if record.get("algorithm") != "ed25519":
         return False
+    not_after = str(record.get("not_after") or "")
+    if not_after:
+        try:
+            if time.time() >= _not_after_timestamp(
+                not_after,
+                key_id=str(record.get("key_id") or ""),
+            ):
+                return False
+        except ManifestSignatureError:
+            return False
     scopes = set(str(item) for item in record.get("scopes", ["*"]))
     if scope and "*" not in scopes and scope not in scopes:
+        return False
+    expected_role = MANIFEST_SCOPE_ROLES.get(scope)
+    role = str(record.get("role") or "")
+    if expected_role and role != expected_role:
         return False
     origins = set(str(item) for item in record.get("registry_origins", ["*"]))
     origin = normalize_registry_origin(registry_url)
@@ -363,12 +542,44 @@ def write_local_trust_manifest(payload: dict[str, Any], home: Path | None = None
 
 def import_local_trust_manifest(source: Path, *, replace: bool = False, home: Path | None = None) -> dict[str, Any]:
     records = _manifest_key_records(source, source="local")
-    current = {"schema_version": 1, "keys": []} if replace else read_local_trust_manifest(home)
+    previous = read_local_trust_manifest(home)
+    current = {"schema_version": 1, "keys": []} if replace else previous
     existing = {str(item.get("key_id") or ""): item for item in current.get("keys", []) if isinstance(item, dict)}
+    collision_sources = [
+        item
+        for item in [
+            *BUNDLED_TRUSTED_MANIFEST_KEYS,
+            *(
+                item
+                for item in previous.get("keys", [])
+                if isinstance(item, dict)
+            ),
+        ]
+        if isinstance(item, dict)
+    ]
     for record in records:
+        key_id = str(record["key_id"])
+        offered_public_key = base64_urlsafe_decode(
+            str(record["public_key"])
+        )
+        for current_record in collision_sources:
+            if str(current_record.get("key_id") or "") != key_id:
+                continue
+            current_public_key = str(
+                current_record.get("public_key") or ""
+            )
+            if (
+                current_public_key
+                and base64_urlsafe_decode(current_public_key)
+                != offered_public_key
+            ):
+                raise ManifestSignatureError(
+                    "Trusted manifest key_id collision has different "
+                    f"public material: {key_id}"
+                )
         item = dict(record)
         item.pop("source", None)
-        existing[str(item["key_id"])] = item
+        existing[key_id] = item
     payload = {"schema_version": 1, "keys": [existing[key] for key in sorted(existing) if key]}
     path = write_local_trust_manifest(payload, home)
     return {"schema_version": 1, "imported_count": len(records), "key_ids": [record["key_id"] for record in records], "path": str(path)}

@@ -951,6 +951,7 @@ class ClaudeCodeFleetAdapter:
         self.pack_client = pack_client or PrivatePackClient(
             registration,
             timeout=timeout,
+            endpoint_prefix="/v1/fleet/private-packs",
         )
 
     def _release_root(
@@ -1111,7 +1112,10 @@ class ClaudeCodeFleetAdapter:
             self.verify_revision(item, installed)
             return installed
 
-        manifest_payload = self.pack_client.signed_manifest(pack_id)
+        manifest_payload = self.pack_client.signed_manifest(
+            pack_id,
+            request_context=item,
+        )
         manifest = manifest_payload.get("manifest")
         if not isinstance(manifest, dict):
             raise ClaudeCodeFleetAdapterError(
@@ -1125,6 +1129,7 @@ class ClaudeCodeFleetAdapter:
             pack_id,
             release_id=release_id,
             expected_sha256=manifest_archive,
+            request_context=item,
         )
         if (
             not isinstance(archive_bytes, bytes)

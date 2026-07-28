@@ -385,6 +385,7 @@ class ManagedRuntimeFleetAdapter:
         self.pack_client = pack_client or PrivatePackClient(
             registration,
             timeout=timeout,
+            endpoint_prefix="/v1/fleet/private-packs",
         )
 
     def _assert_runtime_parent(self, *, create: bool) -> None:
@@ -559,7 +560,10 @@ class ManagedRuntimeFleetAdapter:
             installed = self._installed_from_metadata(metadata)
             self.verify_revision(item, installed)
             return installed
-        manifest_payload = self.pack_client.signed_manifest(pack_id)
+        manifest_payload = self.pack_client.signed_manifest(
+            pack_id,
+            request_context=item,
+        )
         manifest = manifest_payload.get("manifest")
         if not isinstance(manifest, dict):
             raise self.error_type("pack_manifest_invalid")
@@ -571,6 +575,7 @@ class ManagedRuntimeFleetAdapter:
             pack_id,
             release_id=release_id,
             expected_sha256=manifest_archive,
+            request_context=item,
         )
         if (
             not isinstance(archive_bytes, bytes)

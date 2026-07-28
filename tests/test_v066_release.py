@@ -19,7 +19,7 @@ def load_publication_verifier():
     return module
 
 
-def test_v069rc1_versions_and_v068_history_are_aligned() -> None:
+def test_v069rc2_versions_and_v068_history_are_aligned() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     runtime = (ROOT / "unlimited_skills" / "__init__.py").read_text(encoding="utf-8")
     plugin = json.loads((ROOT / "plugin" / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
@@ -28,15 +28,15 @@ def test_v069rc1_versions_and_v068_history_are_aligned() -> None:
     pypi_readme = (ROOT / "README-pypi.md").read_text(encoding="utf-8")
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     plan = (ROOT / "docs" / "releases" / "v0.6.8-plan.md").read_text(encoding="utf-8")
-    assert 'version = "0.6.9rc1"' in pyproject
-    assert '__version__ = "0.6.9rc1"' in runtime
-    assert plugin["version"] == "0.6.9rc1"
-    assert marketplace["plugins"][0]["version"] == "0.6.9rc1"
-    assert "**v0.6.9rc1 / pre-1.0.**" in readme
-    assert "This is `v0.6.9rc1`" in pypi_readme
-    assert "unlimited-skills==0.6.9rc1" in pypi_readme
+    assert 'version = "0.6.9rc2"' in pyproject
+    assert '__version__ = "0.6.9rc2"' in runtime
+    assert plugin["version"] == "0.6.9rc2"
+    assert marketplace["plugins"][0]["version"] == "0.6.9rc2"
+    assert "**v0.6.9rc2 / pre-1.0.**" in readme
+    assert "This is `v0.6.9rc2`" in pypi_readme
+    assert "unlimited-skills==0.6.9rc2" in pypi_readme
     assert "### Added (0.6.9 - Fleet Contract Foundation)" in changelog
-    assert "`v0.6.9-rc.1`" in changelog
+    assert "`v0.6.9-rc.2`" in changelog
     assert "public core never names or depends on a private knowledge system" in plan
     assert "reference data, not instructions" in plan
     assert "the Stop hook never submits prose" in plan

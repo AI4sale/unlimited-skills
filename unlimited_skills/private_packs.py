@@ -8,10 +8,18 @@ import urllib.error
 import urllib.request
 from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from . import __version__
-from .registration import RegistrationError, RegistrationState, is_secure_or_local_url, post_json, proof_headers, redact_sensitive_text
+from .registration import (
+    RegistrationError,
+    RegistrationState,
+    is_secure_or_local_url,
+    post_json,
+    proof_headers,
+    redact_sensitive_text,
+    validated_additional_headers,
+)
 from .signatures import ManifestSignatureError, verify_manifest_signature
 from .updates import safe_extract_zip, sha256_file
 
@@ -191,7 +199,14 @@ def _private_target(root: Path, pack_id: str) -> Path:
     return target
 
 
-def _post_private_pack_bytes(state: RegistrationState, endpoint: str, payload: dict[str, Any], *, timeout: float) -> bytes:
+def _post_private_pack_bytes(
+    state: RegistrationState,
+    endpoint: str,
+    payload: dict[str, Any],
+    *,
+    timeout: float,
+    additional_headers: Mapping[str, str] | None = None,
+) -> bytes:
     url = f"{state.server_url.rstrip('/')}{endpoint}"
     if not is_secure_or_local_url(url):
         raise PrivatePackError("Private pack download URL must use HTTPS. Plain HTTP is allowed only for localhost development.")
@@ -205,6 +220,12 @@ def _post_private_pack_bytes(state: RegistrationState, endpoint: str, payload: d
         "Authorization": f"Bearer {state.license_token}",
     }
     headers.update(proof_headers(state, "POST", url, body))
+    try:
+        headers.update(
+            validated_additional_headers(additional_headers)
+        )
+    except RegistrationError as exc:
+        raise PrivatePackError(str(exc)) from exc
     request = urllib.request.Request(url, data=body, headers=headers, method="POST")
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
@@ -256,10 +277,31 @@ def _replace_owned_target(target: Path, source: Path) -> None:
 
 
 class PrivatePackClient:
-    def __init__(self, state: RegistrationState, *, timeout: float = 30.0) -> None:
+    def __init__(
+        self,
+        state: RegistrationState,
+        *,
+        timeout: float = 30.0,
+        endpoint_prefix: str = "/v1/private-packs",
+    ) -> None:
         _ensure_registered(state)
+        if endpoint_prefix not in {
+            "/v1/private-packs",
+            "/v1/fleet/private-packs",
+        }:
+            raise PrivatePackError(
+                "private_pack_endpoint_prefix_invalid"
+            )
         self.state = state
         self.timeout = timeout
+        self.endpoint_prefix = endpoint_prefix
+
+    @property
+    def fleet_scoped(self) -> bool:
+        return self.endpoint_prefix == "/v1/fleet/private-packs"
+
+    def _endpoint(self, operation: str) -> str:
+        return f"{self.endpoint_prefix}/{operation}"
 
     def _client_payload(self) -> dict[str, str]:
         return {"name": "unlimited-skills", "version": __version__}
@@ -270,7 +312,13 @@ class PrivatePackClient:
             payload.update(extra)
         return payload
 
-    def _post(self, endpoint: str, payload: dict[str, Any]) -> dict[str, Any]:
+    def _post(
+        self,
+        endpoint: str,
+        payload: dict[str, Any],
+        *,
+        additional_headers: Mapping[str, str] | None = None,
+    ) -> dict[str, Any]:
         try:
             return post_json(
                 f"{self.state.server_url.rstrip('/')}{endpoint}",
@@ -279,26 +327,96 @@ class PrivatePackClient:
                 proof_state=self.state,
                 timeout=self.timeout,
                 retry_safe=True,
+                additional_headers=additional_headers,
             )
         except RegistrationError as exc:
             raise PrivatePackError(str(exc)) from exc
 
     def list(self) -> list[PrivatePackPreview]:
-        response = self._post("/v1/private-packs/list", self._payload())
+        response = self._post(self._endpoint("list"), self._payload())
         raw = response.get("packs") or []
         if not isinstance(raw, list):
             raise PrivatePackError("Private pack list response must include packs.")
         return [_preview_from_json(item) for item in raw if isinstance(item, dict)]
 
     def preview(self, pack_id: str) -> dict[str, Any]:
-        response = self._post("/v1/private-packs/preview", self._payload({"pack_id": pack_id}))
+        response = self._post(self._endpoint("preview"), self._payload({"pack_id": pack_id}))
         pack = response.get("pack")
         if not isinstance(pack, dict):
             raise PrivatePackError("Private pack preview response must include pack metadata.")
         return {"schema_version": 1, "pack": asdict(_preview_from_json(pack)), "raw": pack}
 
-    def signed_manifest(self, pack_id: str) -> dict[str, Any]:
-        response = self._post("/v1/private-packs/manifest", self._payload({"pack_id": pack_id}))
+    def _fleet_scope(
+        self,
+        pack_id: str,
+        request_context: Mapping[str, Any] | None,
+    ) -> tuple[dict[str, str], dict[str, str]]:
+        if not self.fleet_scoped:
+            return {}, {}
+        required = (
+            "agent_id",
+            "rollout_id",
+            "attempt_id",
+            "desired_state_revision",
+            "release_id",
+            "archive_sha256",
+        )
+        context = dict(request_context or {})
+        values = {
+            name: str(context.get(name) or "")
+            for name in required
+        }
+        if (
+            any(not value for value in values.values())
+            or (
+                context.get("pack_id") is not None
+                and str(context.get("pack_id")) != pack_id
+            )
+        ):
+            raise PrivatePackError(
+                "fleet_payload_scope_required"
+            )
+        body = {
+            "pack_id": pack_id,
+            "agent_id": values["agent_id"],
+            "rollout_id": values["rollout_id"],
+            "attempt_id": values["attempt_id"],
+            "desired_state_revision": values[
+                "desired_state_revision"
+            ],
+            "release_id": values["release_id"],
+            "expected_sha256": values["archive_sha256"],
+        }
+        headers = {
+            "X-ULS-Agent-ID": values["agent_id"],
+            "X-ULS-Rollout-ID": values["rollout_id"],
+            "X-ULS-Attempt-ID": values["attempt_id"],
+            "X-ULS-Desired-State-Revision": values[
+                "desired_state_revision"
+            ],
+            "X-ULS-Pack-ID": pack_id,
+            "X-ULS-Release-ID": values["release_id"],
+            "X-ULS-Archive-SHA256": values[
+                "archive_sha256"
+            ],
+        }
+        return body, headers
+
+    def signed_manifest(
+        self,
+        pack_id: str,
+        *,
+        request_context: Mapping[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        scope_payload, scope_headers = self._fleet_scope(
+            pack_id,
+            request_context,
+        )
+        response = self._post(
+            self._endpoint("manifest"),
+            self._payload({"pack_id": pack_id, **scope_payload}),
+            additional_headers=scope_headers,
+        )
         manifest = response.get("manifest")
         if not isinstance(manifest, dict):
             raise PrivatePackError("Private pack manifest response must include manifest.")
@@ -320,6 +438,7 @@ class PrivatePackClient:
         *,
         release_id: str = "",
         expected_sha256: str = "",
+        request_context: Mapping[str, Any] | None = None,
     ) -> bytes:
         """Download one authorized archive with request-bound release hints.
 
@@ -328,20 +447,36 @@ class PrivatePackClient:
         desired state before using it.
         """
 
-        extra: dict[str, Any] = {"pack_id": pack_id}
+        scope_payload, scope_headers = self._fleet_scope(
+            pack_id,
+            request_context,
+        )
+        extra: dict[str, Any] = {
+            "pack_id": pack_id,
+            **scope_payload,
+        }
+        if self.fleet_scoped and (
+            release_id != scope_payload["release_id"]
+            or expected_sha256
+            != scope_payload["expected_sha256"]
+        ):
+            raise PrivatePackError(
+                "fleet_payload_scope_mismatch"
+            )
         if release_id:
             extra["release_id"] = release_id
         if expected_sha256:
             extra["expected_sha256"] = expected_sha256
         return _post_private_pack_bytes(
             self.state,
-            "/v1/private-packs/download",
+            self._endpoint("download"),
             self._payload(extra),
             timeout=self.timeout,
+            additional_headers=scope_headers,
         )
 
     def access_check(self, pack_id: str) -> dict[str, Any]:
-        return self._post("/v1/private-packs/access-check", self._payload({"pack_id": pack_id}))
+        return self._post(self._endpoint("access-check"), self._payload({"pack_id": pack_id}))
 
     def access_check_diagnostic(self, pack_id: str) -> dict[str, Any]:
         try:

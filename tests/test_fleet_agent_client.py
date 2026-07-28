@@ -28,6 +28,11 @@ from unlimited_skills.fleet import (
     canonical_desired_state_bytes,
     desired_state_digest,
 )
+from unlimited_skills import __version__
+from unlimited_skills.commands.fleet import (
+    FLEET_CLIENT_VERSION_CAPABILITY,
+    FLEET_PAYLOAD_CAPABILITY,
+)
 from unlimited_skills.registration import (
     RegistrationState,
     base64_urlsafe_decode,
@@ -259,6 +264,14 @@ def client(
         auto_activate=True,
         transport=transport,
     )
+
+
+def test_fcp008c_client_capabilities_are_exact_and_version_bound() -> None:
+    assert FLEET_PAYLOAD_CAPABILITY == "fleet-payload-v2"
+    assert FLEET_CLIENT_VERSION_CAPABILITY == (
+        f"client-version-{__version__}"
+    )
+    assert __version__ == "0.6.9rc2"
 
 
 def test_local_instance_uuid4_is_created_once_under_concurrency(

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import io
 import json
+import os
 import urllib.error
 import zipfile
 from pathlib import Path
@@ -60,7 +61,42 @@ def signed_private_manifest(tmp_path: Path, monkeypatch, *, archive: Path | None
     digest = sha256 or sha256_file(archive)
     private_key = Ed25519PrivateKey.generate()
     public_key = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
-    monkeypatch.setenv("UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS", f"private-test-key:{base64_urlsafe_encode(public_key)}")
+    if not os.environ.get("UNLIMITED_SKILLS_HOME"):
+        monkeypatch.setenv(
+            "UNLIMITED_SKILLS_HOME",
+            str(tmp_path / ".unlimited-skills"),
+        )
+    trust_file = tmp_path / "private-pack-public-keys.json"
+    trust_file.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "keys": [
+                    {
+                        "key_id": "private-test-key",
+                        "algorithm": "ed25519",
+                        "public_key": base64_urlsafe_encode(public_key),
+                        "status": "active",
+                        "scopes": ["private-team-pack"],
+                        "registry_origins": [
+                            "https://private.example.test"
+                        ],
+                        "role": "private-team-pack-manifest",
+                        "not_after": "2099-01-01T00:00:00Z",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.delenv(
+        "UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS",
+        raising=False,
+    )
+    monkeypatch.setenv(
+        "UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS_FILE",
+        str(trust_file),
+    )
     return sign_manifest_for_tests(
         {
             "schema_version": 1,
@@ -307,3 +343,159 @@ def test_private_pack_rejects_sha_mismatch_and_zip_traversal(tmp_path: Path, mon
             PrivatePackClient(registered_state()).install(root, PACK_ID)
 
     assert not (root / "registry" / "private" / PACK_ID).exists()
+
+
+def test_fleet_private_pack_requests_are_scope_bound_in_body_and_headers(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    archive = make_archive(tmp_path)
+    manifest = signed_private_manifest(
+        tmp_path,
+        monkeypatch,
+        archive=archive,
+    )
+    expected_sha256 = "sha256:" + sha256_file(archive)
+    context = {
+        "agent_id": "agent_fixture_01",
+        "rollout_id": "rollout_fixture_01",
+        "attempt_id": "attempt_fixture_01",
+        "desired_state_revision": "desired_fixture_01",
+        "release_id": "release_fixture_01",
+        "archive_sha256": expected_sha256,
+    }
+    requests: list[dict] = []
+
+    def _urlopen(request, timeout=30.0):
+        del timeout
+        requests.append(
+            {
+                "url": request.full_url,
+                "headers": {
+                    key.lower(): value
+                    for key, value in request.headers.items()
+                },
+                "body": json.loads(request.data),
+            }
+        )
+        if request.full_url.endswith(
+            "/v1/fleet/private-packs/manifest"
+        ):
+            return FakeResponse(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "manifest": manifest,
+                    }
+                ).encode("utf-8")
+            )
+        if request.full_url.endswith(
+            "/v1/fleet/private-packs/download"
+        ):
+            return FakeResponse(archive.read_bytes())
+        raise AssertionError(f"Unexpected URL: {request.full_url}")
+
+    client = PrivatePackClient(
+        registered_state(),
+        endpoint_prefix="/v1/fleet/private-packs",
+    )
+    with patch("urllib.request.urlopen", _urlopen):
+        client.signed_manifest(PACK_ID, request_context=context)
+        assert (
+            client.download_archive(
+                PACK_ID,
+                release_id=context["release_id"],
+                expected_sha256=expected_sha256,
+                request_context=context,
+            )
+            == archive.read_bytes()
+        )
+
+    assert len(requests) == 2
+    for request in requests:
+        assert request["body"] == {
+            "schema_version": 1,
+            "install_id": "uls_inst_master",
+            "client": {
+                "name": "unlimited-skills",
+                "version": client._client_payload()["version"],
+            },
+            "pack_id": PACK_ID,
+            "agent_id": context["agent_id"],
+            "rollout_id": context["rollout_id"],
+            "attempt_id": context["attempt_id"],
+            "desired_state_revision": context[
+                "desired_state_revision"
+            ],
+            "release_id": context["release_id"],
+            "expected_sha256": expected_sha256,
+        }
+        assert request["headers"]["x-uls-agent-id"] == context[
+            "agent_id"
+        ]
+        assert request["headers"]["x-uls-rollout-id"] == context[
+            "rollout_id"
+        ]
+        assert request["headers"]["x-uls-attempt-id"] == context[
+            "attempt_id"
+        ]
+        assert request["headers"][
+            "x-uls-desired-state-revision"
+        ] == context["desired_state_revision"]
+        assert request["headers"]["x-uls-pack-id"] == PACK_ID
+        assert request["headers"]["x-uls-release-id"] == context[
+            "release_id"
+        ]
+        assert request["headers"]["x-uls-archive-sha256"] == (
+            expected_sha256
+        )
+        assert "x-uls-proof" in request["headers"]
+
+
+def test_fleet_private_pack_requests_fail_closed_without_full_scope() -> None:
+    client = PrivatePackClient(
+        registered_state(),
+        endpoint_prefix="/v1/fleet/private-packs",
+    )
+
+    with pytest.raises(
+        PrivatePackError,
+        match="fleet_payload_scope_required",
+    ):
+        client.signed_manifest(
+            PACK_ID,
+            request_context={
+                "agent_id": "agent_fixture_01",
+                "rollout_id": "rollout_fixture_01",
+            },
+        )
+
+
+def test_fleet_private_pack_scope_rejects_header_injection() -> None:
+    client = PrivatePackClient(
+        registered_state(),
+        endpoint_prefix="/v1/fleet/private-packs",
+    )
+    context = {
+        "agent_id": "agent_fixture_01\r\nX-Evil: injected",
+        "rollout_id": "rollout_fixture_01",
+        "attempt_id": "attempt_fixture_01",
+        "desired_state_revision": "desired_fixture_01",
+        "release_id": "release_fixture_01",
+        "archive_sha256": "sha256:" + ("a" * 64),
+    }
+
+    with pytest.raises(
+        PrivatePackError,
+        match="additional_request_header_invalid",
+    ):
+        client.signed_manifest(
+            PACK_ID,
+            request_context=context,
+        )
+
+
+def test_legacy_private_pack_client_keeps_legacy_route() -> None:
+    client = PrivatePackClient(registered_state())
+
+    assert client.endpoint_prefix == "/v1/private-packs"
