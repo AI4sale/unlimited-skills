@@ -230,6 +230,28 @@ class TerminalActivationBundleAdapter(BundleFakeAdapter):
         raise ManagedFleetAdapterError("managed_skill_collision")
 
 
+class PendingBundleAdapter(BundleFakeAdapter):
+    def __init__(self) -> None:
+        super().__init__()
+        self.runtime_ready = False
+
+    def attest_inventory(
+        self,
+        items: list[Mapping[str, Any]],
+        *,
+        activation_nonces: Mapping[str, str],
+    ) -> RuntimeInventoryAttestation:
+        if not self.runtime_ready:
+            self.call_log.append("attest-inventory")
+            raise ManagedFleetAdapterError(
+                "runtime_attestation_pending"
+            )
+        return super().attest_inventory(
+            items,
+            activation_nonces=activation_nonces,
+        )
+
+
 def reconciler(tmp_path: Path, adapter: FakeAdapter) -> FleetReconciler:
     private_key = Ed25519PrivateKey.from_private_bytes(FIXTURE_SEED)
     public_key = private_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
@@ -444,6 +466,47 @@ def test_reconciler_activates_multi_pack_inventory_once_after_all_verification(
         ("attempt_fixture_pack_b", "RUNTIME_ATTESTED"),
     ]
     assert result.activation_pending is False
+
+
+def test_pending_inventory_resumes_with_only_runtime_attestation(
+    tmp_path: Path,
+) -> None:
+    adapter = PendingBundleAdapter()
+    instance = reconciler(tmp_path, adapter)
+    desired = two_pack_desired_state()
+
+    first = instance.reconcile(desired)
+
+    assert first.activation_pending is True
+    assert len(first.receipts) == 10
+    assert {
+        item["event_type"] for item in first.receipts
+    }.isdisjoint({"FAILED_RETRYABLE", "FAILED_TERMINAL"})
+    assert [
+        item["event_seq"]
+        for item in first.receipts
+        if item["attempt_id"] == "attempt_fixture_pack_a"
+    ] == [1, 2, 3, 4, 5]
+    assert instance.spool.acknowledge(
+        item["event_id"] for item in first.receipts
+    ) == 10
+
+    still_pending = instance.reconcile(desired)
+
+    assert still_pending.activation_pending is True
+    assert still_pending.receipts == ()
+    adapter.runtime_ready = True
+
+    resumed = instance.reconcile(desired)
+
+    assert resumed.activation_pending is False
+    assert [
+        item["event_type"] for item in resumed.receipts
+    ] == ["RUNTIME_ATTESTED", "RUNTIME_ATTESTED"]
+    assert [item["event_seq"] for item in resumed.receipts] == [6, 6]
+    assert adapter.bundle_activations == 1
+    assert adapter.call_log.count("install:pack_fixture") == 1
+    assert adapter.call_log.count("install:pack_fixture_b") == 1
 
 
 def test_reconciler_rejects_multi_pack_for_legacy_single_item_adapter(
