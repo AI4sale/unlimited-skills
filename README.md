@@ -1,18 +1,19 @@
 <div align="center">
 
-# Stop flooding your agent's context with skills and tool schemas
+# Unlimited Skills
 
-**Search first. Load one skill, tool, or procedure only when needed.**
+## 10× MORE AGENTS. 10× MORE CHAOS.
 
-<pre>
-+--------------------------------------------------------------+
-|                 One skill to rule them all.                  |
-+--------------------------------------------------------------+
-</pre>
+**Any agent. Any provider. One governed skill layer.**
 
-**Unlimited Skills** is a local-first capability router for coding agents. It keeps skills, procedures, and tool schemas out of standing context, searches by task intent, and loads only the one capability needed for the current job.
+**Unlimited Skills** is AI agent fleet skill infrastructure. It gives a company
+one place to discover, approve, deliver, update, and verify capabilities across
+Codex, Claude Code, OpenClaw, and other agent runtimes.
 
-**v0.6.8 / pre-1.0 local-first core.** The MIT core runs offline today. An opt-in provider can add owner-governed, cited business context and accept independently signed completion receipts without putting company code, trust keys, or data in this public repository. Raw assistant prose is never acceptance evidence. There is nothing for sale on this page; gated surfaces are described under [Enterprise & trust layer](#enterprise--trust-layer).
+**v0.6.8 / pre-1.0.** The MIT local core runs offline today. Business and
+Enterprise Fleet delivery is an implementation-complete preview that still
+requires an approved production pilot before it can be called production-ready.
+See [Enterprise & trust layer](#enterprise--trust-layer).
 
 [Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
 
@@ -20,11 +21,20 @@
 
 ## The problem
 
-Every visible `SKILL.md` competes for attention on every turn. Every MCP server your agent host connects to can also dump its full tool list — names, descriptions, and complete JSON input schemas — into the context window at session start. The agent pays that tax before it has read a single line of your task, whether or not those skills or tools are ever called. Adding more capability this way makes the agent slower instead of smarter: the context gets noisy, unrelated instructions compete with the task, and tokens are spent carrying procedures that will not run.
+One agent can be updated by hand. A fleet cannot.
 
-## The fix: search first, load one
+As companies add AI workers, capabilities drift across runtimes. One agent has
+the approved skill, another has an old copy, and a third silently failed to
+activate it. Teams reinstall and re-audit the same capability repeatedly, yet
+still cannot answer a basic question: **which agents are actually running the
+approved version right now?**
 
-Unlimited Skills keeps capabilities out of standing context and retrieves them on demand:
+## One product, two operating layers
+
+### Local core: discover and load
+
+The offline MIT core keeps capabilities out of standing context, searches by
+task intent, and loads only what the current job needs:
 
 1. keep only a tiny router skill in the agent context;
 2. store real skills on disk;
@@ -33,6 +43,17 @@ Unlimited Skills keeps capabilities out of standing context and retrieves them o
 5. load only the selected `SKILL.md`, procedure, or `inputSchema` of exactly one tool;
 6. record which skills were searched, viewed, used, accepted, or rejected;
 7. use that feedback to improve retrieval and draft new skills.
+
+The router is a small local runtime component. It is not the product category.
+
+### Business and Enterprise Fleet: govern and deliver (Preview)
+
+The governed Fleet layer adds registered agent identities, immutable desired
+state, signed multi-pack delivery, runtime-native activation, receipts,
+rollout/retry/halt/rollback controls, and a metadata-only truth dashboard. It
+is designed to update a capability once across an AI workforce and distinguish
+requested, delivered, activated, failed, and drifted agents without collecting
+prompts, company code, skill bodies, or agent outputs.
 
 ## Measured, not promised
 
@@ -71,9 +92,10 @@ Read next, in this order:
 3. [docs/unlimited-tools.md](docs/unlimited-tools.md) — the 3-meta-tool MCP gateway model and the measured context budget;
 4. [docs/adoption/skill-effectiveness-standard.md](docs/adoption/skill-effectiveness-standard.md) — how retrieval quality is measured and gated.
 
-## What it is
+## What the local core includes
 
-Unlimited Skills turns a folder full of skills into an action library for agents.
+The local core turns a folder full of skills into an on-demand action library
+for agents. It is one part of the broader Unlimited Skills fleet product.
 
 It is built around one practical rule: the agent should not know every skill all the time. It should know how to ask for the right skill when work starts.
 

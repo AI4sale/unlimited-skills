@@ -4,6 +4,10 @@
 
 ### Added (0.6.9 - Fleet Contract Foundation)
 
+- Reframe the public README around Unlimited Skills as governed AI agent fleet
+  skill infrastructure. The local router remains a documented runtime
+  component, not the product category, and Business/Enterprise Fleet claims
+  remain explicitly in Preview until the production pilot passes.
 - Add the public Fleet Wire Contract v1 with hash-pinned schemas, positive and
   negative golden fixtures, explicit versioning rules, and a separate
   `fleet-desired-state-signing` role.

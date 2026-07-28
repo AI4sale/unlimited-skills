@@ -17,13 +17,20 @@ def test_current_public_docs_do_not_use_v0_1_0_as_supported_version() -> None:
     assert offenders == []
 
 
-def test_readme_positions_skills_before_tool_schema_savings() -> None:
+def test_readme_leads_with_fleet_product_and_scopes_router() -> None:
     readme = read("README.md")
     lower = readme.lower()
 
-    assert "# Stop flooding your agent's context with skills and tool schemas" in readme
-    assert "Search first. Load one skill, tool, or procedure only when needed." in readme
-    assert "local-first capability router for coding agents" in readme
+    assert "# Unlimited Skills" in readme
+    assert "10× MORE AGENTS. 10× MORE CHAOS." in readme
+    assert "Any agent. Any provider. One governed skill layer." in readme
+    assert "AI agent fleet skill infrastructure" in readme
+    assert "The router is a small local runtime component." in readme
+    assert "It is not the product category." in readme
+    assert "local-first capability router for coding agents" not in readme
+    assert lower.index("10× more agents") < lower.index(
+        "skill pre-load context cost"
+    )
     assert "Skill pre-load context cost" in readme
     assert "Measure before and after install" in readme
     assert "install-hermes.sh --mode evacuate-visible-skills --apply" in readme
