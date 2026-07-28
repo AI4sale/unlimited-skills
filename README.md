@@ -10,7 +10,7 @@
 one place to discover, approve, deliver, update, and verify capabilities across
 Codex, Claude Code, OpenClaw, and other agent runtimes.
 
-**v0.6.9rc6 / pre-1.0.** The MIT local core runs offline today. Business and
+**v0.6.9rc7 / pre-1.0.** The MIT local core runs offline today. Business and
 Enterprise Fleet delivery is an implementation-complete preview that still
 requires an approved production pilot before it can be called production-ready.
 See [Enterprise & trust layer](#enterprise--trust-layer).
@@ -716,7 +716,7 @@ Map of the trust stack:
 | Hosted catalog and registry contract | [docs/hosted-registry-api.md](docs/hosted-registry-api.md), [docs/hosted-catalog-model.md](docs/hosted-catalog-model.md), [docs/catalog-browser.md](docs/catalog-browser.md) |
 | Community skills | [docs/community-skills.md](docs/community-skills.md), [docs/community-submission-review.md](docs/community-submission-review.md) |
 | Teams and private packs | [docs/team-free.md](docs/team-free.md), [docs/team-skill-sync.md](docs/team-skill-sync.md), [docs/private-team-packs.md](docs/private-team-packs.md) |
-| Fleet delivery contract and registered agent client | [docs/fleet-wire-contract-v1.md](docs/fleet-wire-contract-v1.md), [docs/fcp-007-claude-code-enterprise-adapter.md](docs/fcp-007-claude-code-enterprise-adapter.md), [docs/fcp-008-openclaw-codex-enterprise-adapters.md](docs/fcp-008-openclaw-codex-enterprise-adapters.md) |
+| Fleet delivery contract and registered agent client | [docs/fleet-wire-contract-v1.md](docs/fleet-wire-contract-v1.md), [docs/fcp-007-claude-code-enterprise-adapter.md](docs/fcp-007-claude-code-enterprise-adapter.md), [docs/fcp-008-openclaw-codex-enterprise-adapters.md](docs/fcp-008-openclaw-codex-enterprise-adapters.md), [docs/fcp-008h-hermes-enterprise-adapter.md](docs/fcp-008h-hermes-enterprise-adapter.md) |
 | Local Skill Hub | [docs/local-skill-hub.md](docs/local-skill-hub.md), [docs/local-skill-hub-security.md](docs/local-skill-hub-security.md) |
 | Release channels and rollback | [docs/release-channels.md](docs/release-channels.md), [docs/update-channels-and-rollback.md](docs/update-channels-and-rollback.md) |
 
@@ -731,7 +731,7 @@ See [docs/product-editions.md](docs/product-editions.md) for the full edition ta
 - **Enterprise**: local Enterprise Skill Lock policy MVP and registered managed policy sync now; private registry enforcement, SSO/on-prem/VPC options later.
 
 The public Fleet Wire Contract v1, registered agent client, receipt spool, and
-Claude Code, Codex, and OpenClaw runtime adapters now implement the local
+Claude Code, Codex, Hermes, and OpenClaw runtime adapters now implement the local
 verified-delivery path. Multi-pack desired state is verified completely,
 activated atomically, and attested from a real vendor lifecycle event. The
 client persists a client-generated UUIDv4, performs proof-bound registration

@@ -1898,6 +1898,41 @@ def build_parser() -> argparse.ArgumentParser:
     fleet_openclaw_runtime_start.set_defaults(
         func=fleet_cmds.cmd_fleet_openclaw_runtime_start
     )
+    fleet_hermes_runtime_start = fleet_sub.add_parser(
+        "hermes-runtime-start",
+        help=(
+            "Record privacy-safe evidence from a Hermes "
+            "on_session_start plugin hook."
+        ),
+    )
+    fleet_hermes_runtime_start.add_argument(
+        "--managed-root",
+        default="",
+        help=(
+            "Isolated fleet managed root. Defaults to "
+            "UNLIMITED_SKILLS_FLEET_MANAGED_ROOT."
+        ),
+    )
+    fleet_hermes_runtime_start.add_argument(
+        "--hermes-home",
+        default="",
+        help=(
+            "Hermes runtime home. Defaults to "
+            "UNLIMITED_SKILLS_FLEET_HERMES_HOME or HERMES_HOME."
+        ),
+    )
+    fleet_hermes_runtime_start.add_argument(
+        "--json",
+        action="store_true",
+    )
+    fleet_hermes_runtime_start.add_argument(
+        "--hook-output",
+        action="store_true",
+        help="Emit no stdout after a successful Hermes plugin hook.",
+    )
+    fleet_hermes_runtime_start.set_defaults(
+        func=fleet_cmds.cmd_fleet_hermes_runtime_start
+    )
     fleet_claude_launch = fleet_sub.add_parser(
         "claude-launch",
         help=(
@@ -1977,6 +2012,94 @@ def build_parser() -> argparse.ArgumentParser:
     )
     fleet_codex_launch.set_defaults(
         func=fleet_cmds.cmd_fleet_codex_launch
+    )
+    fleet_hermes_launch = fleet_sub.add_parser(
+        "hermes-launch",
+        help=(
+            "Launch Hermes with its managed Enterprise skills tree "
+            "and lifecycle plugin."
+        ),
+    )
+    fleet_hermes_launch.add_argument(
+        "--managed-root",
+        default="",
+        help=(
+            "Isolated fleet managed root. Defaults to "
+            "UNLIMITED_SKILLS_FLEET_MANAGED_ROOT."
+        ),
+    )
+    fleet_hermes_launch.add_argument(
+        "--hermes-home",
+        default="",
+        help=(
+            "Hermes runtime home. Defaults to "
+            "UNLIMITED_SKILLS_FLEET_HERMES_HOME or HERMES_HOME."
+        ),
+    )
+    fleet_hermes_launch.add_argument(
+        "--hermes-executable",
+        default="hermes",
+        help="Hermes executable name or explicit path.",
+    )
+    fleet_hermes_launch.add_argument(
+        "--timeout",
+        type=float,
+        default=30.0,
+        help="Registry client timeout used while preparing the runtime.",
+    )
+    fleet_hermes_launch.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Prepare and validate the runtime without launching.",
+    )
+    fleet_hermes_launch.add_argument("--json", action="store_true")
+    fleet_hermes_launch.add_argument(
+        "hermes_args",
+        nargs=argparse.REMAINDER,
+        help="Arguments passed directly to Hermes after --.",
+    )
+    fleet_hermes_launch.set_defaults(
+        func=fleet_cmds.cmd_fleet_hermes_launch
+    )
+    fleet_hermes_provision = fleet_sub.add_parser(
+        "hermes-provision",
+        help=(
+            "Provision and enable the Hermes Enterprise Fleet "
+            "lifecycle plugin."
+        ),
+    )
+    fleet_hermes_provision.add_argument(
+        "--managed-root",
+        default="",
+        help=(
+            "Isolated managed root for this agent instance. Defaults "
+            "to UNLIMITED_SKILLS_FLEET_MANAGED_ROOT."
+        ),
+    )
+    fleet_hermes_provision.add_argument(
+        "--hermes-home",
+        default="",
+        help=(
+            "Hermes runtime home. Defaults to "
+            "UNLIMITED_SKILLS_FLEET_HERMES_HOME or HERMES_HOME."
+        ),
+    )
+    fleet_hermes_provision.add_argument(
+        "--hermes-executable",
+        default="hermes",
+        help="Hermes executable name or explicit path.",
+    )
+    fleet_hermes_provision.add_argument(
+        "--timeout",
+        type=float,
+        default=30.0,
+    )
+    fleet_hermes_provision.add_argument(
+        "--json",
+        action="store_true",
+    )
+    fleet_hermes_provision.set_defaults(
+        func=fleet_cmds.cmd_fleet_hermes_provision
     )
     fleet_openclaw_provision = fleet_sub.add_parser(
         "openclaw-provision",
@@ -2061,7 +2184,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     fleet_run_once.add_argument(
         "--runtime-vendor",
-        choices=("claude-code", "codex", "openclaw"),
+        choices=("claude-code", "codex", "hermes", "openclaw"),
         default="claude-code",
         help=(
             "Runtime adapter for this registered agent instance. "
@@ -2086,6 +2209,15 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "OpenClaw state root. Defaults to OPENCLAW_STATE_DIR or "
             "~/.openclaw."
+        ),
+    )
+    fleet_run_once.add_argument(
+        "--hermes-home",
+        default="",
+        help=(
+            "Hermes runtime home when --runtime-vendor hermes. "
+            "Defaults to UNLIMITED_SKILLS_FLEET_HERMES_HOME or "
+            "HERMES_HOME."
         ),
     )
     fleet_run_once.add_argument(

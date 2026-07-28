@@ -1,7 +1,7 @@
 """Shared filesystem mechanics for non-Claude Enterprise Fleet adapters.
 
 The public wire protocol stays vendor neutral.  This module owns the local,
-signed-pack lifecycle shared by OpenClaw and Codex: immutable revisions,
+signed-pack lifecycle shared by OpenClaw, Codex, and Hermes: immutable revisions,
 atomic complete-inventory activation, drift detection, and runtime evidence
 validation.  Vendor modules remain responsible for binding evidence to a real
 runtime lifecycle event.

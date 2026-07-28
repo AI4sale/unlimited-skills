@@ -16,6 +16,7 @@ from unlimited_skills.fleet import (
     CodexFleetAdapter,
     FleetAgentClient,
     FleetAgentIdentityStore,
+    HermesFleetAdapter,
     OpenClawFleetAdapter,
     ReceiptSpool,
     load_fleet_public_keys,
@@ -23,10 +24,12 @@ from unlimited_skills.fleet import (
     managed_codex_home,
     managed_codex_workspace,
     parse_codex_session_start_payload,
+    parse_hermes_session_start_payload,
     parse_openclaw_bootstrap_payload,
     parse_session_start_payload,
     record_claude_session_start,
     record_codex_session_start,
+    record_hermes_session_start,
     record_openclaw_agent_bootstrap,
 )
 from unlimited_skills.registration import load_registration
@@ -101,6 +104,33 @@ def cmd_fleet_openclaw_runtime_start(
         managed_root,
         payload,
     )
+    return _emit(result, as_json=args.json)
+
+
+def cmd_fleet_hermes_runtime_start(args: argparse.Namespace) -> int:
+    managed_root = _required_path(
+        args.managed_root
+        or os.environ.get("UNLIMITED_SKILLS_FLEET_MANAGED_ROOT", ""),
+        "fleet_managed_root_required",
+    )
+    hermes_home = _required_path(
+        args.hermes_home
+        or os.environ.get(
+            "UNLIMITED_SKILLS_FLEET_HERMES_HOME",
+            "",
+        )
+        or os.environ.get("HERMES_HOME", ""),
+        "hermes_home_required",
+    )
+    raw = sys.stdin.buffer.read(64 * 1024 + 1)
+    payload = parse_hermes_session_start_payload(raw)
+    result = record_hermes_session_start(
+        managed_root,
+        hermes_home,
+        payload,
+    )
+    if args.hook_output:
+        return 0
     return _emit(result, as_json=args.json)
 
 
@@ -219,6 +249,65 @@ def cmd_fleet_codex_launch(args: argparse.Namespace) -> int:
     return int(completed.returncode)
 
 
+def cmd_fleet_hermes_launch(args: argparse.Namespace) -> int:
+    """Launch Hermes with its Fleet plugin and managed skills tree."""
+
+    managed_root = _required_path(
+        args.managed_root
+        or os.environ.get("UNLIMITED_SKILLS_FLEET_MANAGED_ROOT", ""),
+        "fleet_managed_root_required",
+    )
+    hermes_home = _required_path(
+        args.hermes_home
+        or os.environ.get(
+            "UNLIMITED_SKILLS_FLEET_HERMES_HOME",
+            "",
+        )
+        or os.environ.get("HERMES_HOME", ""),
+        "hermes_home_required",
+    )
+    registration = load_registration()
+    adapter = HermesFleetAdapter(
+        registration=registration,
+        managed_root=managed_root,
+        hermes_home=hermes_home,
+        timeout=args.timeout,
+    )
+    executable = _resolve_executable(
+        args.hermes_executable or "hermes",
+        "hermes_executable_not_found",
+    )
+    hermes_args = list(args.hermes_args or [])
+    if hermes_args[:1] == ["--"]:
+        hermes_args = hermes_args[1:]
+    environment = dict(os.environ)
+    environment["HERMES_HOME"] = str(adapter.hermes_home)
+    environment["UNLIMITED_SKILLS_FLEET_HERMES_HOME"] = str(
+        adapter.hermes_home
+    )
+    environment["UNLIMITED_SKILLS_FLEET_MANAGED_ROOT"] = str(
+        adapter.managed_root
+    )
+    if args.dry_run:
+        return _emit(
+            {
+                "schema_version": 1,
+                "runtime_vendor": "hermes",
+                "configuration_ready": True,
+                "executable_resolved": True,
+                "managed_skills_tree": True,
+                "runtime_plugin_provisioned": True,
+            },
+            as_json=args.json,
+        )
+    completed = subprocess.run(
+        [executable, *hermes_args],
+        env=environment,
+        check=False,
+    )
+    return int(completed.returncode)
+
+
 def _build_fleet_adapter(
     args: argparse.Namespace,
     *,
@@ -246,6 +335,22 @@ def _build_fleet_adapter(
                 if user_skills_root
                 else None
             ),
+            timeout=args.timeout,
+        )
+    if runtime_vendor == "hermes":
+        hermes_home = _required_path(
+            getattr(args, "hermes_home", "")
+            or os.environ.get(
+                "UNLIMITED_SKILLS_FLEET_HERMES_HOME",
+                "",
+            )
+            or os.environ.get("HERMES_HOME", ""),
+            "hermes_home_required",
+        )
+        return HermesFleetAdapter(
+            registration=registration,
+            managed_root=managed_root,
+            hermes_home=hermes_home,
             timeout=args.timeout,
         )
     if runtime_vendor == "openclaw":
@@ -318,6 +423,100 @@ def _openclaw_json(
     if not isinstance(value, (dict, list)):
         raise RuntimeError("openclaw_cli_json_invalid")
     return value
+
+
+def _hermes_plugins_json(
+    executable: str,
+    *,
+    environment: dict[str, str],
+) -> list[dict]:
+    completed = subprocess.run(
+        [executable, "plugins", "list", "--json"],
+        env=environment,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if completed.returncode != 0:
+        raise RuntimeError("hermes_cli_failed")
+    try:
+        value = json.loads(completed.stdout)
+    except json.JSONDecodeError as exc:
+        raise RuntimeError("hermes_cli_json_invalid") from exc
+    if not isinstance(value, list) or not all(
+        isinstance(row, dict) for row in value
+    ):
+        raise RuntimeError("hermes_cli_json_invalid")
+    return value
+
+
+def cmd_fleet_hermes_provision(args: argparse.Namespace) -> int:
+    """Provision and enable the Fleet lifecycle plugin for Hermes."""
+
+    managed_root = _required_path(
+        args.managed_root
+        or os.environ.get("UNLIMITED_SKILLS_FLEET_MANAGED_ROOT", ""),
+        "fleet_managed_root_required",
+    )
+    hermes_home = _required_path(
+        args.hermes_home
+        or os.environ.get(
+            "UNLIMITED_SKILLS_FLEET_HERMES_HOME",
+            "",
+        )
+        or os.environ.get("HERMES_HOME", ""),
+        "hermes_home_required",
+    )
+    executable = _resolve_executable(
+        args.hermes_executable or "hermes",
+        "hermes_executable_not_found",
+    )
+    registration = load_registration()
+    adapter = HermesFleetAdapter(
+        registration=registration,
+        managed_root=managed_root,
+        hermes_home=hermes_home,
+        timeout=args.timeout,
+    )
+    environment = dict(os.environ)
+    environment["HERMES_HOME"] = str(adapter.hermes_home)
+    enabled = subprocess.run(
+        [executable, "plugins", "enable", "unlimited-skills-fleet"],
+        env=environment,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    if enabled.returncode != 0:
+        raise RuntimeError("hermes_plugin_enable_failed")
+    plugins = _hermes_plugins_json(
+        executable,
+        environment=environment,
+    )
+    match = next(
+        (
+            row
+            for row in plugins
+            if str(row.get("name") or "")
+            == "unlimited-skills-fleet"
+        ),
+        None,
+    )
+    if match is None or str(match.get("status") or "") != "enabled":
+        raise RuntimeError("hermes_plugin_not_enabled")
+    return _emit(
+        {
+            "schema_version": 1,
+            "runtime_vendor": "hermes",
+            "adapter_version": adapter.adapter_version,
+            "managed_skills_tree": True,
+            "runtime_plugin_provisioned": True,
+            "runtime_plugin_enabled": True,
+        },
+        as_json=args.json,
+    )
 
 
 def cmd_fleet_openclaw_provision(args: argparse.Namespace) -> int:
@@ -464,6 +663,7 @@ def cmd_fleet_run_once(args: argparse.Namespace) -> int:
     runtime_capability = {
         "claude-code": "claude-code-session-start-attestation-v1",
         "codex": "codex-session-start-attestation-v1",
+        "hermes": "hermes-session-start-attestation-v1",
         "openclaw": "openclaw-agent-bootstrap-attestation-v1",
     }[runtime_vendor]
     client = FleetAgentClient(
