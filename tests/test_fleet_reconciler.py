@@ -509,6 +509,29 @@ def test_pending_inventory_resumes_with_only_runtime_attestation(
     assert adapter.call_log.count("install:pack_fixture_b") == 1
 
 
+def test_verified_inventory_reconcile_is_attestation_idempotent(
+    tmp_path: Path,
+) -> None:
+    adapter = BundleFakeAdapter()
+    instance = reconciler(tmp_path, adapter)
+    desired = two_pack_desired_state()
+
+    first = instance.reconcile(desired)
+    assert instance.spool.acknowledge(
+        item["event_id"] for item in first.receipts
+    ) == len(first.receipts)
+
+    repeated = instance.reconcile(desired)
+
+    assert repeated.activation_pending is False
+    assert repeated.receipts == ()
+    assert instance.spool.pending() == []
+    assert adapter.call_log[-2:] == [
+        "attest-inventory",
+        "detect-inventory-drift",
+    ]
+
+
 def test_reconciler_rejects_multi_pack_for_legacy_single_item_adapter(
     tmp_path: Path,
 ) -> None:

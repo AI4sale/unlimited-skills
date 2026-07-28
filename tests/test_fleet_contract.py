@@ -325,6 +325,67 @@ def test_receipt_spool_is_atomic_idempotent_and_acknowledgeable(tmp_path: Path) 
     assert spool.acknowledge([receipt["event_id"]]) == 1
     assert spool.pending() == []
     assert spool.last_event_sequence(receipt["attempt_id"]) == receipt["event_seq"]
+    assert spool.last_event_type(receipt["attempt_id"]) == "RUNTIME_ATTESTED"
+
+
+def test_receipt_spool_reads_last_event_type_from_v1_pending_receipt(
+    tmp_path: Path,
+) -> None:
+    receipt = read_fixture("valid", "receipt-runtime-attested.json")
+    spool = ReceiptSpool(tmp_path / "spool")
+    spool.append(receipt)
+    (spool.root / "sequence-state.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "attempts": {
+                    receipt["attempt_id"]: receipt["event_seq"],
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    assert spool.last_event_type(receipt["attempt_id"]) == "RUNTIME_ATTESTED"
+    assert spool.acknowledge([receipt["event_id"]]) == 1
+    assert spool.last_event_type(receipt["attempt_id"]) == "RUNTIME_ATTESTED"
+
+
+def test_receipt_spool_migrates_multiple_v1_attempts_incrementally(
+    tmp_path: Path,
+) -> None:
+    first = read_fixture("valid", "receipt-runtime-attested.json")
+    second = dict(first)
+    second["event_id"] = "evt_runtime_attested_second"
+    second["idempotency_key"] = second["event_id"]
+    second["attempt_id"] = "attempt_fixture_second"
+    spool = ReceiptSpool(tmp_path / "spool")
+    spool.append(first)
+    spool.append(second)
+    (spool.root / "sequence-state.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "attempts": {
+                    first["attempt_id"]: first["event_seq"],
+                    second["attempt_id"]: second["event_seq"],
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    assert spool.acknowledge(
+        [first["event_id"], second["event_id"]]
+    ) == 2
+    assert spool.last_event_type(first["attempt_id"]) == (
+        "RUNTIME_ATTESTED"
+    )
+    assert spool.last_event_type(second["attempt_id"]) == (
+        "RUNTIME_ATTESTED"
+    )
 
 
 def test_receipt_spool_rejects_same_event_id_with_different_body(tmp_path: Path) -> None:

@@ -4,8 +4,8 @@
 
 ### Added (0.6.9 - Fleet Contract Foundation)
 
-- Candidate package `0.6.9rc9` uses the immutable GitHub/pilot label
-  `v0.6.9-rc.9`; the final stable release label remains `v0.6.9`.
+- Candidate package `0.6.9rc10` uses the immutable GitHub/pilot label
+  `v0.6.9-rc.10`; the final stable release label remains `v0.6.9`.
 - Reframe the public README around Unlimited Skills as governed AI agent fleet
   skill infrastructure. The local router remains a documented runtime
   component, not the product category, and Business/Enterprise Fleet claims
@@ -41,6 +41,13 @@
 
 ### Fixed (0.6.9 - Fleet Contract Foundation)
 
+- Make repeated inventory reconciliation idempotent after runtime attestation,
+  so routine health checks no longer create stale receipts or block later
+  deliveries. Existing rc9 spools migrate in place, and receipts rejected
+  because their attempt is already terminal are retired safely.
+- Make native skill mirroring idempotent for read-only managed files. Repeated
+  search, list, and view commands now leave identical files untouched, while
+  real updates replace them atomically and retain their read-only protection.
 - Upgrade an exact legacy default-profile OpenClaw managed-root marker by
   adding only the empty `openclaw_profile` binding. Named profiles and any
   other marker mismatch remain fail-closed.

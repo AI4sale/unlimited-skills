@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import stat
 from pathlib import Path
 
 from unlimited_skills.cli import main
@@ -93,3 +94,43 @@ def test_sync_native_sources_never_deletes_existing_local_library_files(tmp_path
     assert preserved.is_file()
     assert extra_file.is_file()
     assert "native v2" in (root / "local" / "skills" / "native-skill" / "SKILL.md").read_text(encoding="utf-8")
+
+
+def test_sync_native_sources_repeats_and_updates_read_only_skills(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path / ".hermes"))
+    source_skill = write_skill(
+        tmp_path / ".hermes" / "skills",
+        "managed-skill",
+        "managed v1",
+    )
+    source_file = source_skill / "SKILL.md"
+    source_file.chmod(stat.S_IREAD)
+    root = tmp_path / ".unlimited-skills" / "library"
+    mirrored = (
+        root
+        / "local"
+        / "hermes"
+        / "skills"
+        / "managed-skill"
+        / "SKILL.md"
+    )
+
+    sync_native_sources(root, agents=["hermes"])
+    sync_native_sources(root, agents=["hermes"])
+    assert "managed v1" in mirrored.read_text(encoding="utf-8")
+
+    source_file.chmod(stat.S_IWRITE | stat.S_IREAD)
+    source_file.write_text(
+        "---\nname: managed-skill\ndescription: managed v2\n---\n",
+        encoding="utf-8",
+    )
+    source_file.chmod(stat.S_IREAD)
+    sync_native_sources(root, agents=["hermes"])
+
+    assert "managed v2" in mirrored.read_text(encoding="utf-8")
+    assert not mirrored.stat().st_mode & stat.S_IWRITE
+    source_file.chmod(stat.S_IWRITE | stat.S_IREAD)
+    mirrored.chmod(stat.S_IWRITE | stat.S_IREAD)

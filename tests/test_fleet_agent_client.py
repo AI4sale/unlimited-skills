@@ -271,7 +271,7 @@ def test_fcp008c_client_capabilities_are_exact_and_version_bound() -> None:
     assert FLEET_CLIENT_VERSION_CAPABILITY == (
         f"client-version-{__version__}"
     )
-    assert __version__ == "0.6.9rc9"
+    assert __version__ == "0.6.9rc10"
 
 
 def test_local_instance_uuid4_is_created_once_under_concurrency(
@@ -585,6 +585,44 @@ def test_atomic_receipt_rejection_keeps_the_entire_spool(
     assert result.receipt_upload.accepted_count == 0
     assert result.receipt_upload.pending_count == 6
     assert len(instance.spool.pending()) == 6
+
+
+def test_stale_attempt_response_retires_terminal_receipts(
+    tmp_path: Path,
+) -> None:
+    def transport(state, path, payload, **kwargs):
+        if path == "/v1/fleet/agents/register":
+            return registration_response(
+                local_instance_id=str(payload["local_instance_id"])
+            )
+        if path == "/v1/fleet/heartbeat":
+            return heartbeat_response(
+                desired_state=sign_desired_for_agent(
+                    "agent_fleet_client_01"
+                )
+            )
+        if path == "/v1/fleet/receipts":
+            return receipt_response(
+                payload,
+                outcome="stale_attempt",
+                accepted_event_ids=[],
+                rejected_events=[
+                    {
+                        "event_id": item["event_id"],
+                        "reason_code": "rollout_attempt_mismatch",
+                    }
+                    for item in payload["receipts"]
+                ],
+            )
+        raise AssertionError(path)
+
+    instance = client(tmp_path, transport)
+    result = instance.run_once()
+
+    assert result.receipt_upload is not None
+    assert result.receipt_upload.outcome == "stale_attempt"
+    assert result.receipt_upload.pending_count == 0
+    assert instance.spool.pending() == []
 
 
 def test_receipt_upload_chunks_at_100_and_acks_duplicates(
