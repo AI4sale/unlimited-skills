@@ -279,6 +279,25 @@ def test_receipt_builder_rejects_server_only_states() -> None:
         builder.build("VERIFIED_ACTIVE")
 
 
+def test_receipt_builder_resumes_after_prior_event_sequence() -> None:
+    builder = ReceiptBuilder(
+        rollout_id="rollout_1",
+        attempt_id="attempt_1",
+        agent_id="agent_1",
+        desired_state_revision="desired_1",
+        desired_state_digest="sha256:" + ("b" * 64),
+        control_epoch=1,
+        pack_id="pack_1",
+        release_id="release_1",
+        archive_sha256="sha256:" + ("a" * 64),
+        client_version="0.6.9",
+        adapter_version="1.0.0",
+        starting_event_seq=6,
+    )
+
+    assert builder.build("DESIRED_SEEN")["event_seq"] == 7
+
+
 def test_receipt_privacy_allowlist_blocks_paths_secrets_and_nested_metadata() -> None:
     receipt = read_fixture("valid", "receipt-runtime-attested.json")
     assert_receipt_metadata_safe(receipt)
@@ -305,6 +324,7 @@ def test_receipt_spool_is_atomic_idempotent_and_acknowledgeable(tmp_path: Path) 
     assert spool.pending() == [receipt]
     assert spool.acknowledge([receipt["event_id"]]) == 1
     assert spool.pending() == []
+    assert spool.last_event_sequence(receipt["attempt_id"]) == receipt["event_seq"]
 
 
 def test_receipt_spool_rejects_same_event_id_with_different_body(tmp_path: Path) -> None:

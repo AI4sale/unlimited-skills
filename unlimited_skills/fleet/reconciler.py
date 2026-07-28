@@ -180,6 +180,9 @@ class FleetReconciler:
             archive_sha256=str(item["archive_sha256"]),
             client_version=self.client_version,
             adapter_version=self.adapter.adapter_version,
+            starting_event_seq=self.spool.last_event_sequence(
+                str(item["attempt_id"])
+            ),
         )
 
     def _write_epoch_state(
