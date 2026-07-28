@@ -375,6 +375,13 @@ def _build_fleet_adapter(
                 "",
             )
         ).strip()
+        openclaw_profile = str(
+            getattr(args, "openclaw_profile", "")
+            or os.environ.get(
+                "UNLIMITED_SKILLS_FLEET_OPENCLAW_PROFILE",
+                "",
+            )
+        ).strip()
         if not agent_id:
             raise RuntimeError("openclaw_agent_id_required")
         return OpenClawFleetAdapter(
@@ -383,6 +390,7 @@ def _build_fleet_adapter(
             workspace=workspace,
             agent_id=agent_id,
             openclaw_home=openclaw_home,
+            openclaw_profile=openclaw_profile,
             timeout=args.timeout,
         )
     raise RuntimeError("fleet_runtime_vendor_unsupported")
@@ -550,15 +558,28 @@ def cmd_fleet_openclaw_provision(args: argparse.Namespace) -> int:
     ).strip()
     if not agent_id:
         raise RuntimeError("openclaw_agent_id_required")
+    openclaw_profile = str(
+        getattr(args, "openclaw_profile", "")
+        or os.environ.get(
+            "UNLIMITED_SKILLS_FLEET_OPENCLAW_PROFILE",
+            "",
+        )
+    ).strip()
     executable = _resolve_executable(
         args.openclaw_executable or "openclaw",
         "openclaw_executable_not_found",
     )
     environment = dict(os.environ)
-    environment["OPENCLAW_STATE_DIR"] = str(openclaw_home)
+    command_prefix: list[str] = []
+    if openclaw_profile:
+        command_prefix = ["--profile", openclaw_profile]
+        environment.pop("OPENCLAW_STATE_DIR", None)
+        environment.pop("OPENCLAW_CONFIG_PATH", None)
+    else:
+        environment["OPENCLAW_STATE_DIR"] = str(openclaw_home)
     agents_value = _openclaw_json(
         executable,
-        ["agents", "list", "--json"],
+        [*command_prefix, "agents", "list", "--json"],
         environment=environment,
     )
     agents = (
@@ -590,11 +611,13 @@ def cmd_fleet_openclaw_provision(args: argparse.Namespace) -> int:
         workspace=workspace,
         agent_id=agent_id,
         openclaw_home=openclaw_home,
+        openclaw_profile=openclaw_profile,
         timeout=args.timeout,
     )
     enabled = subprocess.run(
         [
             executable,
+            *command_prefix,
             "hooks",
             "enable",
             "unlimited-skills-fleet",
@@ -610,6 +633,7 @@ def cmd_fleet_openclaw_provision(args: argparse.Namespace) -> int:
     info = _openclaw_json(
         executable,
         [
+            *command_prefix,
             "hooks",
             "info",
             "unlimited-skills-fleet",
@@ -630,6 +654,7 @@ def cmd_fleet_openclaw_provision(args: argparse.Namespace) -> int:
             "runtime_vendor": "openclaw",
             "adapter_version": adapter.adapter_version,
             "agent_id": agent_id,
+            "openclaw_profile": openclaw_profile,
             "configured_agent_verified": True,
             "workspace_binding_verified": True,
             "hook_provisioned": True,

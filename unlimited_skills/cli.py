@@ -2135,6 +2135,15 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     fleet_openclaw_provision.add_argument(
+        "--openclaw-profile",
+        default="",
+        help=(
+            "Exact OpenClaw profile name. When set, commands run through "
+            "`openclaw --profile <name>` and ignore inherited state/config "
+            "path overrides."
+        ),
+    )
+    fleet_openclaw_provision.add_argument(
         "--openclaw-executable",
         default="openclaw",
         help="OpenClaw executable name or explicit path.",
@@ -2209,6 +2218,14 @@ def build_parser() -> argparse.ArgumentParser:
         help=(
             "OpenClaw state root. Defaults to OPENCLAW_STATE_DIR or "
             "~/.openclaw."
+        ),
+    )
+    fleet_run_once.add_argument(
+        "--openclaw-profile",
+        default="",
+        help=(
+            "Exact OpenClaw profile name when --runtime-vendor openclaw. "
+            "Defaults to UNLIMITED_SKILLS_FLEET_OPENCLAW_PROFILE."
         ),
     )
     fleet_run_once.add_argument(

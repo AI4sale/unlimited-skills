@@ -457,6 +457,42 @@ def test_openclaw_adapter_version_is_receipt_safe_identifier() -> None:
     assert OPENCLAW_ADAPTER_VERSION == "openclaw-fleet/1.0.0"
 
 
+def test_openclaw_profile_is_bound_and_validated(
+    tmp_path: Path,
+) -> None:
+    workspace = tmp_path / "workspace-recept1"
+    workspace.mkdir()
+    instance = OpenClawFleetAdapter(
+        registration=registered_state(),
+        managed_root=tmp_path / "fleet" / "recept1",
+        workspace=workspace,
+        agent_id="main",
+        openclaw_home=tmp_path / ".openclaw-recept1",
+        openclaw_profile="recept1",
+        python_executable=Path("/verified/python"),
+    )
+    marker = json.loads(
+        (instance.managed_root / "managed-root.json").read_text(
+            encoding="utf-8"
+        )
+    )
+
+    assert marker["runtime_binding"]["openclaw_profile"] == "recept1"
+    with pytest.raises(
+        OpenClawFleetAdapterError,
+        match="openclaw_profile_invalid",
+    ):
+        OpenClawFleetAdapter(
+            registration=registered_state(),
+            managed_root=tmp_path / "fleet" / "invalid",
+            workspace=workspace,
+            agent_id="main",
+            openclaw_home=tmp_path / ".openclaw-invalid",
+            openclaw_profile="../recept1",
+            python_executable=Path("/verified/python"),
+        )
+
+
 def test_openclaw_provision_verifies_configured_agent_and_enables_hook(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -512,6 +548,7 @@ def test_openclaw_provision_verifies_configured_agent_and_enables_hook(
         agent_id="coding",
         workspace=str(workspace),
         openclaw_home=str(tmp_path / ".openclaw"),
+        openclaw_profile="recept1",
         openclaw_executable="openclaw",
         timeout=3.0,
         json=True,
@@ -519,15 +556,26 @@ def test_openclaw_provision_verifies_configured_agent_and_enables_hook(
 
     assert fleet_commands.cmd_fleet_openclaw_provision(args) == 0
     assert calls == [
-        ["/verified/openclaw", "agents", "list", "--json"],
         [
             "/verified/openclaw",
+            "--profile",
+            "recept1",
+            "agents",
+            "list",
+            "--json",
+        ],
+        [
+            "/verified/openclaw",
+            "--profile",
+            "recept1",
             "hooks",
             "enable",
             "unlimited-skills-fleet",
         ],
         [
             "/verified/openclaw",
+            "--profile",
+            "recept1",
             "hooks",
             "info",
             "unlimited-skills-fleet",

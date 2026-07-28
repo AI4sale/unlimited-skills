@@ -238,6 +238,7 @@ def provision_openclaw_runtime_hook(
     *,
     openclaw_home: Path,
     agent_id: str,
+    openclaw_profile: str = "",
     workspace: Path,
     managed_root: Path,
     python_executable: Path,
@@ -246,6 +247,12 @@ def provision_openclaw_runtime_hook(
 
     if not _AGENT_ID.fullmatch(agent_id):
         raise OpenClawFleetAdapterError("openclaw_agent_id_invalid")
+    if openclaw_profile and not _AGENT_ID.fullmatch(
+        openclaw_profile
+    ):
+        raise OpenClawFleetAdapterError(
+            "openclaw_profile_invalid"
+        )
     expanded_home = Path(openclaw_home).expanduser()
     if expanded_home.exists() and expanded_home.is_symlink():
         raise OpenClawFleetAdapterError(
@@ -314,6 +321,7 @@ def provision_openclaw_runtime_hook(
             )
         targets["targets"][agent_id] = {
             "managed_root": str(managed_root.resolve()),
+            "openclaw_profile": openclaw_profile,
             "python_executable": str(python_executable),
             "workspace": str(workspace.resolve()),
         }
@@ -457,12 +465,16 @@ class OpenClawFleetAdapter(ManagedRuntimeFleetAdapter):
         workspace: Path,
         agent_id: str,
         openclaw_home: Path,
+        openclaw_profile: str = "",
         pack_client: PrivatePackClient | None = None,
         python_executable: Path | None = None,
         timeout: float = 30.0,
     ) -> None:
         if not _AGENT_ID.fullmatch(str(agent_id)):
             raise self.error_type("openclaw_agent_id_invalid")
+        profile = str(openclaw_profile or "").strip()
+        if profile and not _AGENT_ID.fullmatch(profile):
+            raise self.error_type("openclaw_profile_invalid")
         expanded_workspace = Path(workspace).expanduser()
         if (
             not expanded_workspace.exists()
@@ -472,6 +484,7 @@ class OpenClawFleetAdapter(ManagedRuntimeFleetAdapter):
             raise self.error_type("openclaw_workspace_invalid")
         self.workspace = expanded_workspace.resolve()
         self.agent_id = str(agent_id)
+        self.openclaw_profile = profile
         self.openclaw_home = Path(openclaw_home).expanduser().resolve()
         self.python_executable = Path(
             python_executable or sys.executable
@@ -483,6 +496,7 @@ class OpenClawFleetAdapter(ManagedRuntimeFleetAdapter):
         )
         binding = {
             "agent_id": self.agent_id,
+            "openclaw_profile": self.openclaw_profile,
             "workspace_sha256": _path_digest(self.workspace),
         }
         super().__init__(
@@ -496,6 +510,7 @@ class OpenClawFleetAdapter(ManagedRuntimeFleetAdapter):
         provision_openclaw_runtime_hook(
             openclaw_home=self.openclaw_home,
             agent_id=self.agent_id,
+            openclaw_profile=self.openclaw_profile,
             workspace=self.workspace,
             managed_root=self.managed_root,
             python_executable=self.python_executable,
