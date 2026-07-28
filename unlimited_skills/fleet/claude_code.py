@@ -16,6 +16,7 @@ import base64
 import hashlib
 import json
 import os
+import re
 import secrets
 import shlex
 import shutil
@@ -218,6 +219,27 @@ def _optional_json_object(path: Path, reason: str) -> dict[str, Any] | None:
     if not path.exists():
         return None
     return _read_json_object(path, reason)
+
+
+def _runtime_marker_matches_history(
+    managed_root: Path,
+    marker: Mapping[str, Any],
+) -> bool:
+    runtime_generation = str(marker.get("runtime_generation") or "")
+    _, separator, generation_hash = runtime_generation.rpartition(":")
+    if (
+        not separator
+        or re.fullmatch(r"[0-9a-f]{40}", generation_hash) is None
+    ):
+        return False
+    try:
+        historical = _read_json_object(
+            managed_root / "runtime-history" / f"{generation_hash}.json",
+            "runtime_history_invalid",
+        )
+    except ClaudeCodeFleetAdapterError:
+        return False
+    return historical == dict(marker)
 
 
 def _tree_manifest(root: Path) -> list[dict[str, Any]]:
@@ -1557,31 +1579,45 @@ class ClaudeCodeFleetAdapter:
         }
         if (
             drifted
-            or marker.get("schema_version")
+            or dict(activation_nonces) != expected_nonces
+            or state_nonces != expected_nonces
+            or active_revisions != expected_revisions
+            or active_archives != expected_archives
+            or inventory != expected_inventory
+        ):
+            raise ClaudeCodeFleetAdapterError(
+                "runtime_attestation_invalid"
+            )
+        if (
+            marker.get("schema_version")
             != RUNTIME_MARKER_SCHEMA_VERSION
             or marker.get("adapter_id") != self.adapter_id
             or marker.get("adapter_version") != self.adapter_version
-            or marker.get("active_state_sha256")
+            or not _runtime_marker_matches_history(
+                self.managed_root,
+                marker,
+            )
+        ):
+            raise ClaudeCodeFleetAdapterError(
+                "runtime_attestation_invalid"
+            )
+        if (
+            marker.get("active_state_sha256")
             != _state_digest(state)
             or marker.get("activation_marker")
             != state.get("activation_marker")
-            or dict(activation_nonces) != expected_nonces
-            or state_nonces != expected_nonces
             or marker.get("activation_nonces")
             != expected_nonces
-            or active_revisions != expected_revisions
             or marker.get("active_revisions")
             != expected_revisions
-            or active_archives != expected_archives
             or marker.get("active_archive_sha256")
             != expected_archives
             or marker.get("observed_skills_tree_sha256")
             != observed_tree
             or marker.get("active_inventory_digest") != digest
-            or inventory != expected_inventory
         ):
             raise ClaudeCodeFleetAdapterError(
-                "runtime_attestation_invalid"
+                "runtime_attestation_pending"
             )
         return RuntimeInventoryAttestation(
             runtime_generation=str(marker["runtime_generation"]),
