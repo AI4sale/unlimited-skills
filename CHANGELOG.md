@@ -4,8 +4,8 @@
 
 ### Added (0.6.9 - Fleet Contract Foundation)
 
-- Candidate package `0.6.9rc7` uses the immutable GitHub/pilot label
-  `v0.6.9-rc.7`; the final stable release label remains `v0.6.9`.
+- Candidate package `0.6.9rc8` uses the immutable GitHub/pilot label
+  `v0.6.9-rc.8`; the final stable release label remains `v0.6.9`.
 - Reframe the public README around Unlimited Skills as governed AI agent fleet
   skill infrastructure. The local router remains a documented runtime
   component, not the product category, and Business/Enterprise Fleet claims
@@ -34,6 +34,10 @@
 - Add `fleet hermes-provision`, `fleet hermes-launch`, Hermes-selectable
   `fleet run-once`, and the `hermes-session-start-attestation-v1` capability
   without changing Fleet Wire Contract v1.
+- Bind named OpenClaw profiles explicitly through `--openclaw-profile`, pass
+  that profile to native `openclaw --profile` commands, and exclude inherited
+  state/config overrides so multiple `main` agents cannot be mistaken for the
+  default profile.
 
 ### Fixed (0.6.9 - Fleet Contract Foundation)
 
