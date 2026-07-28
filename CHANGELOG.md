@@ -4,6 +4,8 @@
 
 ### Added (0.6.9 - Fleet Contract Foundation)
 
+- Pilot package `0.6.9rc1` uses the immutable GitHub/pilot label
+  `v0.6.9-rc.1`; the final stable release label remains `v0.6.9`.
 - Reframe the public README around Unlimited Skills as governed AI agent fleet
   skill infrastructure. The local router remains a documented runtime
   component, not the product category, and Business/Enterprise Fleet claims
