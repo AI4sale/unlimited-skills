@@ -836,6 +836,27 @@ def test_multi_pack_inventory_is_materialized_and_attested_atomically(
     assert attestation.active_inventory_digest == expected_digest
     assert instance.detect_inventory_drift([item_a, item_b]) is False
 
+    next_item_a = desired_item(pack_a, nonce="nonce_a_next")
+    next_item_b = desired_item(pack_b, nonce="nonce_b_next")
+    next_items = [next_item_a, next_item_b]
+    next_nonces = {
+        "pack_a": "nonce_a_next",
+        "pack_b": "nonce_b_next",
+    }
+    instance.activate_inventory(
+        next_items,
+        installed,
+        activation_nonces=next_nonces,
+    )
+    with pytest.raises(
+        ClaudeCodeFleetAdapterError,
+        match="runtime_attestation_pending",
+    ):
+        instance.attest_inventory(
+            next_items,
+            activation_nonces=next_nonces,
+        )
+
 
 def test_multi_pack_activation_rejects_skill_name_collisions(
     tmp_path: Path,

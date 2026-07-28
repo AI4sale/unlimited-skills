@@ -256,6 +256,28 @@ def test_openclaw_bundle_requires_real_agent_bootstrap_attestation(
     assert "private-openclaw-session-key" not in marker
     assert str(instance.workspace) not in marker
 
+    next_items = [
+        desired_item(client, "pack_a", "nonce_a_next"),
+        desired_item(client, "pack_b", "nonce_b_next"),
+    ]
+    next_nonces = {
+        "pack_a": "nonce_a_next",
+        "pack_b": "nonce_b_next",
+    }
+    instance.activate_inventory(
+        next_items,
+        installed,
+        activation_nonces=next_nonces,
+    )
+    with pytest.raises(
+        OpenClawFleetAdapterError,
+        match="runtime_attestation_pending",
+    ):
+        instance.attest_inventory(
+            next_items,
+            activation_nonces=next_nonces,
+        )
+
 
 def test_openclaw_runtime_binding_rejects_other_agent_or_workspace(
     tmp_path: Path,

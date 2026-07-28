@@ -40,6 +40,7 @@ from .claude_code import (
     _optional_json_object,
     _read_json_object,
     _resolve_skills_source,
+    _runtime_marker_matches_history,
     _sha256_bytes,
     _sha256_file,
     _state_digest,
@@ -999,30 +1000,40 @@ class ManagedRuntimeFleetAdapter:
         }
         if (
             drifted
-            or marker.get("schema_version")
+            or dict(activation_nonces) != expected_nonces
+            or state_nonces != expected_nonces
+            or revisions != expected_revisions
+            or archives != expected_archives
+            or inventory != expected_inventory
+        ):
+            raise self.error_type("runtime_attestation_invalid")
+        if (
+            marker.get("schema_version")
             != MANAGED_RUNTIME_MARKER_SCHEMA_VERSION
             or marker.get("adapter_id") != self.adapter_id
             or marker.get("adapter_version")
             != self.adapter_version
-            or marker.get("active_state_sha256")
+            or not _runtime_marker_matches_history(
+                self.managed_root,
+                marker,
+            )
+        ):
+            raise self.error_type("runtime_attestation_invalid")
+        if (
+            marker.get("active_state_sha256")
             != _state_digest(state)
             or marker.get("activation_marker")
             != state.get("activation_marker")
-            or dict(activation_nonces) != expected_nonces
-            or state_nonces != expected_nonces
             or marker.get("activation_nonces") != expected_nonces
-            or revisions != expected_revisions
             or marker.get("active_revisions")
             != expected_revisions
-            or archives != expected_archives
             or marker.get("active_archive_sha256")
             != expected_archives
             or marker.get("observed_skills_tree_sha256")
             != observed_tree
             or marker.get("active_inventory_digest") != digest
-            or inventory != expected_inventory
         ):
-            raise self.error_type("runtime_attestation_invalid")
+            raise self.error_type("runtime_attestation_pending")
         return RuntimeInventoryAttestation(
             runtime_generation=str(marker["runtime_generation"]),
             activation_nonces=expected_nonces,

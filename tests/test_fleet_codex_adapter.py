@@ -226,6 +226,28 @@ def test_codex_bundle_requires_real_session_start_attestation(
     assert "/private/transcript.jsonl" not in marker
     assert str(instance.workspace) not in marker
 
+    next_items = [
+        item(client, "pack_a", "nonce_a_next"),
+        item(client, "pack_b", "nonce_b_next"),
+    ]
+    next_nonces = {
+        "pack_a": "nonce_a_next",
+        "pack_b": "nonce_b_next",
+    }
+    instance.activate_inventory(
+        next_items,
+        installed,
+        activation_nonces=next_nonces,
+    )
+    with pytest.raises(
+        CodexFleetAdapterError,
+        match="runtime_attestation_pending",
+    ):
+        instance.attest_inventory(
+            next_items,
+            activation_nonces=next_nonces,
+        )
+
 
 def test_codex_runtime_rejects_wrong_home_or_workspace(
     tmp_path: Path,
