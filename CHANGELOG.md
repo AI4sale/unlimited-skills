@@ -4,8 +4,8 @@
 
 ### Added (0.6.9 - Fleet Contract Foundation)
 
-- Candidate package `0.6.9rc4` uses the immutable GitHub/pilot label
-  `v0.6.9-rc.4`; the final stable release label remains `v0.6.9`.
+- Candidate package `0.6.9rc5` uses the immutable GitHub/pilot label
+  `v0.6.9-rc.5`; the final stable release label remains `v0.6.9`.
 - Reframe the public README around Unlimited Skills as governed AI agent fleet
   skill infrastructure. The local router remains a documented runtime
   component, not the product category, and Business/Enterprise Fleet claims
@@ -30,6 +30,10 @@
 
 ### Fixed (0.6.9 - Fleet Contract Foundation)
 
+- Keep expected runtime startup latency in the non-terminal
+  `ACTIVATION_PENDING` state. A later reconciliation now resumes directly
+  with `RUNTIME_ATTESTED` instead of replaying installation events or
+  terminating the attempt as `FAILED_RETRYABLE`.
 - Treat an authentic prior runtime marker as activation pending when a new
   rollout has already written a different active-state digest and activation
   nonce. Tampered or unrecorded markers still fail terminally.
@@ -41,7 +45,7 @@
   endpoints. Every manifest and archive request is bound in both the
   device-signed body and bounded headers to the exact agent, rollout,
   attempt, desired-state revision, release, and archive hash.
-- Advertise the `fleet-payload-v2` and exact rc4 client capabilities so the
+- Advertise the `fleet-payload-v2` and exact rc5 client capabilities so the
   control plane can withhold desired state from incompatible agents.
 - Make private-pack trust pins offline, origin/scope/role-bound,
   fingerprint-checked, and locally expiring. Same-ID keys merge only when

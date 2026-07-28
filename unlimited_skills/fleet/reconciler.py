@@ -185,6 +185,147 @@ class FleetReconciler:
             ),
         )
 
+    def _validate_inventory_attestation(
+        self,
+        desired: Mapping[str, Any],
+        items: list[Mapping[str, Any]],
+        *,
+        activation_nonces: Mapping[str, str],
+        attestation: RuntimeInventoryAttestation,
+    ) -> None:
+        expected_revisions = {
+            str(item["pack_id"]): str(item["release_id"])
+            for item in items
+        }
+        expected_archives = {
+            str(item["pack_id"]): str(item["archive_sha256"])
+            for item in items
+        }
+        if (
+            dict(attestation.activation_nonces)
+            != dict(activation_nonces)
+            or dict(attestation.active_revisions)
+            != expected_revisions
+            or dict(attestation.active_archive_sha256)
+            != expected_archives
+            or attestation.active_inventory_digest
+            != desired["expected_inventory_digest"]
+            or attestation.adapter_version
+            != self.adapter.adapter_version
+        ):
+            raise ReconcileError("runtime_attestation_invalid")
+
+    def _resume_inventory_activation(
+        self,
+        desired: Mapping[str, Any],
+        items: list[Mapping[str, Any]],
+        builders: Mapping[str, ReceiptBuilder],
+    ) -> ReconcileResult:
+        adapter = self.adapter
+        if not isinstance(adapter, InventoryAgentAdapter):
+            raise ReconcileError("adapter_inventory_activation_required")
+        receipts: list[dict[str, Any]] = []
+        activation_nonces = {
+            str(item["pack_id"]): str(item["activation_nonce"])
+            for item in items
+        }
+        try:
+            attestation = adapter.attest_inventory(
+                items,
+                activation_nonces=activation_nonces,
+            )
+            if not isinstance(
+                attestation,
+                RuntimeInventoryAttestation,
+            ):
+                raise ReconcileError("runtime_attestation_invalid")
+            self._validate_inventory_attestation(
+                desired,
+                items,
+                activation_nonces=activation_nonces,
+                attestation=attestation,
+            )
+            for item in items:
+                pack_id = str(item["pack_id"])
+                self._spool_receipt(
+                    receipts,
+                    builders[pack_id],
+                    "RUNTIME_ATTESTED",
+                    runtime_generation=attestation.runtime_generation,
+                    activation_nonce=activation_nonces[pack_id],
+                    active_archive_sha256=(
+                        attestation.active_archive_sha256[pack_id]
+                    ),
+                    active_inventory_digest=(
+                        attestation.active_inventory_digest
+                    ),
+                )
+            activation_pending = False
+            if adapter.detect_inventory_drift(items):
+                for item in items:
+                    pack_id = str(item["pack_id"])
+                    self._spool_receipt(
+                        receipts,
+                        builders[pack_id],
+                        "DRIFT_DETECTED",
+                        reason_code="drift_detected",
+                        runtime_generation=(
+                            attestation.runtime_generation
+                        ),
+                        activation_nonce=activation_nonces[pack_id],
+                        active_inventory_digest=(
+                            attestation.active_inventory_digest
+                        ),
+                    )
+                activation_pending = True
+        except ManagedFleetAdapterError as exc:
+            if str(exc) == "runtime_attestation_pending":
+                return self._result(
+                    desired,
+                    receipts,
+                    activation_pending=True,
+                    already_seen=True,
+                )
+            event_type, reason_code = _adapter_failure_receipt(exc)
+            for item in items:
+                self._spool_receipt(
+                    receipts,
+                    builders[str(item["pack_id"])],
+                    event_type,
+                    reason_code=reason_code,
+                )
+            activation_pending = True
+        except ReconcileError as exc:
+            for item in items:
+                self._spool_receipt(
+                    receipts,
+                    builders[str(item["pack_id"])],
+                    "FAILED_TERMINAL",
+                    reason_code=(
+                        str(exc)
+                        if str(exc) == "runtime_attestation_invalid"
+                        else "install_failed"
+                    ),
+                )
+            activation_pending = True
+        except Exception as exc:
+            for item in items:
+                self._spool_receipt(
+                    receipts,
+                    builders[str(item["pack_id"])],
+                    "FAILED_RETRYABLE",
+                    reason_code="adapter_unavailable",
+                )
+            activation_pending = True
+            if isinstance(exc, (KeyboardInterrupt, SystemExit)):
+                raise
+        return self._result(
+            desired,
+            receipts,
+            activation_pending=activation_pending,
+            already_seen=True,
+        )
+
     def _write_epoch_state(
         self,
         desired: Mapping[str, Any],
@@ -247,6 +388,19 @@ class FleetReconciler:
             str(item["pack_id"]): self._receipt_builder(desired, item)
             for item in items
         }
+        if already_seen:
+            if not self.auto_activate:
+                return self._result(
+                    desired,
+                    [],
+                    activation_pending=True,
+                    already_seen=True,
+                )
+            return self._resume_inventory_activation(
+                desired,
+                items,
+                builders,
+            )
         installed: dict[str, InstalledRevision] = {}
         activation_pending = False
         install_failed = False
@@ -389,27 +543,12 @@ class FleetReconciler:
                 RuntimeInventoryAttestation,
             ):
                 raise ReconcileError("runtime_attestation_invalid")
-            expected_revisions = {
-                str(item["pack_id"]): str(item["release_id"])
-                for item in items
-            }
-            expected_archives = {
-                str(item["pack_id"]): str(item["archive_sha256"])
-                for item in items
-            }
-            if (
-                dict(attestation.activation_nonces)
-                != activation_nonces
-                or dict(attestation.active_revisions)
-                != expected_revisions
-                or dict(attestation.active_archive_sha256)
-                != expected_archives
-                or attestation.active_inventory_digest
-                != desired["expected_inventory_digest"]
-                or attestation.adapter_version
-                != adapter.adapter_version
-            ):
-                raise ReconcileError("runtime_attestation_invalid")
+            self._validate_inventory_attestation(
+                desired,
+                items,
+                activation_nonces=activation_nonces,
+                attestation=attestation,
+            )
             for item in items:
                 pack_id = str(item["pack_id"])
                 self._spool_receipt(
@@ -456,6 +595,13 @@ class FleetReconciler:
                 )
             activation_pending = True
         except ManagedFleetAdapterError as exc:
+            if str(exc) == "runtime_attestation_pending":
+                return self._result(
+                    desired,
+                    receipts,
+                    activation_pending=True,
+                    already_seen=already_seen,
+                )
             event_type, reason_code = _adapter_failure_receipt(exc)
             for item in items:
                 self._spool_receipt(
@@ -641,6 +787,9 @@ class FleetReconciler:
                 )
                 activation_pending = True
             except ManagedFleetAdapterError as exc:
+                if str(exc) == "runtime_attestation_pending":
+                    activation_pending = True
+                    continue
                 event_type, reason_code = _adapter_failure_receipt(
                     exc
                 )
