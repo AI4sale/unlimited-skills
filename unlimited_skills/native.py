@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import filecmp
 import json
 import os
 import re
 import shutil
+import stat
+import tempfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -232,12 +235,62 @@ def native_sources(agent: str = "") -> list[NativeSource]:
     return sources
 
 
+def _copy_overlay_file(source: str, destination: str) -> str:
+    source_path = Path(source)
+    destination_path = Path(destination)
+    if destination_path.is_file():
+        try:
+            if filecmp.cmp(
+                source_path,
+                destination_path,
+                shallow=False,
+            ):
+                return str(destination_path)
+        except OSError:
+            pass
+
+    destination_path.parent.mkdir(parents=True, exist_ok=True)
+    fd, temporary_name = tempfile.mkstemp(
+        prefix=".native-sync-",
+        suffix=".tmp",
+        dir=destination_path.parent,
+    )
+    os.close(fd)
+    temporary = Path(temporary_name)
+    original_mode: int | None = None
+    try:
+        shutil.copy2(source_path, temporary)
+        if destination_path.exists():
+            original_mode = stat.S_IMODE(
+                destination_path.stat().st_mode
+            )
+            destination_path.chmod(original_mode | stat.S_IWRITE)
+        try:
+            os.replace(temporary, destination_path)
+        except Exception:
+            if (
+                original_mode is not None
+                and destination_path.exists()
+            ):
+                destination_path.chmod(original_mode)
+            raise
+    finally:
+        if temporary.exists():
+            try:
+                temporary.chmod(stat.S_IWRITE | stat.S_IREAD)
+                temporary.unlink()
+            except OSError:
+                pass
+    return str(destination_path)
+
+
 def overlay_skill_tree(source: Path, destination: Path) -> None:
     destination.mkdir(parents=True, exist_ok=True)
     shutil.copytree(
         source,
         destination,
         dirs_exist_ok=True,
+        copy_function=_copy_overlay_file,
         ignore=shutil.ignore_patterns(*IGNORED_DIR_NAMES),
     )
 

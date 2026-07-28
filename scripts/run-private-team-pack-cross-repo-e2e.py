@@ -215,15 +215,23 @@ def add_revoked_private_pack(registry_repo: Path, private_root: Path) -> None:
     write_json(keys_path, keys_payload)
 
 
-def trusted_keys_env(private_root: Path) -> str:
-    payload = read_json(private_root / "public-keys" / "manifest-public-keys.v1.json")
-    values = []
-    for item in payload.get("keys", []):
-        if isinstance(item, dict) and item.get("algorithm") == "ed25519":
-            values.append(f"{item['key_id']}:{item['public_key']}")
-    if not values:
+def bind_trusted_keys(private_root: Path, server_url: str) -> Path:
+    path = (
+        private_root
+        / "public-keys"
+        / "manifest-public-keys.v1.json"
+    )
+    payload = read_json(path)
+    keys = payload.get("keys", [])
+    if not isinstance(keys, list) or not keys:
         fail("Private pack fixture has no public keys")
-    return ",".join(values)
+    for item in keys:
+        if not isinstance(item, dict):
+            fail("Private pack fixture has an invalid public key")
+        item["role"] = "private-team-pack-manifest"
+        item["registry_origins"] = [server_url]
+    write_json(path, payload)
+    return path
 
 
 def start_registry_server(registry_repo: Path, artifact_root: Path, db_url: str):
@@ -294,16 +302,23 @@ def run_e2e(registry_repo: Path, *, temp_home: bool = False) -> dict[str, Any]:
         # on exit) into later tests: a leaked home makes `unlimited_skills_home()`
         # resolve to a dead temp path, and a later launcher write/heal then repoints
         # a real launcher's `--root` at it. Restore unconditionally in `finally`.
-        _env_keys = ("UNLIMITED_SKILLS_HOME", "UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS")
+        _env_keys = (
+            "UNLIMITED_SKILLS_HOME",
+            "UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS",
+            "UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS_FILE",
+        )
         _saved_env = {key: os.environ.get(key) for key in _env_keys}
         os.environ["UNLIMITED_SKILLS_HOME"] = str(home / ".unlimited-skills")
-        os.environ["UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS"] = trusted_keys_env(private_root)
+        os.environ.pop("UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS", None)
 
         db_url = f"sqlite:///{tmp_root / 'registry.sqlite3'}"
         server = None
         thread = None
         try:
             server, thread, server_url = start_registry_server(registry_repo, artifact_root, db_url)
+            os.environ["UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS_FILE"] = str(
+                bind_trusted_keys(private_root, server_url)
+            )
             state = register_client(server_url, install_id="uls_inst_master", agent="codex", home=home)
             grant_private_pack_entitlement(db_url, state.install_id)
             governance = verify_registry_org_governance(registry_repo, db_url, state.install_id)

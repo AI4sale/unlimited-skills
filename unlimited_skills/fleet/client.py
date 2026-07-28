@@ -649,11 +649,24 @@ class FleetAgentClient:
                     )
                 )
             final_outcome = outcome
+            if outcome == "stale_attempt":
+                if accepted_ids or duplicate_ids:
+                    raise FleetAgentClientError(
+                        "fleet_receipt_atomic_response_invalid"
+                    )
+                if not rejected_ids:
+                    break
+                removed = self.spool.acknowledge(rejected_ids)
+                if removed != len(rejected_ids):
+                    raise FleetAgentClientError(
+                        "fleet_receipt_spool_ack_mismatch"
+                    )
+                batch_count += 1
+                continue
             if outcome in {
                 "rejected",
                 "conflict",
                 "sequence_gap",
-                "stale_attempt",
             } or rejected_ids:
                 if accepted_ids:
                     raise FleetAgentClientError(
