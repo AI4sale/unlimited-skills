@@ -228,7 +228,17 @@ class FleetReconciler:
         adapter = self.adapter
         if not isinstance(adapter, InventoryAgentAdapter):
             raise ReconcileError("adapter_inventory_activation_required")
-        items = [dict(item) for item in desired["items"]]
+        items = [
+            {
+                **dict(item),
+                "agent_id": str(desired["agent_id"]),
+                "rollout_id": str(desired["rollout_id"]),
+                "desired_state_revision": str(
+                    desired["desired_state_revision"]
+                ),
+            }
+            for item in desired["items"]
+        ]
         receipts: list[dict[str, Any]] = []
         builders = {
             str(item["pack_id"]): self._receipt_builder(desired, item)
@@ -492,7 +502,17 @@ class FleetReconciler:
                 raise ReconcileError("adapter_unavailable")
         except Exception as exc:
             raise ReconcileError("adapter_unavailable") from exc
-        items = list(desired["items"])
+        items = [
+            {
+                **dict(item),
+                "agent_id": str(desired["agent_id"]),
+                "rollout_id": str(desired["rollout_id"]),
+                "desired_state_revision": str(
+                    desired["desired_state_revision"]
+                ),
+            }
+            for item in desired["items"]
+        ]
         if isinstance(self.adapter, InventoryAgentAdapter):
             return self._reconcile_inventory(
                 desired,

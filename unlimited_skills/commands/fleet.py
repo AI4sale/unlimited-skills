@@ -32,6 +32,12 @@ from unlimited_skills.fleet import (
 from unlimited_skills.registration import load_registration
 
 
+FLEET_PAYLOAD_CAPABILITY = "fleet-payload-v2"
+FLEET_CLIENT_VERSION_CAPABILITY = (
+    f"client-version-{__version__}"
+)
+
+
 def _required_path(value: str, reason: str) -> Path:
     normalized = str(value or "").strip()
     if not normalized:
@@ -473,6 +479,8 @@ def cmd_fleet_run_once(args: argparse.Namespace) -> int:
         client_version=__version__,
         reported_capabilities=(
             runtime_capability,
+            FLEET_PAYLOAD_CAPABILITY,
+            FLEET_CLIENT_VERSION_CAPABILITY,
             "desired-state-v1",
             "drift-detection-v1",
             "immutable-revisions-v1",

@@ -81,7 +81,8 @@ class StubPackClient:
         self.pack_id = pack_id
         self.version = version
         self.archive = archive if archive is not None else pack_archive()
-        self.downloads: list[dict[str, str]] = []
+        self.downloads: list[dict] = []
+        self.manifest_contexts: list[dict] = []
 
     @property
     def archive_digest(self) -> str:
@@ -97,7 +98,13 @@ class StubPackClient:
             "sha256:" + self.archive_digest,
         )
 
-    def signed_manifest(self, pack_id: str) -> dict:
+    def signed_manifest(
+        self,
+        pack_id: str,
+        *,
+        request_context: dict | None = None,
+    ) -> dict:
+        self.manifest_contexts.append(dict(request_context or {}))
         assert pack_id == self.pack_id
         return {
             "manifest": {
@@ -131,12 +138,14 @@ class StubPackClient:
         *,
         release_id: str = "",
         expected_sha256: str = "",
+        request_context: dict | None = None,
     ) -> bytes:
         self.downloads.append(
             {
                 "pack_id": pack_id,
                 "release_id": release_id,
                 "expected_sha256": expected_sha256,
+                "request_context": dict(request_context or {}),
             }
         )
         return self.archive
@@ -146,8 +155,16 @@ class MultiPackClient:
     def __init__(self, *clients: StubPackClient) -> None:
         self.clients = {client.pack_id: client for client in clients}
 
-    def signed_manifest(self, pack_id: str) -> dict:
-        return self.clients[pack_id].signed_manifest(pack_id)
+    def signed_manifest(
+        self,
+        pack_id: str,
+        *,
+        request_context: dict | None = None,
+    ) -> dict:
+        return self.clients[pack_id].signed_manifest(
+            pack_id,
+            request_context=request_context,
+        )
 
     def download_archive(
         self,
@@ -155,11 +172,13 @@ class MultiPackClient:
         *,
         release_id: str = "",
         expected_sha256: str = "",
+        request_context: dict | None = None,
     ) -> bytes:
         return self.clients[pack_id].download_archive(
             pack_id,
             release_id=release_id,
             expected_sha256=expected_sha256,
+            request_context=request_context,
         )
 
 
@@ -251,6 +270,8 @@ def test_installs_verified_revision_side_by_side_without_activation(
     assert installed.release_id == client.release_id
     assert installed.archive_sha256 == item["archive_sha256"]
     assert len(client.downloads) == 1
+    assert client.manifest_contexts == [item]
+    assert client.downloads[0]["request_context"] == item
     assert client.downloads[0]["release_id"] == client.release_id
     assert (
         client.downloads[0]["expected_sha256"]

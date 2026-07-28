@@ -13,7 +13,7 @@ import urllib.error
 import urllib.parse
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, NoEncryption, PrivateFormat, PublicFormat
@@ -35,6 +35,17 @@ SENSITIVE_TEXT_PATTERNS = (
         r"\1[redacted]\2",
     ),
 )
+ADDITIONAL_REQUEST_HEADERS = {
+    "x-uls-agent-id": "X-ULS-Agent-ID",
+    "x-uls-rollout-id": "X-ULS-Rollout-ID",
+    "x-uls-attempt-id": "X-ULS-Attempt-ID",
+    "x-uls-desired-state-revision": (
+        "X-ULS-Desired-State-Revision"
+    ),
+    "x-uls-pack-id": "X-ULS-Pack-ID",
+    "x-uls-release-id": "X-ULS-Release-ID",
+    "x-uls-archive-sha256": "X-ULS-Archive-SHA256",
+}
 
 
 class RegistrationError(RuntimeError):
@@ -293,6 +304,42 @@ def proof_headers(state: RegistrationState, method: str, url: str, body: bytes) 
     return {"X-ULS-Proof": base64_urlsafe_encode(json.dumps(proof, separators=(",", ":"), sort_keys=True).encode("utf-8"))}
 
 
+def validated_additional_headers(
+    headers: Mapping[str, str] | None,
+) -> dict[str, str]:
+    """Allow only bounded Fleet scope headers.
+
+    Callers cannot replace authorization, device proof, content type, or
+    user-agent headers. Values are deliberately restricted to printable
+    ASCII so they cannot smuggle additional HTTP headers.
+    """
+
+    validated: dict[str, str] = {}
+    for raw_name, raw_value in (headers or {}).items():
+        name = str(raw_name).strip().lower()
+        canonical_name = ADDITIONAL_REQUEST_HEADERS.get(name)
+        if canonical_name is None:
+            raise RegistrationError(
+                "additional_request_header_forbidden"
+            )
+        if not isinstance(raw_value, str):
+            raise RegistrationError(
+                "additional_request_header_invalid"
+            )
+        value = raw_value
+        if (
+            not value
+            or value != value.strip()
+            or len(value) > 256
+            or any(ord(character) < 32 or ord(character) > 126 for character in value)
+        ):
+            raise RegistrationError(
+                "additional_request_header_invalid"
+            )
+        validated[canonical_name] = value
+    return validated
+
+
 def post_json(
     url: str,
     payload: dict[str, Any],
@@ -302,6 +349,7 @@ def post_json(
     timeout: float = 30.0,
     retry_safe: bool = False,
     max_retries: int | None = None,
+    additional_headers: Mapping[str, str] | None = None,
 ) -> dict[str, Any]:
     require_secure_url(url)
     from .policy_enforcement import enforce_registry_url
@@ -313,6 +361,7 @@ def post_json(
         headers["Authorization"] = f"Bearer {token}"
     if token and proof_state:
         headers.update(proof_headers(proof_state, "POST", url, body))
+    headers.update(validated_additional_headers(additional_headers))
     try:
         return request_json(
             url,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import sys
 from pathlib import Path
 from types import SimpleNamespace
@@ -12,7 +13,11 @@ from unlimited_skills.cli import main
 from unlimited_skills.hub import create_hub_token
 from unlimited_skills.hub_allowlist import allowlist_sha256
 from unlimited_skills.registration import RegistrationState, base64_urlsafe_encode, save_registration, with_install_identity
-from unlimited_skills.signatures import sign_manifest_for_tests
+from unlimited_skills.signatures import (
+    key_record_allows,
+    sign_manifest_for_tests,
+    trusted_manifest_key_records,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -317,6 +322,10 @@ def test_trust_cli_lists_key_ids_and_verifies_manifest_file(tmp_path: Path, monk
     signed_response, env = signed_manifest_env({"schema_version": 1, "updates": []})
     manifest_path = tmp_path / "signed-manifest.json"
     manifest_path.write_text(json.dumps(signed_response), encoding="utf-8")
+    monkeypatch.setenv(
+        "UNLIMITED_SKILLS_HOME",
+        str(tmp_path / ".unlimited-skills"),
+    )
     monkeypatch.setenv("UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS", env["UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS"])
 
     assert main(["trust", "status", "--json"]) == 0
@@ -377,3 +386,263 @@ def test_trust_cli_import_scope_origin_and_revoke(tmp_path: Path, monkeypatch, c
 
     assert main(["trust", "verify", str(signed_path), "--scope", "catalog-updates", "--registry-url", "https://updates.example.test", "--json"]) == 2
     assert "revoked" in capsys.readouterr().err
+
+
+def test_manifest_trust_pin_enforces_fingerprint_role_expiry_and_collision(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    monkeypatch.setenv(
+        "UNLIMITED_SKILLS_HOME",
+        str(tmp_path / ".unlimited-skills"),
+    )
+    monkeypatch.delenv(
+        "UNLIMITED_SKILLS_MANIFEST_PUBLIC_KEYS",
+        raising=False,
+    )
+    private_key = Ed25519PrivateKey.generate()
+    public_key = private_key.public_key().public_bytes(
+        Encoding.Raw,
+        PublicFormat.Raw,
+    )
+    public_key_b64 = base64_urlsafe_encode(public_key)
+    fingerprint = "sha256:" + hashlib.sha256(public_key).hexdigest()
+    trust_manifest = {
+        "schema_version": 1,
+        "keys": [
+            {
+                "key_id": "private-pack-key-fixture",
+                "algorithm": "ed25519",
+                "public_key": public_key_b64,
+                "sha256_fingerprint": fingerprint,
+                "role": "private-team-pack-manifest",
+                "status": "active",
+                "scopes": ["private-team-pack"],
+                "registry_origins": [
+                    "https://unlimited.example.test"
+                ],
+                "not_after": "2099-01-01T00:00:00Z",
+            }
+        ],
+    }
+    trust_path = tmp_path / "private-pack-trust.json"
+    trust_path.write_text(
+        json.dumps(trust_manifest),
+        encoding="utf-8",
+    )
+    signed = sign_manifest_for_tests(
+        {
+            "schema_version": 1,
+            "manifest_type": "private-team-pack-manifest",
+        },
+        private_key,
+        key_id="private-pack-key-fixture",
+    )
+    signed_path = tmp_path / "private-pack-manifest.json"
+    signed_path.write_text(json.dumps(signed), encoding="utf-8")
+
+    assert main(["trust", "import", str(trust_path), "--json"]) == 0
+    capsys.readouterr()
+    assert (
+        main(
+            [
+                "trust",
+                "verify",
+                str(signed_path),
+                "--scope",
+                "private-team-pack",
+                "--registry-url",
+                "https://unlimited.example.test/v1/fleet",
+                "--json",
+            ]
+        )
+        == 0
+    )
+    capsys.readouterr()
+
+    expired = json.loads(json.dumps(trust_manifest))
+    expired["keys"][0]["key_id"] = "expired-private-pack-key"
+    expired["keys"][0]["not_after"] = "2000-01-01T00:00:00Z"
+    expired_path = tmp_path / "expired-trust.json"
+    expired_path.write_text(json.dumps(expired), encoding="utf-8")
+    expired_signed = sign_manifest_for_tests(
+        {"schema_version": 1},
+        private_key,
+        key_id="expired-private-pack-key",
+    )
+    expired_signed_path = tmp_path / "expired-signed.json"
+    expired_signed_path.write_text(
+        json.dumps(expired_signed),
+        encoding="utf-8",
+    )
+    assert main(["trust", "import", str(expired_path), "--json"]) == 0
+    capsys.readouterr()
+    assert (
+        main(
+            [
+                "trust",
+                "verify",
+                str(expired_signed_path),
+                "--scope",
+                "private-team-pack",
+                "--registry-url",
+                "https://unlimited.example.test",
+                "--json",
+            ]
+        )
+        == 2
+    )
+    assert "not allowed" in capsys.readouterr().err
+
+    wrong_role = json.loads(json.dumps(trust_manifest))
+    wrong_role["keys"][0]["key_id"] = "wrong-role-key"
+    wrong_role["keys"][0]["role"] = "fleet-desired-state-signing"
+    wrong_role_path = tmp_path / "wrong-role-trust.json"
+    wrong_role_path.write_text(
+        json.dumps(wrong_role),
+        encoding="utf-8",
+    )
+    wrong_role_signed = sign_manifest_for_tests(
+        {"schema_version": 1},
+        private_key,
+        key_id="wrong-role-key",
+    )
+    wrong_role_signed_path = tmp_path / "wrong-role-signed.json"
+    wrong_role_signed_path.write_text(
+        json.dumps(wrong_role_signed),
+        encoding="utf-8",
+    )
+    assert (
+        main(["trust", "import", str(wrong_role_path), "--json"])
+        == 0
+    )
+    capsys.readouterr()
+    assert (
+        main(
+            [
+                "trust",
+                "verify",
+                str(wrong_role_signed_path),
+                "--scope",
+                "private-team-pack",
+                "--registry-url",
+                "https://unlimited.example.test",
+                "--json",
+            ]
+        )
+        == 2
+    )
+    assert "not allowed" in capsys.readouterr().err
+
+    collision_key = Ed25519PrivateKey.generate().public_key().public_bytes(
+        Encoding.Raw,
+        PublicFormat.Raw,
+    )
+    collision = json.loads(json.dumps(trust_manifest))
+    collision["keys"][0]["public_key"] = base64_urlsafe_encode(
+        collision_key
+    )
+    collision["keys"][0]["sha256_fingerprint"] = (
+        "sha256:" + hashlib.sha256(collision_key).hexdigest()
+    )
+    collision_path = tmp_path / "collision-trust.json"
+    collision_path.write_text(
+        json.dumps(collision),
+        encoding="utf-8",
+    )
+    assert (
+        main(["trust", "import", str(collision_path), "--json"])
+        == 2
+    )
+    assert "different public material" in capsys.readouterr().err
+
+    bad_fingerprint = json.loads(json.dumps(trust_manifest))
+    bad_fingerprint["keys"][0]["key_id"] = "bad-fingerprint-key"
+    bad_fingerprint["keys"][0]["sha256_fingerprint"] = (
+        "sha256:" + ("0" * 64)
+    )
+    bad_fingerprint_path = tmp_path / "bad-fingerprint-trust.json"
+    bad_fingerprint_path.write_text(
+        json.dumps(bad_fingerprint),
+        encoding="utf-8",
+    )
+    assert (
+        main(
+            [
+                "trust",
+                "import",
+                str(bad_fingerprint_path),
+                "--json",
+            ]
+        )
+        == 2
+    )
+    assert "fingerprint is invalid" in capsys.readouterr().err
+
+
+def test_private_pack_pin_merges_with_same_bundled_public_key(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    monkeypatch.setenv(
+        "UNLIMITED_SKILLS_HOME",
+        str(tmp_path / ".unlimited-skills"),
+    )
+    trust_path = tmp_path / "private-pack-pin.json"
+    trust_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "keys": [
+                    {
+                        "key_id": "registry-prod-2026-06-25",
+                        "algorithm": "ed25519",
+                        "public_key": (
+                            "qoKlymz97CLckL4zIdjI2BjYxYPvvaLY"
+                            "BKcV153BNE4"
+                        ),
+                        "sha256_fingerprint": (
+                            "sha256:"
+                            "3a515e23afa65d365857650796c459c1"
+                            "9500bac707ea1afd5d09ecc5f2a57d3e"
+                        ),
+                        "role": "private-team-pack-manifest",
+                        "status": "active",
+                        "scopes": ["private-team-pack"],
+                        "registry_origins": [
+                            "https://unlimited.ai4.sale"
+                        ],
+                        "not_after": "2027-06-25T00:00:00Z",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert main(["trust", "import", str(trust_path), "--json"]) == 0
+    capsys.readouterr()
+    record = next(
+        item
+        for item in trusted_manifest_key_records(
+            include_public=True
+        )
+        if item["key_id"] == "registry-prod-2026-06-25"
+    )
+
+    assert "catalog-updates" in record["scopes"]
+    assert "private-team-pack" in record["scopes"]
+    assert record["role"] == "private-team-pack-manifest"
+    assert record["not_after"] == "2027-06-25T00:00:00Z"
+    assert key_record_allows(
+        record,
+        scope="private-team-pack",
+        registry_url="https://unlimited.ai4.sale/v1/fleet",
+    )
+    assert key_record_allows(
+        record,
+        scope="catalog-updates",
+        registry_url="https://unlimited.ai4.sale/v1/catalog",
+    )

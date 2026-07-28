@@ -73,6 +73,7 @@ class FakeAdapter:
         self.last_nonce = ""
         self.installed_release_override = ""
         self.attested_adapter_override = ""
+        self.install_items: list[dict[str, Any]] = []
 
     def discover(self) -> RuntimeInventory:
         return RuntimeInventory(
@@ -82,6 +83,7 @@ class FakeAdapter:
         )
 
     def install_revision(self, item: Mapping[str, Any]) -> InstalledRevision:
+        self.install_items.append(dict(item))
         return InstalledRevision(
             pack_id=str(item["pack_id"]),
             release_id=self.installed_release_override or str(item["release_id"]),
@@ -261,6 +263,15 @@ def test_reconciler_emits_runtime_proof_but_never_verified_active(tmp_path: Path
     } == {"attempt_fixture_01"}
     assert adapter.activations == 1
     assert result.activation_pending is False
+    assert adapter.install_items[0]["agent_id"] == (
+        VALID_DESIRED["agent_id"]
+    )
+    assert adapter.install_items[0]["rollout_id"] == (
+        VALID_DESIRED["rollout_id"]
+    )
+    assert adapter.install_items[0]["desired_state_revision"] == (
+        VALID_DESIRED["desired_state_revision"]
+    )
     state = json.loads((tmp_path / "fleet-state.json").read_text(encoding="utf-8"))
     assert state["control_epoch"] == 7
 

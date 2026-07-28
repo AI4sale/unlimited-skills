@@ -56,7 +56,13 @@ class PackClient:
         digest = "sha256:" + hashlib.sha256(value).hexdigest()
         return private_pack_release_id(pack_id, version, digest)
 
-    def signed_manifest(self, pack_id: str) -> dict:
+    def signed_manifest(
+        self,
+        pack_id: str,
+        *,
+        request_context: dict | None = None,
+    ) -> dict:
+        del request_context
         version, value = self.packs[pack_id]
         digest = hashlib.sha256(value).hexdigest()
         return {
@@ -91,7 +97,9 @@ class PackClient:
         *,
         release_id: str,
         expected_sha256: str,
+        request_context: dict | None = None,
     ) -> bytes:
+        del request_context
         value = self.packs[pack_id][1]
         assert release_id == self.release_id(pack_id)
         assert expected_sha256 == (
