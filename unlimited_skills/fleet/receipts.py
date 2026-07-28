@@ -39,7 +39,17 @@ class ReceiptBuilder:
     archive_sha256: str
     client_version: str
     adapter_version: str
+    starting_event_seq: int = 0
     _sequence: int = field(default=0, init=False, repr=False)
+
+    def __post_init__(self) -> None:
+        if (
+            isinstance(self.starting_event_seq, bool)
+            or not isinstance(self.starting_event_seq, int)
+            or self.starting_event_seq < 0
+        ):
+            raise ReceiptError("invalid_starting_event_sequence")
+        self._sequence = self.starting_event_seq
 
     def build(
         self,

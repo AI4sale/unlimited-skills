@@ -10,7 +10,7 @@
 one place to discover, approve, deliver, update, and verify capabilities across
 Codex, Claude Code, OpenClaw, and other agent runtimes.
 
-**v0.6.9rc2 / pre-1.0.** The MIT local core runs offline today. Business and
+**v0.6.9rc3 / pre-1.0.** The MIT local core runs offline today. Business and
 Enterprise Fleet delivery is an implementation-complete preview that still
 requires an approved production pilot before it can be called production-ready.
 See [Enterprise & trust layer](#enterprise--trust-layer).

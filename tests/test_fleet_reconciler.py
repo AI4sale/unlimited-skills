@@ -276,6 +276,23 @@ def test_reconciler_emits_runtime_proof_but_never_verified_active(tmp_path: Path
     assert state["control_epoch"] == 7
 
 
+def test_reconciler_continues_sequence_after_receipts_are_acknowledged(
+    tmp_path: Path,
+) -> None:
+    adapter = FakeAdapter()
+    instance = reconciler(tmp_path, adapter)
+
+    first = instance.reconcile(VALID_DESIRED)
+    assert [item["event_seq"] for item in first.receipts] == list(range(1, 7))
+    assert instance.spool.acknowledge(
+        item["event_id"] for item in first.receipts
+    ) == 6
+
+    second = instance.reconcile(VALID_DESIRED)
+
+    assert [item["event_seq"] for item in second.receipts] == list(range(7, 13))
+
+
 def test_reconciler_rejects_lower_epoch_even_when_resigned(tmp_path: Path) -> None:
     adapter = FakeAdapter()
     instance = reconciler(tmp_path, adapter)
