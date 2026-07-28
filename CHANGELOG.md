@@ -4,8 +4,8 @@
 
 ### Added (0.6.9 - Fleet Contract Foundation)
 
-- Candidate package `0.6.9rc8` uses the immutable GitHub/pilot label
-  `v0.6.9-rc.8`; the final stable release label remains `v0.6.9`.
+- Candidate package `0.6.9rc9` uses the immutable GitHub/pilot label
+  `v0.6.9-rc.9`; the final stable release label remains `v0.6.9`.
 - Reframe the public README around Unlimited Skills as governed AI agent fleet
   skill infrastructure. The local router remains a documented runtime
   component, not the product category, and Business/Enterprise Fleet claims
@@ -41,6 +41,9 @@
 
 ### Fixed (0.6.9 - Fleet Contract Foundation)
 
+- Upgrade an exact legacy default-profile OpenClaw managed-root marker by
+  adding only the empty `openclaw_profile` binding. Named profiles and any
+  other marker mismatch remain fail-closed.
 - Make the generated Codex `SessionStart` hook use Codex's documented
   successful no-output contract. Runtime evidence is still recorded, while a
   successful startup no longer appears as `SessionStart Failed` because

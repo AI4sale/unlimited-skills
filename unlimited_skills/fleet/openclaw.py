@@ -24,6 +24,7 @@ from ..private_packs import PrivatePackClient
 from ..registration import RegistrationState
 from .adapter import ManagedFleetAdapterError
 from .managed_runtime import (
+    MANAGED_RUNTIME_ROOT_SCHEMA_VERSION,
     ManagedRuntimeFleetAdapter,
     ManagedRuntimeFleetAdapterError,
     record_managed_runtime_observation,
@@ -152,6 +153,58 @@ def _path_digest(path: Path) -> str:
     return "sha256:" + hashlib.sha256(
         str(path.resolve()).encode("utf-8")
     ).hexdigest()
+
+
+def _upgrade_legacy_default_profile_marker(
+    *,
+    managed_root: Path,
+    registration: RegistrationState,
+    agent_id: str,
+    workspace: Path,
+    openclaw_profile: str,
+) -> None:
+    """Add the empty profile binding to an exact pre-profile marker."""
+
+    if openclaw_profile:
+        return
+    marker_path = (
+        Path(managed_root).expanduser().resolve()
+        / "managed-root.json"
+    )
+    if not marker_path.is_file() or marker_path.is_symlink():
+        return
+    try:
+        existing = json.loads(marker_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return
+    legacy_binding = {
+        "agent_id": agent_id,
+        "workspace_sha256": _path_digest(workspace),
+    }
+    legacy_marker = {
+        "schema_version": MANAGED_RUNTIME_ROOT_SCHEMA_VERSION,
+        "adapter_id": OPENCLAW_ADAPTER_ID,
+        "adapter_version": OPENCLAW_ADAPTER_VERSION,
+        "installation_id": registration.install_id,
+        "runtime_vendor": "openclaw",
+        "runtime_binding": legacy_binding,
+    }
+    if existing != legacy_marker:
+        return
+    upgraded = dict(legacy_marker)
+    upgraded["runtime_binding"] = {
+        **legacy_binding,
+        "openclaw_profile": "",
+    }
+    _atomic_write_text(
+        marker_path,
+        json.dumps(
+            upgraded,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        ),
+    )
 
 
 def _atomic_write_text(
@@ -499,6 +552,13 @@ class OpenClawFleetAdapter(ManagedRuntimeFleetAdapter):
             "openclaw_profile": self.openclaw_profile,
             "workspace_sha256": _path_digest(self.workspace),
         }
+        _upgrade_legacy_default_profile_marker(
+            managed_root=managed_root,
+            registration=registration,
+            agent_id=self.agent_id,
+            workspace=self.workspace,
+            openclaw_profile=self.openclaw_profile,
+        )
         super().__init__(
             registration=registration,
             managed_root=managed_root,

@@ -28,15 +28,15 @@ def test_v069rc7_versions_and_v068_history_are_aligned() -> None:
     pypi_readme = (ROOT / "README-pypi.md").read_text(encoding="utf-8")
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     plan = (ROOT / "docs" / "releases" / "v0.6.8-plan.md").read_text(encoding="utf-8")
-    assert 'version = "0.6.9rc8"' in pyproject
-    assert '__version__ = "0.6.9rc8"' in runtime
-    assert plugin["version"] == "0.6.9rc8"
-    assert marketplace["plugins"][0]["version"] == "0.6.9rc8"
-    assert "**v0.6.9rc8 / pre-1.0.**" in readme
-    assert "This is `v0.6.9rc8`" in pypi_readme
-    assert "unlimited-skills==0.6.9rc8" in pypi_readme
+    assert 'version = "0.6.9rc9"' in pyproject
+    assert '__version__ = "0.6.9rc9"' in runtime
+    assert plugin["version"] == "0.6.9rc9"
+    assert marketplace["plugins"][0]["version"] == "0.6.9rc9"
+    assert "**v0.6.9rc9 / pre-1.0.**" in readme
+    assert "This is `v0.6.9rc9`" in pypi_readme
+    assert "unlimited-skills==0.6.9rc9" in pypi_readme
     assert "### Added (0.6.9 - Fleet Contract Foundation)" in changelog
-    assert "`v0.6.9-rc.8`" in changelog
+    assert "`v0.6.9-rc.9`" in changelog
     assert "public core never names or depends on a private knowledge system" in plan
     assert "reference data, not instructions" in plan
     assert "the Stop hook never submits prose" in plan

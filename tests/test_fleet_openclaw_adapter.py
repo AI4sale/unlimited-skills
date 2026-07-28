@@ -493,6 +493,41 @@ def test_openclaw_profile_is_bound_and_validated(
         )
 
 
+def test_openclaw_default_profile_upgrades_legacy_binding(
+    tmp_path: Path,
+) -> None:
+    client = PackClient(
+        {"pack_a": ("1.0.0", pack_archive("skill-a", "# A\n"))}
+    )
+    instance = adapter(tmp_path, client, agent_id="main")
+    marker_path = instance.managed_root / "managed-root.json"
+    marker = json.loads(marker_path.read_text(encoding="utf-8"))
+    del marker["runtime_binding"]["openclaw_profile"]
+    marker_path.write_text(
+        json.dumps(marker, sort_keys=True, separators=(",", ":")),
+        encoding="utf-8",
+    )
+
+    upgraded = OpenClawFleetAdapter(
+        registration=registered_state(),
+        managed_root=instance.managed_root,
+        workspace=instance.workspace,
+        agent_id="main",
+        openclaw_home=instance.openclaw_home,
+        pack_client=client,
+        python_executable=Path("/verified/python"),
+    )
+    upgraded_marker = json.loads(
+        marker_path.read_text(encoding="utf-8")
+    )
+
+    assert upgraded.openclaw_profile == ""
+    assert (
+        upgraded_marker["runtime_binding"]["openclaw_profile"]
+        == ""
+    )
+
+
 def test_openclaw_provision_verifies_configured_agent_and_enables_hook(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
