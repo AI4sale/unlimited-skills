@@ -11,6 +11,7 @@ import pytest
 
 from unlimited_skills.cli import build_parser
 from unlimited_skills.commands import fleet as fleet_commands
+from unlimited_skills.fleet import managed_runtime
 from unlimited_skills.fleet.claude_code import private_pack_release_id
 from unlimited_skills.fleet.codex import (
     CODEX_ADAPTER_VERSION,
@@ -159,6 +160,37 @@ def runtime_environment(instance: CodexFleetAdapter) -> dict[str, str]:
             instance.managed_root
         ),
     }
+
+
+def test_codex_install_uses_windows_safe_short_staging_prefix(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    client = PackClient({"pack": ("1.0.0", archive("codex"))})
+    instance = adapter(tmp_path, client)
+    prefixes: list[str] = []
+    original = managed_runtime.tempfile.mkdtemp
+
+    def capture_mkdtemp(*args: object, **kwargs: object) -> str:
+        prefix = (
+            str(kwargs["prefix"])
+            if "prefix" in kwargs
+            else str(args[1] if len(args) > 1 else "")
+        )
+        prefixes.append(prefix)
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(
+        managed_runtime.tempfile,
+        "mkdtemp",
+        capture_mkdtemp,
+    )
+
+    installed = instance.install_revision(item(client, "pack", "nonce"))
+
+    assert installed.install_committed is True
+    assert prefixes[0] == managed_runtime.INSTALL_STAGING_PREFIX
+    assert len(managed_runtime.INSTALL_STAGING_PREFIX) <= 3
 
 
 def test_codex_bundle_requires_real_session_start_attestation(

@@ -57,6 +57,7 @@ MANAGED_RUNTIME_ROOT_SCHEMA_VERSION = 1
 MANAGED_RUNTIME_ACTIVE_SCHEMA_VERSION = 1
 MANAGED_RUNTIME_MARKER_SCHEMA_VERSION = 1
 MAX_MANAGED_PACKS = MAX_ITEMS
+INSTALL_STAGING_PREFIX = ".s-"
 
 
 class ManagedRuntimeFleetAdapterError(ManagedFleetAdapterError):
@@ -595,7 +596,11 @@ class ManagedRuntimeFleetAdapter:
         final_root.parent.mkdir(parents=True, exist_ok=True)
         staging_root = Path(
             tempfile.mkdtemp(
-                prefix=".release-staging-",
+                # Keep this deliberately short.  The staging directory lives
+                # below two opaque release segments; a verbose prefix can push
+                # otherwise valid pack members beyond the legacy Windows
+                # MAX_PATH boundary before the immutable release is committed.
+                prefix=INSTALL_STAGING_PREFIX,
                 dir=final_root.parent,
             )
         )

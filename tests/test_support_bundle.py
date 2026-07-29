@@ -5,11 +5,26 @@ import zipfile
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from unlimited_skills.billing_status import save_billing_status
 from unlimited_skills.cli import main
 from unlimited_skills.private_packs import write_private_pack_metadata
 from unlimited_skills.registration import RegistrationState, save_registration, with_install_identity
 from unlimited_skills.support_bundle import assert_support_bundle_safe, build_bundle_report, build_support_diagnostics
+
+
+def test_support_bundle_secret_pattern_is_precise() -> None:
+    assert_support_bundle_safe(
+        {"status": "risk-aware task-state"}
+    )
+    with pytest.raises(
+        RuntimeError,
+        match="forbidden secret pattern",
+    ):
+        assert_support_bundle_safe(
+            {"status": "sk-" + ("a" * 24)}
+        )
 
 
 def registered_state() -> RegistrationState:

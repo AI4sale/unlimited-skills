@@ -23,6 +23,17 @@ from unlimited_skills.signatures import sign_manifest_for_tests
 from unlimited_skills.updates import UpdateError, sha256_file
 
 
+@pytest.fixture(autouse=True)
+def allow_test_skill_security_gate(monkeypatch):
+    monkeypatch.setattr(
+        "unlimited_skills.community.assert_skill_source_safe",
+        lambda source: {
+            "recommendation": "SAFE",
+            "skill_count": 1,
+        },
+    )
+
+
 class FakeResponse:
     def __init__(self, data: bytes) -> None:
         self._stream = io.BytesIO(data)

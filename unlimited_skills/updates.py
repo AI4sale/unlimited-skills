@@ -17,8 +17,13 @@ from typing import Any
 from urllib.parse import quote
 
 from . import __version__
+from .installers.common import should_ignore_path
 from .registration import RegistrationError, RegistrationState, is_secure_or_local_url, post_json, unlimited_skills_home
 from .signatures import ManifestSignatureError, verify_manifest_signature
+from .security_gate import (
+    SkillSecurityGateError,
+    assert_skill_source_safe,
+)
 
 COLLECTIONS_MANIFEST = ".unlimited-skills-collections.json"
 COLLECTION_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
@@ -182,7 +187,12 @@ def current_collection_state(root: Path) -> dict[str, dict[str, str]]:
     registry_root = root / "registry"
     registry_children = sorted(item for item in registry_root.iterdir() if item.is_dir() and not item.name.startswith(".")) if registry_root.is_dir() else []
     for child in registry_children:
-        count = sum(1 for _ in (child / "skills").rglob("SKILL.md"))
+        skills_root = child / "skills"
+        count = sum(
+            1
+            for path in skills_root.rglob("SKILL.md")
+            if not should_ignore_path(path.relative_to(skills_root))
+        )
         metadata = known.get(child.name, {}) if isinstance(known, dict) else {}
         state[child.name] = {
             "version": str(metadata.get("version") or "local"),
@@ -191,7 +201,11 @@ def current_collection_state(root: Path) -> dict[str, dict[str, str]]:
         }
     local_root = root / "local"
     if local_root.is_dir():
-        count = sum(1 for path in local_root.rglob("SKILL.md") if "duplicates" not in path.relative_to(local_root).parts)
+        count = sum(
+            1
+            for path in local_root.rglob("SKILL.md")
+            if not should_ignore_path(path.relative_to(local_root))
+        )
         metadata = known.get("local", {}) if isinstance(known, dict) else {}
         state["local"] = {
             "version": str(metadata.get("version") or "local"),
@@ -202,7 +216,12 @@ def current_collection_state(root: Path) -> dict[str, dict[str, str]]:
     for child in sorted(item for item in root.iterdir() if item.is_dir() and not item.name.startswith(".") and item.name not in {"registry", "local", "manifests"}):
         if child.name in state:
             continue
-        count = sum(1 for _ in (child / "skills").rglob("SKILL.md"))
+        skills_root = child / "skills"
+        count = sum(
+            1
+            for path in skills_root.rglob("SKILL.md")
+            if not should_ignore_path(path.relative_to(skills_root))
+        )
         metadata = known.get(child.name, {}) if isinstance(known, dict) else {}
         state[child.name] = {
             "version": str(metadata.get("version") or "local"),
@@ -476,6 +495,12 @@ class UpdateClient:
             extracted = tmp_path / "extracted"
             safe_extract_zip(archive, extracted)
             source = resolve_collection_source(extracted, update.collection)
+            try:
+                assert_skill_source_safe(source)
+            except SkillSecurityGateError as exc:
+                raise UpdateError(
+                    f"Collection security gate blocked update: {exc}"
+                ) from exc
             install_collection(root, update, source)
             return {"collection": update.collection, "version": update.version, "sha256": actual_sha}
 

@@ -21,10 +21,15 @@ IGNORED_DIR_NAMES = {
     "__pycache__",
     "node_modules",
 }
+IGNORED_DIR_GLOBS = (".skills-backup-*",)
 
 
 def should_ignore_path(path: Path) -> bool:
-    return any(part in IGNORED_DIR_NAMES for part in path.parts)
+    return any(
+        part in IGNORED_DIR_NAMES
+        or part.startswith(".skills-backup-")
+        for part in path.parts
+    )
 
 
 def iter_skill_dirs(root: Path, exclude_names: Iterable[str] = ()) -> list[Path]:
@@ -79,7 +84,10 @@ def copy_skill_tree(source: Path, destination: Path) -> None:
     shutil.copytree(
         source,
         destination,
-        ignore=shutil.ignore_patterns(*IGNORED_DIR_NAMES),
+        ignore=shutil.ignore_patterns(
+            *IGNORED_DIR_NAMES,
+            *IGNORED_DIR_GLOBS,
+        ),
     )
 
 
@@ -129,7 +137,7 @@ def existing_skill_names(library_root: Path, exclude_target: Path | None = None)
                 resolved = path
             if resolved == exclude_target_resolved or exclude_target_resolved in resolved.parents:
                 continue
-        if "duplicates" in path.relative_to(library_root).parts:
+        if should_ignore_path(path.relative_to(library_root)):
             continue
         names.add(path.parent.name)
     return names

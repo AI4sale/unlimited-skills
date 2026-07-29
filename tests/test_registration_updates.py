@@ -191,7 +191,10 @@ class RegistrationUpdatesTest(unittest.TestCase):
 
             state = registered_state()
             client = UpdateClient(state)
-            with patch.dict(os.environ, env, clear=False), patch("urllib.request.urlopen", fake_urlopen):
+            with patch.dict(os.environ, env, clear=False), patch("urllib.request.urlopen", fake_urlopen), patch(
+                "unlimited_skills.updates.assert_skill_source_safe",
+                return_value={"recommendation": "SAFE"},
+            ):
                 updates = client.check(root)
                 result = client.apply(root, updates[0])
 
@@ -358,7 +361,10 @@ class RegistrationUpdatesTest(unittest.TestCase):
                     return FakeResponse(archive.read_bytes())
                 raise AssertionError(f"Unexpected URL: {url}")
 
-            with patch.dict(os.environ, env, clear=False), patch("urllib.request.urlopen", fake_urlopen):
+            with patch.dict(os.environ, env, clear=False), patch("urllib.request.urlopen", fake_urlopen), patch(
+                "unlimited_skills.updates.assert_skill_source_safe",
+                return_value={"recommendation": "SAFE"},
+            ):
                 client = UpdateClient(registered_state())
                 client.apply(root, client.check(root)[0])
 

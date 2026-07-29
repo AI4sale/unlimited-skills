@@ -24,6 +24,11 @@ from unlimited_skills.adapters import (
 )
 from unlimited_skills.doctor import build_doctor_report, doctor_json, format_doctor_text
 from unlimited_skills.native import DEFAULT_AGENT_ORDER, sync_native_sources
+from unlimited_skills.security_gate import (
+    SkillSecurityGateError,
+    assert_skill_source_safe,
+    scan_skill_source,
+)
 from unlimited_skills.setup_wizard import build_setup_report, format_setup_text
 from unlimited_skills.support_bundle import build_bundle_report, format_bundle_text
 
@@ -481,6 +486,58 @@ def cmd_install_pack(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_security_scan(args: argparse.Namespace) -> int:
+    source = Path(args.path).expanduser()
+    try:
+        result = scan_skill_source(source)
+    except SkillSecurityGateError as exc:
+        if args.json:
+            print(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "verified": False,
+                        "error": str(exc),
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                    sort_keys=True,
+                )
+            )
+        else:
+            print(f"Security scan failed: {exc}", file=sys.stderr)
+        return 1
+    result["verified"] = result["recommendation"] == "SAFE"
+    if args.json:
+        print(
+            json.dumps(
+                result,
+                ensure_ascii=False,
+                indent=2,
+                sort_keys=True,
+            )
+        )
+    else:
+        print(
+            "NVIDIA SkillSpector "
+            f"{result['scanner_version']}: "
+            f"{result['recommendation']} "
+            f"({result['max_risk_score']}/100)"
+        )
+        print(
+            f"Skills: {result['skill_count']} · "
+            f"findings: {result['finding_count']} · "
+            "static coverage: complete"
+        )
+        for item in result["blocked_skills"]:
+            print(
+                f"- {item['skill']}: "
+                f"{item['recommendation']} "
+                f"{item['score']}/100"
+            )
+    return 0 if result["verified"] else 2
+
+
 def cmd_sync_native(args: argparse.Namespace) -> int:
     root = Path(args.root).expanduser()
     agents = args.agent or list(DEFAULT_AGENT_ORDER)
@@ -535,6 +592,11 @@ def cmd_import_dir(args: argparse.Namespace) -> int:
     source = Path(args.path).expanduser()
     if not source.is_dir():
         print(f"Source directory not found: {source}", file=sys.stderr)
+        return 1
+    try:
+        assert_skill_source_safe(source)
+    except SkillSecurityGateError as exc:
+        print(f"Import blocked: {exc}", file=sys.stderr)
         return 1
     report = import_skill_dirs(source, root, args.collection, dry_run=args.dry_run)
     if not args.dry_run and not args.skip_reindex and report.imported:

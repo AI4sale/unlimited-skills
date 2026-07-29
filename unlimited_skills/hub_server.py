@@ -18,6 +18,7 @@ from .cli import DEFAULT_ROOT, read_text, split_frontmatter
 from .hub import HUB_FEATURE_FLAGS, HUB_DEFAULT_PORT, load_hub_config, verify_hub_token
 from .hub_entitlements import entitlement_summary
 from .hub_allowlist import cached_allowlist_path, hub_clients_path, hub_logs_dir, validate_allowlist
+from .installers.common import should_ignore_path
 from .registration import redact_sensitive_text, unlimited_skills_home, write_private_json
 
 
@@ -469,8 +470,8 @@ def load_local_skill_index(root: Path) -> dict[str, dict[str, str]]:
     if not root.exists():
         return records
     for skill_md in root.rglob("SKILL.md"):
-        rel_parts = skill_md.relative_to(root).parts
-        if "duplicates" in rel_parts:
+        rel = skill_md.relative_to(root)
+        if should_ignore_path(rel):
             continue
         try:
             text = read_text(skill_md)
