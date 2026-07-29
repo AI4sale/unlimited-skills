@@ -326,6 +326,9 @@ def test_receipt_spool_is_atomic_idempotent_and_acknowledgeable(tmp_path: Path) 
     assert spool.pending() == []
     assert spool.last_event_sequence(receipt["attempt_id"]) == receipt["event_seq"]
     assert spool.last_event_type(receipt["attempt_id"]) == "RUNTIME_ATTESTED"
+    assert spool.last_runtime_generation(receipt["attempt_id"]) == (
+        receipt["runtime_generation"]
+    )
 
 
 def test_receipt_spool_reads_last_event_type_from_v1_pending_receipt(
@@ -386,6 +389,43 @@ def test_receipt_spool_migrates_multiple_v1_attempts_incrementally(
     assert spool.last_event_type(second["attempt_id"]) == (
         "RUNTIME_ATTESTED"
     )
+
+
+def test_receipt_spool_enriches_v2_state_with_runtime_generation(
+    tmp_path: Path,
+) -> None:
+    receipt = read_fixture("valid", "receipt-runtime-attested.json")
+    spool = ReceiptSpool(tmp_path / "spool")
+    spool.append(receipt)
+    (spool.root / "sequence-state.json").write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "attempts": {
+                    receipt["attempt_id"]: {
+                        "event_seq": receipt["event_seq"],
+                        "event_type": receipt["event_type"],
+                    },
+                },
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    assert spool.last_runtime_generation(receipt["attempt_id"]) == (
+        receipt["runtime_generation"]
+    )
+    assert spool.acknowledge([receipt["event_id"]]) == 1
+    assert spool.last_runtime_generation(receipt["attempt_id"]) == (
+        receipt["runtime_generation"]
+    )
+    migrated = json.loads(
+        (spool.root / "sequence-state.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    assert migrated["schema_version"] == 3
 
 
 def test_receipt_spool_rejects_same_event_id_with_different_body(tmp_path: Path) -> None:

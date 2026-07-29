@@ -229,13 +229,6 @@ class FleetReconciler:
             str(item["pack_id"]): str(item["activation_nonce"])
             for item in items
         }
-        already_attested = {
-            str(item["pack_id"]): (
-                self.spool.last_event_type(str(item["attempt_id"]))
-                == "RUNTIME_ATTESTED"
-            )
-            for item in items
-        }
         try:
             attestation = adapter.attest_inventory(
                 items,
@@ -254,7 +247,13 @@ class FleetReconciler:
             )
             for item in items:
                 pack_id = str(item["pack_id"])
-                if already_attested[pack_id]:
+                attempt_id = str(item["attempt_id"])
+                if (
+                    self.spool.last_event_type(attempt_id)
+                    == "RUNTIME_ATTESTED"
+                    and self.spool.last_runtime_generation(attempt_id)
+                    == attestation.runtime_generation
+                ):
                     continue
                 self._spool_receipt(
                     receipts,

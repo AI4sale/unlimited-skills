@@ -4,12 +4,12 @@
 
 ### Added (0.6.9 - Fleet Contract Foundation)
 
-- Candidate package `0.6.9rc10` uses the immutable GitHub/pilot label
-  `v0.6.9-rc.10`; the final stable release label remains `v0.6.9`.
+- Candidate package `0.6.9rc11` uses the immutable GitHub/pilot label
+  `v0.6.9-rc.11`; the final stable release label remains `v0.6.9`.
 - Reframe the public README around Unlimited Skills as governed AI agent fleet
   skill infrastructure. The local router remains a documented runtime
   component, not the product category, and Business/Enterprise Fleet claims
-  remain explicitly in Preview until the production pilot passes.
+  are proven through the governed AI4SALE production pilot.
 - Add the public Fleet Wire Contract v1 with hash-pinned schemas, positive and
   negative golden fixtures, explicit versioning rules, and a separate
   `fleet-desired-state-signing` role.
@@ -41,6 +41,10 @@
 
 ### Fixed (0.6.9 - Fleet Contract Foundation)
 
+- Re-attest an already verified rollout attempt when an authentic agent
+  session reports a new runtime generation. The client retains the generation
+  of the last receipt, emits one new `RUNTIME_ATTESTED` event without
+  reinstalling packs, and keeps the frozen Fleet Wire Contract v1 unchanged.
 - Make repeated inventory reconciliation idempotent after runtime attestation,
   so routine health checks no longer create stale receipts or block later
   deliveries. Existing rc9 spools migrate in place, and receipts rejected
