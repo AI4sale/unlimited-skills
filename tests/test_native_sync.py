@@ -134,3 +134,39 @@ def test_sync_native_sources_repeats_and_updates_read_only_skills(
     assert not mirrored.stat().st_mode & stat.S_IWRITE
     source_file.chmod(stat.S_IWRITE | stat.S_IREAD)
     mirrored.chmod(stat.S_IWRITE | stat.S_IREAD)
+
+
+def test_sync_native_sources_ignore_managed_backup_trees(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv("HERMES_HOME", str(tmp_path / ".hermes"))
+    skills_root = tmp_path / ".hermes" / "skills"
+    write_skill(skills_root, "active-skill", "active")
+    backup = write_skill(
+        skills_root / ".skills-backup-deadbeef",
+        "backup-skill",
+        "backup",
+    )
+    backup_file = backup / "SKILL.md"
+    backup_file.chmod(stat.S_IREAD)
+    root = tmp_path / ".unlimited-skills" / "library"
+
+    first = sync_native_sources(root, agents=["hermes"])
+    second = sync_native_sources(root, agents=["hermes"])
+
+    assert first[0].imported_count == 1
+    assert second[0].imported_count == 1
+    assert (
+        root
+        / "local"
+        / "hermes"
+        / "skills"
+        / "active-skill"
+        / "SKILL.md"
+    ).is_file()
+    assert not any(
+        ".skills-backup-" in str(path)
+        for path in root.rglob("SKILL.md")
+    )
+    backup_file.chmod(stat.S_IWRITE | stat.S_IREAD)

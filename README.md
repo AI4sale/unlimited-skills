@@ -10,9 +10,10 @@
 one place to discover, approve, deliver, update, and verify capabilities across
 Codex, Claude Code, OpenClaw, and other agent runtimes.
 
-**v0.6.9rc11 / pre-1.0.** The MIT local core runs offline today. Business and
+**v0.6.9rc12 / pre-1.0.** The MIT local core runs offline today. Business and
 Enterprise Fleet delivery is operating in the AI4SALE production pilot with
-server-verified delivery truth, runtime freshness, and an operator dashboard.
+server-verified delivery truth, runtime freshness, an operator dashboard, and
+mandatory NVIDIA SkillSpector review before new skills are signed or installed.
 See [Enterprise & trust layer](#enterprise--trust-layer).
 
 [Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
@@ -711,6 +712,7 @@ Map of the trust stack:
 | Audit inspector, replay, incident drills | [docs/mcp-audit-inspector.md](docs/mcp-audit-inspector.md), [docs/mcp-audit-replay.md](docs/mcp-audit-replay.md), [docs/mcp-incident-runbook.md](docs/mcp-incident-runbook.md) |
 | Profile rollout simulator and policy doctor | [docs/mcp-profile-rollout.md](docs/mcp-profile-rollout.md) |
 | Enterprise Skill Lock policy | [docs/enterprise-skill-lock.md](docs/enterprise-skill-lock.md), [docs/managed-enterprise-policy-sync.md](docs/managed-enterprise-policy-sync.md) |
+| Mandatory pre-install SkillSpector gate | [docs/security-gated-installation.md](docs/security-gated-installation.md) |
 | Product editions | [docs/product-editions.md](docs/product-editions.md) |
 | Registration, licensing, and privacy boundary | [docs/registration-and-licensing.md](docs/registration-and-licensing.md), [docs/privacy-and-telemetry.md](docs/privacy-and-telemetry.md), [docs/public-core-boundary.md](docs/public-core-boundary.md) |
 | Hosted catalog and registry contract | [docs/hosted-registry-api.md](docs/hosted-registry-api.md), [docs/hosted-catalog-model.md](docs/hosted-catalog-model.md), [docs/catalog-browser.md](docs/catalog-browser.md) |
@@ -910,7 +912,7 @@ unlimited-skills team sync --yes
 unlimited-skills team leave --yes
 ```
 
-Private team packs: registered installations can list, preview, install, sync, and remove team-scoped private packs. Installs verify signed `private-team-pack` manifests, use proofed POST downloads, check SHA256, safely extract zip archives, and write only under `registry/private/<pack_id>`. See [docs/private-team-packs.md](docs/private-team-packs.md).
+Private team packs: registered installations can list, preview, install, sync, and remove team-scoped private packs. New manifests require a signed NVIDIA SkillSpector attestation before download; installs then verify the manifest, proofed POST download, archive SHA256, safe extraction, and the private-pack destination under `registry/private/<pack_id>`. Local imports, GitHub imports, hosted updates, and community installs are also scanned before their first write. See [docs/private-team-packs.md](docs/private-team-packs.md) and [docs/security-gated-installation.md](docs/security-gated-installation.md).
 
 ```bash
 unlimited-skills private-packs list

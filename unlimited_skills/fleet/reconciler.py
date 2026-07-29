@@ -225,6 +225,27 @@ class FleetReconciler:
         if not isinstance(adapter, InventoryAgentAdapter):
             raise ReconcileError("adapter_inventory_activation_required")
         receipts: list[dict[str, Any]] = []
+        # A failed attempt is terminal in Fleet Wire, including
+        # FAILED_RETRYABLE: the server must issue a fresh attempt before the
+        # client can retry.  Do not turn a partial install failure into
+        # repeated, invalid runtime-attestation receipts on every heartbeat.
+        # This also keeps the original atomic receipt batch uploadable.
+        failure_events = {
+            "FAILED_RETRYABLE",
+            "FAILED_TERMINAL",
+            "REJECTED",
+        }
+        if any(
+            self.spool.last_event_type(str(item["attempt_id"]))
+            in failure_events
+            for item in items
+        ):
+            return self._result(
+                desired,
+                receipts,
+                activation_pending=True,
+                already_seen=True,
+            )
         activation_nonces = {
             str(item["pack_id"]): str(item["activation_nonce"])
             for item in items
@@ -497,9 +518,13 @@ class FleetReconciler:
                 self._spool_receipt(
                     receipts,
                     builders[pack_id],
-                    "ACTIVATION_PENDING",
+                    # Inventory activation is atomic.  A revision that was
+                    # installed successfully is still not active when a peer
+                    # pack fails installation, so close this server attempt as
+                    # retryable instead of emitting an invalid
+                    # ACTIVATION_PENDING receipt.
+                    "FAILED_RETRYABLE",
                     reason_code="install_failed",
-                    activation_nonce=str(item["activation_nonce"]),
                 )
             return self._result(
                 desired,

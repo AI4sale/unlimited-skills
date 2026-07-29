@@ -4,8 +4,16 @@
 
 ### Added (0.6.9 - Fleet Contract Foundation)
 
-- Candidate package `0.6.9rc11` uses the immutable GitHub/pilot label
-  `v0.6.9-rc.11`; the final stable release label remains `v0.6.9`.
+- Candidate package `0.6.9rc12` uses the immutable GitHub/pilot label
+  `v0.6.9-rc.12`; the final stable release label remains `v0.6.9`.
+- Make NVIDIA SkillSpector the mandatory pre-install gate for local imports,
+  known upstream packs, registered community installs, hosted collection
+  updates, and newly published Business/Enterprise private packs.
+- Verify SHA-bound signed security attestations before downloading managed
+  private packs. `CAUTION` requires an auditable review and
+  `DO_NOT_INSTALL` remains blocked without explicit risk acceptance.
+- Add `unlimited-skills security scan`, fleet-visible security-gate status,
+  and a default managed `skillspector-security-scan` policy skill.
 - Reframe the public README around Unlimited Skills as governed AI agent fleet
   skill infrastructure. The local router remains a documented runtime
   component, not the product category, and Business/Enterprise Fleet claims

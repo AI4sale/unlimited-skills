@@ -965,6 +965,29 @@ def build_parser() -> argparse.ArgumentParser:
     install_pack_parser.add_argument("--keep-clone", default="", help="Optional path where the upstream clone should be kept.")
     install_pack_parser.add_argument("--limit", type=int, default=20, help="Maximum imported items to include in JSON output.")
     install_pack_parser.set_defaults(func=library_cmds.cmd_install_pack)
+    security_parser = sub.add_parser(
+        "security",
+        help=(
+            "Run the mandatory NVIDIA SkillSpector pre-install "
+            "security gate."
+        ),
+    )
+    security_sub = security_parser.add_subparsers(
+        dest="security_command",
+        required=True,
+    )
+    security_scan = security_sub.add_parser(
+        "scan",
+        help=(
+            "Statically scan one skill or collection without "
+            "installing it."
+        ),
+    )
+    security_scan.add_argument("path")
+    security_scan.add_argument("--json", action="store_true")
+    security_scan.set_defaults(
+        func=library_cmds.cmd_security_scan
+    )
 
     sync_native = sub.add_parser("sync-native", help="Mirror native agent skill roots into the Unlimited Skills library.")
     sync_native.add_argument("--agent", action="append", choices=list(DEFAULT_AGENT_ORDER), help="Agent to sync. Repeat for multiple agents. Defaults to all.")

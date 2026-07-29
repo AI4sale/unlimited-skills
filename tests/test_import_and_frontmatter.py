@@ -95,10 +95,18 @@ def test_import_dir_dry_run_writes_nothing(tmp_path: Path) -> None:
     assert not (library / "local" / "vendor").exists()
 
 
-def test_cli_import_dir_command(tmp_path: Path, capsys) -> None:
+def test_cli_import_dir_command(
+    tmp_path: Path,
+    capsys,
+    monkeypatch,
+) -> None:
     source = tmp_path / "src"
     write_skill(source, "alpha")
     library = tmp_path / "library"
+    monkeypatch.setattr(
+        "unlimited_skills.commands.library.assert_skill_source_safe",
+        lambda path: {"recommendation": "SAFE"},
+    )
 
     exit_code = main(["--root", str(library), "import-dir", str(source), "--collection", "vendor", "--json"])
 

@@ -597,10 +597,30 @@ def test_partial_bundle_install_failure_never_activates_and_receipts_validate(
     )
     assert any(
         row["attempt_id"] == "attempt_fixture_pack_a"
-        and row["event_type"] == "ACTIVATION_PENDING"
+        and row["event_type"] == "FAILED_RETRYABLE"
         and row["reason_code"] == "install_failed"
         for row in result.receipts
     )
+
+
+def test_partial_bundle_failure_waits_for_fresh_server_attempt(
+    tmp_path: Path,
+) -> None:
+    adapter = PartialFailureBundleAdapter()
+    instance = reconciler(tmp_path, adapter)
+    desired = two_pack_desired_state()
+
+    first = instance.reconcile(desired)
+    repeated = instance.reconcile(desired)
+
+    assert first.activation_pending is True
+    assert repeated.activation_pending is True
+    assert repeated.receipts == ()
+    assert "attest-inventory" not in adapter.call_log
+    assert {
+        instance.spool.last_event_type(str(item["attempt_id"]))
+        for item in desired["items"]
+    } == {"FAILED_RETRYABLE", "FAILED_TERMINAL"}
 
 
 def test_terminal_adapter_policy_failure_is_not_reported_retryable(

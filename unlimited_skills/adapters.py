@@ -11,6 +11,8 @@ from dataclasses import asdict, dataclass
 from pathlib import Path
 
 from .frontmatter import split_frontmatter as _shared_split_frontmatter
+from .installers.common import IGNORED_DIR_GLOBS, should_ignore_path
+from .security_gate import assert_skill_source_safe
 
 
 ADAPTER_VERSION = "odysseus-action-schema-v1"
@@ -468,7 +470,7 @@ def apply_agent_adaptation(
 def next_skill_for_agent(root: Path, collection: str | None = None) -> Path | None:
     for skill_file in sorted(root.rglob(SKILL_FILE), key=lambda item: str(item).lower()):
         rel_parts = skill_file.relative_to(root).parts
-        if any(part in IGNORED_PARTS for part in rel_parts):
+        if should_ignore_path(Path(*rel_parts)):
             continue
         if collection and library_collection_for(root, skill_file) != collection:
             continue
@@ -482,7 +484,7 @@ def adapt_library(root: Path, collection: str | None = None, source_pack: str = 
     results = []
     for skill_file in root.rglob(SKILL_FILE):
         rel_parts = skill_file.relative_to(root).parts
-        if any(part in IGNORED_PARTS for part in rel_parts):
+        if should_ignore_path(Path(*rel_parts)):
             continue
         if collection and library_collection_for(root, skill_file) != collection:
             continue
@@ -506,7 +508,7 @@ def copy_skill_dirs(source_root: Path, target_root: Path, collection: str, sourc
     candidates = sorted(source_root.rglob(SKILL_FILE), key=lambda item: (len(item.parts), str(item).lower()))
     seen_names = set()
     for skill_file in candidates:
-        if any(part in IGNORED_PARTS for part in skill_file.parts):
+        if should_ignore_path(skill_file):
             continue
         skill_dir = skill_file.parent
         name = slugify(skill_dir.name)
@@ -516,7 +518,11 @@ def copy_skill_dirs(source_root: Path, target_root: Path, collection: str, sourc
         destination = target_skills / name
         if destination.exists():
             shutil.rmtree(destination)
-        shutil.copytree(skill_dir, destination, ignore=shutil.ignore_patterns(*IGNORED_PARTS))
+        shutil.copytree(
+            skill_dir,
+            destination,
+            ignore=shutil.ignore_patterns(*IGNORED_PARTS, *IGNORED_DIR_GLOBS),
+        )
         copied.append(
             adapt_skill_file(
                 destination / SKILL_FILE,
@@ -576,7 +582,7 @@ def _library_source_shas(root: Path, exclude_collection_root: Path | None = None
     exclude_resolved = exclude_collection_root.resolve() if exclude_collection_root else None
     for skill_file in root.rglob(SKILL_FILE):
         rel_parts = skill_file.relative_to(root).parts
-        if any(part in IGNORED_PARTS for part in rel_parts) or "duplicates" in rel_parts:
+        if should_ignore_path(Path(*rel_parts)):
             continue
         if exclude_resolved is not None:
             try:
@@ -620,7 +626,7 @@ def import_skill_dirs(
     candidates = sorted(source_root.rglob(SKILL_FILE), key=lambda item: (len(item.parts), str(item).lower()))
     seen_names: set[str] = set()
     for skill_file in candidates:
-        if any(part in IGNORED_PARTS for part in skill_file.parts):
+        if should_ignore_path(skill_file):
             continue
         skill_dir = skill_file.parent
         name = slugify(skill_dir.name)
@@ -647,7 +653,11 @@ def import_skill_dirs(
                 destination = target_duplicates / name
                 if destination.exists():
                     shutil.rmtree(destination)
-                shutil.copytree(skill_dir, destination, ignore=shutil.ignore_patterns(*IGNORED_PARTS))
+                shutil.copytree(
+                    skill_dir,
+                    destination,
+                    ignore=shutil.ignore_patterns(*IGNORED_PARTS, *IGNORED_DIR_GLOBS),
+                )
             continue
 
         imported.append(name)
@@ -656,7 +666,11 @@ def import_skill_dirs(
             destination = target_skills / name
             if destination.exists():
                 shutil.rmtree(destination)
-            shutil.copytree(skill_dir, destination, ignore=shutil.ignore_patterns(*IGNORED_PARTS))
+            shutil.copytree(
+                skill_dir,
+                destination,
+                ignore=shutil.ignore_patterns(*IGNORED_PARTS, *IGNORED_DIR_GLOBS),
+            )
             adapt_skill_file(
                 destination / SKILL_FILE,
                 source_pack=source_pack or collection,
@@ -714,6 +728,7 @@ def import_github_repo(
         source_root = clone_dir / safe_subdir if safe_subdir else clone_dir
         if not source_root.is_dir():
             raise RuntimeError(f"Subdirectory not found in repo: {subdir}")
+        assert_skill_source_safe(source_root)
         return import_skill_dirs(
             source_root,
             target_root,
@@ -752,6 +767,7 @@ def install_pack(root: Path, pack: str, ref: str = "", keep_clone: Path | None =
         if safe_ref:
             subprocess.run(["git", "-C", str(clone_dir), "fetch", "--depth", "1", "origin", safe_ref], check=True)
             subprocess.run(["git", "-C", str(clone_dir), "checkout", "FETCH_HEAD"], check=True)
+        assert_skill_source_safe(clone_dir)
         results = copy_skill_dirs(clone_dir, root, spec["collection"], pack, spec["homepage"])
         if keep_clone:
             if keep_clone.exists():

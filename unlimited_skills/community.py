@@ -17,6 +17,10 @@ from . import __version__
 from .frontmatter import split_frontmatter as _shared_split_frontmatter
 from .registration import RegistrationError, RegistrationState, post_json, unlimited_skills_home, write_private_json
 from .signatures import ManifestSignatureError, verify_manifest_signature
+from .security_gate import (
+    SkillSecurityGateError,
+    assert_skill_source_safe,
+)
 from .updates import (
     CollectionUpdate,
     RegistrationRequired,
@@ -754,6 +758,12 @@ class CommunityClient:
             extracted = tmp_path / "extracted"
             safe_extract_zip(archive, extracted)
             source = resolve_collection_source(extracted, plan.collection)
+            try:
+                assert_skill_source_safe(source)
+            except SkillSecurityGateError as exc:
+                raise CommunityError(
+                    f"Community skill security gate blocked install: {exc}"
+                ) from exc
             update = CollectionUpdate(collection=plan.collection, version=plan.version, archive_url=plan.archive_url, sha256=plan.sha256, pack_id=item_id, notes="community")
             install_collection(root, update, source, source_label="community")
 

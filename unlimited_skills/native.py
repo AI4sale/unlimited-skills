@@ -10,7 +10,12 @@ import tempfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from .installers.common import IGNORED_DIR_NAMES, iter_skill_dirs
+from .installers.common import (
+    IGNORED_DIR_GLOBS,
+    IGNORED_DIR_NAMES,
+    iter_skill_dirs,
+    should_ignore_path,
+)
 
 
 ROUTER_NAME = "unlimited-skills"
@@ -291,7 +296,10 @@ def overlay_skill_tree(source: Path, destination: Path) -> None:
         destination,
         dirs_exist_ok=True,
         copy_function=_copy_overlay_file,
-        ignore=shutil.ignore_patterns(*IGNORED_DIR_NAMES),
+        ignore=shutil.ignore_patterns(
+            *IGNORED_DIR_NAMES,
+            *IGNORED_DIR_GLOBS,
+        ),
     )
 
 
@@ -310,7 +318,7 @@ def existing_skill_names(library_root: Path, exclude_root: Path | None = None) -
     exclude_resolved = exclude_root.resolve() if exclude_root else None
     for path in library_root.rglob("SKILL.md"):
         rel_parts = path.relative_to(library_root).parts
-        if "duplicates" in rel_parts:
+        if should_ignore_path(Path(*rel_parts)):
             continue
         if exclude_resolved:
             try:

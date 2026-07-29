@@ -21,6 +21,10 @@ from .registration import (
     validated_additional_headers,
 )
 from .signatures import ManifestSignatureError, verify_manifest_signature
+from .security_gate import (
+    SkillSecurityGateError,
+    verify_manifest_security_gate,
+)
 from .updates import safe_extract_zip, sha256_file
 
 
@@ -430,7 +434,17 @@ class PrivatePackClient:
             )
         except ManifestSignatureError as exc:
             raise PrivatePackError(str(exc)) from exc
-        return {"manifest": manifest, "verification": verification}
+        try:
+            security = verify_manifest_security_gate(manifest)
+        except SkillSecurityGateError as exc:
+            raise PrivatePackError(
+                f"private_pack_security_gate_failed: {exc}"
+            ) from exc
+        return {
+            "manifest": manifest,
+            "verification": verification,
+            "security": security,
+        }
 
     def download_archive(
         self,
@@ -492,6 +506,7 @@ class PrivatePackClient:
         root = root.expanduser().resolve()
         manifest_payload = self.signed_manifest(pack_id)
         manifest = manifest_payload["manifest"]
+        security = manifest_payload["security"]
         target = _private_target(root, pack_id)
         expected_sha = str(manifest.get("sha256") or "")
         version = str(manifest.get("version") or "")
@@ -527,6 +542,7 @@ class PrivatePackClient:
             "target": str(target.relative_to(root)),
             "source": PRIVATE_PACKS_SOURCE,
             "installed_at": now_iso(),
+            "security": security,
         }
         write_private_pack_metadata(root, metadata)
         return PrivatePackInstallResult(pack_id=pack_id, version=version, sha256=expected_sha, target=str(target), installed=True, reindex_recommended=True)

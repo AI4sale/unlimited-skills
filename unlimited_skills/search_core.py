@@ -70,6 +70,16 @@ IGNORED_SKILL_PATH_PARTS = {
     "__pycache__",
     "node_modules",
 }
+IGNORED_SKILL_PATH_PREFIXES = (".skills-backup-",)
+
+
+def should_ignore_skill_path(parts: Iterable[str]) -> bool:
+    """Return whether a skill path belongs to generated or backup state."""
+    return any(
+        part in IGNORED_SKILL_PATH_PARTS
+        or part.startswith(IGNORED_SKILL_PATH_PREFIXES)
+        for part in parts
+    )
 # Function words carry no skill signal but used to inflate lexical scores
 # (every "Use when the user asks..." description matched "what is the ..."
 # prompts). Filtered symmetrically from queries and skill text.
@@ -307,7 +317,7 @@ def iter_skills(root: Path) -> Iterable[tuple[SkillHit, str]]:
     candidates = []
     for skill_file in root.rglob("SKILL.md"):
         rel_parts = skill_file.relative_to(root).parts
-        if any(part in IGNORED_SKILL_PATH_PARTS for part in rel_parts):
+        if should_ignore_skill_path(rel_parts):
             continue
         try:
             text = read_text(skill_file)
@@ -341,7 +351,7 @@ def library_inventory_snapshot(root: Path) -> tuple[str, int]:
     if root.exists():
         for skill_file in root.rglob("SKILL.md"):
             rel = skill_file.relative_to(root)
-            if any(part in IGNORED_SKILL_PATH_PARTS for part in rel.parts):
+            if should_ignore_skill_path(rel.parts):
                 continue
             try:
                 stat = skill_file.stat()
