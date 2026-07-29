@@ -145,6 +145,7 @@ class BundleFakeAdapter(FakeAdapter):
         self.bundle_activations = 0
         self.bundle_items: list[str] = []
         self.call_log: list[str] = []
+        self.runtime_generation = "generation_fixture_bundle_02"
 
     def install_revision(self, item: Mapping[str, Any]) -> InstalledRevision:
         self.call_log.append(f"install:{item['pack_id']}")
@@ -179,7 +180,7 @@ class BundleFakeAdapter(FakeAdapter):
     ) -> RuntimeInventoryAttestation:
         self.call_log.append("attest-inventory")
         return RuntimeInventoryAttestation(
-            runtime_generation="generation_fixture_bundle_02",
+            runtime_generation=self.runtime_generation,
             activation_nonces=dict(activation_nonces),
             active_revisions={
                 str(item["pack_id"]): str(item["release_id"])
@@ -530,6 +531,36 @@ def test_verified_inventory_reconcile_is_attestation_idempotent(
         "attest-inventory",
         "detect-inventory-drift",
     ]
+
+
+def test_verified_inventory_reattests_after_runtime_generation_changes(
+    tmp_path: Path,
+) -> None:
+    adapter = BundleFakeAdapter()
+    instance = reconciler(tmp_path, adapter)
+    desired = two_pack_desired_state()
+
+    first = instance.reconcile(desired)
+    assert instance.spool.acknowledge(
+        item["event_id"] for item in first.receipts
+    ) == len(first.receipts)
+    adapter.runtime_generation = "generation_fixture_bundle_03"
+
+    reattested = instance.reconcile(desired)
+
+    assert reattested.activation_pending is False
+    assert [
+        item["event_type"] for item in reattested.receipts
+    ] == ["RUNTIME_ATTESTED", "RUNTIME_ATTESTED"]
+    assert [
+        item["event_seq"] for item in reattested.receipts
+    ] == [7, 7]
+    assert {
+        item["runtime_generation"] for item in reattested.receipts
+    } == {"generation_fixture_bundle_03"}
+    assert adapter.bundle_activations == 1
+    assert adapter.call_log.count("install:pack_fixture") == 1
+    assert adapter.call_log.count("install:pack_fixture_b") == 1
 
 
 def test_reconciler_rejects_multi_pack_for_legacy_single_item_adapter(

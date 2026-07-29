@@ -10,9 +10,9 @@
 one place to discover, approve, deliver, update, and verify capabilities across
 Codex, Claude Code, OpenClaw, and other agent runtimes.
 
-**v0.6.9rc10 / pre-1.0.** The MIT local core runs offline today. Business and
-Enterprise Fleet delivery is an implementation-complete preview that still
-requires an approved production pilot before it can be called production-ready.
+**v0.6.9rc11 / pre-1.0.** The MIT local core runs offline today. Business and
+Enterprise Fleet delivery is operating in the AI4SALE production pilot with
+server-verified delivery truth, runtime freshness, and an operator dashboard.
 See [Enterprise & trust layer](#enterprise--trust-layer).
 
 [Donate to Unlimited Skills](https://opportunity.ai4.sale/donate/unlimited-skills) · [Donation terms](DONATE.md)
@@ -46,7 +46,7 @@ task intent, and loads only what the current job needs:
 
 The router is a small local runtime component. It is not the product category.
 
-### Business and Enterprise Fleet: govern and deliver (Preview)
+### Business and Enterprise Fleet: govern and deliver
 
 The governed Fleet layer adds registered agent identities, immutable desired
 state, signed multi-pack delivery, runtime-native activation, receipts,

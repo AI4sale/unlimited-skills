@@ -36,7 +36,9 @@ class ReceiptSpool:
     def _sequence_state_path(self) -> Path:
         return self.root / _SEQUENCE_STATE_FILENAME
 
-    def _read_sequence_state(self) -> dict[str, tuple[int, str]]:
+    def _read_sequence_state(
+        self,
+    ) -> dict[str, tuple[int, str, str]]:
         path = self._sequence_state_path
         if not path.exists():
             return {}
@@ -48,23 +50,39 @@ class ReceiptSpool:
             raise ReceiptSpoolError("invalid_sequence_state") from exc
         if (
             not isinstance(payload, dict)
-            or payload.get("schema_version") not in {1, 2}
+            or payload.get("schema_version") not in {1, 2, 3}
             or set(payload) != {"schema_version", "attempts"}
             or not isinstance(payload.get("attempts"), dict)
         ):
             raise ReceiptSpoolError("invalid_sequence_state")
         schema_version = int(payload["schema_version"])
-        output: dict[str, tuple[int, str]] = {}
+        output: dict[str, tuple[int, str, str]] = {}
         for attempt_id, value in payload["attempts"].items():
             if schema_version == 1:
                 event_seq = value
                 event_type = ""
+                runtime_generation = ""
             elif (
-                isinstance(value, dict)
+                schema_version == 2
+                and isinstance(value, dict)
                 and set(value) == {"event_seq", "event_type"}
             ):
                 event_seq = value["event_seq"]
                 event_type = value["event_type"]
+                runtime_generation = ""
+            elif (
+                schema_version == 3
+                and isinstance(value, dict)
+                and set(value)
+                == {
+                    "event_seq",
+                    "event_type",
+                    "runtime_generation",
+                }
+            ):
+                event_seq = value["event_seq"]
+                event_type = value["event_type"]
+                runtime_generation = value["runtime_generation"]
             else:
                 raise ReceiptSpoolError("invalid_sequence_state")
             if (
@@ -75,14 +93,20 @@ class ReceiptSpool:
                 or event_seq < 1
                 or not isinstance(event_type, str)
                 or len(event_type) > 64
+                or not isinstance(runtime_generation, str)
+                or len(runtime_generation) > 256
             ):
                 raise ReceiptSpoolError("invalid_sequence_state")
-            output[attempt_id] = (event_seq, event_type)
+            output[attempt_id] = (
+                event_seq,
+                event_type,
+                runtime_generation,
+            )
         return output
 
     def _write_sequence_state(
         self,
-        attempts: Mapping[str, tuple[int, str]],
+        attempts: Mapping[str, tuple[int, str, str]],
     ) -> None:
         self._ensure_root()
         target = self._sequence_state_path
@@ -92,12 +116,17 @@ class ReceiptSpool:
             attempt_id: {
                 "event_seq": event_seq,
                 "event_type": event_type,
+                "runtime_generation": runtime_generation,
             }
-            for attempt_id, (event_seq, event_type) in attempts.items()
+            for attempt_id, (
+                event_seq,
+                event_type,
+                runtime_generation,
+            ) in attempts.items()
         }
         payload = (
             json.dumps(
-                {"schema_version": 2, "attempts": serialized},
+                {"schema_version": 3, "attempts": serialized},
                 ensure_ascii=False,
                 sort_keys=True,
                 separators=(",", ":"),
@@ -128,16 +157,41 @@ class ReceiptSpool:
         attempt_id = str(receipt["attempt_id"])
         event_seq = int(receipt["event_seq"])
         event_type = str(receipt["event_type"])
+        runtime_generation = str(receipt["runtime_generation"])
         attempts = self._read_sequence_state()
-        current_seq, current_type = attempts.get(attempt_id, (0, ""))
+        current_seq, current_type, current_generation = attempts.get(
+            attempt_id,
+            (0, "", ""),
+        )
         if event_seq < current_seq:
             return
         if event_seq == current_seq:
-            if current_type == event_type:
-                return
-            if current_type:
+            if current_type and current_type != event_type:
                 raise ReceiptSpoolError("sequence_event_conflict")
-        attempts[attempt_id] = (event_seq, event_type)
+            if (
+                current_generation
+                and current_generation != runtime_generation
+            ):
+                raise ReceiptSpoolError("sequence_event_conflict")
+            enriched = (
+                event_seq,
+                current_type or event_type,
+                current_generation or runtime_generation,
+            )
+            if enriched == (
+                current_seq,
+                current_type,
+                current_generation,
+            ):
+                return
+            attempts[attempt_id] = enriched
+            self._write_sequence_state(attempts)
+            return
+        attempts[attempt_id] = (
+            event_seq,
+            event_type,
+            runtime_generation,
+        )
         self._write_sequence_state(attempts)
 
     def _all_pending(self) -> list[dict[str, Any]]:
@@ -171,34 +225,55 @@ class ReceiptSpool:
             raise ReceiptSpoolError("invalid_attempt_id")
         highest = self._read_sequence_state().get(
             safe_attempt_id,
-            (0, ""),
+            (0, "", ""),
         )[0]
         for receipt in self._all_pending():
             if receipt["attempt_id"] == safe_attempt_id:
                 highest = max(highest, int(receipt["event_seq"]))
         return highest
 
-    def last_event_type(self, attempt_id: str) -> str:
+    def _last_event_state(
+        self,
+        attempt_id: str,
+    ) -> tuple[int, str, str]:
         safe_attempt_id = str(attempt_id)
         if not safe_attempt_id:
             raise ReceiptSpoolError("invalid_attempt_id")
-        highest, event_type = self._read_sequence_state().get(
-            safe_attempt_id,
-            (0, ""),
+        highest, event_type, runtime_generation = (
+            self._read_sequence_state().get(
+                safe_attempt_id,
+                (0, "", ""),
+            )
         )
         for receipt in self._all_pending():
             if receipt["attempt_id"] != safe_attempt_id:
                 continue
             receipt_seq = int(receipt["event_seq"])
             receipt_type = str(receipt["event_type"])
+            receipt_generation = str(receipt["runtime_generation"])
             if receipt_seq > highest:
                 highest = receipt_seq
                 event_type = receipt_type
+                runtime_generation = receipt_generation
             elif receipt_seq == highest:
                 if event_type and event_type != receipt_type:
                     raise ReceiptSpoolError("sequence_event_conflict")
-                event_type = receipt_type
-        return event_type
+                if (
+                    runtime_generation
+                    and runtime_generation != receipt_generation
+                ):
+                    raise ReceiptSpoolError("sequence_event_conflict")
+                event_type = event_type or receipt_type
+                runtime_generation = (
+                    runtime_generation or receipt_generation
+                )
+        return highest, event_type, runtime_generation
+
+    def last_event_type(self, attempt_id: str) -> str:
+        return self._last_event_state(attempt_id)[1]
+
+    def last_runtime_generation(self, attempt_id: str) -> str:
+        return self._last_event_state(attempt_id)[2]
 
     def append(self, receipt: Mapping[str, Any]) -> Path:
         try:
