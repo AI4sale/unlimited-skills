@@ -256,7 +256,16 @@ def test_team_sync_yes_applies_verified_archive_and_reindexes(tmp_path: Path, mo
             return FakeResponse(archive.read_bytes())
         raise AssertionError(url)
 
-    with patch("urllib.request.urlopen", fake_urlopen):
+    with (
+        patch("urllib.request.urlopen", fake_urlopen),
+        patch(
+            "unlimited_skills.updates.assert_skill_source_safe",
+            return_value={
+                "recommendation": "SAFE",
+                "static_coverage_complete": True,
+            },
+        ),
+    ):
         assert main(["--root", str(root), "team", "sync", "--yes", "--json"]) == 0
 
     payload = json.loads(capsys.readouterr().out)

@@ -37,6 +37,47 @@ def free_port() -> int:
         return int(sock.getsockname()[1])
 
 
+def write_fixture_skillspector(root: Path) -> Path:
+    """Provide a deterministic scanner only inside fixture-mode temp state."""
+
+    script = root / "skillspector-fixture.py"
+    script.write_text(
+        """#!/usr/bin/env python3
+import json
+import sys
+from pathlib import Path
+
+skill_dir = Path(sys.argv[2])
+print(json.dumps({
+    "skill": {"name": skill_dir.name},
+    "risk_assessment": {
+        "score": 0,
+        "severity": "LOW",
+        "recommendation": "SAFE",
+    },
+    "issues": [],
+    "metadata": {"skillspector_version": "2.5.0"},
+    "analysis_completeness": {
+        "execution_successful": True,
+        "coverage_percent": 100.0,
+        "entirely_uninspected_files": 0,
+        "ledger_exceptions": {},
+    },
+}))
+""",
+        encoding="utf-8",
+    )
+    script.chmod(0o700)
+    if os.name != "nt":
+        return script
+    launcher = root / "skillspector-fixture.cmd"
+    launcher.write_text(
+        f'@"{sys.executable}" "{script}" %*\n',
+        encoding="utf-8",
+    )
+    return launcher
+
+
 def write_skill_pack(path: Path) -> bytes:
     content = "---\nname: fixture-skill\ndescription: Signed registry E2E skill.\n---\n\n# fixture-skill\n"
     with zipfile.ZipFile(path, "w") as zf:
@@ -406,6 +447,9 @@ def run_flow(registry_url: str, *, temp_home: bool = True, fixture_public_key: s
                 "USERPROFILE": str(home),
                 "UNLIMITED_SKILLS_HOME": str(home / ".unlimited-skills"),
                 "UNLIMITED_SKILLS_DISABLE_NATIVE_SYNC": "1",
+                "UNLIMITED_SKILLS_SKILLSPECTOR": str(
+                    write_fixture_skillspector(temp_root)
+                ),
                 "PYTHONPATH": str(ROOT),
             }
         )
