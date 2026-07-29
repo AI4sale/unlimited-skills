@@ -52,6 +52,9 @@ FORBIDDEN_KEY_PARTS = (
 PATH_PATTERN = re.compile(
     r"(?i)(?:[a-z]:\\[^\s\"']+|\\\\[^\s\"']+|/(?:Users|home|tmp|var|opt|srv|mnt)/[^\s\"']+)"
 )
+FORBIDDEN_SECRET_PATTERNS = (
+    re.compile(r"\bsk-[A-Za-z0-9_-]{20,}\b", re.IGNORECASE),
+)
 
 
 def now_stamp() -> str:
@@ -320,7 +323,6 @@ def assert_support_bundle_safe(payload: dict[str, Any]) -> None:
         "authorization: bearer",
         "device_private_key",
         "secret_",
-        "sk-",
         "skill.md",
         "x-uls-proof",
         "x-uls-hub-token",
@@ -328,6 +330,11 @@ def assert_support_bundle_safe(payload: dict[str, Any]) -> None:
     for marker in forbidden:
         if marker in serialized:
             raise RuntimeError(f"Support bundle payload contains forbidden marker: {marker}")
+    for pattern in FORBIDDEN_SECRET_PATTERNS:
+        if pattern.search(serialized):
+            raise RuntimeError(
+                "Support bundle payload contains forbidden secret pattern"
+            )
 
 
 def build_support_diagnostics(root: Path, *, include_paths: bool = False, include_private_pack_refs: bool = False) -> dict[str, Any]:
