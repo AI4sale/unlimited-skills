@@ -281,6 +281,74 @@ def test_codex_bundle_requires_real_session_start_attestation(
         )
 
 
+def test_codex_deduplicates_identical_managed_skills(
+    tmp_path: Path,
+) -> None:
+    client = PackClient(
+        {
+            "pack_a": ("1.0.0", archive("shared", "# Shared\n")),
+            "pack_b": ("1.0.0", archive("shared", "# Shared\n")),
+        }
+    )
+    instance = adapter(tmp_path, client)
+    items = [
+        item(client, "pack_a", "nonce_a"),
+        item(client, "pack_b", "nonce_b"),
+    ]
+    installed = {
+        value["pack_id"]: instance.install_revision(value)
+        for value in items
+    }
+
+    instance.activate_inventory(
+        items,
+        installed,
+        activation_nonces={"pack_a": "nonce_a", "pack_b": "nonce_b"},
+    )
+
+    assert (instance.skills_root / "shared" / "SKILL.md").is_file()
+    active = json.loads(
+        (instance.state_root / "active.json").read_text(encoding="utf-8")
+    )
+    assert [value["pack_id"] for value in active["active_packs"]] == [
+        "pack_a",
+        "pack_b",
+    ]
+
+
+def test_codex_rejects_different_managed_skills_with_same_name(
+    tmp_path: Path,
+) -> None:
+    client = PackClient(
+        {
+            "pack_a": ("1.0.0", archive("shared", "# A\n")),
+            "pack_b": ("1.0.0", archive("shared", "# B\n")),
+        }
+    )
+    instance = adapter(tmp_path, client)
+    items = [
+        item(client, "pack_a", "nonce_a"),
+        item(client, "pack_b", "nonce_b"),
+    ]
+    installed = {
+        value["pack_id"]: instance.install_revision(value)
+        for value in items
+    }
+
+    with pytest.raises(
+        CodexFleetAdapterError,
+        match="managed_skill_collision",
+    ):
+        instance.activate_inventory(
+            items,
+            installed,
+            activation_nonces={
+                "pack_a": "nonce_a",
+                "pack_b": "nonce_b",
+            },
+        )
+
+
 def test_codex_runtime_rejects_wrong_home_or_workspace(
     tmp_path: Path,
 ) -> None:
