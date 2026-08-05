@@ -749,6 +749,7 @@ def test_v06x_release_operator_runbook_guards_patch_release_hard_stops() -> None
     compatibility = read("docs/compatibility.md").lower()
     changelog = read("CHANGELOG.md").lower()
     combined = "\n".join([runbook, incident, audit, compatibility, changelog])
+    normalized_combined = " ".join(combined.split())
 
     for path in [
         "docs/releases/v0.6.x-release-operator-runbook.md",
@@ -764,9 +765,9 @@ def test_v06x_release_operator_runbook_guards_patch_release_hard_stops() -> None
         "## 3. prepublish verification",
         "## 4. frozen-contract harness requirement",
         "## 5. trusted publishing dispatch inputs",
-        "## 6. real pypi install smoke",
+        "## 6. exact-wheel and public pypi smoke",
         "## 7. published-mode verifier",
-        "## 8. tag and github prerelease sequence",
+        "## 8. tag and github release sequence",
         "## 9. hard stops",
         "## 10. incident fallback: uploaded but verifier failed",
         "## 11. owner/action/fallback table",
@@ -779,25 +780,16 @@ def test_v06x_release_operator_runbook_guards_patch_release_hard_stops() -> None
         "python scripts/verify-v06-frozen-contracts.py --json",
         "python scripts/verify-v060-alpha-publication.py",
         "--package-availability prepublish",
-        "--package-availability published",
-        "python -m pip install --no-cache-dir unlimited-skills==<version>",
-        "unlimited-skills --version",
-        "unlimited-skills quickstart --json",
-        'unlimited-skills suggest "design a rest api for a service" --json',
-        "unlimited-skills mcp install --claude-code --dry-run",
-        "unlimited-skills mcp savings --json",
-        "unlimited-skills feedback prepare --json",
-        "unlimited-skills learning-summary --events --json",
-        "unlimited-skills roi receipt",
-        "unlimited-skills roi receipt --format json",
-        "unlimited-skills roi receipt --since 7d",
+        "publish-pypi.yml",
+        "verify-pypi-publication.py",
+        "verify-v06-frozen-contracts.py",
     ]:
         assert command in runbook
 
     for required in [
-        "mandatory before publish and after publish",
-        "the published-mode verifier must pass",
-        "before any release tag or github prerelease is created",
+        "single authoritative publication sequence",
+        "successful upload without this public-index verification is not a release",
+        "only after public pypi verification passes",
         "stop immediately and do not tag or create a github prerelease",
         "no retroactive tag",
         "uploaded but not released",
@@ -819,7 +811,7 @@ def test_v06x_release_operator_runbook_guards_patch_release_hard_stops() -> None
         "team readiness claim",
         "enterprise readiness claim",
     ]:
-        assert required in combined
+        assert required in normalized_combined
 
     for forbidden_claim in [
         "0.6.0 is the valid v0.6 alpha",

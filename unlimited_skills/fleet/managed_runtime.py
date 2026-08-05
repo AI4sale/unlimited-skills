@@ -864,15 +864,16 @@ class ManagedRuntimeFleetAdapter:
                             "pack_skills_layout_invalid"
                         )
                     skill_name = self._skill_name(child)
+                    skill_tree_sha256 = _tree_digest(child)
                     if skill_name in claimed_names:
-                        raise self.error_type(
-                            "managed_skill_collision"
-                        )
+                        if claimed_names[skill_name] == skill_tree_sha256:
+                            continue
+                        raise self.error_type("managed_skill_collision")
                     if skill_name in unmanaged_names:
                         raise self.error_type(
                             "unmanaged_skill_collision"
                         )
-                    claimed_names[skill_name] = pack_id
+                    claimed_names[skill_name] = skill_tree_sha256
                     shutil.copytree(child, staging / child.name)
             observed_tree = _tree_digest(staging)
             if had_previous:

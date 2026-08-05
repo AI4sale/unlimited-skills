@@ -1,6 +1,6 @@
 # Known Limitations
 
-`v0.6.8` is a pre-1.0 release, not a production SLA. CLI and JSON contracts
+`v0.6.9` is a pre-1.0 release, not a production SLA. CLI and JSON contracts
 covered by the frozen v0.6 verifier are protected inside the release line;
 other APIs may still change before 1.0.
 
@@ -25,9 +25,10 @@ other APIs may still change before 1.0.
 
 ## Agent integrations
 
-- Enterprise Fleet runtime adapters now use Claude Code `SessionStart`, Codex
-  `SessionStart`, and OpenClaw `agent:bootstrap` lifecycle evidence. Their
-  implementation tests do not replace the required real-topology pilot.
+- Enterprise Fleet runtime adapters use Claude Code `SessionStart`, Codex
+  `SessionStart`, OpenClaw `agent:bootstrap`, and Hermes runtime evidence.
+  Codex, OpenClaw, and Hermes have passed the current AI4SALE production
+  pilot; Claude Code remains intentionally paused and outside that rollout.
 - Codex user hooks must be explicitly reviewed and trusted. Production
   Enterprise rollout should use an organization-managed hook source; until the
   hook runs, Fleet truth remains `ACTIVATION_PENDING`.
@@ -36,8 +37,6 @@ other APIs may still change before 1.0.
   configuration, not runtime activation.
 - Codex and OpenClaw skills outside the adapter-owned subtree remain
   unmanaged. Fleet receipts describe only the signed managed inventory.
-- Hermes still uses the router/installer integration and has no Enterprise
-  Fleet runtime-attestation adapter.
 - Vellum AI remains migration-only; it does not have a full installer/router
   integration.
 - Skill cards intentionally include the selected skill's body head at high
@@ -58,9 +57,10 @@ other APIs may still change before 1.0.
   must review that policy.
 - The bundled Stop hook cannot create a receipt. A trusted host/checker must
   supply one; otherwise Stop remains a no-op.
-- Hosted registry, community, team, policy, billing-status, and Local Skill Hub
-  surfaces are alpha. Registration is not required for local search, indexing,
-  daemon, learning logs, quickstart, or MCP savings.
+- Business and Enterprise Fleet is an opt-in hosted production pilot. Community
+  catalog, billing-status, and Local Skill Hub surfaces remain pre-1.0 and may
+  change. Registration is not required for local search, indexing, daemon,
+  learning logs, quickstart, or MCP savings.
 - Hosted clients must not upload prompts, source code, skill bodies, full local
   paths, environment values, tokens, private keys, or customer data. Community
   submission is the explicit exception for the selected submitted skill/pack.

@@ -4,14 +4,14 @@
     "name": "AI4sale"
   },
   "metadata": {
-    "description": "Unlimited Skills - external skill memory and retrieval router for Claude Code"
+    "description": "Unlimited Skills - governed skill infrastructure for AI agents"
   },
   "plugins": [
     {
       "name": "unlimited-skills",
       "source": "./plugin",
-      "description": "Local capability router with skill retrieval and optional owner-governed, cited business context for Claude Code. Requires the unlimited-skills CLI: pip install unlimited-skills.",
-      "version": "0.6.9rc12",
+      "description": "Governed skill discovery with security-gated installation, local retrieval, and optional owner-controlled business context for Claude Code. Requires the unlimited-skills CLI: pip install unlimited-skills.",
+      "version": "0.6.9",
       "author": {
         "name": "AI4sale"
       },

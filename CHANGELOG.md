@@ -2,10 +2,12 @@
 
 ## Unreleased
 
+## 0.6.9 - 2026-08-05
+
 ### Added (0.6.9 - Fleet Contract Foundation)
 
-- Candidate package `0.6.9rc12` uses the immutable GitHub/pilot label
-  `v0.6.9-rc.12`; the final stable release label remains `v0.6.9`.
+- Publish stable package `0.6.9` and GitHub release `v0.6.9`. The earlier
+  `0.6.9rc12` / `v0.6.9-rc.12` candidate remains immutable history.
 - Make NVIDIA SkillSpector the mandatory pre-install gate for local imports,
   known upstream packs, registered community installs, hosted collection
   updates, and newly published Business/Enterprise private packs.
@@ -93,6 +95,15 @@
   time. Legacy single-item adapters now fail closed before partial activation.
 - Retain each signed, hash-bound pack archive and re-extract it during revision
   verification so local payload plus metadata tampering cannot rebase trust.
+
+### Fixed (0.6.9)
+
+- Deduplicate identical managed skills across approved packs by exact skill-tree
+  digest, while continuing to fail closed when the same skill name resolves to
+  different contents.
+- Make the public release workflow version-specific for `0.6.9`, verify the
+  exact wheel and frozen contracts before publishing, and create the GitHub
+  release only after the matching public PyPI artifacts pass verification.
 
 ### Added (0.6.8 - Verified Completion Memory)
 

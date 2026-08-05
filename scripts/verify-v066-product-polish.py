@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Verify inherited v0.6.6 precision plus the current v0.6.8 release surface."""
+"""Verify inherited v0.6.6 precision plus the current v0.6.9 release surface."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-VERSION = "0.6.8"
+VERSION = "0.6.9"
 FOCUSED_TESTS = (
     "tests/test_suggest.py",
     "tests/test_suggest_language_routing.py",
@@ -80,7 +80,7 @@ def verify_static_surface() -> dict[str, Any]:
         "No deletion, replacement, or migration of `library/local`",
     ):
         require(marker in precision_plan, f"precision plan missing invariant: {marker}")
-    release_plan = read(ROOT / "docs" / "releases" / "v0.6.8-plan.md")
+    release_plan = read(ROOT / "docs" / "releases" / "v0.6.9-plan.md")
     for marker in (
         "never names or depends on a private knowledge system",
         "the Stop hook never submits prose",
@@ -88,7 +88,7 @@ def verify_static_surface() -> dict[str, Any]:
         "The current file-first backend remains supported",
         "No deletion, replacement, or migration of `library/local`",
     ):
-        require(marker in release_plan, f"v0.6.8 plan missing invariant: {marker}")
+        require(marker in release_plan, f"v0.6.9 plan missing invariant: {marker}")
     public_receipt_surfaces = (
         ROOT / "unlimited_skills" / "completion_receipt.py",
         ROOT / "scripts" / "verify-v068-completion-receipt-wheel.py",

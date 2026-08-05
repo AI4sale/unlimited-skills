@@ -271,7 +271,7 @@ def test_fcp008c_client_capabilities_are_exact_and_version_bound() -> None:
     assert FLEET_CLIENT_VERSION_CAPABILITY == (
         f"client-version-{__version__}"
     )
-    assert __version__ == "0.6.9rc12"
+    assert __version__ == "0.6.9"
 
 
 def test_local_instance_uuid4_is_created_once_under_concurrency(

@@ -1,7 +1,7 @@
 {
   "name": "unlimited-skills",
-  "version": "0.6.9rc12",
-  "description": "Unlimited Skills router for Claude Code: retrieves the right skill plus opt-in local business context and offers verified completions to an owner-governed learning provider.",
+  "version": "0.6.9",
+  "description": "Unlimited Skills for Claude Code: governed skill discovery, security-gated installation, local retrieval, and optional owner-controlled business context.",
   "author": {
     "name": "AI4sale"
   },
