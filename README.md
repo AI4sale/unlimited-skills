@@ -10,7 +10,7 @@
 one place to discover, approve, deliver, update, and verify capabilities across
 Codex, Claude Code, OpenClaw, and other agent runtimes.
 
-**v0.6.9rc12 / pre-1.0.** The MIT local core runs offline today. Business and
+**v0.6.9 / pre-1.0.** The MIT local core runs offline today. Business and
 Enterprise Fleet delivery is operating in the AI4SALE production pilot with
 server-verified delivery truth, runtime freshness, an operator dashboard, and
 mandatory NVIDIA SkillSpector review before new skills are signed or installed.

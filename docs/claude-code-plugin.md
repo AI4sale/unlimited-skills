@@ -33,7 +33,7 @@ company-specific prompt; retrieval does not run `doctor` before every query.
 ## Install
 
 The plugin needs the CLI plus `[all]` runtime for guaranteed native-language
-retrieval. Install `unlimited-skills[all]>=0.6.8` first (see
+  retrieval. Install `unlimited-skills[all]>=0.6.9` first (see
 [install.md](install.md)). Then, inside Claude Code:
 
 ```text

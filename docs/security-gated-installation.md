@@ -1,6 +1,6 @@
 # Security-gated skill installation
 
-Unlimited Skills `0.6.9rc12` routes supported skill installation paths through
+Unlimited Skills `0.6.9` routes supported skill installation paths through
 NVIDIA SkillSpector `2.5.0` before any skill files are copied into the library.
 
 Run an audit without installing:

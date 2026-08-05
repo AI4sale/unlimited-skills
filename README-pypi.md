@@ -1,16 +1,16 @@
 # Unlimited Skills
 
-Unlimited Skills is a local-first skill memory and retrieval layer for coding
-agents. It keeps large skill libraries out of the agent context and retrieves
-the small, relevant skill context only when it is useful.
+Unlimited Skills is governed skill infrastructure for AI agent fleets. Its
+free MIT local core keeps large skill libraries out of standing context,
+retrieves the relevant capability on demand, and security-gates supported
+installation paths before skill files are copied.
 
-This is `v0.6.9rc12` of the free MIT local core. There is no telemetry, no hosted
-dependency for local use, and nothing for sale in this release. The project is
-still pre-1.0, so APIs and JSON output may change before `1.0`.
+This is `v0.6.9`, the stable pre-1.0 local core. Local use has no telemetry
+or hosted dependency. Business and Enterprise Fleet are separate hosted
+control-plane capabilities and are not required for local search or installs.
 
-Use `unlimited-skills==0.6.9rc12` for the FCP-008N secure skill delivery candidate. The
-`0.6.0` package was uploaded to PyPI but was not tagged or released because the
-published verifier caught a CLI contract issue after upload.
+Use `unlimited-skills==0.6.9` for the stable security-gated Fleet client. The
+`0.6.9rc12` candidate remains immutable release history.
 
 ## Install
 
@@ -23,7 +23,7 @@ To avoid earlier uploaded-but-not-current artifacts explicitly, pin the
 accepted v0.6 alpha floor:
 
 ```bash
-pip install --upgrade "unlimited-skills>=0.6.8"
+pip install --upgrade "unlimited-skills>=0.6.9"
 ```
 
 For hybrid/vector search:
@@ -64,10 +64,10 @@ acceptance, quarantine, idempotency, and durable writes.
 - prints local next steps without uploading prompts, schemas, configs, or
   skill bodies.
 
-The package smoke for this release verifies the wheel in a fresh virtual
+The package smoke for v0.6.9 verifies the wheel in a fresh virtual
 environment: `unlimited-skills --version`, `quickstart`, `suggest`,
 `mcp savings`, `feedback prepare`, `learning-summary --events`, and
-`roi receipt` all run from the installed package. The v0.6.8 package smoke also
+`roi receipt` all run from the installed package. The release smoke also
 verifies retrieval precision and onboarding from a clean wheel install: weak
 matches stay silent, mixed-language prompts request an English-keyword rescue,
 quickstart completes missing bundled collections without touching local skills,
@@ -96,8 +96,8 @@ Your local results depend on your installed skills and MCP servers. Run
   `UNLIMITED_SKILLS_NO_AUTOSERVE=1` only for restricted runtimes.
 - No paid, hosted, Team, Pro, Business, or Enterprise feature is required for
   local search, quickstart, suggestion, indexing, or MCP savings.
-- Hosted/registered catalog and team surfaces are early alpha paths documented
-  in the repository; they are not required for the local core.
+- Hosted Business and Enterprise Fleet capabilities are opt-in and separately
+  operated; they are not required for the local core.
 
 ## Useful Links
 
