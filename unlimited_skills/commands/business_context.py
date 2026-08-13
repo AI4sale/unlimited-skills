@@ -30,6 +30,7 @@ def cmd_context_retrieve(args: argparse.Namespace) -> int:
         retrieve_business_context(
             args.query,
             agent=args.agent,
+            task_id=args.task_id or None,
             config_path=Path(args.config).expanduser() if args.config else None,
         ),
         args.json,

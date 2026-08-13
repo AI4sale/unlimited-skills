@@ -52,6 +52,21 @@ explicit, bounded signed receipt supplied by a trusted host field or an
 owner-controlled inbox. The private provider owns signature authentication,
 acceptance, quarantine, idempotency, and durable writes.
 
+The client can also opt in to a compatible operator-provided Company Memory
+trial without copying a secret:
+
+```bash
+unlimited-skills memory init --trial --url https://memory.example.com --json
+unlimited-skills memory doctor --json
+```
+
+It generates independent executor/checker keys locally, enrolls with CSRs over
+HTTPS, verifies a checked write/retrieve canary, renews short-lived
+certificates during active use, and requests human handoff near trial expiry.
+`memory outcome --file` provides bounded checked task write-back. Tenant,
+actor, workload, and access-receipt authority are not accepted from that file.
+Human claim and commercial activation remain private control-plane actions.
+
 ## What Quickstart Proves
 
 `unlimited-skills quickstart` is the first-value path for a clean install:

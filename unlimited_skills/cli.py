@@ -519,6 +519,7 @@ def build_parser() -> argparse.ArgumentParser:
     from .commands import feedback as feedback_cmds
     from .commands import fleet as fleet_cmds
     from .commands import learning as learning_cmds
+    from . import memory as memory_cmds
     from .commands import library as library_cmds
     from .commands import money_saved as money_saved_cmds
     from .commands import router_health as router_health_cmds
@@ -590,6 +591,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     context_retrieve.add_argument("query")
     context_retrieve.add_argument("--agent", default="cli")
+    context_retrieve.add_argument("--task-id", default="", help="Stable task ID for the correlated access receipt.")
     context_retrieve.add_argument("--config", default="")
     context_retrieve.add_argument("--json", action="store_true")
     context_retrieve.set_defaults(func=business_context_cmds.cmd_context_retrieve)
@@ -617,6 +619,42 @@ def build_parser() -> argparse.ArgumentParser:
     context_doctor.add_argument("--config", default="")
     context_doctor.add_argument("--json", action="store_true")
     context_doctor.set_defaults(func=business_context_cmds.cmd_context_doctor)
+
+    memory = sub.add_parser(
+        "memory",
+        help="Provision and operate an opt-in Company Memory trial.",
+    )
+    memory_sub = memory.add_subparsers(dest="memory_command", required=True)
+    memory_init = memory_sub.add_parser(
+        "init",
+        help="Provision two independent workload identities and verify first value.",
+    )
+    memory_init.add_argument("--trial", action="store_true", required=True)
+    memory_init.add_argument("--url", required=True, help="Company Memory HTTPS origin.")
+    memory_init.add_argument("--server-ca", default="", help="Optional private server CA bundle.")
+    memory_init.add_argument("--home", default="")
+    memory_init.add_argument("--json", action="store_true")
+    memory_init.set_defaults(func=memory_cmds.command)
+    for memory_action, help_text in (
+        ("status", "Show the server-derived trial state."),
+        ("doctor", "Verify both the mTLS identity and first-value state."),
+        ("renew", "Rotate both workload certificates with crash-safe replay."),
+        ("maintain", "Renew certificates and request handoff when due."),
+        ("handoff", "Ask a human owner to claim the verified trial."),
+        ("revoke", "Revoke both identities and disable the local provider."),
+    ):
+        command = memory_sub.add_parser(memory_action, help=help_text)
+        command.add_argument("--home", default="")
+        command.add_argument("--json", action="store_true")
+        command.set_defaults(func=memory_cmds.command)
+    memory_outcome = memory_sub.add_parser(
+        "outcome",
+        help="Submit one independently checked task outcome from a JSON file.",
+    )
+    memory_outcome.add_argument("--file", required=True)
+    memory_outcome.add_argument("--home", default="")
+    memory_outcome.add_argument("--json", action="store_true")
+    memory_outcome.set_defaults(func=memory_cmds.command)
 
     skills_parser = sub.add_parser("skills", help="Skill-quality operations (effectiveness regression check).")
     skills_sub = skills_parser.add_subparsers(dest="skills_command", required=True)

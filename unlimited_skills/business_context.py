@@ -359,6 +359,7 @@ def retrieve_business_context(
     query: str,
     *,
     agent: str = "unknown",
+    task_id: str | None = None,
     config_path: Path | None = None,
     timeout_seconds: float | None = None,
 ) -> dict[str, Any]:
@@ -392,6 +393,11 @@ def retrieve_business_context(
             "agent": str(agent)[:80],
             "limits": {"max_items": MAX_ITEMS, "max_context_chars": config.max_context_chars},
         }
+        correlated_task_id = " ".join(
+            str(task_id or os.environ.get("UNLIMITED_SKILLS_TASK_ID") or "").split()
+        )[:160]
+        if correlated_task_id:
+            request["task_id"] = correlated_task_id
         response = _run_provider(config, request)
         response_status = str(response.get("status") or "").strip()
         diagnostics = _normalized_diagnostics(response)

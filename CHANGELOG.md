@@ -2,6 +2,21 @@
 
 ## Unreleased
 
+### Added
+
+- Add `unlimited-skills memory init --trial` for crash-safe, one-command mTLS
+  enrollment, isolated trial provisioning, provider setup, and a checked
+  write/retrieve first-value canary.
+- Add trial status, doctor, dual-certificate renewal, handoff, and self-revoke
+  commands. Human claim and commercial activation remain private control-plane
+  actions.
+- Add `memory outcome --file` with executor/checker task-receipt binding and a
+  server-derived checker, tenant, and executor identity.
+- Add lock-protected lazy certificate renewal and final-day trial handoff on
+  active provider use, plus an explicit `memory maintain` scheduler command.
+- Forward an explicit `--task-id` or `UNLIMITED_SKILLS_TASK_ID` through context
+  retrieval for server-side task-memory receipt correlation.
+
 ## 0.6.9 - 2026-08-05
 
 ### Added (0.6.9 - Fleet Contract Foundation)

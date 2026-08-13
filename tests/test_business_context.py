@@ -185,6 +185,20 @@ def test_retrieval_is_bounded_filtered_and_does_not_inherit_secret_env(tmp_path:
     assert second_request_id != first_request_id
 
 
+def test_retrieval_forwards_explicit_stable_task_id(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    _, log = write_provider(tmp_path, monkeypatch)
+
+    report = retrieve_business_context(
+        "prepare the current customer offer",
+        agent="test",
+        task_id="task-company-memory-42",
+    )
+
+    assert report["status"] == "ok"
+    request = json.loads(log.read_text(encoding="utf-8"))["request"]
+    assert request["task_id"] == "task-company-memory-42"
+
+
 def test_raw_internal_requires_explicit_owner_opt_in(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     write_provider(tmp_path, monkeypatch, allowed_sensitivities=["public", "internal-sanitized"])
     report = retrieve_business_context("prepare the current customer offer")

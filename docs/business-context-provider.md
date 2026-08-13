@@ -36,6 +36,12 @@ unlimited-skills context doctor --json
 unlimited-skills context retrieve "prepare the current customer proposal" --json
 ```
 
+To configure the bundled remote Company Memory adapter and its independent
+executor/checker identities automatically, use
+[`memory init --trial`](company-memory-trial.md). An explicit retrieval accepts
+`--task-id`; `suggest --card` reads `UNLIMITED_SKILLS_TASK_ID` so the remote
+service can correlate an access receipt with the active task.
+
 `unlimited-skills suggest --json --card` automatically includes the provider
 result when the config exists. Ordinary text and non-card JSON `suggest`
 contracts remain unchanged. Use `--no-business-context` for one card call or set

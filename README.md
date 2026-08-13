@@ -116,6 +116,9 @@ Working now in the local core:
 - hybrid lexical + vector search;
 - privacy-safe `suggest` probe and deterministic skill effectiveness gate for A0/v0.5 adoption readiness;
 - opt-in local business-context provider: one `suggest --card` response can carry both the selected skill and bounded reference data;
+- opt-in Company Memory trial client: one command creates local mTLS identities,
+  provisions an isolated trial tenant, verifies a checked write/retrieve canary,
+  and installs the context provider without exposing private keys;
 - a reserved, no-write Stop hook: model-written prose is never promoted to memory;
 - full skill view by name;
 - Codex router skill;
@@ -141,6 +144,33 @@ The public core validates and caps the response, labels it as reference data
 rather than instructions, and fails open if the adapter is unavailable. It does
 not ship a company database or upload prompts. See
 [docs/business-context-provider.md](docs/business-context-provider.md).
+
+### One-command Company Memory trial
+
+Connect this public client to an operator-provided Company Memory HTTPS origin:
+
+```powershell
+unlimited-skills memory init --trial --url https://memory.example.com --json
+unlimited-skills memory doctor --json
+```
+
+The command creates separate executor and checker keys locally, enrolls both
+workloads, configures the opt-in context adapter, and proves first value by
+writing an independently checked canary and retrieving it. A private server CA
+can be supplied with `--server-ca`. Installation and certificate rotation are
+replay-safe after a lost response.
+
+For real work, executor and checker retrievals record separate task-bound
+access receipts. The checker then submits a bounded JSON result with
+`unlimited-skills memory outcome --file checked-outcome.json`; tenant, actor,
+workload IDs, and receipt IDs are derived rather than accepted from that file.
+Active provider use renews both certificates before their safety window and
+requests human handoff automatically during the final trial day.
+
+Agents may operate the provisional trial and request handoff. Claim, contract,
+price, payment, production access, and commercial activation remain human or
+billing-authority actions on the private control plane. See
+[docs/company-memory-trial.md](docs/company-memory-trial.md).
 
 ## Install
 
