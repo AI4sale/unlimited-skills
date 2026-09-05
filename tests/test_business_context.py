@@ -25,6 +25,21 @@ from unlimited_skills.completion_receipt import CompletionReceiptError, parse_js
 from unlimited_skills.search_core import save_index
 
 
+def test_source_reference_is_never_truncated():
+    reference = "opaque_" + "a" * 900
+    assert business_context_module._safe_source_ref(reference) == reference
+    assert business_context_module._safe_source_ref("a" * 8193) == ""
+    assert business_context_module._safe_source_ref("../private") == ""
+
+
+def test_context_never_emits_partial_source_reference():
+    reference = "opaque_" + "a" * 900
+    item = {"source_ref": reference, "sensitivity": "internal", "title": "Title", "excerpt": "Evidence"}
+    result = format_context("test", [item], 550)
+    assert "[source:" not in result
+    assert len(result) <= 550
+
+
 PROVIDER_SOURCE = r'''
 import json
 import os
