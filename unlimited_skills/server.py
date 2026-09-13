@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from . import __version__
 from .daemon_endpoint import RUNTIME_CONTRACT_VERSION
+from .vector_backend import selected_backend
 from .cli import (
     DEFAULT_EMBED_MODEL,
     DEFAULT_ROOT,
@@ -106,6 +107,7 @@ def health() -> dict:
         "protocol": "warm-search-v1",
         "runtime_contract_version": RUNTIME_CONTRACT_VERSION,
         "package_version": __version__,
+        "vector_backend": selected_backend(),
         "root": str(ROOT),
         "model": MODEL,
     }
