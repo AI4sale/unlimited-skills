@@ -57,6 +57,7 @@ from .search_core import (
     lexical_search,
     load_records,
     log_event,
+    looks_english,
     margin_bucket,
     read_text,
     record_router_call,
@@ -181,19 +182,6 @@ WARM_DAEMON_SEARCH_TIMEOUT_SECONDS = 1.5
 WARM_DAEMON_PROTOCOL = "warm-search-v1"
 
 
-def looks_english(query: str) -> bool:
-    """Heuristic: is the query dominated by Latin letters (lexical-friendly)?
-
-    No letters at all (digits/symbols only) counts as English — there is
-    nothing to translate and lexical is the right, cheap path.
-    """
-    letters = [c for c in (query or "") if c.isalpha()]
-    if not letters:
-        return True
-    ascii_letters = sum(1 for c in letters if c.isascii())
-    return (ascii_letters / len(letters)) >= 0.6
-
-
 def _vector_fallback_disabled() -> bool:
     return os.environ.get(NO_VECTOR_FALLBACK_ENV, "").strip().lower() in {"1", "true", "yes", "on"}
 
@@ -220,6 +208,8 @@ def sidecar_installed(root: Path) -> bool:
 def _warm_daemon_vector_probe(
     root: Path, query: str, limit: int, collection: str | None = None
 ) -> list[SkillHit]:
+    from .vector_backend import selected_backend
+    backend = selected_backend()
     for daemon_url in warm_daemon_urls(root, DEFAULT_EMBED_MODEL):
         try:
             with urllib.request.urlopen(f"{daemon_url}/health", timeout=WARM_DAEMON_TIMEOUT_SECONDS) as response:
@@ -233,6 +223,7 @@ def _warm_daemon_vector_probe(
                 and daemon_root_raw
                 and Path(daemon_root_raw).expanduser().resolve() == root.expanduser().resolve()
                 and str(health.get("model") or "") == DEFAULT_EMBED_MODEL
+                and str(health.get("vector_backend") or "python") == backend
             ):
                 continue
             request = urllib.request.Request(
@@ -637,7 +628,10 @@ def main(argv: list[str] | None = None) -> int:
                     collection=args.collection,
                     vector_hits=vector_hits,
                 )
-                reason_code = REASON_MATCH_FOUND if hits and hits[0].score >= args.floor else REASON_LOW_CONFIDENCE
+                # Pure vector scores are cosine values, not lexical/RRF
+                # points. Use the existing semantic hint threshold for them.
+                result_floor = VECTOR_HINT_MIN if non_english else args.floor
+                reason_code = REASON_MATCH_FOUND if hits and hits[0].score >= result_floor else REASON_LOW_CONFIDENCE
                 retrieval_path = "hybrid" if any("lexical" in candidate_debug_payload(hit).get("candidate_sources", []) for hit in hits) else "vector"
                 vector_status = "available_used"
             elif non_english and reason_code != REASON_MATCH_FOUND:

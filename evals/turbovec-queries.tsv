@@ -1,0 +1,51 @@
+en	ru
+Review Python code for bugs and type errors	Проверь Python код на ошибки и проблемы типов
+Find a memory leak in a Python service	Найди утечку памяти в сервисе Python
+Write pytest regression tests for an API	Напиши регрессионные тесты API на pytest
+Optimize a slow PostgreSQL query	Ускорь медленный запрос PostgreSQL
+Plan a database schema migration with rollback	Подготовь миграцию схемы базы с откатом
+Debug a failing GitHub Actions pipeline	Разбери сбой сборки в GitHub Actions
+Create a Docker deployment configuration	Подготовь конфигурацию развёртывания Docker
+Review authentication and secret handling	Проверь аутентификацию и хранение секретов
+Check a website for SQL injection risks	Проверь сайт на уязвимости SQL инъекций
+Improve React rendering performance	Ускорь отрисовку приложения React
+Design a responsive landing page	Спроектируй адаптивную посадочную страницу
+Test a browser checkout flow	Проверь оформление заказа в браузере
+Fix CSS overflow on mobile screens	Исправь выход элементов за границы на мобильных экранах
+Write a clear technical README	Напиши понятный технический README
+Create release notes from changes	Подготовь описание релиза по изменениям
+Review a pull request before merge	Проверь pull request перед слиянием
+Resolve Git merge conflicts safely	Разреши конфликты слияния Git
+Create an isolated Git worktree	Создай отдельное рабочее дерево Git
+Plan a feature implementation step by step	Разбей реализацию функции на шаги
+Refactor a large module with regression checks	Раздели большой модуль с проверкой регрессий
+Build an MCP server with typed tools	Сделай MCP сервер с типизированными инструментами
+Design a REST API with pagination	Спроектируй REST API с пагинацией
+Add retry and timeout handling	Добавь обработку повторов и таймаутов
+Profile CPU usage in a slow service	Измерь загрузку процессора в медленном сервисе
+Compare performance before and after optimization	Сравни производительность до и после оптимизации
+Write a LinkedIn article about software delivery	Напиши статью для LinkedIn о разработке программ
+Draft an email outreach sequence	Подготовь последовательность писем для привлечения клиентов
+Plan a product launch campaign	Спланируй маркетинговую кампанию запуска продукта
+Analyze competitor positioning from evidence	Проанализируй позиционирование конкурентов по фактам
+Improve an agent system prompt	Улучши системный промпт агента
+Build an n8n webhook workflow	Сделай процесс n8n с вебхуком
+Extract structured data from public web pages	Извлеки структурированные данные с публичных страниц
+Research a technical topic with primary sources	Исследуй техническую тему по первичным источникам
+Check WordPress performance and caching	Проверь производительность и кэширование WordPress
+Debug a WordPress plugin error	Разбери ошибку плагина WordPress
+Review TypeScript type safety	Проверь безопасность типов TypeScript
+Design a maintainable backend architecture	Спроектируй удобную для поддержки архитектуру сервера
+Test rate limits and API error responses	Проверь ограничения запросов и ответы API при ошибках
+Create an accessibility checklist for forms	Подготовь проверку доступности форм
+Inspect logs to diagnose an outage	Изучи журналы для диагностики сбоя
+Configure Kubernetes readiness probes	Настрой проверки готовности Kubernetes
+Design secure file upload validation	Спроектируй безопасную проверку загружаемых файлов
+Review dependency vulnerabilities before release	Проверь уязвимости зависимостей перед релизом
+Create data validation rules for CSV imports	Создай правила проверки данных при импорте CSV
+Write documentation for an internal API	Напиши документацию внутреннего API
+Find duplicate records in a dataset	Найди повторяющиеся записи в наборе данных
+Design an evaluation for retrieval quality	Спроектируй оценку качества поиска
+Measure p95 response latency under load	Измерь задержку ответа p95 под нагрузкой
+Validate a deployment rollback procedure	Проверь процедуру отката развёртывания
+Prepare a code review checklist for a release	Подготовь список проверок кода перед релизом

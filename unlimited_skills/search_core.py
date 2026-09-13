@@ -20,6 +20,7 @@ import secrets
 import time
 from collections import Counter
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 from typing import Iterable
 
@@ -274,6 +275,18 @@ def tokens(text: str) -> set[str]:
     return result
 
 
+def looks_english(query: str) -> bool:
+    """Existing cheap routing heuristic, not a full language detector.
+
+    Latin-dominant queries (including other Latin-script languages) take the
+    English path. Keep search and suggest on the same language boundary.
+    """
+    letters = [c for c in (query or "") if c.isalpha()]
+    if not letters:
+        return True
+    return sum(c.isascii() for c in letters) / len(letters) >= 0.6
+
+
 def expanded_query(query: str) -> str:
     q_lower = (query or "").lower()
     extras = [expansion for phrase, expansion in PHRASE_EXPANSIONS.items() if phrase in q_lower]
@@ -365,6 +378,12 @@ def library_generation_hash(root: Path) -> str:
     return library_inventory_snapshot(root)[0]
 
 
+@lru_cache(maxsize=8)
+def _deduplicated_skill_count(root: Path, generation: str) -> int:
+    """Reuse identity parsing only while the complete file inventory is unchanged."""
+    return sum(1 for _ in iter_skills(root))
+
+
 def vector_sidecar_status(root: Path, path: Path, model: str) -> dict[str, object]:
     """Cheap compatibility/freshness check for the vector fast-path artifact."""
     if not path.is_file():
@@ -393,6 +412,10 @@ def vector_sidecar_status(root: Path, path: Path, model: str) -> dict[str, objec
     generation, skill_count = library_inventory_snapshot(root)
     if payload.get("library_generation_hash") != generation:
         return {"ready": False, "reason": "stale_library"}
+    # The index contains one record per skill identity; the inventory also
+    # contains shadowed copies. Only parse identities when raw counts differ.
+    if declared_count != skill_count:
+        skill_count = _deduplicated_skill_count(root.resolve(), generation)
     if declared_count != skill_count:
         return {"ready": False, "reason": "count_mismatch"}
     if dimensions <= 0:
@@ -735,6 +758,29 @@ def _read_learning_adjustments(root: Path, query: str) -> dict[str, float]:
     return learning_adjustments_for_query(root, query)
 
 
+def _vector_candidate_family(
+    vector_hits: Iterable[SkillHit], limit: int, collection: str | None
+) -> list[SkillHit]:
+    """Preserve semantic ranking without lexical ranks or score adjustments."""
+    candidates: dict[str, SkillHit] = {}
+    for hit in vector_hits:
+        if collection and hit.collection != collection:
+            continue
+        score = float(hit.score or 0.0)
+        if not math.isfinite(score) or score <= 0.0:
+            continue
+        key = _candidate_key(hit)
+        if key not in candidates or score > candidates[key].score:
+            candidates[key] = _clone_hit(hit, score=score)
+    hits = sorted(candidates.values(), key=lambda hit: (-hit.score, hit.collection, hit.name))
+    for rank, hit in enumerate(hits[:limit], start=1):
+        _set_candidate_metadata(hit, sources={"vector"}, vector_score=hit.score,
+                                vector_rank=rank, rank=rank)
+        setattr(hit, "fusion_method", "vector")
+        setattr(hit, "fusion_score", hit.score)
+    return hits[:limit]
+
+
 def shared_candidate_family(
     root: Path,
     query: str,
@@ -751,11 +797,17 @@ def shared_candidate_family(
     imports no embedding dependencies and uses the same lexical index as the
     fast ``suggest`` path. Callers with vector results pass them in, and the
     same merge/rank/source metadata is used by search, suggest, and hooks.
+    Queries classified as non-English keep pure vector ranking when vector
+    results are available; the English path retains RRF.
     """
     query = (query or "").strip()
     if not query:
         return []
     requested = max(int(limit or 1), 1)
+    if vector_hits is not None:
+        vector_hits = list(vector_hits)
+        if vector_hits and not looks_english(query):
+            return _vector_candidate_family(vector_hits, requested, collection)
     scan_limit = max(requested * 3, 12)
     adjustments = _read_learning_adjustments(root, query)
     expanded = expanded_query(query)

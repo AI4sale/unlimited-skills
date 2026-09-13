@@ -1,0 +1,23 @@
+name: Turbovec trial
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'unlimited_skills/vector_backend.py'
+      - 'tests/test_turbovec_backend.py'
+      - '.github/workflows/turbovec-trial.yml'
+permissions:
+  contents: read
+jobs:
+  trial:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install .[turbovec,server] pytest httpx
+      - run: python -m pytest tests/test_turbovec_backend.py tests/test_vector_sidecar.py tests/test_non_english_vector_ranking.py tests/test_suggest_language_routing.py tests/test_daemon_endpoint.py -q

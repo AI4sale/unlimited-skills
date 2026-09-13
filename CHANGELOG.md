@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.6.10rc1 - Turbovec trial
+
+- Add opt-in `turbovec` and `numpy` vector backends with bounded process caches,
+  collection filtering and exact cosine reranking.
+- Preserve deployed non-English semantic ranking and shadowed-skill count
+  validation; cache identity counts while the inventory generation is unchanged.
+- Expose backend identity in daemon health and reject a mismatched daemon.
+- Add bilingual benchmark queries, local comparison tooling and optional-backend
+  regression checks. See `docs/turbovec-trial.md` for trial setup and limits.
+
 ## Unreleased
 
 ## 0.6.9 - 2026-08-05

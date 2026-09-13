@@ -1,0 +1,76 @@
+{
+  "schema_version": 1,
+  "python": "3.11.15",
+  "platform": "Windows",
+  "model": "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+  "corpus_count": 524,
+  "dimensions": 384,
+  "query_count": 100,
+  "queries_per_language": 50,
+  "query_kind": "authored representative queries, not production log replay",
+  "quality_metric": "top10 agreement with exact cosine; not human relevance recall",
+  "backend_ms_excludes": "query embedding, HTTP transport and generation",
+  "results": {
+    "python": {
+      "p50_ms": 1390.675,
+      "p95_ms": 1537.291,
+      "top10_agreement": 1.0,
+      "top1_agreement": 1.0,
+      "by_language": {
+        "en": 1.0,
+        "ru": 1.0
+      }
+    },
+    "numpy": {
+      "p50_ms": 353.436,
+      "p95_ms": 389.873,
+      "top10_agreement": 1.0,
+      "top1_agreement": 1.0,
+      "by_language": {
+        "en": 1.0,
+        "ru": 1.0
+      }
+    },
+    "turbovec": {
+      "p50_ms": 358.475,
+      "p95_ms": 393.502,
+      "top10_agreement": 1.0,
+      "top1_agreement": 1.0,
+      "by_language": {
+        "en": 1.0,
+        "ru": 1.0
+      }
+    }
+  },
+  "kernel": {
+    "numpy": {
+      "p50_ms": 0.703,
+      "p95_ms": 1.317
+    },
+    "turbovec": {
+      "p50_ms": 0.287,
+      "p95_ms": 0.576
+    }
+  },
+  "baseline_timings_reused": true,
+  "storage": {
+    "float32_vectors_bytes": 804864,
+    "compressed_serialized_bytes": 555603,
+    "trial_retains_float32_for_rerank": true,
+    "note": "These are vector payload sizes, not process RAM; quantizer runtime overhead is additional."
+  },
+  "e2e_local_ms": {
+    "python": {
+      "p50_ms": 1824.78,
+      "p95_ms": 1892.379
+    },
+    "numpy": {
+      "p50_ms": 767.529,
+      "p95_ms": 885.204
+    },
+    "turbovec": {
+      "p50_ms": 680.18,
+      "p95_ms": 742.894
+    }
+  }
+}

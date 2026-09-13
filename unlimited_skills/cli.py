@@ -322,6 +322,10 @@ def load_vector_sidecar(root: Path, model: str) -> list[dict] | None:
 
 
 def vector_search_sidecar(root: Path, query: str, limit: int, model: str, collection_name: str | None = None) -> list[SkillHit] | None:
+    from .vector_backend import accelerated_search, selected_backend
+    backend = selected_backend()
+    if backend != "python":
+        return accelerated_search(root, query, limit, model, collection_name, backend)
     payload = load_vector_sidecar_payload(root, model)
     if payload is None:
         return None
