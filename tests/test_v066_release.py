@@ -19,7 +19,7 @@ def load_publication_verifier():
     return module
 
 
-def test_v069_versions_and_release_history_are_aligned() -> None:
+def test_trial_versions_align_and_stable_release_history_is_preserved() -> None:
     pyproject = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
     runtime = (ROOT / "unlimited_skills" / "__init__.py").read_text(encoding="utf-8")
     plugin = json.loads((ROOT / "plugin" / ".claude-plugin" / "plugin.json").read_text(encoding="utf-8"))
@@ -28,10 +28,11 @@ def test_v069_versions_and_release_history_are_aligned() -> None:
     pypi_readme = (ROOT / "README-pypi.md").read_text(encoding="utf-8")
     changelog = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     plan = (ROOT / "docs" / "releases" / "v0.6.9-plan.md").read_text(encoding="utf-8")
-    assert 'version = "0.6.9"' in pyproject
-    assert '__version__ = "0.6.9"' in runtime
-    assert plugin["version"] == "0.6.9"
-    assert marketplace["plugins"][0]["version"] == "0.6.9"
+    assert 'version = "0.6.10rc2"' in pyproject
+    assert '__version__ = "0.6.10rc2"' in runtime
+    assert plugin["version"] == "0.6.10rc2"
+    assert marketplace["plugins"][0]["version"] == "0.6.10rc2"
+    assert "## 0.6.10rc2" in changelog
     assert "**v0.6.9 / pre-1.0.**" in readme
     assert "This is `v0.6.9`, the stable" in pypi_readme
     assert "unlimited-skills==0.6.9" in pypi_readme

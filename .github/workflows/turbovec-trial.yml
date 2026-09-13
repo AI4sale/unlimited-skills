@@ -3,7 +3,8 @@ on:
   workflow_dispatch:
   pull_request:
     paths:
-      - 'unlimited_skills/vector_backend.py'
+      - 'unlimited_skills/**'
+      - 'pyproject.toml'
       - 'tests/test_turbovec_backend.py'
       - '.github/workflows/turbovec-trial.yml'
 permissions:

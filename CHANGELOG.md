@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.6.10rc2 - Trial release metadata alignment
+
+- Align plugin/marketplace versions, fleet capability assertions, the money
+  report fixture and the frozen-contract version check with the trial package.
+- Keep stable v0.6.9 installation guidance and release history unchanged.
+- Supersede rc1, whose full CI found these five version-alignment failures.
+
 ## 0.6.10rc1 - Turbovec trial
 
 - Add opt-in `turbovec` and `numpy` vector backends with bounded process caches,

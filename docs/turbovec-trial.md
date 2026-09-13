@@ -1,4 +1,4 @@
-# Turbovec search trial: 0.6.10rc1
+# Turbovec search trial: 0.6.10rc2
 
 This prerelease adds an opt-in vector backend. The stable package and default
 `python` backend remain available. Use an isolated virtual environment for the
@@ -9,7 +9,7 @@ trial, with the existing library as its source.
 Download the wheel from the GitHub prerelease, then in a dedicated environment:
 
 ```powershell
-python -m pip install ./unlimited_skills-0.6.10rc1-py3-none-any.whl
+python -m pip install ./unlimited_skills-0.6.10rc2-py3-none-any.whl
 python -m pip install 'turbovec==1.0.0' 'fastembed>=0.4' 'fastapi>=0.115' 'uvicorn>=0.30'
 $env:UNLIMITED_SKILLS_VECTOR_BACKEND = 'turbovec'
 $env:UNLIMITED_SKILLS_WARM_DAEMON_URL = 'http://127.0.0.1:18766'

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "unlimited-skills"
-version = "0.6.10rc1"
+version = "0.6.10rc2"
 description = "Governed skill infrastructure for AI agent fleets, with a local-first open-source core."
 readme = "README-pypi.md"
 requires-python = ">=3.10"
