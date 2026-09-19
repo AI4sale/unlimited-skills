@@ -695,6 +695,10 @@ class FleetReconciler:
             }
             for item in desired["items"]
         ]
+        if "independent-items-v1" in desired.get("required_extensions", []):
+            from .independent import reconcile_independent
+            with self.spool.cached_progress():
+                return reconcile_independent(self, desired, inventory, already_seen=already_seen)
         if isinstance(self.adapter, InventoryAgentAdapter):
             return self._reconcile_inventory(
                 desired,

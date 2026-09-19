@@ -1,6 +1,6 @@
 {
   "name": "unlimited-skills",
-  "version": "0.6.9",
+  "version": "0.6.10rc2",
   "description": "Unlimited Skills for Claude Code: governed skill discovery, security-gated installation, local retrieval, and optional owner-controlled business context.",
   "author": {
     "name": "AI4sale"

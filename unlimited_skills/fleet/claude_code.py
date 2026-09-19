@@ -623,7 +623,6 @@ def _active_inventory(
     if (
         not isinstance(raw_inventory, list)
         or not raw_inventory
-        or len(raw_inventory) > MAX_ITEMS
     ):
         raise ClaudeCodeFleetAdapterError("active_state_invalid")
     inventory: list[dict[str, Any]] = []
@@ -1318,7 +1317,7 @@ class ClaudeCodeFleetAdapter:
         activation_nonces: Mapping[str, str],
     ) -> None:
         self._assert_state_root()
-        if not items or len(items) > MAX_ITEMS:
+        if not items:
             raise ClaudeCodeFleetAdapterError(
                 "managed_inventory_invalid"
             )

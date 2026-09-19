@@ -6,6 +6,7 @@ import json
 import os
 import re
 import tempfile
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
@@ -24,6 +25,24 @@ class ReceiptSpoolError(RuntimeError):
 class ReceiptSpool:
     def __init__(self, root: Path) -> None:
         self.root = Path(root)
+        self._cycle_progress = None
+
+    @contextmanager
+    def cached_progress(self):
+        """One exclusive reconcile cycle; durable files remain authoritative."""
+        progress = self._read_sequence_state()
+        for receipt in self._all_pending():
+            key = receipt['attempt_id']
+            row = (receipt['event_seq'], receipt['event_type'], receipt['runtime_generation'])
+            old = progress.get(key, (0, '', ''))
+            if row[0] > old[0]: progress[key] = row
+            elif row[0] == old[0] and row[1:] != old[1:]:
+                raise ReceiptSpoolError('sequence_event_conflict')
+        self._cycle_progress = progress
+        try:
+            yield
+        finally:
+            self._cycle_progress = None
 
     def _ensure_root(self) -> None:
         self.root.mkdir(parents=True, exist_ok=True)
@@ -158,7 +177,7 @@ class ReceiptSpool:
         event_seq = int(receipt["event_seq"])
         event_type = str(receipt["event_type"])
         runtime_generation = str(receipt["runtime_generation"])
-        attempts = self._read_sequence_state()
+        attempts = self._cycle_progress if self._cycle_progress is not None else self._read_sequence_state()
         current_seq, current_type, current_generation = attempts.get(
             attempt_id,
             (0, "", ""),
@@ -220,6 +239,8 @@ class ReceiptSpool:
         return output
 
     def last_event_sequence(self, attempt_id: str) -> int:
+        if self._cycle_progress is not None:
+            return self._cycle_progress.get(str(attempt_id), (0, '', ''))[0]
         safe_attempt_id = str(attempt_id)
         if not safe_attempt_id:
             raise ReceiptSpoolError("invalid_attempt_id")
@@ -236,6 +257,8 @@ class ReceiptSpool:
         self,
         attempt_id: str,
     ) -> tuple[int, str, str]:
+        if self._cycle_progress is not None:
+            return self._cycle_progress.get(str(attempt_id), (0, '', ''))
         safe_attempt_id = str(attempt_id)
         if not safe_attempt_id:
             raise ReceiptSpoolError("invalid_attempt_id")
@@ -324,9 +347,10 @@ class ReceiptSpool:
         self._record_event_sequence(normalized)
         return target
 
-    def pending(self, *, limit: int = 256) -> list[dict[str, Any]]:
+    def pending(self, *, limit: int = 256, exclude_attempts: Iterable[str] = ()) -> list[dict[str, Any]]:
         safe_limit = max(1, min(int(limit), 256))
-        return self._all_pending()[:safe_limit]
+        excluded = set(exclude_attempts)
+        return [r for r in self._all_pending() if r['attempt_id'] not in excluded][:safe_limit]
 
     def acknowledge(self, event_ids: Iterable[str]) -> int:
         if not self.root.is_dir():

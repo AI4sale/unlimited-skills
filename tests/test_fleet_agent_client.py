@@ -271,7 +271,7 @@ def test_fcp008c_client_capabilities_are_exact_and_version_bound() -> None:
     assert FLEET_CLIENT_VERSION_CAPABILITY == (
         f"client-version-{__version__}"
     )
-    assert __version__ == "0.6.9"
+    assert __version__ == "0.6.10rc2"
 
 
 def test_local_instance_uuid4_is_created_once_under_concurrency(
@@ -541,6 +541,33 @@ def test_run_once_registers_heartbeats_and_reconciles_signed_desired(
     assert result.receipt_upload.pending_count == 0
 
 
+def test_run_once_decodes_paged_heartbeat_before_reconciliation(tmp_path: Path) -> None:
+    desired = sign_desired_for_agent("agent_fleet_client_01")
+    raw = json.dumps(desired, sort_keys=True, separators=(",", ":")).encode()
+    page = {
+        "format": "paged-inventory-v1", "revision": desired["desired_state_revision"],
+        "sha256": "sha256:" + hashlib.sha256(raw).hexdigest(),
+        "size_bytes": len(raw), "offset": 0, "next_offset": len(raw),
+        "eof": True, "content_b64": base64.b64encode(raw).decode(),
+    }
+
+    def transport(state, path, payload, **kwargs):
+        if path == "/v1/fleet/agents/register":
+            assert "paged-inventory-v1" in payload["reported_capabilities"]
+            return registration_response(local_instance_id=payload["local_instance_id"])
+        if path == "/v1/fleet/heartbeat":
+            assert payload["inventory_transport"] == "paged-inventory-v1"
+            return {**heartbeat_response(desired_state=None), "desired_state_transfer": page}
+        if path == "/v1/fleet/receipts":
+            return receipt_response(payload)
+        raise AssertionError(path)
+
+    result = client(tmp_path, transport).run_once()
+    assert result.desired_state_received
+    assert result.reconcile_result is not None
+    assert result.receipt_upload.pending_count == 0
+
+
 def test_atomic_receipt_rejection_keeps_the_entire_spool(
     tmp_path: Path,
 ) -> None:
@@ -623,6 +650,25 @@ def test_stale_attempt_response_retires_terminal_receipts(
     assert result.receipt_upload.outcome == "stale_attempt"
     assert result.receipt_upload.pending_count == 0
     assert instance.spool.pending() == []
+
+
+def test_independent_upload_defers_only_rejected_attempt(tmp_path: Path) -> None:
+    def transport(state, path, payload, **kwargs):
+        failed = next((r for r in payload['receipts'] if r['attempt_id']=='attempt_bad'), None)
+        if failed:
+            return receipt_response(payload, outcome='sequence_gap', accepted_event_ids=[],
+                rejected_events=[{'event_id':failed['event_id'],'reason_code':'invalid_event_sequence'}])
+        return receipt_response(payload)
+    instance=client(tmp_path,transport)
+    instance.reported_capabilities += ('independent-items-v1',)
+    template=json.loads((ROOT/'contracts/fleet/v1/fixtures/valid/receipt-runtime-attested.json').read_text())
+    for name in ('bad','good_a','good_b'):
+        row={**template,'attempt_id':'attempt_'+name,'event_id':'evt_'+name,'idempotency_key':'evt_'+name}
+        instance.spool.append(row)
+    identity=instance.identity_store.bind_agent(instance.identity_store.load_or_create('uls_inst_fleet_client'),'agent_fleet_client_01')
+    result=instance.upload_pending_receipts(identity)
+    assert result.accepted_count==2 and result.pending_count==1 and result.outcome=='partial'
+    assert instance.spool.pending()[0]['attempt_id']=='attempt_bad'
 
 
 def test_receipt_upload_chunks_at_100_and_acks_duplicates(

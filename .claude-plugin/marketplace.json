@@ -11,7 +11,7 @@
       "name": "unlimited-skills",
       "source": "./plugin",
       "description": "Governed skill discovery with security-gated installation, local retrieval, and optional owner-controlled business context for Claude Code. Requires the unlimited-skills CLI: pip install unlimited-skills.",
-      "version": "0.6.9",
+      "version": "0.6.10rc2",
       "author": {
         "name": "AI4sale"
       },

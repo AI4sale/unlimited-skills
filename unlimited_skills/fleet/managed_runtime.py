@@ -97,7 +97,6 @@ def _runtime_active_inventory(
     if (
         not isinstance(raw_inventory, list)
         or not raw_inventory
-        or len(raw_inventory) > MAX_MANAGED_PACKS
     ):
         raise error_type("active_state_invalid")
     inventory: list[dict[str, Any]] = []
@@ -123,6 +122,28 @@ def _runtime_active_inventory(
         raise error_type("active_state_invalid")
     if skills_root.is_symlink() or not skills_root.is_dir():
         raise error_type("managed_skills_directory_invalid")
+    if state.get('independent_items'):
+        selected = {p['pack_id']:p for p in state.get('active_packs', [])}
+        available = []
+        trees = {}
+        for row in inventory:
+            pack = selected.get(row['pack_id'], {})
+            name = pack.get('skill_directory', '')
+            if not name or Path(name).name != name:
+                continue
+            path = skills_root/name
+            try:
+                if path.is_symlink() or not path.is_dir():continue
+                tree = _tree_digest(path)
+                if tree != pack.get('skills_tree_sha256'):continue
+            except (OSError, ManagedFleetAdapterError):
+                continue
+            available.append(row)
+            trees[row['pack_id']] = tree
+        # One unreadable/corrupt package is absent from observed inventory.
+        # Its own attestation reports failure; healthy peers remain usable.
+        return (available, managed_inventory_digest(available),
+                _sha256_bytes(canonical_json_bytes(trees)), False)
     observed_tree = _tree_digest(skills_root)
     expected_tree = str(state.get("skills_tree_sha256") or "")
     drifted = observed_tree != expected_tree
@@ -223,11 +244,15 @@ def record_managed_runtime_observation(
             error_type=error_type,
         )
     )
-    del inventory
     nonces, revisions, archives = _runtime_pack_maps(
         state,
         error_type=error_type,
     )
+    if state.get('independent_items'):
+        present = {row['pack_id'] for row in inventory}
+        nonces = {k:v for k,v in nonces.items() if k in present}
+        revisions = {k:v for k,v in revisions.items() if k in present}
+        archives = {k:v for k,v in archives.items() if k in present}
     state_digest = _state_digest(state)
     generation_hash = hashlib.sha256(
         (
@@ -753,7 +778,7 @@ class ManagedRuntimeFleetAdapter:
         activation_nonces: Mapping[str, str],
     ) -> None:
         self._assert_state_root()
-        if not items or len(items) > MAX_MANAGED_PACKS:
+        if not items:
             raise self.error_type("managed_inventory_invalid")
         normalized_items = sorted(
             [dict(item) for item in items],
@@ -938,6 +963,14 @@ class ManagedRuntimeFleetAdapter:
                 str(item["pack_id"]): activation_nonce
             },
         )
+
+    def activate_independent(self, item):
+        from .independent_runtime import activate
+        activate(self, item)
+
+    def attest_independent(self, item):
+        from .independent_runtime import attest
+        return attest(self, item)
 
     def rollback_revision(
         self,

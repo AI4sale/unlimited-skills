@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "unlimited-skills"
-version = "0.6.9"
+version = "0.6.10rc2"
 description = "Governed skill infrastructure for AI agent fleets, with a local-first open-source core."
 readme = "README-pypi.md"
 requires-python = ">=3.10"
@@ -34,6 +34,11 @@ Changelog = "https://github.com/AI4sale/unlimited-skills/blob/main/CHANGELOG.md"
 Documentation = "https://github.com/AI4sale/unlimited-skills/tree/main/docs"
 
 [project.optional-dependencies]
+turbovec = [
+  "turbovec==1.0.0",
+  "numpy>=1.24,<3",
+  "fastembed>=0.4",
+]
 vector = [
   "chromadb>=1.0,<2",
   "fastembed>=0.4",
