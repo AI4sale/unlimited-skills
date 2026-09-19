@@ -3,11 +3,21 @@ from __future__ import annotations
 import os
 import secrets
 import shutil
-import tempfile
 from .adapter import RuntimeAttestation
 from .claude_code import (_read_json_object, _optional_json_object, _atomic_write_json,
     _tree_digest, _opaque_segment, _inventory_row, managed_inventory_digest,
     _state_digest, _runtime_marker_matches_history, _utc_now)
+
+
+def _remove_owned_tree(path):
+    # Installed payloads are read-only, including their directories. Only
+    # private staging/backup copies are made writable for cleanup.
+    for current, directories, files in os.walk(path, followlinks=False):
+        os.chmod(current, 0o700)
+        for name in files:
+            child = os.path.join(current, name)
+            if not os.path.islink(child): os.chmod(child, 0o600)
+    shutil.rmtree(path)
 
 
 def activate(adapter, item):
@@ -48,9 +58,15 @@ def activate(adapter, item):
         shutil.copytree(source, staged)
         if _tree_digest(staged) != meta['skills_tree_sha256']:
             raise adapter.error_type('activation_payload_mismatch')
-        if had_previous: os.replace(target, backup)
+        # POSIX needs write permission when moving a directory to a different
+        # parent. copytree preserves the immutable release's 0555 mode.
+        os.chmod(staged, 0o700)
+        if had_previous:
+            os.chmod(target, 0o700)
+            os.replace(target, backup)
         try:
             os.replace(staged, target)
+            os.chmod(target, 0o555)
             changed = True
             packs[pack] = {**_inventory_row(item), 'version':item['version'], 'activation_nonce':item['activation_nonce'],
                 'skills_tree_sha256':meta['skills_tree_sha256'], 'skill_names':names,
@@ -65,12 +81,14 @@ def activate(adapter, item):
                 'skills_tree_sha256':_tree_digest(adapter.skills_root),'activated_at':_utc_now()}
             _atomic_write_json(state_path,value)
         except Exception:
-            if changed: shutil.rmtree(target)
-            if backup.exists(): os.replace(backup,target)
+            if changed: _remove_owned_tree(target)
+            if backup.exists():
+                os.replace(backup,target)
+                os.chmod(target, 0o555)
             raise
     finally:
-        if staged.exists(): shutil.rmtree(staged)
-        if backup.exists(): shutil.rmtree(backup)
+        if staged.exists(): _remove_owned_tree(staged)
+        if backup.exists(): _remove_owned_tree(backup)
 
 
 def attest(adapter, item):
