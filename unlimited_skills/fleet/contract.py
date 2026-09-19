@@ -260,7 +260,8 @@ def _base_fields(payload: Mapping[str, Any], message_type: str) -> None:
         raise FleetContractError("message_type_mismatch")
     required_extensions = payload.get("required_extensions", [])
     if required_extensions != [] and not (
-        message_type == "desired-state" and required_extensions == [PAGED_INVENTORY]
+        message_type == "desired-state" and isinstance(required_extensions, list)
+        and bool(required_extensions) and set(required_extensions) <= {PAGED_INVENTORY, "independent-items-v1"}
     ):
         raise FleetContractError("unknown_required_semantic")
 
@@ -300,7 +301,7 @@ def validate_desired_state(payload: Mapping[str, Any]) -> dict[str, Any]:
     if expires_at <= issued_at:
         raise FleetContractError("invalid_expiry_window")
     items = payload.get("items")
-    if not isinstance(items, list) or not items or (len(items) > MAX_ITEMS and payload.get("required_extensions") != [PAGED_INVENTORY]):
+    if not isinstance(items, list) or not items or (len(items) > MAX_ITEMS and PAGED_INVENTORY not in payload.get("required_extensions", [])):
         raise FleetContractError("invalid_items")
     pack_ids: set[str] = set()
     for index, item in enumerate(items):

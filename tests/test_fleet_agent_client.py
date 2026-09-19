@@ -652,6 +652,25 @@ def test_stale_attempt_response_retires_terminal_receipts(
     assert instance.spool.pending() == []
 
 
+def test_independent_upload_defers_only_rejected_attempt(tmp_path: Path) -> None:
+    def transport(state, path, payload, **kwargs):
+        failed = next((r for r in payload['receipts'] if r['attempt_id']=='attempt_bad'), None)
+        if failed:
+            return receipt_response(payload, outcome='sequence_gap', accepted_event_ids=[],
+                rejected_events=[{'event_id':failed['event_id'],'reason_code':'invalid_event_sequence'}])
+        return receipt_response(payload)
+    instance=client(tmp_path,transport)
+    instance.reported_capabilities += ('independent-items-v1',)
+    template=json.loads((ROOT/'contracts/fleet/v1/fixtures/valid/receipt-runtime-attested.json').read_text())
+    for name in ('bad','good_a','good_b'):
+        row={**template,'attempt_id':'attempt_'+name,'event_id':'evt_'+name,'idempotency_key':'evt_'+name}
+        instance.spool.append(row)
+    identity=instance.identity_store.bind_agent(instance.identity_store.load_or_create('uls_inst_fleet_client'),'agent_fleet_client_01')
+    result=instance.upload_pending_receipts(identity)
+    assert result.accepted_count==2 and result.pending_count==1 and result.outcome=='partial'
+    assert instance.spool.pending()[0]['attempt_id']=='attempt_bad'
+
+
 def test_receipt_upload_chunks_at_100_and_acks_duplicates(
     tmp_path: Path,
 ) -> None:

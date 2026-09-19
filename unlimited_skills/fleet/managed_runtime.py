@@ -938,6 +938,14 @@ class ManagedRuntimeFleetAdapter:
             },
         )
 
+    def activate_independent(self, item):
+        from .independent_runtime import activate
+        activate(self, item)
+
+    def attest_independent(self, item):
+        from .independent_runtime import attest
+        return attest(self, item)
+
     def rollback_revision(
         self,
         item: Mapping[str, Any],

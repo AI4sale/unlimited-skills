@@ -418,7 +418,8 @@ class FleetAgentClient:
         self.spool = spool
         self.client_version = client_version
         self.reported_capabilities = tuple(
-            sorted(set(str(value) for value in reported_capabilities) | {"paged-inventory-v1"})
+            sorted(set(str(value) for value in reported_capabilities) | {"paged-inventory-v1"}
+                   | ({"independent-items-v1"} if callable(getattr(adapter, "activate_independent", None)) else set()))
         )
         self.organization_id = organization_id
         self.timeout = max(1.0, float(timeout))
@@ -590,8 +591,10 @@ class FleetAgentClient:
         accepted_count = 0
         duplicate_count = 0
         final_outcome = "accepted"
+        deferred_attempts = set()
+        isolated = "independent-items-v1" in self.reported_capabilities
         while True:
-            receipts = self.spool.pending(limit=100)
+            receipts = self.spool.pending(limit=100, exclude_attempts=deferred_attempts)
             if not receipts:
                 break
             receipt_bytes = json.dumps(
@@ -684,6 +687,9 @@ class FleetAgentClient:
                     raise FleetAgentClientError(
                         "fleet_receipt_atomic_response_invalid"
                     )
+                if isolated and rejected_ids:
+                    deferred_attempts.update(r['attempt_id'] for r in receipts if r['event_id'] in rejected_ids)
+                    continue
                 break
             if returned_ids != sent_ids:
                 raise FleetAgentClientError(
@@ -703,10 +709,15 @@ class FleetAgentClient:
             accepted_count=accepted_count,
             duplicate_count=duplicate_count,
             pending_count=len(self.spool.pending(limit=256)),
-            outcome=final_outcome,
+            outcome="partial" if deferred_attempts else final_outcome,
         )
 
     def run_once(self) -> FleetAgentRunResult:
+        from .locking import local_writer
+        with local_writer(self.reconcile_state_path.with_suffix('.lock')):
+            return self._run_once()
+
+    def _run_once(self) -> FleetAgentRunResult:
         identity = self.register()
         try:
             inventory = self.adapter.discover()
