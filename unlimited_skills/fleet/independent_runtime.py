@@ -66,8 +66,8 @@ def activate(adapter, item):
             os.replace(target, backup)
         try:
             os.replace(staged, target)
-            os.chmod(target, 0o555)
             changed = True
+            os.chmod(target, 0o555)
             packs[pack] = {**_inventory_row(item), 'version':item['version'], 'activation_nonce':item['activation_nonce'],
                 'skills_tree_sha256':meta['skills_tree_sha256'], 'skill_names':names,
                 'skill_directory':directory}
@@ -78,7 +78,8 @@ def activate(adapter, item):
                 'active_packs':active,'managed_inventory':inventory,
                 'activation_marker':'activation_'+secrets.token_urlsafe(24),
                 'expected_inventory_digest':managed_inventory_digest(inventory),
-                'skills_tree_sha256':_tree_digest(adapter.skills_root),'activated_at':_utc_now()}
+                'skills_tree_sha256':_state_digest({p['pack_id']:p['skills_tree_sha256'] for p in active}),
+                'activated_at':_utc_now()}
             _atomic_write_json(state_path,value)
         except Exception:
             if changed: _remove_owned_tree(target)

@@ -73,3 +73,39 @@ def test_real_adapter_preserves_peer_and_previous_version_on_collision(tmp_path)
     assert json.loads((adapter.state_root/'active.json').read_text())==state
     inventory=adapter.discover()
     assert inventory.active_revisions=={'pack_a':a['release_id'],'pack_b':b['release_id']}
+
+
+def test_unreadable_selected_package_does_not_block_peer_or_new_activation(tmp_path, monkeypatch):
+    from tests.test_fleet_codex_adapter import PackClient, archive, adapter as make_adapter, item
+    from unlimited_skills.fleet import managed_runtime
+    client=PackClient({key:('1',archive(name)) for key,name in [('a','alpha'),('b','beta'),('c','gamma')]})
+    adapter=make_adapter(tmp_path,client)
+    for key in ('a','b'):
+        current=item(client,key,'nonce_'+key)
+        adapter.install_revision(current);adapter.activate_independent(current)
+    state=json.loads((adapter.state_root/'active.json').read_text())
+    damaged=next(p['skill_directory'] for p in state['active_packs'] if p['pack_id']=='a')
+    real=managed_runtime._tree_digest
+    def unreadable(path):
+        if damaged in path.parts:raise PermissionError('unreadable package')
+        return real(path)
+    monkeypatch.setattr(managed_runtime,'_tree_digest',unreadable)
+    assert set(adapter.discover().active_revisions)=={'b'}
+    current=item(client,'c','nonce_c')
+    adapter.install_revision(current);adapter.activate_independent(current)
+    assert set(adapter.discover().active_revisions)=={'b','c'}
+
+
+def test_attestation_io_failure_continues_with_other_packages(tmp_path):
+    adapter=IndependentFake();adapter.fail=''
+    original=adapter.attest_independent
+    def attest(item):
+        if item['pack_id']=='pack_0':raise OSError('temporary read error')
+        return original(item)
+    adapter.attest_independent=attest
+    desired=large_desired();desired['items']=desired['items'][:3]
+    desired=sign_desired(desired)
+    result=reconciler(tmp_path,adapter).reconcile(desired)
+    assert len(adapter.active)==3
+    assert sum(r['event_type']=='FAILED_RETRYABLE' for r in result.receipts)==1
+    assert sum(r['event_type']=='RUNTIME_ATTESTED' for r in result.receipts)==2

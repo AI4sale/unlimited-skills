@@ -91,4 +91,7 @@ def reconcile_independent(owner, desired, inventory, *, already_seen):
         except ReconcileError:
             pending = True
             owner._spool_receipt(receipts, owner._receipt_builder(context, item), "FAILED_TERMINAL", reason_code="runtime_attestation_invalid")
+        except Exception:
+            pending = True
+            owner._spool_receipt(receipts, owner._receipt_builder(context, item), "FAILED_RETRYABLE", reason_code="adapter_unavailable")
     return owner._result(desired, receipts, activation_pending=pending, already_seen=True)
