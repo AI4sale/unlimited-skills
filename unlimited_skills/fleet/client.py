@@ -418,7 +418,7 @@ class FleetAgentClient:
         self.spool = spool
         self.client_version = client_version
         self.reported_capabilities = tuple(
-            sorted(set(str(value) for value in reported_capabilities))
+            sorted(set(str(value) for value in reported_capabilities) | {"paged-inventory-v1"})
         )
         self.organization_id = organization_id
         self.timeout = max(1.0, float(timeout))
@@ -529,6 +529,7 @@ class FleetAgentClient:
             "client_timestamp": utc_now(),
             "runtime_generation": inventory.runtime_generation,
             "active_inventory_digest": inventory.inventory_digest,
+            "inventory_transport": "paged-inventory-v1",
             "required_extensions": [],
         }
         try:
@@ -546,6 +547,9 @@ class FleetAgentClient:
             raise FleetAgentClientError(
                 "fleet_heartbeat_agent_mismatch"
             )
+        transfer = response.get("desired_state_transfer")
+        if transfer is not None:
+            response["desired_state"] = self._download_desired(identity, request, transfer)
         desired = response.get("desired_state")
         if desired is not None:
             try:
@@ -560,6 +564,14 @@ class FleetAgentClient:
                     "fleet_desired_agent_binding_mismatch"
                 )
         return response
+
+    def _download_desired(self, identity, request, first):
+        from .paged_inventory import download_desired
+        return download_desired(
+            first, agent_id=identity.agent_id, installation_id=identity.installation_id,
+            fetch=lambda cursor: self._send("/v1/fleet/heartbeat", {**request, "desired_state_transfer": cursor}),
+            public_keys=self.public_keys,
+        )
 
     def upload_pending_receipts(
         self,

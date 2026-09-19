@@ -541,6 +541,33 @@ def test_run_once_registers_heartbeats_and_reconciles_signed_desired(
     assert result.receipt_upload.pending_count == 0
 
 
+def test_run_once_decodes_paged_heartbeat_before_reconciliation(tmp_path: Path) -> None:
+    desired = sign_desired_for_agent("agent_fleet_client_01")
+    raw = json.dumps(desired, sort_keys=True, separators=(",", ":")).encode()
+    page = {
+        "format": "paged-inventory-v1", "revision": desired["desired_state_revision"],
+        "sha256": "sha256:" + hashlib.sha256(raw).hexdigest(),
+        "size_bytes": len(raw), "offset": 0, "next_offset": len(raw),
+        "eof": True, "content_b64": base64.b64encode(raw).decode(),
+    }
+
+    def transport(state, path, payload, **kwargs):
+        if path == "/v1/fleet/agents/register":
+            assert "paged-inventory-v1" in payload["reported_capabilities"]
+            return registration_response(local_instance_id=payload["local_instance_id"])
+        if path == "/v1/fleet/heartbeat":
+            assert payload["inventory_transport"] == "paged-inventory-v1"
+            return {**heartbeat_response(desired_state=None), "desired_state_transfer": page}
+        if path == "/v1/fleet/receipts":
+            return receipt_response(payload)
+        raise AssertionError(path)
+
+    result = client(tmp_path, transport).run_once()
+    assert result.desired_state_received
+    assert result.reconcile_result is not None
+    assert result.receipt_upload.pending_count == 0
+
+
 def test_atomic_receipt_rejection_keeps_the_entire_spool(
     tmp_path: Path,
 ) -> None:

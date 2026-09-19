@@ -26,7 +26,8 @@ FLEET_CONTRACT_BUNDLE_REVISION = 2
 DESIRED_STATE_SIGNING_ROLE = "fleet-desired-state-signing"
 MAX_MESSAGE_BYTES = 256 * 1024
 MAX_ID_CHARS = 160
-MAX_ITEMS = 256
+MAX_ITEMS = 256  # Legacy inline v1 only; paged inventories have no item cap.
+PAGED_INVENTORY = "paged-inventory-v1"
 ALLOWED_ACTIONS = {"activate", "rollback"}
 CLIENT_EVENT_TYPES = {
     "DESIRED_SEEN",
@@ -258,7 +259,9 @@ def _base_fields(payload: Mapping[str, Any], message_type: str) -> None:
     if payload.get("message_type") != message_type:
         raise FleetContractError("message_type_mismatch")
     required_extensions = payload.get("required_extensions", [])
-    if required_extensions != []:
+    if required_extensions != [] and not (
+        message_type == "desired-state" and required_extensions == [PAGED_INVENTORY]
+    ):
         raise FleetContractError("unknown_required_semantic")
 
 
@@ -297,7 +300,7 @@ def validate_desired_state(payload: Mapping[str, Any]) -> dict[str, Any]:
     if expires_at <= issued_at:
         raise FleetContractError("invalid_expiry_window")
     items = payload.get("items")
-    if not isinstance(items, list) or not items or len(items) > MAX_ITEMS:
+    if not isinstance(items, list) or not items or (len(items) > MAX_ITEMS and payload.get("required_extensions") != [PAGED_INVENTORY]):
         raise FleetContractError("invalid_items")
     pack_ids: set[str] = set()
     for index, item in enumerate(items):

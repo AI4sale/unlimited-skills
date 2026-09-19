@@ -97,7 +97,6 @@ def _runtime_active_inventory(
     if (
         not isinstance(raw_inventory, list)
         or not raw_inventory
-        or len(raw_inventory) > MAX_MANAGED_PACKS
     ):
         raise error_type("active_state_invalid")
     inventory: list[dict[str, Any]] = []
@@ -753,7 +752,7 @@ class ManagedRuntimeFleetAdapter:
         activation_nonces: Mapping[str, str],
     ) -> None:
         self._assert_state_root()
-        if not items or len(items) > MAX_MANAGED_PACKS:
+        if not items:
             raise self.error_type("managed_inventory_invalid")
         normalized_items = sorted(
             [dict(item) for item in items],
